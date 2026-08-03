@@ -850,7 +850,7 @@ def patients():
         sql = 'SELECT id, full_name, dni, date_of_birth, phone, email, sex, blood_type, allergies, status, medical_record_number, created_at FROM patients WHERE tenant_id = ?'
         params = [tenant_id]
         if query:
-            sql += ' AND (full_name LIKE ? OR dni LIKE ? OR email LIKE ?)' 
+            sql += ' AND (LOWER(full_name) LIKE LOWER(?) OR dni LIKE ? OR email LIKE ?)' 
             pattern = f'%{query}%'
             params.extend([pattern, pattern, pattern])
         sql += ' ORDER BY id DESC'

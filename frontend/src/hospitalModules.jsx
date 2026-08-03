@@ -47,11 +47,11 @@ export function Patients(){
 
       <div className="card">
         <h2>Buscar paciente</h2>
+        <p className="collection-total">Número total de elementos: {patients.length}</p>
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar por nombre, DNI o correo" />
         <button onClick={() => load(query)} style={{ marginLeft: 8 }}>Buscar</button>
         <div className="items-grid" style={{ marginTop: 16 }}>
           {patients.map(patient => (
-            <div key={patient.id} className="item-card">
               <h3>{patient.full_name}</h3>
               <p>DNI: {patient.dni}</p>
               <p>HC: {patient.medical_record_number}</p>
@@ -114,6 +114,7 @@ export function Consultations(){
       </div>
       <div className="card">
         <h2>Consultas recientes</h2>
+        <p className="collection-total">Número total de elementos: {consultations.length}</p>
         <div className="items-grid">
           {consultations.map(item => (
             <div key={item.id} className="item-card">
@@ -175,6 +176,7 @@ export function Appointments(){
       </div>
       <div className="card">
         <h2>Citas programadas</h2>
+        <p className="collection-total">Número total de elementos: {appointments.length}</p>
         <div className="items-grid">
           {appointments.map(item => (
             <div key={item.id} className="item-card">
@@ -235,6 +237,7 @@ export function Documents(){
       </div>
       <div className="card">
         <h2>Documentos cargados</h2>
+        <p className="collection-total">Número total de elementos: {documents.length}</p>
         <div className="items-grid">
           {documents.map(item => (
             <div key={item.id} className="item-card">

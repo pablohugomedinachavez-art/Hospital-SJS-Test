@@ -4,7 +4,7 @@ import { Patients, Consultations, Appointments, Documents, Reports } from './hos
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 
-function Sidebar(){
+function Sidebar({ isCollapsed, onToggle }){
   const { profile, logout, theme, setTheme, hasPermission } = useAuth()
   const authenticated = Boolean(profile)
   const [route, setRoute] = useState(location.hash.replace('#','') || '/')
@@ -85,9 +85,12 @@ function Sidebar(){
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : 'open'}`}>
       <div className="sidebar-header">
-        <div>
+        <button type="button" className="sidebar-toggle" onClick={onToggle} aria-label={isCollapsed ? 'Expandir menú' : 'Ocultar menú'}>
+          ☰
+        </button>
+        <div className="sidebar-header-copy">
           <div className="sidebar-brand">Hospital TIC</div>
           <p className="sidebar-subtitle">Panel de control</p>
         </div>
@@ -156,7 +159,7 @@ function Home(){
               hospitales conectados
             </div>
             <div className="trust-item">
-          <button className="link-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '🌙' : '☀️'}</button>
+          <button className="link-button" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
               <strong>24/7</strong>
               supervisión continua
             </div>
@@ -530,14 +533,72 @@ function UserManagement(){
   )
 }
 
-function CollectionList({ title, items, render }){
+function CollectionList({ title, items, render, filters = [] }){
+  const [query, setQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState(filters.length ? filters[0].value : 'all')
+  const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [query, activeFilter, items])
+
+  const normalizedQuery = query.toLowerCase().trim()
+  const filteredItems = items.filter(item => {
+    const searchMatch = !normalizedQuery || JSON.stringify(item).toLowerCase().includes(normalizedQuery)
+    const filter = filters.find(f => f.value === activeFilter)
+    const filterMatch = !filter || activeFilter === 'all' || filter.predicate(item)
+    return searchMatch && filterMatch
+  })
+
+  const pageSize = filteredItems.length > 15 ? 15 : 10
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
+  const pageStart = filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const pageEnd = Math.min(filteredItems.length, currentPage * pageSize)
+  const pageItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
   return (
-    <div className="card">
-      <h2>{title}</h2>
-      {items.length === 0 ? <p className="muted">No hay elementos aún.</p> : (
-        <div className="items-grid">
-          {items.map(item => render(item))}
-        </div>
+    <div className="card collection-card">
+      <div className="collection-header">
+        <h2>{title}</h2>
+        <span className="collection-count">
+          Total: {filteredItems.length} elementos
+          {filteredItems.length > pageSize && ` · mostrando ${pageStart}-${pageEnd}`}
+        </span>
+      </div>
+      <div className="collection-toolbar">
+        <label className="collection-search">
+          <span>Buscar</span>
+          <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar en la lista..." />
+        </label>
+        {filters.length > 0 && (
+          <label className="collection-filter">
+            <span>Filtro</span>
+            <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)}>
+              {filters.map(filter => (
+                <option key={filter.value} value={filter.value}>{filter.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <p className="muted">No hay elementos aún.</p>
+      ) : filteredItems.length === 0 ? (
+        <p className="muted">No se encontraron elementos para esa búsqueda.</p>
+      ) : (
+        <>
+          <div className="items-grid">
+            {pageItems.map(item => render(item))}
+          </div>
+          {filteredItems.length > pageSize && (
+            <div className="pagination-footer">
+              <button type="button" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1}>Anterior</button>
+              <span>Página {currentPage} de {totalPages}</span>
+              <button type="button" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages}>Siguiente</button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -572,7 +633,7 @@ function Locations(){
   }
 
   return (
-    <div>
+    <div className="location-page">
       <div className="card form-card">
         <h2>Agregar ubicación</h2>
         <form onSubmit={submit}>
@@ -593,6 +654,11 @@ function Locations(){
       <CollectionList
         title="Ubicaciones"
         items={locations}
+        filters={[
+          { value: 'all', label: 'Todos', predicate: () => true },
+          { value: 'hasDescription', label: 'Con descripción', predicate: item => Boolean(item.description?.trim()) },
+          { value: 'noDescription', label: 'Sin descripción', predicate: item => !item.description?.trim() }
+        ]}
         render={loc => (
           <div key={loc.id} className="item-card">
             <h3>{loc.name}</h3>
@@ -893,6 +959,7 @@ function Unauthorized(){
 
 function AppContent(){
   const [route,setRoute]=useState(location.hash.replace('#','') || '/')
+  const [isSidebarOpen,setIsSidebarOpen]=useState(true)
   const { profile } = useAuth()
 
   useEffect(()=>{
@@ -900,6 +967,12 @@ function AppContent(){
     window.addEventListener('hashchange', onHash)
     return ()=> window.removeEventListener('hashchange', onHash)
   },[])
+
+  useEffect(() => {
+    if (showSidebar) {
+      setIsSidebarOpen(true)
+    }
+  }, [route])
 
   const showSidebar = Boolean(profile) && route !== '/login' && route !== '/register'
 
@@ -924,7 +997,9 @@ function AppContent(){
 
   return (
     <div className={`app-shell ${showSidebar ? '' : 'no-sidebar'}`}>
-      {showSidebar && <Sidebar />}
+      {showSidebar && (
+        <Sidebar isCollapsed={!isSidebarOpen} onToggle={() => setIsSidebarOpen(value => !value)} />
+      )}
       <main className={showSidebar ? 'content' : 'page-center'}>{Page}</main>
     </div>
   )

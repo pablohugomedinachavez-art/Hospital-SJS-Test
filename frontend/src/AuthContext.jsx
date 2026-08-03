@@ -12,6 +12,7 @@ export function AuthProvider({ children }){
 
   useEffect(()=>{
     document.documentElement.setAttribute('data-theme', theme)
+    document.body.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
     if (theme === 'dark') document.body.classList.add('dark')
     else document.body.classList.remove('dark')
