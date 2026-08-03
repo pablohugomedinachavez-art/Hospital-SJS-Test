@@ -1,0 +1,66 @@
+1. Requerimientos Funcionales (RF)
+Código	Requerimiento Funcional
+RF-01	El sistema deberá permitir el registro e inicio de sesión de usuarios mediante Supabase Auth.
+RF-02	El sistema deberá administrar perfiles de usuario con diferentes roles (Administrador, Médico, Enfermero, Personal Administrativo y Auditor).
+RF-03	El sistema deberá permitir la gestión de pacientes (registro, actualización, consulta y desactivación).
+RF-04	El sistema deberá gestionar las historias clínicas electrónicas de los pacientes.
+RF-05	El sistema deberá permitir registrar citas médicas y consultar el historial de atención.
+RF-06	El sistema deberá permitir registrar diagnósticos, tratamientos y observaciones médicas.
+RF-07	El sistema deberá permitir cargar, visualizar y descargar documentos clínicos (PDF, imágenes y otros archivos) utilizando Supabase Storage.
+RF-08	El sistema deberá controlar el acceso a la información mediante políticas de Row Level Security (RLS), restringiendo los datos según el rol y la institución correspondiente.
+RF-09	El sistema deberá registrar todas las operaciones críticas realizadas por los usuarios para fines de auditoría.
+RF-10	El sistema deberá permitir búsquedas rápidas de pacientes, historias clínicas y documentos.
+RF-11	El sistema deberá generar reportes de consultas, pacientes, tratamientos y actividad del sistema.
+RF-12	El sistema deberá enviar notificaciones o alertas cuando se presenten eventos críticos o errores del sistema.
+RF-13	El sistema deberá administrar los permisos de acceso de cada usuario según su rol institucional.
+RF-14	El sistema deberá permitir la recuperación de contraseña mediante correo electrónico.
+RF-15	El sistema deberá mantener la trazabilidad de todas las modificaciones realizadas sobre los registros clínicos.
+RF-16	El sistema deberá permitir el almacenamiento seguro de archivos clínicos en Supabase Storage.
+RF-17	El sistema deberá permitir la gestión de múltiples instituciones (multi-tenant), aislando la información entre ellas.
+RF-18	El sistema deberá ofrecer una interfaz web responsiva accesible desde computadoras, tablets y dispositivos móviles.
+2. Requerimientos No Funcionales (RNF)
+Seguridad
+Código	Requerimiento
+RNF-01	El sistema deberá utilizar HTTPS con certificados SSL/TLS para todas las comunicaciones.
+RNF-02	El sistema deberá implementar autenticación mediante JWT proporcionada por Supabase Auth.
+RNF-03	El sistema deberá aplicar políticas de Row Level Security (RLS) para proteger el acceso a los datos.
+RNF-04	Las contraseñas nunca deberán almacenarse en texto plano.
+RNF-05	Toda la información clínica almacenada deberá permanecer cifrada en reposo mediante los mecanismos administrados por Supabase.
+RNF-06	El sistema deberá registrar eventos de auditoría sobre accesos, modificaciones y eliminaciones de información sensible.
+Rendimiento
+Código	Requerimiento
+RNF-07	El tiempo promedio de respuesta del sistema no deberá superar los 2 segundos para consultas normales.
+RNF-08	El sistema deberá soportar múltiples usuarios concurrentes sin degradar significativamente el rendimiento.
+RNF-09	Las búsquedas deberán ejecutarse utilizando índices en la base de datos para optimizar el tiempo de respuesta.
+Disponibilidad
+Código	Requerimiento
+RNF-10	El sistema deberá estar disponible al menos el 99.9 % del tiempo anual.
+RNF-11	El sistema deberá contar con respaldos automáticos de la base de datos.
+RNF-12	El sistema deberá permitir la recuperación de la información ante fallas mediante procedimientos de restauración.
+Escalabilidad
+Código	Requerimiento
+RNF-13	La arquitectura deberá permitir el crecimiento del número de usuarios y registros sin requerir cambios estructurales importantes.
+RNF-14	El almacenamiento de documentos deberá ser escalable mediante Supabase Storage.
+RNF-15	El despliegue deberá aprovechar el escalado automático de Vercel para atender incrementos en la demanda.
+Compatibilidad
+Código	Requerimiento
+RNF-16	El sistema deberá ser compatible con Google Chrome, Microsoft Edge, Mozilla Firefox y Safari.
+RNF-17	La interfaz deberá adaptarse correctamente a computadoras, tablets y teléfonos móviles.
+Mantenibilidad
+Código	Requerimiento
+RNF-18	El código fuente deberá mantenerse bajo control de versiones mediante GitHub.
+RNF-19	El despliegue continuo deberá automatizarse mediante GitHub Actions y Vercel.
+RNF-20	Las migraciones de la base de datos deberán mantenerse versionadas y documentadas.
+Usabilidad
+Código	Requerimiento
+RNF-21	La interfaz deberá ser intuitiva y consistente para reducir la curva de aprendizaje del personal hospitalario.
+RNF-22	Los mensajes de error deberán ser claros y orientar al usuario sobre cómo resolver el problema.
+RNF-23	El sistema deberá validar los datos ingresados antes de almacenarlos.
+Portabilidad
+Código	Requerimiento
+RNF-24	La aplicación deberá ejecutarse completamente desde un navegador web sin requerir instalaciones adicionales.
+RNF-25	La solución deberá poder desplegarse en distintos entornos (desarrollo, pruebas y producción) utilizando configuraciones independientes de Supabase y Vercel.
+Monitoreo
+Código	Requerimiento
+RNF-26	El sistema deberá registrar errores de ejecución mediante herramientas de monitoreo (por ejemplo, Sentry).
+RNF-27	El sistema deberá permitir monitorear el rendimiento de la aplicación y de la base de datos mediante los paneles de Vercel y Supabase.

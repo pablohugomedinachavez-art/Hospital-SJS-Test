@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hospital TIC | Plataforma de gestión clínica</title>
+    <meta name="description" content="Hospital TIC es una solución para gestionar dispositivos, alertas y métricas en hospitales con un panel intuitivo y seguro." />
+    <meta name="theme-color" content="#eff6ff" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      :root {
+        color-scheme: light;
+        color: #0f172a;
+        background: #f8fafc;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body { background: radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 35%), #f8fafc; }
+      #root { min-height: 100vh; }
+      .initial-shell {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        padding: 24px;
+      }
+      .brand-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        max-width: 1280px;
+        margin: 0 auto;
+        width: 100%;
+      }
+      .brand-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+        display: grid;
+        place-items: center;
+        color: white;
+        font-size: 1rem;
+      }
+      .brand-text {
+        font-size: 1.05rem;
+        letter-spacing: 0.02em;
+      }
+      .brand-description {
+        color: #475569;
+        font-size: 0.95rem;
+        margin-top: 4px;
+      }
+      .shell-body {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 36px 0 24px;
+      }
+      .shell-card {
+        width: 100%;
+        max-width: 980px;
+        border-radius: 32px;
+        background: rgba(255,255,255,0.96);
+        border: 1px solid rgba(148,163,184,0.24);
+        box-shadow: 0 28px 70px rgba(15,23,42,0.08);
+        overflow: hidden;
+      }
+      .shell-top {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 0;
+      }
+      .hero-block {
+        padding: 46px 48px;
+      }
+      .hero-block h1 {
+        margin: 0;
+        font-size: clamp(2.6rem, 3.8vw, 4.2rem);
+        line-height: 1.02;
+      }
+      .hero-block p {
+        margin: 26px 0 0;
+        max-width: 44rem;
+        line-height: 1.8;
+        color: #475569;
+      }
+      .hero-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 30px;
+      }
+      .hero-buttons a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 160px;
+        padding: 14px 22px;
+        border-radius: 16px;
+        text-decoration: none;
+        font-weight: 700;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .hero-buttons .primary {
+        background: #0ea5e9;
+        color: white;
+        box-shadow: 0 18px 32px rgba(14,165,233,0.18);
+      }
+      .hero-buttons .secondary {
+        background: white;
+        color: #0f172a;
+        border: 1px solid rgba(148,163,184,0.35);
+      }
+      .hero-buttons a:hover { transform: translateY(-2px); }
+      .highlights {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 32px;
+      }
+      .highlight-pill {
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: #eff6ff;
+        border: 1px solid rgba(56,189,248,0.16);
+        color: #0f172a;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .highlight-pill strong { font-size: 1.2rem; }
+      .preview-panel {
+        padding: 32px;
+        background: linear-gradient(180deg, #e0f2fe 0%, #ffffff 100%);
+        border-left: 1px solid rgba(148,163,184,0.18);
+        display: grid;
+        gap: 20px;
+      }
+      .preview-card {
+        border-radius: 24px;
+        background: white;
+        padding: 22px;
+        border: 1px solid rgba(148,163,184,0.16);
+        box-shadow: 0 14px 32px rgba(15,23,42,0.05);
+      }
+      .preview-card h2 {
+        margin: 0 0 10px;
+        font-size: 1.1rem;
+      }
+      .preview-card p {
+        margin: 0;
+        line-height: 1.7;
+        color: #475569;
+      }
+      .shell-footer {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        padding: 26px 42px 34px;
+        background: #f1f5f9;
+        border-top: 1px solid rgba(148,163,184,0.12);
+      }
+      .footer-card {
+        padding: 18px;
+        border-radius: 18px;
+        background: white;
+        border: 1px solid rgba(148,163,184,0.14);
+      }
+      .footer-card h3 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+      }
+      .footer-card p {
+        margin: 0;
+        color: #475569;
+        line-height: 1.75;
+      }
+      @media (max-width: 1024px) {
+        .shell-top { grid-template-columns: 1fr; }
+        .highlights { grid-template-columns: 1fr; }
+        .shell-footer { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 680px) {
+        .brand-bar { flex-direction: column; align-items: flex-start; gap: 12px; }
+        .hero-block { padding: 32px 28px; }
+        .preview-panel { padding: 24px; }
+        .shell-footer { padding: 24px 28px 28px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,171 @@
+FICHA TÉCNICA DEL PROYECTO
+1. Arquitectura General
+Componente	Tecnología
+Frontend	React 19 + Vite
+Backend	Vercel Functions (Node.js 22 LTS)
+Base de Datos	Supabase PostgreSQL
+Autenticación	Supabase Auth
+Almacenamiento de archivos	Supabase Storage
+API	REST API + Supabase SDK
+Despliegue	Vercel
+Versionamiento	Git + GitHub
+CI/CD	GitHub Actions
+DNS	Vercel DNS o Cloudflare
+2. Frontend
+Tecnología	Versión recomendada
+React	19
+Vite	7
+TypeScript	5.x
+React Router	7
+Tailwind CSS	4
+Axios	Última estable
+React Hook Form	Última
+Zod	Validaciones
+TanStack Query	Manejo de datos
+Zustand	Estado global
+DayJS	Fechas
+React Hot Toast	Notificaciones
+Lucide React	Iconografía
+3. Backend
+
+Como el despliegue será en Vercel, lo ideal es evitar servidores tradicionales.
+
+Tecnología	Uso
+Node.js 22 LTS	Runtime
+Vercel Functions	Backend Serverless
+TypeScript	Desarrollo
+Supabase SDK	Comunicación con BD
+Edge Functions (opcional)	Procesos especiales
+JWT	Seguridad
+4. Base de Datos
+Motor
+Supabase PostgreSQL 17
+Servicios utilizados
+PostgreSQL
+Supabase Auth
+Row Level Security
+Supabase Storage
+Realtime
+Database Backups
+
+Como el documento propone, es recomendable mantener tres proyectos independientes (dev, staging y prod) tanto en Supabase como en Vercel.
+
+5. Autenticación
+Tecnología	Uso
+Supabase Auth	Login
+JWT	Sesiones
+OAuth2	Google/Microsoft (opcional)
+MFA	Personal administrativo
+6. Seguridad
+HTTPS
+TLS 1.3
+AES-256
+Row Level Security
+Políticas SQL
+Roles
+Auditoría
+Logs
+
+El proyecto también contempla RLS por tenant_id y roles para restringir el acceso a los datos.
+
+7. Almacenamiento
+Tecnología	Uso
+Supabase Storage	PDFs
+Supabase Storage	Imágenes
+Supabase Storage	DICOM
+Signed URLs	Descargas temporales
+8. Desarrollo
+Tecnología	Uso
+Visual Studio Code	IDE
+Git	Control de versiones
+GitHub	Repositorio
+GitHub Actions	CI/CD
+Postman	APIs
+Supabase CLI	Migraciones
+Vercel CLI	Deploy
+9. Calidad
+ESLint
+Prettier
+Husky
+Vitest
+Playwright
+10. Monitoreo
+Tecnología	Uso
+Sentry	Errores
+Vercel Analytics	Rendimiento
+Supabase Dashboard	Base de datos
+GitHub Actions	Logs CI
+11. Infraestructura
+Servicio	Plataforma
+Hosting	Vercel
+Base de datos	Supabase
+Storage	Supabase
+DNS	Vercel
+CDN	Vercel Edge Network
+SSL	Automático
+12. Entornos
+Entorno	Plataforma
+Desarrollo	Vercel Dev + Supabase Dev
+Staging	Vercel Staging + Supabase Staging
+Producción	Vercel Production + Supabase Production
+13. Variables de Entorno
+SUPABASE_URL
+
+SUPABASE_ANON_KEY
+
+SUPABASE_SERVICE_ROLE_KEY
+
+NEXT_PUBLIC_SUPABASE_URL
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+NODE_ENV
+
+JWT_SECRET
+
+Estas variables coinciden con la configuración propuesta para Vercel y Supabase en el plan del proyecto.
+
+14. Navegadores soportados
+Google Chrome
+Microsoft Edge
+Mozilla Firefox
+Safari
+15. Sistema Operativo del Servidor
+
+No aplica, ya que Vercel administra la infraestructura Serverless.
+
+16. Requisitos del Cliente
+Windows 10/11
+Android 11+
+iOS 16+
+Navegador moderno
+17. Escalabilidad
+Arquitectura Serverless
+Escalado automático
+CDN global
+Balanceo administrado por Vercel
+PostgreSQL administrado por Supabase
+18. Tecnologías Finales del Proyecto
+Categoría	Tecnología
+Frontend	React 19
+Build Tool	Vite 7
+Lenguaje	TypeScript
+CSS	Tailwind CSS 4
+Estado	Zustand
+Fetching	TanStack Query
+Backend	Vercel Functions
+Runtime	Node.js 22 LTS
+Base de Datos	Supabase PostgreSQL
+Auth	Supabase Auth
+Storage	Supabase Storage
+API	REST + Supabase SDK
+Seguridad	JWT + RLS + TLS 1.3
+Versionamiento	Git + GitHub
+CI/CD	GitHub Actions
+Hosting	Vercel
+Monitoreo	Sentry + Vercel Analytics
+Testing	Vitest + Playwright
+IDE	Visual Studio Code
+Recomendación de arquitectura
+
+Dado el alcance del proyecto hospitalario, evitaría incorporar tecnologías adicionales (como Docker, Kubernetes o servidores propios) salvo que aparezcan requisitos futuros de alta complejidad. Con una arquitectura basada en React + Vercel Functions + Supabase (PostgreSQL, Auth y Storage) se obtiene una solución moderna, escalable y con bajo costo operativo, alineada con el enfoque descrito en el documento para despliegue en Vercel y gestión de datos en Supabase.

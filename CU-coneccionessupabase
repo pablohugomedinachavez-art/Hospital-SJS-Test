@@ -1,0 +1,256 @@
+Diagrama General de Actores
+
+Actores
+
+Administrador
+Médico
+Enfermero
+Personal Administrativo
+Auditor
+Paciente (opcional, si se implementa portal)
+Casos de Uso
+CU-01 Iniciar Sesión
+
+Actor: Todos los usuarios
+
+Descripción: Permite al usuario autenticarse mediante Supabase Auth.
+
+Precondición
+
+El usuario debe estar registrado.
+
+Flujo Principal
+
+El usuario ingresa correo y contraseña.
+El sistema valida las credenciales.
+Se genera el token JWT.
+Se muestran las opciones según el rol.
+
+Postcondición
+
+El usuario accede al sistema.
+CU-02 Gestionar Usuarios
+
+Actor: Administrador
+
+Descripción
+
+Permite registrar, editar, bloquear y eliminar usuarios.
+
+Flujo Principal
+
+Selecciona "Usuarios".
+Registra o modifica información.
+Asigna un rol.
+Guarda los cambios.
+CU-03 Gestionar Pacientes
+
+Actor
+
+Médico
+Enfermero
+Administrativo
+
+Descripción
+
+Registrar, actualizar y consultar información de pacientes.
+
+Flujo
+
+Buscar paciente.
+Registrar nuevo paciente si no existe.
+Editar información.
+Guardar cambios.
+CU-04 Gestionar Historia Clínica
+
+Actor
+
+Médico
+
+Descripción
+
+Registrar y consultar la historia clínica electrónica.
+
+Flujo
+
+Seleccionar paciente.
+Abrir historia clínica.
+Registrar diagnóstico.
+Registrar tratamiento.
+Guardar.
+CU-05 Registrar Consulta Médica
+
+Actor
+
+Médico
+
+Descripción
+
+Registrar una atención médica.
+
+Flujo
+
+Buscar paciente.
+Registrar síntomas.
+Registrar diagnóstico.
+Registrar tratamiento.
+Finalizar consulta.
+CU-06 Gestionar Citas
+
+Actor
+
+Administrativo
+
+Descripción
+
+Registrar y administrar citas médicas.
+
+Flujo
+
+Seleccionar paciente.
+Seleccionar médico.
+Elegir fecha.
+Confirmar cita.
+CU-07 Gestionar Documentos Clínicos
+
+Actor
+
+Médico
+Enfermero
+
+Descripción
+
+Subir archivos médicos al sistema.
+
+Flujo
+
+Seleccionar paciente.
+Elegir documento.
+Cargar archivo.
+Almacenar en Supabase Storage.
+CU-08 Consultar Documentos
+
+Actor
+
+Médico
+Enfermero
+
+Descripción
+
+Visualizar documentos clínicos.
+
+Flujo
+
+Buscar paciente.
+Abrir documentos.
+Visualizar PDF o imagen.
+CU-09 Descargar Documento
+
+Actor
+
+Médico
+Auditor
+
+Descripción
+
+Descargar documentos autorizados mediante enlaces seguros.
+
+CU-10 Gestionar Roles y Permisos
+
+Actor
+
+Administrador
+
+Descripción
+
+Asignar permisos a cada usuario.
+
+CU-11 Consultar Historial Clínico
+
+Actor
+
+Médico
+
+Descripción
+
+Consultar el historial médico completo de un paciente.
+
+CU-12 Buscar Paciente
+
+Actor
+
+Todos los usuarios autorizados.
+
+Descripción
+
+Buscar pacientes mediante filtros.
+
+Filtros
+
+DNI
+Historia clínica
+Nombre
+Fecha de nacimiento
+CU-13 Generar Reportes
+
+Actor
+
+Administrador
+
+Descripción
+
+Generar reportes estadísticos.
+
+Reportes
+
+Pacientes atendidos
+Consultas
+Diagnósticos
+Actividad médica
+CU-14 Registrar Auditoría
+
+Actor
+
+Sistema
+
+Descripción
+
+Registrar automáticamente todas las operaciones importantes.
+
+CU-15 Recuperar Contraseña
+
+Actor
+
+Todos los usuarios.
+
+Descripción
+
+Enviar un enlace de recuperación mediante correo electrónico.
+
+CU-16 Cerrar Sesión
+
+Actor
+
+Todos los usuarios.
+
+Descripción
+
+Finalizar la sesión del usuario.
+| Código | Caso de Uso                 | Actor Principal                     |
+| ------ | --------------------------- | ----------------------------------- |
+| CU-01  | Iniciar Sesión              | Todos                               |
+| CU-02  | Gestionar Usuarios          | Administrador                       |
+| CU-03  | Gestionar Pacientes         | Médico / Enfermero / Administrativo |
+| CU-04  | Gestionar Historia Clínica  | Médico                              |
+| CU-05  | Registrar Consulta Médica   | Médico                              |
+| CU-06  | Gestionar Citas             | Administrativo                      |
+| CU-07  | Subir Documentos Clínicos   | Médico / Enfermero                  |
+| CU-08  | Consultar Documentos        | Médico / Enfermero                  |
+| CU-09  | Descargar Documentos        | Médico / Auditor                    |
+| CU-10  | Gestionar Roles y Permisos  | Administrador                       |
+| CU-11  | Consultar Historial Clínico | Médico                              |
+| CU-12  | Buscar Paciente             | Usuarios autorizados                |
+| CU-13  | Generar Reportes            | Administrador                       |
+| CU-14  | Registrar Auditoría         | Sistema                             |
+| CU-15  | Recuperar Contraseña        | Todos                               |
+| CU-16  | Cerrar Sesión               | Todos                               |

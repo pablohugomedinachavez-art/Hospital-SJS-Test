@@ -1,0 +1,10 @@
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+__pycache__/
+*.pyc
+.env
+.env.local
+sis_database.db
+*.log

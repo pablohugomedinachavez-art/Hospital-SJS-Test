@@ -1,0 +1,303 @@
+CU-01 – Iniciar Sesión
+Actor Principal
+
+Usuario
+
+Flujo Principal
+El usuario accede a la página de inicio de sesión.
+El sistema muestra el formulario de autenticación.
+El usuario ingresa su correo electrónico y contraseña.
+El sistema valida que los campos no estén vacíos.
+El sistema envía las credenciales a Supabase Auth.
+Supabase valida las credenciales.
+El sistema obtiene el token de autenticación (JWT).
+El sistema identifica el rol del usuario.
+El sistema redirecciona al Dashboard correspondiente.
+Flujo Alternativo
+Las credenciales son incorrectas.
+El sistema muestra el mensaje "Usuario o contraseña incorrectos".
+Postcondición
+
+El usuario inicia sesión correctamente.
+
+CU-02 – Gestionar Usuarios
+Actor
+
+Administrador
+
+Flujo Principal
+El administrador selecciona el módulo Usuarios.
+El sistema muestra el listado de usuarios.
+El administrador selecciona Registrar Usuario.
+Ingresa los datos solicitados.
+Selecciona el rol correspondiente.
+El sistema valida la información.
+El sistema registra el usuario.
+Se envía automáticamente un correo para activar la cuenta.
+El sistema actualiza el listado.
+Flujos Alternativos
+El correo ya existe.
+Campos obligatorios incompletos.
+Postcondición
+
+Usuario registrado correctamente.
+
+CU-03 – Gestionar Pacientes
+Actor
+
+Médico / Enfermero / Administrativo
+
+Flujo Principal
+El usuario accede al módulo Pacientes.
+El sistema muestra el listado.
+El usuario selecciona Nuevo Paciente.
+Ingresa la información personal.
+El sistema valida los datos.
+Se registra el paciente.
+El sistema genera automáticamente el código de historia clínica.
+Se muestra el registro creado.
+Flujo Alternativo
+El DNI ya se encuentra registrado.
+El sistema muestra una advertencia.
+Postcondición
+
+Paciente registrado.
+
+CU-04 – Gestionar Historia Clínica
+Actor
+
+Médico
+
+Flujo Principal
+Buscar paciente.
+Abrir historia clínica.
+Registrar antecedentes.
+Registrar síntomas.
+Registrar diagnóstico.
+Registrar tratamiento.
+Registrar observaciones.
+Guardar información.
+El sistema actualiza la historia clínica.
+Flujo Alternativo
+Historia clínica inexistente.
+El sistema crea automáticamente una nueva.
+Postcondición
+
+Historia clínica actualizada.
+
+CU-05 – Registrar Consulta Médica
+Actor
+
+Médico
+
+Flujo Principal
+Buscar paciente.
+Verificar cita.
+Registrar signos vitales.
+Registrar motivo de consulta.
+Registrar diagnóstico.
+Registrar tratamiento.
+Registrar receta médica.
+Guardar consulta.
+El sistema almacena la atención.
+Flujo Alternativo
+Paciente inexistente.
+El sistema solicita registrarlo.
+Postcondición
+
+Consulta médica registrada.
+
+CU-06 – Gestionar Citas
+Actor
+
+Personal Administrativo
+
+Flujo Principal
+Seleccionar módulo Citas.
+Buscar paciente.
+Seleccionar especialidad.
+Seleccionar médico.
+Seleccionar fecha.
+Seleccionar horario.
+Confirmar cita.
+El sistema registra la cita.
+Se genera la constancia.
+Flujo Alternativo
+Horario ocupado.
+El sistema solicita otro horario.
+Postcondición
+
+Cita registrada.
+
+CU-07 – Subir Documentos Clínicos
+Actor
+
+Médico / Enfermero
+
+Flujo Principal
+Buscar paciente.
+Abrir documentos.
+Seleccionar "Subir Archivo".
+Elegir archivo.
+Validar formato.
+Cargar archivo.
+Guardar en Supabase Storage.
+Registrar referencia en la base de datos.
+Mostrar confirmación.
+Flujo Alternativo
+Archivo excede tamaño permitido.
+Formato no permitido.
+Postcondición
+
+Documento almacenado.
+
+CU-08 – Consultar Documentos Clínicos
+Actor
+
+Médico
+
+Flujo Principal
+Buscar paciente.
+Abrir expediente.
+Seleccionar documento.
+El sistema genera un enlace temporal seguro.
+Mostrar documento.
+Flujo Alternativo
+Documento inexistente.
+Postcondición
+
+Documento visualizado.
+
+CU-09 – Descargar Documento Clínico
+Actor
+
+Médico / Auditor
+
+Flujo Principal
+Seleccionar documento.
+Validar permisos.
+Generar URL temporal.
+Descargar archivo.
+Registrar auditoría.
+Flujo Alternativo
+Usuario sin permisos.
+Postcondición
+
+Documento descargado.
+
+CU-10 – Gestionar Roles
+Actor
+
+Administrador
+
+Flujo Principal
+Abrir módulo Roles.
+Seleccionar usuario.
+Modificar permisos.
+Guardar cambios.
+El sistema actualiza permisos.
+Registrar auditoría.
+Postcondición
+
+Permisos actualizados.
+
+CU-11 – Buscar Paciente
+Actor
+
+Usuarios autorizados
+
+Flujo Principal
+Ingresar criterio de búsqueda.
+El sistema consulta la base de datos.
+Mostrar resultados.
+Seleccionar paciente.
+Abrir ficha.
+Flujo Alternativo
+No existen coincidencias.
+Postcondición
+
+Paciente localizado.
+
+CU-12 – Generar Reportes
+Actor
+
+Administrador
+
+Flujo Principal
+Seleccionar tipo de reporte.
+Definir filtros.
+Generar reporte.
+Consultar la base de datos.
+Mostrar resultados.
+Exportar en PDF o Excel.
+Flujo Alternativo
+No existen registros.
+Postcondición
+
+Reporte generado.
+
+CU-13 – Recuperar Contraseña
+Actor
+
+Usuario
+
+Flujo Principal
+Seleccionar "Olvidé mi contraseña".
+Ingresar correo electrónico.
+Validar existencia del usuario.
+Enviar enlace de recuperación.
+El usuario crea nueva contraseña.
+Confirmar cambio.
+El sistema actualiza la contraseña.
+Flujo Alternativo
+Correo no registrado.
+Postcondición
+
+Contraseña actualizada.
+
+CU-14 – Cerrar Sesión
+Actor
+
+Usuario
+
+Flujo Principal
+Seleccionar "Cerrar sesión".
+El sistema invalida el token.
+El sistema elimina la sesión activa.
+Redireccionar al inicio de sesión.
+Postcondición
+
+Sesión finalizada.
+
+Inicio
+   │
+   ▼
+Iniciar Sesión
+   │
+   ▼
+Validar Usuario
+   │
+   ▼
+Mostrar Dashboard según Rol
+   │
+   ├──────────────┐
+   │              │
+Administrador   Médico
+   │              │
+Gestionar      Gestionar
+Usuarios       Pacientes
+   │              │
+Gestionar      Historia Clínica
+Roles          Consultas
+   │              │
+Reportes       Documentos
+   │              │
+   └──────┬───────┘
+          │
+     Registrar Auditoría
+          │
+          ▼
+    Cerrar Sesión
+          │
+          ▼
+          Fin
