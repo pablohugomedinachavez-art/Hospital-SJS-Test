@@ -123,6 +123,30 @@ button,
   transition: width 220ms ease, min-width 220ms ease, max-width 220ms ease;
 }
 
+.app-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  width: 100%;
+}
+
+.header-theme-toggle {
+  border: 1px solid rgba(16, 42, 67, 0.12);
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text);
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
+}
+
+.header-theme-toggle:hover {
+  background: rgba(148, 163, 184, 0.2);
+}
+
 .sidebar.collapsed {
   flex-basis: 72px;
   width: 72px;
@@ -285,7 +309,7 @@ button,
   width: min(1120px, 100%);
   margin: 0 auto;
 }
-
+.button
 .form-card {
   width: min(520px, 100%);
   max-width: 540px;
@@ -760,6 +784,15 @@ button,
   .button-row button {
     width: 100%;
   }
+
+  .patients-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .patients-create-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .button,
@@ -915,6 +948,80 @@ select {
   display: block;
   margin-top: 10px;
   color: var(--muted);
+}
+
+.patients-page {
+  width: 100%;
+}
+
+.patients-shell {
+  display: grid;
+  gap: 20px;
+}
+
+.patients-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+  justify-content: space-between;
+}
+
+.patients-toolbar .collection-search {
+  flex: 1 1 320px;
+}
+
+.patients-actions {
+  margin-top: 0;
+}
+
+.patients-list-card {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 24px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(255, 255, 255, 0.92));
+}
+
+.patients-empty-state {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 12px;
+  min-height: 260px;
+  padding: 20px;
+}
+
+.patients-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.12);
+  font-size: 1.7rem;
+}
+
+.patients-create-layout {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.patients-hero-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 24px;
+  display: grid;
+  gap: 10px;
+}
+
+.patients-form-card {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 .items-grid {

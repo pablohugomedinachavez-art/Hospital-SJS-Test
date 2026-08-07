@@ -1,10 +1,18 @@
-// This file remains for compatibility, but the current project uses the local Flask API
-// and SQLite backend instead of Supabase.
+import { createClient } from '@supabase/supabase-js'
+const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export function fetchSupabaseTable() {
-  throw new Error('Supabase is not used in this local setup. Use the backend API under /api instead.')
+if (!supabaseUrl || !supabaseAnonKey) {
+	console.error('Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. Add them to .env and restart the dev server.')
+	const missingProxy = new Proxy({}, {
+		get() {
+			return () => { throw new Error('Supabase client not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file and restart Vite.') }
+		}
+	})
+	export const supabase = missingProxy
+} else {
+	export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 }
 
-export function insertSupabaseRow() {
-  throw new Error('Supabase is not used in this local setup. Use the backend API under /api instead.')
-}
+export { API_URL }
