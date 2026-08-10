@@ -452,8 +452,7 @@ function AppContent() {
 }
 
 function MainApp() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const { user, loading } = useAuth()
   const [route, setRoute] = useState(() => normalizeRoute(window.location.hash))
 
   useEffect(() => {
@@ -462,20 +461,7 @@ function MainApp() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  useEffect(() => {
-    // Uso unificado del cliente de API dinámico
-    apiFetch('/auth/verify')
-      .then(res => res.ok ? res.json() : Promise.reject())
-      .then(data => {
-        setIsAuthenticated(Boolean(data.authenticated))
-      })
-      .catch(() => {
-        setIsAuthenticated(false)
-      })
-      .finally(() => setIsLoading(false))
-  }, [])
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         Cargando...
@@ -483,12 +469,9 @@ function MainApp() {
     )
   }
 
-  if (!isAuthenticated) {
+  if (!user) {
     const authMode = route === '/register' ? 'register' : 'login'
-    return <AuthenticationForm mode={authMode} onLoginSuccess={() => {
-      setIsAuthenticated(true)
-      window.location.hash = '#/dashboard'
-    }} />
+    return <AuthenticationForm mode={authMode} onLoginSuccess={() => { window.location.hash = '#/dashboard' }} />
   }
 
   if (route === '/register' || route === '/login') {
