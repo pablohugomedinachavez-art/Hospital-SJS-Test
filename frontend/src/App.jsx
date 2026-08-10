@@ -13,7 +13,7 @@ const normalizeRoute = (hash) => {
 }
 
 function Sidebar({ isCollapsed, onToggle, currentRoute }) {
-  const { user, profile, logout, session } = useAuth()
+  const { user, logout } = useAuth()
   const [openSections, setOpenSections] = useState({
     dashboard: true,
     clinical: true,
@@ -24,7 +24,7 @@ function Sidebar({ isCollapsed, onToggle, currentRoute }) {
   })
 
   const hasPermission = (permission) => {
-    const permissions = profile?.permissions || user?.user_metadata?.permissions || user?.permissions || []
+    const permissions = user?.permissions || user?.user_metadata?.permissions || []
     return Boolean(permissions.includes(permission))
   }
 
@@ -95,7 +95,7 @@ function Sidebar({ isCollapsed, onToggle, currentRoute }) {
 
       <div className="sidebar-welcome">
         <span>Hola,</span>
-        <strong>{user?.username || profile?.username || user?.email || 'Invitado'}</strong>
+        <strong>{user?.username || user?.email || 'Invitado'}</strong>
       </div>
 
       <nav className="sidebar-nav">
@@ -124,7 +124,7 @@ function Sidebar({ isCollapsed, onToggle, currentRoute }) {
       </nav>
 
       <div className="sidebar-footer">
-        {session ? (
+        {user ? (
           <button type="button" className="button secondary sidebar-logout" onClick={logout}>Cerrar sesión</button>
         ) : (
           <a href="#/login" className="button secondary sidebar-logout">Login</a>
@@ -390,19 +390,10 @@ function Alerts() {
 }
 
 function AppHeader() {
-  const { session, theme, setTheme } = useAuth()
-  if (!session) return null
-
+  const { user } = useAuth()
   return (
     <header className="app-header">
-      <button
-        type="button"
-        className="header-theme-toggle"
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        aria-label="Cambiar tema"
-      >
-        {theme === 'dark' ? '☀️' : '🌙'}
-      </button>
+      {user && <span>Bienvenido, {user.username || user.email}</span>}
     </header>
   )
 }

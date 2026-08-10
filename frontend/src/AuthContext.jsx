@@ -50,9 +50,22 @@ export const AuthProvider = ({ children }) => {
       throw new Error(data.message || 'Error al iniciar sesión');
     }
 
-    // Guardar token JWT y actualizar usuario
     localStorage.setItem('token', data.token);
-    setUser({ username: data.username, role: data.role });
+    setUser({ username: data.username, role: data.role, tenant_id: data.tenant_id });
+    return data;
+  };
+
+  // Función de Registro
+  const register = async (username, password) => {
+    const response = await api.post('/register', { username, password });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Error al registrar el usuario');
+    }
+
+    localStorage.setItem('token', data.token);
+    setUser({ username: data.username, role: data.role, tenant_id: data.tenant_id });
     return data;
   };
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { api } from './api'; // o '../api' según la ubicación del archivo
 import { apiFetch } from './api';
+import { useAuth } from './AuthContext'
 // Ejemplo de consulta de pacientes
 const loadPatients = async () => {
   try {
@@ -39,6 +40,8 @@ export function Patients() {
   })
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'tenant_admin'
 
   async function load(q = '') {
     try {
@@ -56,13 +59,27 @@ export function Patients() {
 
   useEffect(() => { load() }, [])
 
+  async function deletePatient(patientId) {
+    if (!window.confirm('¿Seguro que deseas eliminar este paciente? Esta acción no se puede deshacer.')) {
+      return
+    }
+    const res = await apiFetch('/patients', { method: 'DELETE', body: JSON.stringify({ patient_id: patientId }) })
+    if (res.ok) {
+      setMessage('Paciente eliminado correctamente')
+      await load(query)
+    } else {
+      const json = await res.json().catch(() => ({}))
+      setMessage(json.message || 'Error al eliminar paciente')
+    }
+  }
+
   async function submit(e) {
     e.preventDefault()
     setLoading(true)
     setMessage('')
     try {
       // client-side uniqueness checks for document number, phone, email
-      const existingDocument = patients.find(p => p.document_number === form.document_number && form.document_number.trim() !== '')
+      const existingDocument = patients.find(p => p.dni === form.document_number && form.document_number.trim() !== '')
       if (existingDocument) {
         setMessage('El número de documento ya existe para otro paciente')
         setLoading(false)
@@ -84,7 +101,7 @@ export function Patients() {
       const res = await apiFetch('/patients', { method: 'POST', body: JSON.stringify({
         ...form,
         phone: phoneValue,
-        dni: form.document_type === 'dni' ? form.document_number : ''
+        dni: form.document_number
       }) })
       const json = await res.json()
       if (res.ok) {
@@ -270,6 +287,11 @@ export function Patients() {
                         <p>Tel: {patient.phone || '—'}</p>
                         <p>Correo: {patient.email || '—'}</p>
                         <span className="meta">Estado: {patient.status || 'Activo'}</span>
+                        {isAdmin && (
+                          <button type="button" className="button danger" style={{ marginTop: 8 }} onClick={() => deletePatient(patient.id)}>
+                            Eliminar paciente
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -540,6 +562,7 @@ export function Documents() {
   const [patientQuery, setPatientQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ patient_id: '', document_type: 'result', file_name: '', description: '' })
+  const [selectedFile, setSelectedFile] = useState(null)
   const [message, setMessage] = useState('')
 
   async function loadDocuments() {
@@ -560,10 +583,24 @@ export function Documents() {
   async function submit(e) {
     e.preventDefault()
     setMessage('')
-    const res = await apiFetch('/documents', { method: 'POST', body: JSON.stringify(form) })
+
+    if (!selectedFile) {
+      setMessage('Selecciona un archivo PDF antes de enviar')
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('patient_id', form.patient_id)
+    formData.append('document_type', form.document_type)
+    formData.append('description', form.description)
+    formData.append('file_name', form.file_name || selectedFile.name)
+    formData.append('file', selectedFile)
+
+    const res = await apiFetch('/documents', { method: 'POST', body: formData })
     if (res.ok) {
       setMessage('Documento registrado')
       setForm({ patient_id: '', document_type: 'result', file_name: '', description: '' })
+      setSelectedFile(null)
       setShowForm(false)
       loadDocuments()
     } else {
@@ -611,7 +648,31 @@ export function Documents() {
                   <option value="other">Otro</option>
                 </select>
               </label>
-              <label>Nombre del archivo *<input required value={form.file_name} onChange={e => setForm({ ...form, file_name: e.target.value })} /></label>
+              <label>Archivo PDF *
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  required
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (!file) {
+                      setSelectedFile(null)
+                      setForm({ ...form, file_name: '' })
+                      return
+                    }
+                    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                      setMessage('Solo se permiten archivos PDF')
+                      e.target.value = null
+                      return
+                    }
+                    setSelectedFile(file)
+                    setForm({ ...form, file_name: file.name })
+                  }}
+                />
+              </label>
+              <label>Nombre del archivo *
+                <input required value={form.file_name} onChange={e => setForm({ ...form, file_name: e.target.value })} />
+              </label>
               <label>Descripción<input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
               <div className="button-row">
                 <button type="submit">Guardar documento</button>

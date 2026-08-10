@@ -362,7 +362,7 @@ def profile():
 def roles():
     return jsonify(get_all_roles())
 
-@app.route('/api/patients', methods=['GET', 'POST'])
+@app.route('/api/patients', methods=['GET', 'POST', 'DELETE'])
 @token_required
 def patients():
     claims = get_current_user()
@@ -381,6 +381,24 @@ def patients():
         rows = db_query(sql, tuple(params), fetchall=True)
         return jsonify(rows or [])
 
+    if request.method == 'DELETE':
+        if not has_permission(claims.get('role'), 'manage_patients'):
+            return jsonify({'message': 'Permission denied'}), 403
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        if not patient_id:
+            return jsonify({'message': 'patient_id is required'}), 400
+
+        deleted = db_query(
+            'DELETE FROM patients WHERE id = %s AND tenant_id = %s RETURNING id',
+            (patient_id, tenant_id), commit=True, fetchone=True
+        )
+        if not deleted:
+            return jsonify({'message': 'invalid patient'}), 400
+
+        record_audit('delete', 'patient', deleted['id'], f'Deleted patient {deleted["id"]}', tenant_id, claims.get('id'))
+        return jsonify({'message': 'Patient deleted'})
+
     if not has_permission(claims.get('role'), 'manage_patients'):
         return jsonify({'message': 'Permission denied'}), 403
 
@@ -389,6 +407,10 @@ def patients():
     dni = data.get('dni')
     if not full_name or not dni:
         return jsonify({'message': 'full_name and dni are required'}), 400
+
+    existing_patient = db_query('SELECT id FROM patients WHERE tenant_id = %s AND dni = %s', (tenant_id, dni), fetchone=True)
+    if existing_patient:
+        return jsonify({'message': 'Un paciente con ese DNI ya existe'}), 400
 
     count_row = db_query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s', (tenant_id,), fetchone=True)
     count_val = count_row['count'] if count_row else 0
