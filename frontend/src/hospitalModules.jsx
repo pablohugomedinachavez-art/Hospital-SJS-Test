@@ -13,15 +13,25 @@ const loadPatients = async () => {
     console.error('Error al cargar pacientes:', error);
   }
 };
+const phoneConfigs = {
+  '+51': { country: 'Perú', length: 9 },
+  '+52': { country: 'México', length: 10 },
+  '+54': { country: 'Argentina', length: 10 },
+  '+57': { country: 'Colombia', length: 9 },
+  '+1': { country: 'Estados Unidos', length: 10 }
+}
+
 export function Patients() {
   const [patients, setPatients] = useState([])
   const [query, setQuery] = useState('')
   const [view, setView] = useState('list')
   const [form, setForm] = useState({
+    document_type: 'dni',
+    document_number: '',
     full_name: '',
-    dni: '',
     date_of_birth: '',
-    phone: '',
+    phone_country: '+51',
+    phone_number: '',
     email: '',
     sex: '',
     blood_type: '',
@@ -51,11 +61,35 @@ export function Patients() {
     setLoading(true)
     setMessage('')
     try {
-      const res = await apiFetch('/patients', { method: 'POST', body: JSON.stringify(form) })
+      // client-side uniqueness checks for document number, phone, email
+      const existingDocument = patients.find(p => p.document_number === form.document_number && form.document_number.trim() !== '')
+      if (existingDocument) {
+        setMessage('El número de documento ya existe para otro paciente')
+        setLoading(false)
+        return
+      }
+      const phoneValue = `${form.phone_country}${form.phone_number}`
+      const existingPhone = patients.find(p => p.phone === phoneValue && form.phone_number.trim() !== '')
+      if (existingPhone) {
+        setMessage('El teléfono ya está registrado para otro paciente')
+        setLoading(false)
+        return
+      }
+      const existingEmail = patients.find(p => p.email === form.email && form.email.trim() !== '')
+      if (existingEmail) {
+        setMessage('El correo ya está registrado para otro paciente')
+        setLoading(false)
+        return
+      }
+      const res = await apiFetch('/patients', { method: 'POST', body: JSON.stringify({
+        ...form,
+        phone: phoneValue,
+        dni: form.document_type === 'dni' ? form.document_number : ''
+      }) })
       const json = await res.json()
       if (res.ok) {
         setMessage('Paciente registrado correctamente')
-        setForm({ full_name: '', dni: '', date_of_birth: '', phone: '', email: '', sex: '', blood_type: '', allergies: '' })
+        setForm({ document_type: 'dni', document_number: '', full_name: '', date_of_birth: '', phone_country: '+51', phone_number: '', email: '', sex: '', blood_type: '', allergies: '' })
         setView('list')
         await load(query)
       } else {
@@ -94,11 +128,27 @@ export function Patients() {
               <p>Agrega un paciente nuevo para que quede disponible para consultas, citas y documentos.</p>
             </div>
 
-            <div className="form-card patients-form-card">
-              <form onSubmit={submit}>
+            <form onSubmit={submit}>
+              <div className="form-grid">
                 <label>
-                  DNI
-                  <input required value={form.dni} onChange={e => setForm({ ...form, dni: e.target.value })} />
+                  Tipo de documento
+                  <select value={form.document_type} onChange={e => setForm({ ...form, document_type: e.target.value, document_number: '' })}>
+                    <option value="dni">DNI</option>
+                    <option value="ce">CARNET DE EXTRANJERÍA</option>
+                  </select>
+                </label>
+                <label>
+                  Número de documento
+                  <input
+                    required
+                    value={form.document_number}
+                    onChange={e => {
+                      const value = e.target.value.replace(/\D/g, '')
+                      const maxLength = form.document_type === 'dni' ? 8 : 12
+                      setForm({ ...form, document_number: value.slice(0, maxLength) })
+                    }}
+                    placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 dígitos'}
+                  />
                 </label>
                 <label>
                   Nombre completo
@@ -106,28 +156,67 @@ export function Patients() {
                 </label>
                 <label>
                   Fecha de nacimiento
-                  <input type="date" value={form.date_of_birth} onChange={e => setForm({ ...form, date_of_birth: e.target.value })} />
+                  <input
+                    required
+                    type="date"
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={form.date_of_birth}
+                    onChange={e => setForm({ ...form, date_of_birth: e.target.value })}
+                  />
+                </label>
+                <label>
+                  Código de país
+                  <select value={form.phone_country} onChange={e => setForm({ ...form, phone_country: e.target.value, phone_number: '' })}>
+                    {Object.entries(phoneConfigs).map(([code, info]) => (
+                      <option key={code} value={code}>{code} ({info.country})</option>
+                    ))}
+                  </select>
                 </label>
                 <label>
                   Teléfono
-                  <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                  <input
+                    required
+                    value={form.phone_number}
+                    onChange={e => {
+                      const value = e.target.value.replace(/\D/g, '')
+                      const maxLength = phoneConfigs[form.phone_country]?.length || 10
+                      setForm({ ...form, phone_number: value.slice(0, maxLength) })
+                    }}
+                    placeholder={`Hasta ${phoneConfigs[form.phone_country]?.length || 10} dígitos`}
+                  />
                 </label>
                 <label>
                   Correo
-                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="Opcional" />
                 </label>
                 <label>
                   Sexo
-                  <input value={form.sex} onChange={e => setForm({ ...form, sex: e.target.value })} />
+                  <select required value={form.sex} onChange={e => setForm({ ...form, sex: e.target.value })}>
+                    <option value="">Seleccionar sexo</option>
+                    <option value="female">Femenino</option>
+                    <option value="male">Masculino</option>
+                    <option value="other">Otro / Prefiero no decir</option>
+                  </select>
                 </label>
                 <label>
                   Tipo de sangre
-                  <input value={form.blood_type} onChange={e => setForm({ ...form, blood_type: e.target.value })} />
+                  <select value={form.blood_type} onChange={e => setForm({ ...form, blood_type: e.target.value })}>
+                    <option value="">Seleccionar tipo de sangre</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
                 </label>
                 <label>
                   Alergias
                   <input value={form.allergies} onChange={e => setForm({ ...form, allergies: e.target.value })} />
                 </label>
+              </div>
                 <div className="button-row">
                   <button type="submit" disabled={loading}>{loading ? 'Guardando...' : 'Registrar paciente'}</button>
                   <button type="button" className="secondary" onClick={() => { setView('list'); setMessage('') }}>
@@ -137,7 +226,6 @@ export function Patients() {
               </form>
               {message && <div className="form-message">{message}</div>}
             </div>
-          </div>
         ) : (
           <>
             <div className="patients-toolbar">
@@ -150,7 +238,7 @@ export function Patients() {
                 />
               </label>
               <div className="button-row patients-actions">
-                <button type="button" className="button" onClick={() => load(query)}>
+                <button type="button" className="button" onClick={() => { if (!query || !query.trim()) { setMessage('Introduce un DNI o nombre para buscar'); return } load(query) }}>
                   Buscar
                 </button>
                 <button type="button" className="button secondary" onClick={() => { setView('create'); setMessage('') }}>
@@ -176,6 +264,7 @@ export function Patients() {
                     {patients.map(patient => (
                       <div key={patient.id} className="item-card">
                         <h3>{patient.full_name}</h3>
+                        <p>ID: {patient.id}</p>
                         <p>DNI: {patient.dni}</p>
                         <p>HC: {patient.medical_record_number || '—'}</p>
                         <p>Tel: {patient.phone || '—'}</p>
@@ -209,7 +298,12 @@ export function Consultations() {
 
   async function searchPatients(query = '') {
     const res = await apiFetch(`/patients?q=${encodeURIComponent(query)}`)
-    if (res.ok) setPatients(await res.json() || [])
+    if (res.ok) {
+      const data = await res.json() || []
+      setPatients(data)
+      return data
+    }
+    return []
   }
 
   useEffect(() => {
@@ -250,7 +344,19 @@ export function Consultations() {
                 Buscar DNI del paciente
                 <input value={patientQuery} onChange={e => setPatientQuery(e.target.value)} placeholder="DNI o nombre" />
               </label>
-              <button type="button" onClick={() => searchPatients(patientQuery)} style={{ marginBottom: 12 }}>
+              <button type="button" onClick={async () => {
+                if (!patientQuery || !patientQuery.trim()) {
+                  setMessage('Introduce un DNI o nombre para filtrar');
+                  return
+                }
+                const results = await searchPatients(patientQuery)
+                const match = results.find(p => p.dni === patientQuery.trim() || p.document_number === patientQuery.trim())
+                if (match) {
+                  setForm({ ...form, patient_id: match.id.toString() })
+                } else {
+                  setMessage('No se encontró un paciente con ese DNI.');
+                }
+              }} style={{ marginBottom: 12 }}>
                 Filtrar pacientes
               </button>
               <label>
@@ -289,6 +395,7 @@ export function Consultations() {
             {consultations.map(item => (
               <div key={item.id} className="item-card">
                 <h3>{item.reason}</h3>
+                <p>ID: {item.id}</p>
                 <p>{item.diagnosis || 'Sin diagnóstico'}</p>
                 <p>{item.doctor_name}</p>
                 <span className="meta">{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</span>
@@ -327,6 +434,15 @@ export function Appointments() {
   async function submit(e) {
     e.preventDefault()
     setMessage('')
+    // Prevent scheduling in the past
+    if (form.appointment_date) {
+      const selected = new Date(form.appointment_date)
+      const now = new Date()
+      if (selected < now) {
+        setMessage('No se puede programar una cita en una fecha anterior a la actual')
+        return
+      }
+    }
     const res = await apiFetch('/appointments', { method: 'POST', body: JSON.stringify(form) })
     if (res.ok) {
       setMessage('Cita creada')
@@ -357,7 +473,7 @@ export function Appointments() {
                 Buscar DNI del paciente
                 <input value={patientQuery} onChange={e => setPatientQuery(e.target.value)} placeholder="DNI o nombre" />
               </label>
-              <button type="button" onClick={() => searchPatients(patientQuery)} style={{ marginBottom: 12 }}>
+              <button type="button" onClick={() => { if (!patientQuery || !patientQuery.trim()) { setMessage('Introduce un DNI o nombre para filtrar'); return } searchPatients(patientQuery) }} style={{ marginBottom: 12 }}>
                 Filtrar pacientes
               </button>
               <label>
@@ -370,8 +486,19 @@ export function Appointments() {
                 </select>
               </label>
               <label>Médico<input value={form.doctor_name} onChange={e => setForm({ ...form, doctor_name: e.target.value })} /></label>
-              <label>Especialidad<input value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })} /></label>
-              <label>Fecha y Hora *<input required type="datetime-local" value={form.appointment_date} onChange={e => setForm({ ...form, appointment_date: e.target.value })} /></label>
+              <label>Especialidad
+                <select value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })}>
+                  <option value="">Seleccionar especialidad</option>
+                  <option>Cardiología</option>
+                  <option>Pediatría</option>
+                  <option>Medicina General</option>
+                  <option>Dermatología</option>
+                  <option>Ginecología</option>
+                </select>
+              </label>
+              <label>Fecha y Hora *
+                <input required type="datetime-local" min={new Date().toISOString().slice(0,16)} value={form.appointment_date} onChange={e => setForm({ ...form, appointment_date: e.target.value })} />
+              </label>
               <label>Notas<input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></label>
               <div className="button-row">
                 <button type="submit">Guardar cita</button>
@@ -394,6 +521,7 @@ export function Appointments() {
             {appointments.map(item => (
               <div key={item.id} className="item-card">
                 <h3>{item.specialty}</h3>
+                <p>ID: {item.id}</p>
                 <p>{item.doctor_name}</p>
                 <p>{item.appointment_date}</p>
                 <p>{item.notes || 'Sin notas'}</p>
@@ -462,7 +590,7 @@ export function Documents() {
                 Buscar DNI del paciente
                 <input value={patientQuery} onChange={e => setPatientQuery(e.target.value)} placeholder="DNI o nombre" />
               </label>
-              <button type="button" onClick={() => searchPatients(patientQuery)} style={{ marginBottom: 12 }}>
+              <button type="button" onClick={() => { if (!patientQuery || !patientQuery.trim()) { setMessage('Introduce un DNI o nombre para filtrar'); return } searchPatients(patientQuery) }} style={{ marginBottom: 12 }}>
                 Filtrar pacientes
               </button>
               <label>
@@ -474,7 +602,15 @@ export function Documents() {
                   ))}
                 </select>
               </label>
-              <label>Tipo<input value={form.document_type} onChange={e => setForm({ ...form, document_type: e.target.value })} /></label>
+              <label>Tipo de documento
+                <select value={form.document_type} onChange={e => setForm({ ...form, document_type: e.target.value })}>
+                  <option value="">Seleccionar tipo de documento</option>
+                  <option value="result">Resultado</option>
+                  <option value="report">Informe</option>
+                  <option value="prescription">Prescripción</option>
+                  <option value="other">Otro</option>
+                </select>
+              </label>
               <label>Nombre del archivo *<input required value={form.file_name} onChange={e => setForm({ ...form, file_name: e.target.value })} /></label>
               <label>Descripción<input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
               <div className="button-row">
@@ -498,6 +634,7 @@ export function Documents() {
             {documents.map(item => (
               <div key={item.id} className="item-card">
                 <h3>{item.file_name}</h3>
+                <p>ID: {item.id}</p>
                 <p>{item.document_type}</p>
                 <p>{item.description || 'Sin descripción'}</p>
                 <span className="meta">Estado: {item.status || 'Activo'}</span>

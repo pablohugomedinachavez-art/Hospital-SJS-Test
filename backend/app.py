@@ -341,6 +341,7 @@ def auth_verify():
         return jsonify({'authenticated': False, 'message': 'Token expired'}), 401
     except Exception:
         return jsonify({'authenticated': False, 'message': 'Invalid token'}), 401
+    
 
 @app.route('/api/profile')
 @token_required

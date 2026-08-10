@@ -105,15 +105,47 @@ button,
 
 .app-shell {
   display: flex;
+  flex-direction: row;
+  width: 100vw;
+  height: 100vh;
   min-height: 100vh;
-  width: 100%;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+/* Support older markup that uses .app-layout/.main-content */
+.app-layout {
+  display: flex;
+  flex-direction: row;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.app-layout > aside,
+.app-layout > main {
+  height: 100%;
+}
+
+.main-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: relative;
 }
 
 .sidebar {
-  flex: 0 0 20vw;
-  width: 20vw;
-  max-width: 320px;
-  min-width: 220px;
+  flex: 0 0 260px;
+  width: 260px;
+  flex-shrink: 0;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
   padding: 24px 18px;
@@ -121,6 +153,11 @@ button,
   flex-direction: column;
   gap: 18px;
   transition: width 220ms ease, min-width 220ms ease, max-width 220ms ease;
+  height: 100%;
+  overflow-y: auto;
+  position: relative;
+  top: 0;
+  z-index: 2;
 }
 
 .app-header {
@@ -298,16 +335,28 @@ button,
 .content {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 24px 32px 32px;
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  position: relative;
+  z-index: 1;
 }
 
 .content > * {
-  width: min(1120px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+/* Ensure layout children fill height when direct children of the root container */
+.layout-container > aside,
+.layout-container > main {
+  height: 100%;
 }
 .button
 .form-card {
