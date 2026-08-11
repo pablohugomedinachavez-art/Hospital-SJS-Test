@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import './styles.css'
-import { Patients, Consultations, Appointments, Documents, Reports } from './hospitalModules'
+import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 
@@ -415,10 +415,22 @@ function AppContent() {
     switch (route) {
       case '/patients':
         return <Patients />
+      case '/dashboard':
+        return <Dashboard />
+      case '/device_actions':
+        return <DeviceActions />
+      case '/users':
+        return <Users />
+      case '/locations':
+        return <Locations />
+      case '/devices':
+        return <Devices />
       case '/consultations':
         return <Consultations />
       case '/appointments':
         return <Appointments />
+      case '/profile':
+        return <Profile />
       case '/documents':
         return <Documents />
       case '/reports':

@@ -891,14 +891,95 @@ button:hover {
 
 .location-page {
   display: grid;
-  gap: 56px;
-  width: min(640px, 100%);
-  max-width: 640px;
+  gap: 32px;
+  width: min(1200px, 100%);
+  max-width: 1200px;
   margin: 0 auto;
+  grid-template-columns: minmax(320px, 1fr) minmax(360px, 480px);
 }
 
 .location-page .card {
   width: 100%;
+}
+
+.area-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  min-height: 180px;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 20px;
+  background: var(--panel-bg);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.area-card:hover,
+.area-card.selected {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.12);
+}
+
+.area-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.area-card-header h3 {
+  margin: 0;
+}
+
+.area-edit-icon {
+  font-size: 1.15rem;
+  opacity: 0.7;
+}
+
+.area-metrics {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.area-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.area-detail-content {
+  display: grid;
+  gap: 16px;
+}
+
+.area-detail-meta {
+  display: grid;
+  gap: 14px;
+}
+
+.area-detail-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.area-detail-edit-hint {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(56, 189, 248, 0.08);
+  color: var(--text);
+}
+
+.note {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .auth-page {

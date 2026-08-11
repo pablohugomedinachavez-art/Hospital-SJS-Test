@@ -112,6 +112,22 @@ def db_query(query, params=(), commit=False, fetchone=False, fetchall=False):
             conn.rollback()
             raise e
 
+
+def get_user_columns():
+    try:
+        rows = db_query(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'users'
+            """,
+            fetchall=True
+        ) or []
+        return {row['column_name'] for row in rows}
+    except Exception:
+        return set()
+
+
 def create_token(user):
     payload = {
         'sub': user['username'],
@@ -216,6 +232,21 @@ def record_audit(action, entity_type, entity_id, details, tenant_id, user_id=Non
     except Exception as e:
         print(f"[AUDIT LOG WARNING]: No se pudo registrar auditoría: {str(e)}")
 
+    # Also attempt to record the action tied to the originating session / IP
+    try:
+        ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        user_agent = request.headers.get('User-Agent', '')
+        # Insert into device_actions for tracking by IP/session
+        db_query(
+            '''
+            INSERT INTO device_actions (tenant_id, session_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
+            VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''',
+            (tenant_id, user_id, ip_addr, user_agent, action, entity_type, entity_id, details, now_utc()), commit=True
+        )
+    except Exception as e:
+        print(f"[DEVICE ACTION WARNING]: No se pudo registrar la acción del dispositivo: {str(e)}")
+
 
 # 6. Endpoints de la API
 @app.route('/api/health')
@@ -301,6 +332,21 @@ def login():
 
         token = create_token(user_dict)
 
+        # Record session for this login (IP and user-agent)
+        try:
+            ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+            user_agent = request.headers.get('User-Agent', '')
+            session_row = db_query(
+                '''
+                INSERT INTO sessions (tenant_id, user_id, ip_address, user_agent, created_at, last_seen)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+                ''',
+                (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), commit=True, fetchone=True
+            )
+            # Optionally include session id in token or logs (not modifying token now)
+        except Exception as e:
+            print(f"[SESSION WARNING]: No se pudo crear el registro de sesión: {str(e)}")
+
         return jsonify({
             'token': token,
             'username': user.username,
@@ -348,14 +394,57 @@ def auth_verify():
 def profile():
     claims = get_current_user()
     role_info = get_role_info(claims['role'])
+
+    # Add counts for common entities
+    tenant_id = claims['tenant_id']
+    patients_count = (db_query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0)
+    consultations_count = (db_query('SELECT COUNT(*) as count FROM consultations WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0)
+    appointments_count = (db_query('SELECT COUNT(*) as count FROM appointments WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0)
+    documents_count = (db_query('SELECT COUNT(*) as count FROM documents WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0)
+
+    # Fetch user created_at from users table
+    user_row = db_query('SELECT id, username, role, created_at FROM users WHERE id = %s AND tenant_id = %s', (claims.get('id'), tenant_id), fetchone=True) or {}
+
     return jsonify({
         'username': claims['username'],
         'role': claims['role'],
         'role_name': role_info['name'],
         'permissions': role_info['permissions'],
         'tenant_id': claims['tenant_id'],
-        'bio': 'Plataforma de gestión hospitalaria (Supabase).'
+        'bio': 'Plataforma de gestión hospitalaria (Supabase).',
+        'created_at': user_row.get('created_at'),
+        'counts': {
+            'patients': patients_count,
+            'consultations': consultations_count,
+            'appointments': appointments_count,
+            'documents': documents_count
+        }
     })
+
+
+@app.route('/api/profile/change_password', methods=['POST'])
+@token_required
+def change_own_password():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    data = request.get_json() or {}
+    old_password = data.get('old_password')
+    new_password = data.get('new_password')
+    if not old_password or not new_password:
+        return jsonify({'message': 'old_password and new_password required'}), 400
+
+    user = db_query('SELECT id, password FROM users WHERE id = %s AND tenant_id = %s', (claims.get('id'), tenant_id), fetchone=True)
+    if not user:
+        return jsonify({'message': 'user not found'}), 404
+
+    from werkzeug.security import check_password_hash
+    if not check_password_hash(user['password'], old_password):
+        return jsonify({'message': 'old password incorrect'}), 401
+
+    hashed = generate_password_hash(new_password)
+    db_query('UPDATE users SET password = %s WHERE id = %s AND tenant_id = %s', (hashed, user['id'], tenant_id), commit=True)
+    record_audit('update', 'user', user['id'], 'User changed own password', tenant_id, user['id'])
+    return jsonify({'message': 'Password updated'})
 
 @app.route('/api/roles')
 @token_required
@@ -462,6 +551,120 @@ def appointments():
     record_audit('create', 'appointment', new_appointment['id'], appointment_date, tenant_id, claims.get('id'))
     return jsonify({'message': 'Appointment created'})
 
+
+@app.route('/api/locations', methods=['GET', 'POST'])
+@token_required
+def locations():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        rows = db_query(
+            '''
+            SELECT l.id, l.name, l.description, l.created_at,
+                COUNT(DISTINCT d.id) AS device_count,
+                COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
+                COUNT(a.id) AS total_alerts
+            FROM locations l
+            LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
+            LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
+            WHERE l.tenant_id = %s
+            GROUP BY l.id
+            ORDER BY l.id DESC
+            ''',
+            (tenant_id, tenant_id, tenant_id), fetchall=True
+        )
+        return jsonify(rows or [])
+
+    if not has_permission(claims.get('role'), 'manage_locations'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    name = data.get('name')
+    description = data.get('description', '')
+    if not name:
+        return jsonify({'message': 'name is required'}), 400
+
+    new_row = db_query(
+        'INSERT INTO locations (tenant_id, name, description, created_at) VALUES (%s, %s, %s, %s) RETURNING id',
+        (tenant_id, name, description, now_utc()), commit=True, fetchone=True
+    )
+    record_audit('create', 'location', new_row['id'], f'Created location {name}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Location created', 'id': new_row['id']})
+
+
+@app.route('/api/locations/<int:location_id>', methods=['GET', 'PUT'])
+@token_required
+def location_detail(location_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        row = db_query(
+            '''
+            SELECT l.id, l.name, l.description, l.created_at,
+                COUNT(DISTINCT d.id) AS device_count,
+                COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
+                COUNT(a.id) AS total_alerts
+            FROM locations l
+            LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
+            LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
+            WHERE l.tenant_id = %s AND l.id = %s
+            GROUP BY l.id
+            ''',
+            (tenant_id, tenant_id, tenant_id, location_id), fetchone=True
+        )
+        if not row:
+            return jsonify({'message': 'Location not found'}), 404
+
+        row['user_count'] = 0
+        row['hospital_position'] = ''
+        return jsonify(row)
+
+    if not has_permission(claims.get('role'), 'manage_locations'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    name = data.get('name')
+    description = data.get('description', '')
+    if not name:
+        return jsonify({'message': 'name is required'}), 400
+
+    db_query(
+        'UPDATE locations SET name = %s, description = %s WHERE id = %s AND tenant_id = %s',
+        (name, description, location_id, tenant_id), commit=True
+    )
+    record_audit('update', 'location', location_id, f'Updated location {name}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Location updated'})
+
+
+@app.route('/api/devices', methods=['GET', 'POST'])
+@token_required
+def devices():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        rows = db_query('SELECT * FROM devices WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
+        return jsonify(rows or [])
+
+    if not has_permission(claims.get('role'), 'manage_devices'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    name = data.get('name')
+    location_id = data.get('location_id')
+    type_ = data.get('type', '')
+    if not name:
+        return jsonify({'message': 'name is required'}), 400
+
+    new_row = db_query(
+        'INSERT INTO devices (tenant_id, location_id, name, type, status, created_at) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id',
+        (tenant_id, location_id, name, type_, data.get('status', 'active'), now_utc()), commit=True, fetchone=True
+    )
+    record_audit('create', 'device', new_row['id'], f'Created device {name}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Device created', 'id': new_row['id']})
+
 @app.route('/api/dashboard')
 @token_required
 def dashboard():
@@ -475,6 +678,375 @@ def dashboard():
         'patients': (db_query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
     }
     return jsonify(counts)
+
+
+@app.route('/api/dashboard/areas')
+@token_required
+def dashboard_areas():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    try:
+        rows = db_query(
+            '''
+            SELECT l.id, l.name,
+                COUNT(DISTINCT d.id) AS device_count,
+                COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
+                COUNT(a.id) AS total_alerts
+            FROM locations l
+            LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
+            LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
+            WHERE l.tenant_id = %s
+            GROUP BY l.id, l.name
+            ORDER BY l.name
+            ''',
+            (tenant_id, tenant_id, tenant_id), fetchall=True
+        )
+        return jsonify(rows or [])
+    except Exception as e:
+        print(f"[DASHBOARD AREAS ERROR]: {e}")
+        return jsonify({'message': 'Error generating dashboard areas'}), 500
+
+
+@app.route('/api/reports')
+@token_required
+def reports():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    try:
+        summary = {
+            'patients': (db_query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            'consultations': (db_query('SELECT COUNT(*) as count FROM consultations WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            'appointments': (db_query('SELECT COUNT(*) as count FROM appointments WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            'documents': (db_query('SELECT COUNT(*) as count FROM documents WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            'active_alerts': (db_query('SELECT COUNT(*) as count FROM alerts WHERE tenant_id = %s AND is_resolved = 0', (tenant_id,), fetchone=True) or {}).get('count', 0),
+        }
+
+        recent_consultations = db_query('SELECT id, patient_id, reason, diagnosis, created_at FROM consultations WHERE tenant_id = %s ORDER BY created_at DESC LIMIT 10', (tenant_id,), fetchall=True) or []
+
+        return jsonify({'summary': summary, 'recent_consultations': recent_consultations})
+    except Exception as e:
+        print(f"[REPORTS ERROR]: {e}")
+        return jsonify({'message': 'Error generating reports'}), 500
+
+
+@app.route('/api/reports/series')
+@token_required
+def reports_series():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    days = int(request.args.get('days', 30))
+    try:
+        sql = '''
+        SELECT DATE(created_at) as day, COUNT(*) as patients
+        FROM patients WHERE tenant_id = %s AND created_at >= now() - interval '%s days'
+        GROUP BY day ORDER BY day ASC
+        ''' % ('%s', days)
+        pts = db_query(sql, (tenant_id,), fetchall=True) or []
+
+        sql2 = '''
+        SELECT DATE(created_at) as day, COUNT(*) as consultations
+        FROM consultations WHERE tenant_id = %s AND created_at >= now() - interval '%s days'
+        GROUP BY day ORDER BY day ASC
+        ''' % ('%s', days)
+        cons = db_query(sql2, (tenant_id,), fetchall=True) or []
+
+        day_map = {row['day']: {'day': row['day'], 'patients': 0, 'consultations': 0} for row in pts}
+        for row in cons:
+            if row['day'] in day_map:
+                day_map[row['day']]['consultations'] = row['consultations']
+            else:
+                day_map[row['day']] = {'day': row['day'], 'patients': 0, 'consultations': row['consultations']}
+
+        merged = [day_map[day] for day in sorted(day_map)]
+        for item in merged:
+            item['patients'] = next((r['patients'] for r in pts if r['day'] == item['day']), 0)
+
+        return jsonify(merged)
+    except Exception as e:
+        print(f"[SERIES ERROR]: {e}")
+        return jsonify({'message': 'Error generating series'}), 500
+
+
+@app.route('/api/metrics')
+@token_required
+def metrics():
+    """Return key metrics and a simple session duration prediction."""
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    try:
+        # Active users: distinct user_id in sessions last 24h
+        active_users = (db_query('SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= now() - interval '"'1 day'"'', (tenant_id,), fetchone=True) or {}).get('count', 0)
+
+        # Average session duration (seconds) across sessions with last_seen
+        avg_row = db_query("SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", (tenant_id,), fetchone=True) or {'avg_seconds': None}
+        avg_seconds = avg_row.get('avg_seconds') or 0
+
+        # Simple time-series prediction: get daily avg durations for last 7 days and perform linear trend
+        series = db_query("SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", (tenant_id,), fetchall=True) or []
+        # Build arrays for regression
+        xs = []
+        ys = []
+        for i, row in enumerate(series):
+            xs.append(i)
+            ys.append(row.get('avg_seconds') or 0)
+
+        pred = None
+        if len(xs) >= 2:
+            # Simple linear regression y = a + b*x
+            n = len(xs)
+            sum_x = sum(xs)
+            sum_y = sum(ys)
+            sum_xx = sum(x*x for x in xs)
+            sum_xy = sum(x*y for x,y in zip(xs,ys))
+            denom = (n*sum_xx - sum_x*sum_x)
+            if denom != 0:
+                b = (n*sum_xy - sum_x*sum_y) / denom
+                a = (sum_y - b*sum_x) / n
+                next_x = n
+                pred = max(0, a + b*next_x)
+
+        # return metrics
+        return jsonify({
+            'active_users': active_users,
+            'avg_session_seconds': avg_seconds,
+            'session_duration_prediction_seconds': pred,
+            'series': series
+        })
+    except Exception as e:
+        print(f"[METRICS ERROR]: {e}")
+        return jsonify({'message': 'Error generating metrics'}), 500
+
+
+@app.route('/api/users', methods=['GET'])
+@token_required
+def list_users():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    users = db_query(
+        '''
+        SELECT u.id, u.username, u.role, u.tenant_id, u.created_at
+        FROM users u
+        WHERE u.tenant_id = %s
+        ORDER BY u.id DESC
+        ''',
+        (tenant_id,), fetchall=True
+    )
+    return jsonify(users or [])
+
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@token_required
+def update_user(user_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    role = data.get('role')
+    location_id = data.get('location_id')
+    active = data.get('active')
+
+    # Only update allowed fields.
+    # location_id is optional and may not exist in the current database schema.
+    updates = []
+    params = []
+    if role:
+        updates.append('role = %s')
+        params.append(role)
+    if location_id is not None and 'location_id' in get_user_columns():
+        updates.append('location_id = %s')
+        params.append(location_id)
+    if active is not None:
+        if not active:
+            updates.append("role = %s")
+            params.append('disabled')
+
+    if not updates:
+        return jsonify({'message': 'No fields to update'}), 400
+
+    params.extend([user_id, tenant_id])
+    sql = f"UPDATE users SET {', '.join(updates)} WHERE id = %s AND tenant_id = %s"
+    db_query(sql, tuple(params), commit=True)
+    field_names = ', '.join([u.split('=')[0].strip() for u in updates])
+    record_audit('update', 'user', user_id, f'Updated user fields: {field_names}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'User updated'})
+
+
+@app.route('/api/users/<int:user_id>/reset_password', methods=['POST'])
+@token_required
+def reset_user_password(user_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    new_password = data.get('new_password')
+    if not new_password:
+        return jsonify({'message': 'new_password required'}), 400
+
+    hashed_pw = generate_password_hash(new_password)
+    db_query('UPDATE users SET password = %s WHERE id = %s AND tenant_id = %s', (hashed_pw, user_id, tenant_id), commit=True)
+    record_audit('update', 'user', user_id, 'Password reset by admin', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Password reset'})
+
+
+@app.route('/api/sessions', methods=['GET'])
+@token_required
+def get_sessions():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    rows = db_query('SELECT s.id, s.user_id, u.username, s.ip_address, s.user_agent, s.created_at, s.last_seen FROM sessions s LEFT JOIN users u ON u.id = s.user_id WHERE s.tenant_id = %s ORDER BY s.created_at DESC', (tenant_id,), fetchall=True)
+    return jsonify(rows or [])
+
+
+@app.route('/api/device_actions', methods=['GET'])
+@token_required
+def list_device_actions():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    # Filters and pagination
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 25))
+    action_type = request.args.get('action_type')
+    ip = request.args.get('ip')
+    user_id = request.args.get('user_id')
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    where_clauses = ['da.tenant_id = %s']
+    params = [tenant_id]
+    if action_type:
+        where_clauses.append('da.action_type = %s')
+        params.append(action_type)
+    if ip:
+        where_clauses.append('da.ip_address = %s')
+        params.append(ip)
+    if user_id:
+        where_clauses.append('da.user_id = %s')
+        params.append(user_id)
+    if start:
+        where_clauses.append('da.created_at >= %s')
+        params.append(start)
+    if end:
+        where_clauses.append('da.created_at <= %s')
+        params.append(end)
+
+    where_sql = ' AND '.join(where_clauses)
+
+    total_row = db_query(f'SELECT COUNT(*) as total FROM device_actions da WHERE {where_sql}', tuple(params), fetchone=True) or {'total': 0}
+    total = total_row.get('total', 0)
+
+    offset = (page - 1) * per_page
+    sql = f'''
+        SELECT da.id, da.session_id, da.user_id, u.username, da.ip_address, da.user_agent, da.action_type, da.entity_type, da.entity_id, da.details, da.created_at
+        FROM device_actions da
+        LEFT JOIN users u ON u.id = da.user_id
+        WHERE {where_sql}
+        ORDER BY da.created_at DESC
+        LIMIT %s OFFSET %s
+    '''
+    params.extend([per_page, offset])
+    rows = db_query(sql, tuple(params), fetchall=True) or []
+
+    return jsonify({'total': total, 'page': page, 'per_page': per_page, 'items': rows})
+
+
+
+@app.route('/api/device_actions/export', methods=['GET'])
+@token_required
+def export_device_actions_csv():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    # reuse filters
+    action_type = request.args.get('action_type')
+    ip = request.args.get('ip')
+    user_id = request.args.get('user_id')
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    where_clauses = ['da.tenant_id = %s']
+    params = [tenant_id]
+    if action_type:
+        where_clauses.append('da.action_type = %s')
+        params.append(action_type)
+    if ip:
+        where_clauses.append('da.ip_address = %s')
+        params.append(ip)
+    if user_id:
+        where_clauses.append('da.user_id = %s')
+        params.append(user_id)
+    if start:
+        where_clauses.append('da.created_at >= %s')
+        params.append(start)
+    if end:
+        where_clauses.append('da.created_at <= %s')
+        params.append(end)
+
+    where_sql = ' AND '.join(where_clauses)
+
+    sql = f"SELECT da.id, da.session_id, da.user_id, u.username, da.ip_address, da.user_agent, da.action_type, da.entity_type, da.entity_id, da.details, da.created_at FROM device_actions da LEFT JOIN users u ON u.id = da.user_id WHERE {where_sql} ORDER BY da.created_at DESC"
+    rows = db_query(sql, tuple(params), fetchall=True) or []
+
+    # Build CSV
+    import csv
+    from io import StringIO
+
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['id','session_id','user_id','username','ip_address','user_agent','action_type','entity_type','entity_id','details','created_at'])
+    for r in rows:
+        writer.writerow([r.get('id'), r.get('session_id'), r.get('user_id'), r.get('username'), r.get('ip_address'), r.get('user_agent'), r.get('action_type'), r.get('entity_type'), r.get('entity_id'), r.get('details'), r.get('created_at')])
+
+    output = si.getvalue()
+    return app.response_class(output, mimetype='text/csv', headers={"Content-Disposition": "attachment; filename=device_actions.csv"})
+
+
+@app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
+@token_required
+def incidents_handler():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        rows = db_query('SELECT i.id, i.incident_type, i.description, i.status, i.created_at, i.updated_at, u.username FROM incidents i LEFT JOIN users u ON u.id = i.user_id WHERE i.tenant_id = %s ORDER BY i.created_at DESC', (tenant_id,), fetchall=True)
+        return jsonify(rows or [])
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        inc_type = data.get('incident_type')
+        desc = data.get('description')
+        user_id = claims.get('id')
+        if not inc_type:
+            return jsonify({'message': 'incident_type required'}), 400
+        new_row = db_query('INSERT INTO incidents (tenant_id, user_id, incident_type, description, status, created_at) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id', (tenant_id, user_id, inc_type, desc, 'open', now_utc()), commit=True, fetchone=True)
+        record_audit('create', 'incident', new_row['id'], f'Incident {inc_type}', tenant_id, user_id)
+        return jsonify({'message': 'Incident created', 'id': new_row['id']})
+
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        inc_id = data.get('id')
+        status = data.get('status')
+        if not inc_id or not status:
+            return jsonify({'message': 'id and status required'}), 400
+        db_query('UPDATE incidents SET status = %s, updated_at = %s WHERE id = %s AND tenant_id = %s', (status, now_utc(), inc_id, tenant_id), commit=True)
+        record_audit('update', 'incident', inc_id, f'Status set to {status}', tenant_id, claims.get('id'))
+        return jsonify({'message': 'Incident updated'})
 
 @app.route('/')
 def index():

@@ -13,8 +13,10 @@ CREATE TABLE IF NOT EXISTS users (
   password TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'viewer',
   tenant_id INTEGER NOT NULL,
+  location_id INTEGER,
   created_at TEXT NOT NULL,
-  FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+  FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+  FOREIGN KEY (location_id) REFERENCES locations(id)
 );
 
 CREATE TABLE IF NOT EXISTS locations (
@@ -162,6 +164,72 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   entity_id INTEGER,
   details TEXT,
   created_at TEXT NOT NULL,
+  FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TEXT NOT NULL,
+  last_seen TEXT,
+  FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS device_actions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL,
+  session_id INTEGER,
+  user_id INTEGER,
+  ip_address TEXT,
+  user_agent TEXT,
+  action_type TEXT NOT NULL,
+  entity_type TEXT,
+  entity_id INTEGER,
+  details TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+  FOREIGN KEY (session_id) REFERENCES sessions(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS document_types (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS blood_types (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS country_codes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS file_types (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS incidents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id INTEGER NOT NULL,
+  user_id INTEGER,
+  incident_type TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  created_at TEXT NOT NULL,
+  updated_at TEXT,
   FOREIGN KEY (tenant_id) REFERENCES tenants(id),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );

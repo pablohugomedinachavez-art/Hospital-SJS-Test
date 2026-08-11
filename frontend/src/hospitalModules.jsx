@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { api } from './api'; // o '../api' según la ubicación del archivo
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext'
@@ -430,6 +431,264 @@ export function Consultations() {
   )
 }
 
+export function Locations() {
+  const [items, setItems] = useState([])
+  const [selectedArea, setSelectedArea] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
+  const [showNewAreaForm, setShowNewAreaForm] = useState(false)
+  const [newAreaName, setNewAreaName] = useState('')
+  const [newAreaDescription, setNewAreaDescription] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const { user } = useAuth()
+  const canEdit = ['admin', 'tenant_admin'].includes(user?.role)
+
+  async function load() {
+    const res = await apiFetch('/locations')
+    if (res.ok) setItems(await res.json() || [])
+  }
+
+  async function loadDetail(id) {
+    setIsLoadingDetail(true)
+    const res = await apiFetch(`/locations/${id}`)
+    if (res.ok) setDetail(await res.json())
+    setIsLoadingDetail(false)
+  }
+
+  async function submitNewArea(e) {
+    e.preventDefault()
+    if (!newAreaName.trim()) {
+      setErrorMessage('El nombre del área es requerido.')
+      return
+    }
+    setIsSaving(true)
+    setErrorMessage('')
+    const res = await apiFetch('/locations', {
+      method: 'POST',
+      body: JSON.stringify({ name: newAreaName.trim(), description: newAreaDescription.trim() })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setNewAreaName('')
+      setNewAreaDescription('')
+      setShowNewAreaForm(false)
+      await load()
+      if (data.id) setSelectedArea(data.id)
+    } else {
+      setErrorMessage(data.message || 'No se pudo crear el área.')
+    }
+    setIsSaving(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    if (selectedArea) {
+      loadDetail(selectedArea)
+    }
+  }, [selectedArea])
+
+  return (
+    <div className="location-page">
+      <div className="card">
+        <div className="card-header-row">
+          <div>
+            <h2>Áreas del hospital</h2>
+            <p className="muted">Selecciona un área para ver los datos operativos. Solo administración puede editar nombres y descripciones.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {canEdit && (
+              <button type="button" className="button secondary" onClick={() => setShowNewAreaForm(!showNewAreaForm)}>
+                {showNewAreaForm ? 'Cancelar' : 'Agregar área'}
+              </button>
+            )}
+            {canEdit && <span className="note">✏️ Editar habilitado</span>}
+          </div>
+        </div>
+
+        {showNewAreaForm && (
+          <div className="card form-card">
+            <h3>Crear nueva área</h3>
+            <form onSubmit={submitNewArea}>
+              <label>
+                Nombre del área
+                <input value={newAreaName} onChange={e => setNewAreaName(e.target.value)} placeholder="Nombre del área" />
+              </label>
+              <label>
+                Descripción
+                <textarea value={newAreaDescription} onChange={e => setNewAreaDescription(e.target.value)} placeholder="Breve descripción de la área" />
+              </label>
+              {errorMessage && <div className="error">{errorMessage}</div>}
+              <div className="button-row">
+                <button type="submit" disabled={isSaving}>{isSaving ? 'Guardando...' : 'Crear área'}</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className="items-grid">
+          {items.map(area => (
+            <button
+              key={area.id}
+              type="button"
+              className={`area-card ${selectedArea === area.id ? 'selected' : ''}`}
+              onClick={() => setSelectedArea(area.id)}
+            >
+              <div className="area-card-header">
+                <h3>{area.name}</h3>
+                {canEdit && <span className="area-edit-icon" aria-label="Editar área">✏️</span>}
+              </div>
+              <p>{area.description || 'Área operativa sin descripción'}</p>
+              <div className="area-metrics">
+                <span>{area.device_count ?? 0} dispositivos</span>
+                <span>{area.active_alerts ?? 0} alertas activas</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {selectedArea && (
+        <div className="card area-detail-card">
+          <div className="card-header-row">
+            <h2>Detalle de área</h2>
+            <button type="button" className="button secondary" onClick={() => setSelectedArea(null)}>Cerrar</button>
+          </div>
+          {isLoadingDetail ? (
+            <p>Cargando detalles...</p>
+          ) : detail ? (
+            <div className="area-detail-content">
+              <div className="area-detail-meta">
+                <h3>{detail.name}</h3>
+                <p>{detail.description || 'Descripción no registrada'}</p>
+                <div className="area-detail-row">
+                  <span><strong>Usuarios en área:</strong> {detail.user_count != null ? detail.user_count : '—'}</span>
+                  <span><strong>Ubicación en hospital:</strong> {detail.hospital_position || 'Pendiente'}</span>
+                </div>
+                <div className="area-detail-row">
+                  <span><strong>Dispositivos:</strong> {detail.device_count ?? 0}</span>
+                  <span><strong>Alertas activas:</strong> {detail.active_alerts ?? 0}</span>
+                </div>
+                <div className="area-detail-row">
+                  <span><strong>Alertas totales:</strong> {detail.total_alerts ?? 0}</span>
+                  <span><strong>Creado:</strong> {detail.created_at ? new Date(detail.created_at).toLocaleString() : '—'}</span>
+                </div>
+              </div>
+              {canEdit ? (
+                <div className="area-detail-edit-hint">
+                  Puedes editar el nombre y la descripción del área desde el botón de administración.
+                </div>
+              ) : (
+                <div className="area-detail-edit-hint muted">
+                  Solo los administradores pueden editar esta área.
+                </div>
+              )}
+            </div>
+          ) : (
+            <p>Selecciona un área para ver su detalle.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function Devices() {
+  const [items, setItems] = useState([])
+  const [locations, setLocations] = useState([])
+  const { user } = useAuth()
+
+  async function load() {
+    const [res1, res2] = await Promise.all([apiFetch('/devices'), apiFetch('/locations')])
+    if (res1.ok) setItems(await res1.json() || [])
+    if (res2.ok) setLocations(await res2.json() || [])
+  }
+
+  useEffect(() => { load() }, [])
+
+  return (
+    <div className="card">
+      <h2>Dispositivos</h2>
+      <p className="muted">Vista operativa: solo lectura. Use 'Dispositivos / Acciones' para ver actividad por IP y acciones realizadas.</p>
+      <div className="items-grid">
+        {items.map(i => (
+          <div key={i.id} className="item-card">
+            <h3>{i.name}</h3>
+            <p>Tipo: {i.type || '—'}</p>
+            <p>Ubicación: {locations.find(l => l.id === i.location_id)?.name || '—'}</p>
+            <span className="meta">Estado: {i.status || 'Activo'}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function DeviceActions() {
+  const [items, setItems] = useState([])
+  const [page, setPage] = useState(1)
+  const [perPage] = useState(25)
+  const [total, setTotal] = useState(0)
+  const [filterAction, setFilterAction] = useState('')
+  const [filterIP, setFilterIP] = useState('')
+  const [filterUser, setFilterUser] = useState('')
+
+  async function load() {
+    const q = new URLSearchParams()
+    q.set('page', page)
+    q.set('per_page', perPage)
+    if (filterAction) q.set('action_type', filterAction)
+    if (filterIP) q.set('ip', filterIP)
+    if (filterUser) q.set('user_id', filterUser)
+    const res = await apiFetch('/device_actions?' + q.toString())
+    if (res.ok) {
+      const j = await res.json()
+      setItems(j.items || [])
+      setTotal(j.total || 0)
+    }
+  }
+
+  useEffect(() => { load() }, [page, filterAction, filterIP, filterUser])
+
+  function exportCSV() {
+    const q = new URLSearchParams()
+    if (filterAction) q.set('action_type', filterAction)
+    if (filterIP) q.set('ip', filterIP)
+    if (filterUser) q.set('user_id', filterUser)
+    window.open('/api/device_actions/export?' + q.toString(), '_blank')
+  }
+
+  return (
+    <div className="card">
+      <h2>Acciones por Dispositivo / Sesiones</h2>
+      <div className="collection-toolbar">
+        <label>Acción<input value={filterAction} onChange={e => setFilterAction(e.target.value)} placeholder="create|download|delete" /></label>
+        <label>IP<input value={filterIP} onChange={e => setFilterIP(e.target.value)} placeholder="127.0.0.1" /></label>
+        <label>User ID<input value={filterUser} onChange={e => setFilterUser(e.target.value)} placeholder="user id" /></label>
+        <div className="button-row"><button className="button" onClick={() => { setPage(1); load() }}>Filtrar</button><button className="button secondary" onClick={exportCSV}>Export CSV</button></div>
+      </div>
+
+      <div className="items-grid">
+        {items.map(it => (
+          <div key={it.id} className="item-card">
+            <h3>{it.action_type}</h3>
+            <p><strong>IP:</strong> {it.ip_address} · <strong>User:</strong> {it.username || it.user_id}</p>
+            <p>{it.details}</p>
+            <span className="meta">{it.created_at ? new Date(it.created_at).toLocaleString() : '—'}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="pagination-footer">
+        <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
+        <span>Página {page} · Total {total}</span>
+        <button disabled={page * perPage >= total} onClick={() => setPage(page + 1)}>Siguiente</button>
+      </div>
+    </div>
+  )
+}
+
 export function Appointments() {
   const [appointments, setAppointments] = useState([])
   const [patients, setPatients] = useState([])
@@ -710,11 +969,14 @@ export function Documents() {
 
 export function Reports() {
   const [data, setData] = useState(null)
+  const [incidents, setIncidents] = useState([])
+  const [newIncident, setNewIncident] = useState({ incident_type: '', description: '' })
 
   useEffect(() => {
     apiFetch('/reports').then(async res => {
       if (res.ok) setData(await res.json())
     })
+    apiFetch('/incidents').then(async res => { if (res.ok) setIncidents(await res.json()) })
   }, [])
 
   return (
@@ -754,9 +1016,270 @@ export function Reports() {
               </div>
             ))}
           </div>
+          <h3 style={{ marginTop: 18 }}>Incidencias reportadas</h3>
+          <div style={{ marginBottom: 12 }}>
+            <label>Tipo de incidencia<input value={newIncident.incident_type} onChange={e => setNewIncident({ ...newIncident, incident_type: e.target.value })} /></label>
+            <label>Descripción<input value={newIncident.description} onChange={e => setNewIncident({ ...newIncident, description: e.target.value })} /></label>
+            <div className="button-row"><button className="button" onClick={async () => {
+              if (!newIncident.incident_type) return alert('Tipo requerido')
+              const res = await apiFetch('/incidents', { method: 'POST', body: JSON.stringify(newIncident) })
+              if (res.ok) { setNewIncident({ incident_type: '', description: '' }); const list = await (await apiFetch('/incidents')).json(); setIncidents(list) }
+            }}>Reportar incidencia</button></div>
+          </div>
+
+          <div className="items-grid">
+            {incidents.map(i => (
+              <div key={i.id} className="item-card">
+                <h3>{i.incident_type}</h3>
+                <p>{i.description}</p>
+                <span className="meta">Estado: {i.status} · {i.created_at ? new Date(i.created_at).toLocaleString() : '—'}</span>
+                <div style={{ marginTop: 8 }}>
+                  <select value={i.status} onChange={async (e) => { await apiFetch('/incidents', { method: 'PUT', body: JSON.stringify({ id: i.id, status: e.target.value }) }); const list = await (await apiFetch('/incidents')).json(); setIncidents(list) }}>
+                    <option value="open">Por atender</option>
+                    <option value="in_progress">En proceso</option>
+                    <option value="closed">Atendido</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : (
         <p>Cargando reportes...</p>
+      )}
+    </div>
+  )
+}
+
+export function Dashboard() {
+  const [reports, setReports] = useState(null)
+  const [series, setSeries] = useState([])
+  const [metrics, setMetrics] = useState(null)
+  const [areas, setAreas] = useState([])
+  const [selectedLocation, setSelectedLocation] = useState('all')
+  const [days, setDays] = useState(30)
+
+  useEffect(() => {
+    apiFetch('/reports').then(async res => {
+      if (res.ok) setReports(await res.json())
+    })
+    apiFetch(`/reports/series?days=${days}`).then(async res => {
+      if (res.ok) setSeries(await res.json())
+    })
+    apiFetch('/metrics').then(async res => {
+      if (res.ok) setMetrics(await res.json())
+    })
+    apiFetch('/dashboard/areas').then(async res => {
+      if (res.ok) setAreas(await res.json())
+    })
+  }, [days])
+
+  const filteredAreas = selectedLocation === 'all' ? areas : areas.filter(a => String(a.id) === String(selectedLocation))
+  const totalDevices = filteredAreas.reduce((sum, a) => sum + (a.device_count || 0), 0)
+  const totalAlerts = filteredAreas.reduce((sum, a) => sum + (a.total_alerts || 0), 0)
+
+  return (
+    <div className="card">
+      <h2>Dashboard Gerencial</h2>
+      {!reports || !metrics ? (
+        <p>Cargando métricas...</p>
+      ) : (
+        <div>
+          <div className="filter-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+            <label>
+              Día(s)
+              <select value={days} onChange={e => setDays(Number(e.target.value))}>
+                <option value={7}>Últimos 7 días</option>
+                <option value={14}>Últimos 14 días</option>
+                <option value={30}>Últimos 30 días</option>
+              </select>
+            </label>
+            <label>
+              Área
+              <select value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)}>
+                <option value="all">Todas las áreas</option>
+                {areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="stats-grid">
+            <div className="stat-card"><span className="stat-value">{reports.summary?.patients ?? 0}</span><span className="stat-label">Pacientes</span></div>
+            <div className="stat-card"><span className="stat-value">{reports.summary?.consultations ?? 0}</span><span className="stat-label">Consultas</span></div>
+            <div className="stat-card"><span className="stat-value">{metrics.active_users ?? 0}</span><span className="stat-label">Usuarios activos</span></div>
+            <div className="stat-card"><span className="stat-value">{Math.round(metrics.avg_session_seconds)}</span><span className="stat-label">Duración media (s)</span></div>
+            <div className="stat-card"><span className="stat-value">{Math.round(metrics.session_duration_prediction_seconds || 0)}</span><span className="stat-label">Predicción próxima sesión (s)</span></div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18 }}>
+            <div className="card chart-card" style={{ minHeight: 320 }}>
+              <h3>Tendencia de pacientes / consultas</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={series} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="day" tickFormatter={day => new Date(day).toLocaleDateString()} />
+                  <YAxis />
+                  <Tooltip labelFormatter={label => new Date(label).toLocaleDateString()} />
+                  <Legend />
+                  <Line type="monotone" dataKey="patients" stroke="#1f77b4" name="Pacientes" />
+                  <Line type="monotone" dataKey="consultations" stroke="#ff7f0e" name="Consultas" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="card chart-card" style={{ minHeight: 320 }}>
+              <h3>Dispositivos y alertas por área</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={filteredAreas} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="device_count" fill="#82ca9d" name="Dispositivos" />
+                  <Bar dataKey="active_alerts" fill="#ff6961" name="Alertas activas" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: 18 }}>
+            <h3>Puntos clave de la hospitalización</h3>
+            <div className="stats-grid">
+              <div className="stat-card"><span className="stat-value">{totalDevices}</span><span className="stat-label">Dispositivos en área</span></div>
+              <div className="stat-card"><span className="stat-value">{totalAlerts}</span><span className="stat-label">Alertas en área</span></div>
+              <div className="stat-card"><span className="stat-value">{filteredAreas.length}</span><span className="stat-label">Áreas seleccionadas</span></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function Users() {
+  const [users, setUsers] = useState([])
+  const [locations, setLocations] = useState([])
+  const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
+
+  async function load() {
+    setLoading(true)
+    const [usersRes, locationsRes] = await Promise.all([apiFetch('/users'), apiFetch('/locations')])
+    if (usersRes.ok) setUsers(await usersRes.json() || [])
+    if (locationsRes.ok) setLocations(await locationsRes.json() || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function changeRole(u, newRole) {
+    const res = await apiFetch(`/users/${u.id}`, { method: 'PUT', body: JSON.stringify({ role: newRole, location_id: u.location_id }) })
+    if (res.ok) load()
+  }
+
+  async function changeLocation(u, newLocationId) {
+    const res = await apiFetch(`/users/${u.id}`, { method: 'PUT', body: JSON.stringify({ location_id: newLocationId }) })
+    if (res.ok) load()
+  }
+
+  const supportsLocationAssignment = false
+
+  async function resetPassword(u) {
+    const pw = prompt('Nueva contraseña para ' + u.username)
+    if (!pw) return
+    const res = await apiFetch(`/users/${u.id}/reset_password`, { method: 'POST', body: JSON.stringify({ new_password: pw }) })
+    if (res.ok) alert('Contraseña actualizada')
+  }
+
+  return (
+    <div className="card">
+      <h2>Gestión de usuarios</h2>
+      {loading ? <p>Cargando...</p> : (
+        <div>
+          <table className="table">
+            <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Área</th><th>Creado</th><th>Acciones</th></tr></thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id}>
+                  <td>{u.id}</td>
+                  <td>{u.username}</td>
+                  <td>
+                    <select value={u.role} onChange={e => changeRole(u, e.target.value)}>
+                      <option value="viewer">viewer</option>
+                      <option value="operator">operator</option>
+                      <option value="tenant_admin">tenant_admin</option>
+                      <option value="admin">admin</option>
+                    </select>
+                  </td>
+                  <td>
+                    {supportsLocationAssignment ? (
+                      <select value={u.location_id || ''} onChange={e => changeLocation(u, e.target.value || null)}>
+                        <option value="">Sin área</option>
+                        {locations.map(l => (
+                          <option key={l.id} value={l.id}>{l.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span>Sin asignación</span>
+                    )}
+                  </td>
+                  <td>{u.created_at ? new Date(u.created_at).toLocaleString() : '—'}</td>
+                  <td>
+                    <button className="button" onClick={() => resetPassword(u)} style={{ marginLeft: 8 }}>Reset PW</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function Profile() {
+  const { user } = useAuth()
+  const [profile, setProfile] = useState(null)
+  const [oldPw, setOldPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+
+  useEffect(() => {
+    apiFetch('/profile').then(async res => {
+      if (res.ok) setProfile(await res.json())
+    })
+  }, [])
+
+  async function changePw(e) {
+    e.preventDefault()
+    if (!oldPw || !newPw) return alert('Ingresa ambas contraseñas')
+    const res = await apiFetch('/profile/change_password', { method: 'POST', body: JSON.stringify({ old_password: oldPw, new_password: newPw }) })
+    const j = await res.json().catch(() => ({}))
+    if (res.ok) { alert('Contraseña cambiada'); setOldPw(''); setNewPw('') } else { alert(j.message || 'Error') }
+  }
+
+  return (
+    <div className="card">
+      <h2>Mi Perfil</h2>
+      {!profile ? <p>Cargando...</p> : (
+        <div>
+          <p><strong>Usuario:</strong> {profile.username}</p>
+          <p><strong>Rol:</strong> {profile.role}</p>
+          <p><strong>Creado:</strong> {profile.created_at ? new Date(profile.created_at).toLocaleString() : '—'}</p>
+          <div className="stats-grid" style={{ marginTop: 12 }}>
+            <div className="stat-card"><span className="stat-value">{profile.counts?.patients ?? 0}</span><span className="stat-label">Pacientes</span></div>
+            <div className="stat-card"><span className="stat-value">{profile.counts?.consultations ?? 0}</span><span className="stat-label">Consultas</span></div>
+            <div className="stat-card"><span className="stat-value">{profile.counts?.appointments ?? 0}</span><span className="stat-label">Citas</span></div>
+            <div className="stat-card"><span className="stat-value">{profile.counts?.documents ?? 0}</span><span className="stat-label">Documentos</span></div>
+          </div>
+
+          <h3 style={{ marginTop: 16 }}>Cambiar contraseña</h3>
+          <form onSubmit={changePw} className="form-grid">
+            <label>Contraseña actual<input type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} /></label>
+            <label>Nueva contraseña<input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} /></label>
+            <div className="button-row"><button type="submit">Cambiar contraseña</button></div>
+          </form>
+        </div>
       )}
     </div>
   )
