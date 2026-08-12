@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { api } from './api'; // o '../api' según la ubicación del archivo
+import { api } from './api';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext'
-// Ejemplo de consulta de pacientes
+
 const loadPatients = async () => {
   try {
     const res = await api.get('/patients');
@@ -15,6 +15,7 @@ const loadPatients = async () => {
     console.error('Error al cargar pacientes:', error);
   }
 };
+
 const phoneConfigs = {
   '+51': { country: 'Perú', length: 9 },
   '+52': { country: 'México', length: 10 },
@@ -40,6 +41,7 @@ export function Patients() {
     allergies: ''
   })
   const [message, setMessage] = useState('')
+  const [documentError, setDocumentError] = useState('')
   const [loading, setLoading] = useState(false)
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'tenant_admin'
@@ -60,6 +62,40 @@ export function Patients() {
 
   useEffect(() => { load() }, [])
 
+  const handleSwitchToCreate = () => {
+    setView('create')
+    setMessage('')
+    setDocumentError('')
+    load('')
+  }
+
+  const handleDocumentChange = (value, docType = form.document_type) => {
+    const cleanValue = docType === 'dni' 
+      ? value.replace(/\D/g, '') 
+      : value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+      
+    const maxLength = docType === 'dni' ? 8 : 12
+    const docNumber = cleanValue.slice(0, maxLength)
+
+    setForm(prev => ({ ...prev, document_number: docNumber }))
+
+    if (docNumber.trim() !== '') {
+      const exists = patients.some(p => {
+        const dniStr = p.dni ? String(p.dni).trim() : ''
+        const docStr = p.document_number ? String(p.document_number).trim() : ''
+        return dniStr === docNumber || docStr === docNumber
+      })
+
+      if (exists) {
+        setDocumentError(`⚠️ El ${docType.toUpperCase()} ${docNumber} ya se encuentra registrado.`)
+      } else {
+        setDocumentError('')
+      }
+    } else {
+      setDocumentError('')
+    }
+  }
+
   async function deletePatient(patientId) {
     if (!window.confirm('¿Seguro que deseas eliminar este paciente? Esta acción no se puede deshacer.')) {
       return
@@ -76,29 +112,42 @@ export function Patients() {
 
   async function submit(e) {
     e.preventDefault()
+    if (documentError) {
+      setMessage('Corrige los errores en el formulario antes de continuar.')
+      return
+    }
+
     setLoading(true)
     setMessage('')
     try {
-      // client-side uniqueness checks for document number, phone, email
-      const existingDocument = patients.find(p => p.dni === form.document_number && form.document_number.trim() !== '')
+      const docNumStr = form.document_number.trim()
+      const existingDocument = patients.find(p => {
+        const dniStr = p.dni ? String(p.dni).trim() : ''
+        const docStr = p.document_number ? String(p.document_number).trim() : ''
+        return (dniStr === docNumStr || docStr === docNumStr) && docNumStr !== ''
+      })
+
       if (existingDocument) {
         setMessage('El número de documento ya existe para otro paciente')
         setLoading(false)
         return
       }
+
       const phoneValue = `${form.phone_country}${form.phone_number}`
-      const existingPhone = patients.find(p => p.phone === phoneValue && form.phone_number.trim() !== '')
+      const existingPhone = patients.find(p => String(p.phone).trim() === phoneValue && form.phone_number.trim() !== '')
       if (existingPhone) {
         setMessage('El teléfono ya está registrado para otro paciente')
         setLoading(false)
         return
       }
-      const existingEmail = patients.find(p => p.email === form.email && form.email.trim() !== '')
+
+      const existingEmail = patients.find(p => String(p.email).toLowerCase().trim() === form.email.toLowerCase().trim() && form.email.trim() !== '')
       if (existingEmail) {
         setMessage('El correo ya está registrado para otro paciente')
         setLoading(false)
         return
       }
+
       const res = await apiFetch('/patients', { method: 'POST', body: JSON.stringify({
         ...form,
         phone: phoneValue,
@@ -108,6 +157,7 @@ export function Patients() {
       if (res.ok) {
         setMessage('Paciente registrado correctamente')
         setForm({ document_type: 'dni', document_number: '', full_name: '', date_of_birth: '', phone_country: '+51', phone_number: '', email: '', sex: '', blood_type: '', allergies: '' })
+        setDocumentError('')
         setView('list')
         await load(query)
       } else {
@@ -133,7 +183,7 @@ export function Patients() {
             </p>
           </div>
           {view === 'create' && (
-            <button type="button" className="button secondary" onClick={() => { setView('list'); setMessage('') }}>
+            <button type="button" className="button secondary" onClick={() => { setView('list'); setMessage(''); setDocumentError('') }}>
               Volver
             </button>
           )}
@@ -150,7 +200,14 @@ export function Patients() {
               <div className="form-grid">
                 <label>
                   Tipo de documento
-                  <select value={form.document_type} onChange={e => setForm({ ...form, document_type: e.target.value, document_number: '' })}>
+                  <select 
+                    value={form.document_type} 
+                    onChange={e => {
+                      const newType = e.target.value
+                      setForm(prev => ({ ...prev, document_type: newType, document_number: '' }))
+                      setDocumentError('')
+                    }}
+                  >
                     <option value="dni">DNI</option>
                     <option value="ce">CARNET DE EXTRANJERÍA</option>
                   </select>
@@ -160,13 +217,14 @@ export function Patients() {
                   <input
                     required
                     value={form.document_number}
-                    onChange={e => {
-                      const value = e.target.value.replace(/\D/g, '')
-                      const maxLength = form.document_type === 'dni' ? 8 : 12
-                      setForm({ ...form, document_number: value.slice(0, maxLength) })
-                    }}
-                    placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 dígitos'}
+                    onChange={e => handleDocumentChange(e.target.value)}
+                    placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 caracteres'}
                   />
+                  {documentError && (
+                    <span style={{ color: '#d9534f', fontSize: '0.85rem', marginTop: '4px', display: 'block', fontWeight: 'bold' }}>
+                      {documentError}
+                    </span>
+                  )}
                 </label>
                 <label>
                   Nombre completo
@@ -235,15 +293,17 @@ export function Patients() {
                   <input value={form.allergies} onChange={e => setForm({ ...form, allergies: e.target.value })} />
                 </label>
               </div>
-                <div className="button-row">
-                  <button type="submit" disabled={loading}>{loading ? 'Guardando...' : 'Registrar paciente'}</button>
-                  <button type="button" className="secondary" onClick={() => { setView('list'); setMessage('') }}>
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-              {message && <div className="form-message">{message}</div>}
-            </div>
+              <div className="button-row">
+                <button type="submit" disabled={loading || Boolean(documentError)}>
+                  {loading ? 'Guardando...' : 'Registrar paciente'}
+                </button>
+                <button type="button" className="secondary" onClick={() => { setView('list'); setMessage(''); setDocumentError('') }}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+            {message && <div className="form-message">{message}</div>}
+          </div>
         ) : (
           <>
             <div className="patients-toolbar">
@@ -259,7 +319,7 @@ export function Patients() {
                 <button type="button" className="button" onClick={() => { if (!query || !query.trim()) { setMessage('Introduce un DNI o nombre para buscar'); return } load(query) }}>
                   Buscar
                 </button>
-                <button type="button" className="button secondary" onClick={() => { setView('create'); setMessage('') }}>
+                <button type="button" className="button secondary" onClick={handleSwitchToCreate}>
                   Agregar
                 </button>
               </div>
@@ -271,7 +331,7 @@ export function Patients() {
                   <div className="patients-empty-icon">🔎</div>
                   <h3>No se encontraron pacientes</h3>
                   <p>Prueba con otros términos de búsqueda o crea un nuevo paciente.</p>
-                  <button type="button" className="button" onClick={() => { setView('create'); setMessage('') }}>
+                  <button type="button" className="button" onClick={handleSwitchToCreate}>
                     Crear nuevo paciente
                   </button>
                 </div>
@@ -283,7 +343,7 @@ export function Patients() {
                       <div key={patient.id} className="item-card">
                         <h3>{patient.full_name}</h3>
                         <p>ID: {patient.id}</p>
-                        <p>DNI: {patient.dni}</p>
+                        <p>DNI / Documento: {patient.dni || patient.document_number}</p>
                         <p>HC: {patient.medical_record_number || '—'}</p>
                         <p>Tel: {patient.phone || '—'}</p>
                         <p>Correo: {patient.email || '—'}</p>
@@ -373,7 +433,7 @@ export function Consultations() {
                   return
                 }
                 const results = await searchPatients(patientQuery)
-                const match = results.find(p => p.dni === patientQuery.trim() || p.document_number === patientQuery.trim())
+                const match = results.find(p => String(p.dni).trim() === patientQuery.trim() || String(p.document_number).trim() === patientQuery.trim())
                 if (match) {
                   setForm({ ...form, patient_id: match.id.toString() })
                 } else {
@@ -715,7 +775,6 @@ export function Appointments() {
   async function submit(e) {
     e.preventDefault()
     setMessage('')
-    // Prevent scheduling in the past
     if (form.appointment_date) {
       const selected = new Date(form.appointment_date)
       const now = new Date()
