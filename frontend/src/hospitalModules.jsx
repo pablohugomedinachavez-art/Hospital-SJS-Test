@@ -369,18 +369,38 @@ export function Patients() {
 export function Consultations() {
   const [consultations, setConsultations] = useState([])
   const [patients, setPatients] = useState([])
+  const [query, setQuery] = useState('') // Estado para la búsqueda de consultas
   const [patientQuery, setPatientQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ patient_id: '', doctor_name: 'Dr. Demo', reason: '', symptoms: '', diagnosis: '', treatment: '', prescription: '' })
+  
+  // Estado ampliado con Triaje y Diagnóstico/Tratamiento completo
+  const [form, setForm] = useState({ 
+    patient_id: '', 
+    doctor_name: 'Dr. Demo', 
+    reason: '', 
+    symptoms: '', 
+    // Campos de Triaje
+    weight_kg: '',
+    height_cm: '',
+    blood_pressure: '',
+    bmi: '',
+    abdominal_perimeter_cm: '',
+    // Campos de Diagnóstico y Tratamiento
+    diagnosis: '', 
+    treatment: '', 
+    prescription: '' 
+  })
+  
   const [message, setMessage] = useState('')
 
-  async function loadConsultations() {
-    const res = await apiFetch('/consultations')
+  // Carga de consultas aceptando un parámetro de búsqueda (q) al igual que Patients
+  async function loadConsultations(q = '') {
+    const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`)
     if (res.ok) setConsultations(await res.json() || [])
   }
 
-  async function searchPatients(query = '') {
-    const res = await apiFetch(`/patients?q=${encodeURIComponent(query)}`)
+  async function searchPatients(q = '') {
+    const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
     if (res.ok) {
       const data = await res.json() || []
       setPatients(data)
@@ -394,15 +414,51 @@ export function Consultations() {
     searchPatients()
   }, [])
 
+  // Cálculo automático del Índice de Masa Corporal (IMC)
+  const calculateBMI = (weight, height) => {
+    if (weight > 0 && height > 0) {
+      const heightInMeters = height / 100
+      const bmiVal = (weight / (heightInMeters * heightInMeters)).toFixed(2)
+      return bmiVal
+    }
+    return ''
+  }
+
+  const handleTriageChange = (field, value) => {
+    const updatedForm = { ...form, [field]: value }
+    
+    // Recalcular IMC cuando cambie peso o talla
+    if (field === 'weight_kg' || field === 'height_cm') {
+      const w = field === 'weight_kg' ? parseFloat(value) : parseFloat(form.weight_kg)
+      const h = field === 'height_cm' ? parseFloat(value) : parseFloat(form.height_cm)
+      updatedForm.bmi = calculateBMI(w, h)
+    }
+    
+    setForm(updatedForm)
+  }
+
   async function submit(e) {
     e.preventDefault()
     setMessage('')
     const res = await apiFetch('/consultations', { method: 'POST', body: JSON.stringify(form) })
     if (res.ok) {
-      setMessage('Consulta registrada')
-      setForm({ patient_id: '', doctor_name: 'Dr. Demo', reason: '', symptoms: '', diagnosis: '', treatment: '', prescription: '' })
+      setMessage('Consulta médica y triaje registrados con éxito.')
+      setForm({ 
+        patient_id: '', 
+        doctor_name: 'Dr. Demo', 
+        reason: '', 
+        symptoms: '', 
+        weight_kg: '',
+        height_cm: '',
+        blood_pressure: '',
+        bmi: '',
+        abdominal_perimeter_cm: '',
+        diagnosis: '', 
+        treatment: '', 
+        prescription: '' 
+      })
       setShowForm(false)
-      loadConsultations()
+      loadConsultations(query)
     } else {
       const json = await res.json().catch(() => ({}))
       setMessage(json.message || 'Error al registrar consulta')
@@ -413,35 +469,79 @@ export function Consultations() {
     <div>
       <div className="card">
         <div className="card-header-row">
-          <h2>Registrar consulta médica</h2>
-          {!showForm && (
-            <button type="button" className="button add-button" onClick={() => { setShowForm(true); setMessage('') }}>
-              Agregar
+          <div>
+            <h2>Consultas Médicas</h2>
+            <p className="muted">
+              {showForm 
+                ? 'Completa los datos de la consulta y triaje del paciente.' 
+                : 'Consulta el historial médico registrado o agrega nuevas consultas.'}
+            </p>
+          </div>
+          {showForm && (
+            <button type="button" className="button secondary" onClick={() => { setShowForm(false); setMessage('') }}>
+              Volver
             </button>
           )}
         </div>
+
+        {/* BARRA DE BÚSQUEDA IGUAL A LA DE PACIENTES */}
+        {!showForm && (
+          <div className="patients-toolbar">
+            <label className="collection-search">
+              <span>Buscar consultas</span>
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Paciente, diagnóstico o motivo..."
+              />
+            </label>
+            <div className="button-row patients-actions">
+              <button 
+                type="button" 
+                className="button" 
+                onClick={() => loadConsultations(query)}
+              >
+                Buscar
+              </button>
+              <button 
+                type="button" 
+                className="button secondary" 
+                onClick={() => { setShowForm(true); setMessage('') }}
+              >
+                Agregar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FORMULARIO DE REGISTRO */}
         {showForm && (
           <div className="form-card">
             <form onSubmit={submit}>
-              <label>
-                Buscar DNI del paciente
-                <input value={patientQuery} onChange={e => setPatientQuery(e.target.value)} placeholder="DNI o nombre" />
-              </label>
-              <button type="button" onClick={async () => {
-                if (!patientQuery || !patientQuery.trim()) {
-                  setMessage('Introduce un DNI o nombre para filtrar');
-                  return
-                }
-                const results = await searchPatients(patientQuery)
-                const match = results.find(p => String(p.dni).trim() === patientQuery.trim() || String(p.document_number).trim() === patientQuery.trim())
-                if (match) {
-                  setForm({ ...form, patient_id: match.id.toString() })
-                } else {
-                  setMessage('No se encontró un paciente con ese DNI.');
-                }
-              }} style={{ marginBottom: 12 }}>
-                Filtrar pacientes
-              </button>
+              <div className="form-grid">
+                <label>
+                  Buscar DNI del paciente
+                  <input value={patientQuery} onChange={e => setPatientQuery(e.target.value)} placeholder="DNI o nombre" />
+                </label>
+                <div style={{ alignSelf: 'flex-end', marginBottom: 12 }}>
+                  <button type="button" onClick={async () => {
+                    if (!patientQuery || !patientQuery.trim()) {
+                      setMessage('Introduce un DNI o nombre para filtrar');
+                      return
+                    }
+                    const results = await searchPatients(patientQuery)
+                    const match = results.find(p => String(p.dni).trim() === patientQuery.trim() || String(p.document_number).trim() === patientQuery.trim())
+                    if (match) {
+                      setForm({ ...form, patient_id: match.id.toString() })
+                    } else {
+                      setMessage('No se encontró un paciente con ese DNI.');
+                    }
+                  }}>
+                    Filtrar pacientes
+                  </button>
+                </div>
+              </div>
+
               <label>
                 Paciente *
                 <select required value={form.patient_id} onChange={e => setForm({ ...form, patient_id: e.target.value })}>
@@ -451,45 +551,113 @@ export function Consultations() {
                   ))}
                 </select>
               </label>
+
               <label>Médico<input value={form.doctor_name} onChange={e => setForm({ ...form, doctor_name: e.target.value })} /></label>
-              <label>Motivo<input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></label>
+              <label>Motivo de consulta<input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></label>
               <label>Síntomas<input value={form.symptoms} onChange={e => setForm({ ...form, symptoms: e.target.value })} /></label>
-              <label>Diagnóstico<input value={form.diagnosis} onChange={e => setForm({ ...form, diagnosis: e.target.value })} /></label>
-              <label>Tratamiento<input value={form.treatment} onChange={e => setForm({ ...form, treatment: e.target.value })} /></label>
-              <label>Receta<input value={form.prescription} onChange={e => setForm({ ...form, prescription: e.target.value })} /></label>
-              <div className="button-row">
-                <button type="submit">Guardar consulta</button>
+
+              <hr style={{ margin: '20px 0', borderColor: '#e9ecef' }} />
+              <h3>📊 Registro de Triaje</h3>
+
+              <div className="form-grid">
+                <label>
+                  Peso (kg)
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    value={form.weight_kg} 
+                    onChange={e => handleTriageChange('weight_kg', e.target.value)} 
+                    placeholder="Ej. 70.5" 
+                  />
+                </label>
+                <label>
+                  Talla (cm)
+                  <input 
+                    type="number" 
+                    value={form.height_cm} 
+                    onChange={e => handleTriageChange('height_cm', e.target.value)} 
+                    placeholder="Ej. 170" 
+                  />
+                </label>
+                <label>
+                  Presión Arterial (mmHg)
+                  <input 
+                    value={form.blood_pressure} 
+                    onChange={e => setForm({ ...form, blood_pressure: e.target.value })} 
+                    placeholder="120/80" 
+                  />
+                </label>
+                <label>
+                  Índice de Masa Corporal (IMC)
+                  <input 
+                    value={form.bmi} 
+                    readOnly 
+                    placeholder="Calculado automáticamente" 
+                    style={{ backgroundColor: '#f0f0f0' }}
+                  />
+                </label>
+                <label>
+                  Perímetro Abdominal (cm)
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    value={form.abdominal_perimeter_cm} 
+                    onChange={e => setForm({ ...form, abdominal_perimeter_cm: e.target.value })} 
+                    placeholder="Ej. 85" 
+                  />
+                </label>
+              </div>
+
+              <hr style={{ margin: '20px 0', borderColor: '#e9ecef' }} />
+              <h3>🩺 Diagnóstico y Tratamiento</h3>
+
+              <label>Diagnóstico<input value={form.diagnosis} onChange={e => setForm({ ...form, diagnosis: e.target.value })} placeholder="Diagnóstico médico" /></label>
+              <label>Tratamiento<input value={form.treatment} onChange={e => setForm({ ...form, treatment: e.target.value })} placeholder="Plan o tratamiento a seguir" /></label>
+              <label>Receta / Medicamentos<input value={form.prescription} onChange={e => setForm({ ...form, prescription: e.target.value })} placeholder="Detalle de medicamentos indicados" /></label>
+
+              <div className="button-row" style={{ marginTop: 16 }}>
+                <button type="submit">Guardar consulta completa</button>
                 <button type="button" className="secondary" onClick={() => { setShowForm(false); setMessage('') }}>
                   Cancelar
                 </button>
               </div>
             </form>
-            {message && <div className="form-message">{message}</div>}
+            {message && <div className="form-message" style={{ marginTop: 12 }}>{message}</div>}
           </div>
         )}
       </div>
-      <div className="card">
-        <h2>Consultas recientes</h2>
-        <p className="collection-total">Número total de elementos: {consultations.length}</p>
-        {consultations.length === 0 ? (
-          <p className="muted">No hay consultas registradas.</p>
-        ) : (
-          <div className="items-grid">
-            {consultations.map(item => (
-              <div key={item.id} className="item-card">
-                <h3>{item.reason}</h3>
-                <p>ID: {item.id}</p>
-                <p>{item.diagnosis || 'Sin diagnóstico'}</p>
-                <p>{item.doctor_name}</p>
-                <span className="meta">{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+
+      {/* RESULTADOS / TARJETAS */}
+      {!showForm && (
+        <div className="card">
+          <h2>Consultas y Triajes Recientes</h2>
+          <p className="collection-total">Número total de registros: {consultations.length}</p>
+          {consultations.length === 0 ? (
+            <div className="patients-empty-state">
+              <div className="patients-empty-icon">🔎</div>
+              <h3>No se encontraron consultas</h3>
+              <p>Prueba con otros términos de búsqueda o registra una nueva consulta.</p>
+            </div>
+          ) : (
+            <div className="items-grid">
+              {consultations.map(item => (
+                <div key={item.id} className="item-card">
+                  <h3>{item.reason || 'Sin motivo registrado'}</h3>
+                  <p><strong>Paciente:</strong> {item.patient_name || item.patient_id}</p>
+                  <p><strong>Médico:</strong> {item.doctor_name}</p>
+                  <p><strong>Diagnóstico:</strong> {item.diagnosis || 'Sin diagnóstico'}</p>
+                  {item.weight_kg && <p><strong>Triaje:</strong> {item.weight_kg}kg | {item.height_cm}cm | IMC: {item.bmi}</p>}
+                  <span className="meta">{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
+
 
 export function Locations() {
   const [items, setItems] = useState([])
@@ -654,32 +822,225 @@ export function Locations() {
   )
 }
 
-export function Devices() {
-  const [items, setItems] = useState([])
-  const [locations, setLocations] = useState([])
-  const { user } = useAuth()
+const parseBrowser = (ua) => {
+  if (!ua) return 'Desconocido'
+  if (ua.includes('Edg')) return 'Microsoft Edge'
+  if (ua.includes('Chrome')) return 'Google Chrome'
+  if (ua.includes('Firefox')) return 'Mozilla Firefox'
+  if (ua.includes('Safari')) return 'Apple Safari'
+  return 'Navegador Web'
+}
 
-  async function load() {
-    const [res1, res2] = await Promise.all([apiFetch('/devices'), apiFetch('/locations')])
-    if (res1.ok) setItems(await res1.json() || [])
-    if (res2.ok) setLocations(await res2.json() || [])
+export function Devices() {
+  const [devices, setDevices] = useState([])
+  const [locations, setLocations] = useState([])
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  const { user } = useAuth()
+  const [clientInfo, setClientInfo] = useState({ ip: 'Obteniendo...', userAgent: navigator.userAgent })
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [message, setMessage] = useState({ text: '', type: '' })
+
+  const showMessage = (text, type = 'info') => {
+    setMessage({ text, type })
+    setTimeout(() => setMessage({ text: '', type: '' }), 4000)
   }
 
-  useEffect(() => { load() }, [])
+  async function loadData() {
+    try {
+      const [devRes, locRes, logsRes] = await Promise.all([
+        apiFetch('/devices'),
+        apiFetch('/locations'),
+        apiFetch('/device_actions')
+      ])
+      if (devRes.ok) setDevices(await devRes.json() || [])
+      if (locRes.ok) setLocations(await locRes.json() || [])
+      if (logsRes.ok) {
+        const logsData = await logsRes.json()
+        setLogs(Array.isArray(logsData) ? logsData : (logsData.items || []))
+      }
+    } catch (err) {
+      showMessage('Error de conexión al cargar datos', 'error')
+    }
+  }
+
+  useEffect(() => {
+    async function initDeviceModule() {
+      setLoading(true)
+      let fetchedIp = '127.0.0.1'
+
+      try {
+        const ipRes = await fetch('https://api.ipify.org?format=json')
+        if (ipRes.ok) {
+          const ipData = await ipRes.json()
+          fetchedIp = ipData.ip || '127.0.0.1'
+        }
+      } catch (e) {
+        console.warn('No se pudo determinar la IP pública:', e)
+      }
+
+      setClientInfo({
+        ip: fetchedIp,
+        userAgent: navigator.userAgent
+      })
+
+      await loadData()
+
+      try {
+        await apiFetch('/device_actions', {
+          method: 'POST',
+          body: JSON.stringify({
+            action_type: 'READ_DEVICES_MODULE',
+            entity_type: 'devices',
+            user_id: user?.id || null,
+            username: user?.username || 'Anónimo',
+            user_role: user?.role || 'Desconocido',
+            ip_address: fetchedIp,
+            user_agent: navigator.userAgent,
+            details: `Consulta al módulo de dispositivos realizada por ${user?.username || 'Usuario'}`
+          })
+        })
+      } catch (err) {
+        console.error('Error al registrar log inicial:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    initDeviceModule()
+  }, [])
+
+  const filteredDevices = devices.filter(d => {
+    const q = searchQuery.toLowerCase()
+    const matchesQuery = !q || d.name?.toLowerCase().includes(q) || d.type?.toLowerCase().includes(q) || d.ip_address?.includes(q)
+    const matchesStatus = statusFilter === 'all' || d.status === statusFilter
+    return matchesQuery && matchesStatus
+  })
 
   return (
     <div className="card">
-      <h2>Dispositivos</h2>
-      <p className="muted">Vista operativa: solo lectura. Use 'Dispositivos / Acciones' para ver actividad por IP y acciones realizadas.</p>
-      <div className="items-grid">
-        {items.map(i => (
-          <div key={i.id} className="item-card">
-            <h3>{i.name}</h3>
-            <p>Tipo: {i.type || '—'}</p>
-            <p>Ubicación: {locations.find(l => l.id === i.location_id)?.name || '—'}</p>
-            <span className="meta">Estado: {i.status || 'Activo'}</span>
-          </div>
-        ))}
+      {message.text && (
+        <div className={`form-message ${message.type === 'error' ? 'error' : ''}`} style={{ marginBottom: 12 }}>
+          {message.type === 'success' ? '✅ ' : '⚠️ '}
+          {message.text}
+        </div>
+      )}
+
+      {/* BLOQUE DE AUDITORÍA DE LA SESIÓN */}
+      <div style={{ background: '#f8f9fa', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #e9ecef' }}>
+        <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#495057' }}>🔒 Contexto de Auditoría Detectado:</h4>
+        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '6px', fontSize: '0.85rem' }}>
+          <span><strong>Usuario:</strong> {user?.username || 'Anónimo'} ({user?.role || 'Sin rol'})</span>
+          <span><strong>IP Equipo:</strong> <code style={{ background: '#e9ecef', padding: '2px 6px', borderRadius: '4px' }}>{clientInfo.ip}</code></span>
+          <span><strong>Navegador:</strong> {parseBrowser(clientInfo.userAgent)}</span>
+        </div>
+      </div>
+
+      <div>
+        <h2>Auditoría y Gestión de Dispositivos</h2>
+        <p className="muted">Consulta de equipos registrados y trazabilidad inmutable de acciones del sistema.</p>
+      </div>
+
+      <div className="collection-toolbar" style={{ marginTop: 16, gap: 12 }}>
+        <label className="collection-search" style={{ flex: '1 1 200px' }}>
+          <span>Buscar dispositivo</span>
+          <input
+            type="text"
+            placeholder="Buscar por nombre, tipo o IP..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </label>
+        <label style={{ flex: '0 0 160px' }}>
+          <span>Estado</span>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="all">Todos</option>
+            <option value="available">Disponible</option>
+            <option value="in_use">En Uso</option>
+            <option value="maintenance">Mantenimiento</option>
+          </select>
+        </label>
+      </div>
+
+      {loading ? (
+        <p style={{ marginTop: 20 }}>Cargando datos y registrando trazabilidad...</p>
+      ) : filteredDevices.length === 0 ? (
+        <p className="muted" style={{ marginTop: 20, textAlign: 'center' }}>No hay dispositivos registrados que coincidan con la búsqueda.</p>
+      ) : (
+        <div style={{ overflowX: 'auto', marginTop: 16 }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>IP Vinculada</th>
+                <th>Navegador Detectado</th>
+                <th>Ubicación</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDevices.map(d => {
+                const locName = locations.find(l => String(l.id) === String(d.location_id))?.name || 'Sin asignación'
+                return (
+                  <tr key={d.id}>
+                    <td>{d.id}</td>
+                    <td><strong>{d.name}</strong></td>
+                    <td>{d.type || 'N/A'}</td>
+                    <td><code>{d.ip_address || '—'}</code></td>
+                    <td>{parseBrowser(d.user_agent)}</td>
+                    <td>{locName}</td>
+                    <td><span className={`badge ${d.status}`}>{d.status}</span></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* BITÁCORA DE AUDITORÍA RECIENTE */}
+      <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid #e9ecef' }}>
+        <h3>Registros de Auditoría Recientes</h3>
+        <div style={{ overflowX: 'auto', marginTop: 12 }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Fecha y Hora</th>
+                <th>Acción</th>
+                <th>Usuario / Perfil</th>
+                <th>IP Origen</th>
+                <th>Navegador / Equipo</th>
+                <th>Detalles</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.length === 0 ? (
+                <tr><td colSpan="6" style={{ textAlign: 'center' }}>No existen registros de auditoría almacenados.</td></tr>
+              ) : (
+                logs.map(log => (
+                  <tr key={log.id}>
+                    <td>{log.created_at ? new Date(log.created_at).toLocaleString() : '—'}</td>
+                    <td><span className="badge">{log.action_type}</span></td>
+                    <td>
+                      <strong>{log.username || log.user_id || 'Anónimo'}</strong>
+                      {log.user_role && <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>{log.user_role}</div>}
+                    </td>
+                    <td><code>{log.ip_address || 'Sin IP'}</code></td>
+                    <td style={{ fontSize: '0.8rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.user_agent}>
+                      {parseBrowser(log.user_agent)}
+                    </td>
+                    <td>{log.details || '—'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
@@ -687,68 +1048,148 @@ export function Devices() {
 
 export function DeviceActions() {
   const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
-  const [perPage] = useState(25)
+  const [perPage] = useState(20)
   const [total, setTotal] = useState(0)
+
   const [filterAction, setFilterAction] = useState('')
   const [filterIP, setFilterIP] = useState('')
   const [filterUser, setFilterUser] = useState('')
 
-  async function load() {
-    const q = new URLSearchParams()
-    q.set('page', page)
-    q.set('per_page', perPage)
-    if (filterAction) q.set('action_type', filterAction)
-    if (filterIP) q.set('ip', filterIP)
-    if (filterUser) q.set('user_id', filterUser)
-    const res = await apiFetch('/device_actions?' + q.toString())
-    if (res.ok) {
-      const j = await res.json()
-      setItems(j.items || [])
-      setTotal(j.total || 0)
+  async function loadLogs() {
+    setLoading(true)
+    try {
+      const q = new URLSearchParams()
+      q.set('page', page)
+      q.set('per_page', perPage)
+      if (filterAction) q.set('action_type', filterAction)
+      if (filterIP) q.set('ip', filterIP)
+      if (filterUser) q.set('user_id', filterUser)
+
+      const res = await apiFetch('/device_actions?' + q.toString())
+      if (res.ok) {
+        const data = await res.json()
+        const logsList = Array.isArray(data) ? data : (data.items || [])
+        setItems(logsList)
+        setTotal(data.total || logsList.length)
+      } else {
+        setItems([])
+      }
+    } catch (err) {
+      console.error('Error al cargar la bitácora de auditoría:', err)
+      setItems([])
+    } finally {
+      setLoading(false)
     }
   }
 
-  useEffect(() => { load() }, [page, filterAction, filterIP, filterUser])
-
-  function exportCSV() {
-    const q = new URLSearchParams()
-    if (filterAction) q.set('action_type', filterAction)
-    if (filterIP) q.set('ip', filterIP)
-    if (filterUser) q.set('user_id', filterUser)
-    window.open('/api/device_actions/export?' + q.toString(), '_blank')
-  }
+  useEffect(() => {
+    loadLogs()
+  }, [page, filterAction, filterIP, filterUser])
 
   return (
     <div className="card">
-      <h2>Acciones por Dispositivo / Sesiones</h2>
-      <div className="collection-toolbar">
-        <label>Acción<input value={filterAction} onChange={e => setFilterAction(e.target.value)} placeholder="create|download|delete" /></label>
-        <label>IP<input value={filterIP} onChange={e => setFilterIP(e.target.value)} placeholder="127.0.0.1" /></label>
-        <label>User ID<input value={filterUser} onChange={e => setFilterUser(e.target.value)} placeholder="user id" /></label>
-        <div className="button-row"><button className="button" onClick={() => { setPage(1); load() }}>Filtrar</button><button className="button secondary" onClick={exportCSV}>Export CSV</button></div>
+      <h2>Bitácora de Auditoría del Sistema</h2>
+      <p className="muted">Registro unificado de eventos y acciones de seguridad.</p>
+
+      <div className="collection-toolbar" style={{ marginTop: 16, gap: 12 }}>
+        <label style={{ flex: '1 1 180px' }}>
+          <span>Tipo de Acción</span>
+          <input
+            type="text"
+            value={filterAction}
+            onChange={e => { setPage(1); setFilterAction(e.target.value) }}
+            placeholder="Ej. READ, CREATE, DELETE..."
+          />
+        </label>
+        <label style={{ flex: '1 1 180px' }}>
+          <span>Dirección IP</span>
+          <input
+            type="text"
+            value={filterIP}
+            onChange={e => { setPage(1); setFilterIP(e.target.value) }}
+            placeholder="Ej. 192.168.1.1"
+          />
+        </label>
+        <label style={{ flex: '1 1 180px' }}>
+          <span>Usuario / Rol</span>
+          <input
+            type="text"
+            value={filterUser}
+            onChange={e => { setPage(1); setFilterUser(e.target.value) }}
+            placeholder="Ej. admin..."
+          />
+        </label>
       </div>
 
-      <div className="items-grid">
-        {items.map(it => (
-          <div key={it.id} className="item-card">
-            <h3>{it.action_type}</h3>
-            <p><strong>IP:</strong> {it.ip_address} · <strong>User:</strong> {it.username || it.user_id}</p>
-            <p>{it.details}</p>
-            <span className="meta">{it.created_at ? new Date(it.created_at).toLocaleString() : '—'}</span>
-          </div>
-        ))}
-      </div>
+      {loading ? (
+        <p style={{ marginTop: 20 }}>Cargando registros de auditoría...</p>
+      ) : items.length === 0 ? (
+        <p className="muted" style={{ marginTop: 20, textAlign: 'center' }}>
+          No se encontraron eventos registrados con los criterios especificados.
+        </p>
+      ) : (
+        <div style={{ overflowX: 'auto', marginTop: 16 }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Fecha y Hora</th>
+                <th>Acción</th>
+                <th>Usuario</th>
+                <th>Rol</th>
+                <th>IP Origen</th>
+                <th>Navegador / Equipo</th>
+                <th>Detalles del Evento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(log => (
+                <tr key={log.id}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
+                  </td>
+                  <td>
+                    <span className="badge">{log.action_type || 'ACCION'}</span>
+                  </td>
+                  <td>
+                    <strong>{log.username || log.user_id || 'Anónimo'}</strong>
+                  </td>
+                  <td>
+                    <span style={{ fontSize: '0.85rem', color: '#6c757d' }}>
+                      {log.user_role || 'Sin rol'}
+                    </span>
+                  </td>
+                  <td>
+                    <code>{log.ip_address || 'Sin IP'}</code>
+                  </td>
+                  <td style={{ fontSize: '0.85rem' }} title={log.user_agent}>
+                    {parseBrowser(log.user_agent)}
+                  </td>
+                  <td style={{ fontSize: '0.9rem' }}>
+                    {log.details || '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      <div className="pagination-footer">
-        <button disabled={page <= 1} onClick={() => setPage(page - 1)}>Anterior</button>
-        <span>Página {page} · Total {total}</span>
-        <button disabled={page * perPage >= total} onClick={() => setPage(page + 1)}>Siguiente</button>
+      <div className="pagination-footer" style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button className="button secondary sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          ← Anterior
+        </button>
+        <span style={{ fontSize: '0.85rem', color: '#6c757d' }}>
+          Página <strong>{page}</strong> · Total de eventos: <strong>{total}</strong>
+        </span>
+        <button className="button secondary sm" disabled={page * perPage >= total} onClick={() => setPage(page + 1)}>
+          Siguiente →
+        </button>
       </div>
     </div>
   )
 }
-
 export function Appointments() {
   const [appointments, setAppointments] = useState([])
   const [patients, setPatients] = useState([])
@@ -1216,79 +1657,633 @@ export function Dashboard() {
   )
 }
 
+export function ConsultationsModule() {
+  const [consultations, setConsultations] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Estados de los filtros
+  const [filters, setFilters] = useState({
+    q: '',
+    doctor: '',
+    startDate: '',
+    endDate: ''
+  });
+
+  // Cargar consultas aplicando query params
+  const fetchConsultations = async () => {
+    setLoading(true);
+    try {
+      const queryParams = new URLSearchParams();
+      if (filters.q) queryParams.append('q', filters.q);
+      if (filters.doctor) queryParams.append('doctor', filters.doctor);
+      if (filters.startDate) queryParams.append('start_date', filters.startDate);
+      if (filters.endDate) queryParams.append('end_date', filters.endDate);
+
+      const res = await apiFetch(`/consultations?${queryParams.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setConsultations(data);
+      }
+    } catch (err) {
+      console.error('Error cargando consultas:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConsultations();
+  }, []);
+
+  const handleFilterChange = (e) => {
+    setFilters({ ...filters, [e.target.name]: e.target.value });
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchConsultations();
+  };
+
+  const handleReset = () => {
+    setFilters({ q: '', doctor: '', startDate: '', endDate: '' });
+    // Llamar directamente sin filtros
+    fetchConsultations();
+  };
+
+  return (
+    <div className="p-4">
+      <h2 className="text-xl font-bold mb-4">Consultas Médicas</h2>
+
+      {/* Barra de Filtros */}
+      <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6 bg-gray-50 p-4 rounded shadow-sm">
+        <div>
+          <label className="block text-xs font-semibold mb-1">Buscar (Paciente/Diagnóstico)</label>
+          <input
+            type="text"
+            name="q"
+            value={filters.q}
+            onChange={handleFilterChange}
+            placeholder="Ej. Juan Pérez o Fiebre..."
+            className="w-full border rounded p-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold mb-1">Médico</label>
+          <input
+            type="text"
+            name="doctor"
+            value={filters.doctor}
+            onChange={handleFilterChange}
+            placeholder="Dr. Silva"
+            className="w-full border rounded p-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold mb-1">Desde</label>
+          <input
+            type="date"
+            name="startDate"
+            value={filters.startDate}
+            onChange={handleFilterChange}
+            className="w-full border rounded p-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold mb-1">Hasta</label>
+          <input
+            type="date"
+            name="endDate"
+            value={filters.endDate}
+            onChange={handleFilterChange}
+            className="w-full border rounded p-2 text-sm"
+          />
+        </div>
+
+        <div className="flex items-end gap-2">
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 w-full"
+          >
+            Filtrar
+          </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-400"
+          >
+            Limpiar
+          </button>
+        </div>
+      </form>
+
+      {/* Tabla de Resultados */}
+      {loading ? (
+        <p>Cargando consultas...</p>
+      ) : (
+        <table className="w-full border-collapse border border-gray-200">
+          <thead>
+            <tr className="bg-gray-100 text-left text-xs uppercase">
+              <th className="p-2 border">Fecha</th>
+              <th className="p-2 border">Paciente</th>
+              <th className="p-2 border">Médico</th>
+              <th className="p-2 border">Motivo</th>
+              <th className="p-2 border">Diagnóstico</th>
+            </tr>
+          </thead>
+          <tbody>
+            {consultations.length > 0 ? (
+              consultations.map((item) => (
+                <tr key={item.id} className="border-b text-sm">
+                  <td className="p-2 border">{new Date(item.created_at).toLocaleDateString()}</td>
+                  <td className="p-2 border font-medium">{item.patient_name || 'Sin Nombre'}</td>
+                  <td className="p-2 border">{item.doctor_name}</td>
+                  <td className="p-2 border">{item.reason}</td>
+                  <td className="p-2 border">{item.diagnosis || '-'}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="5" className="p-4 text-center text-gray-500">
+                  No se encontraron consultas con los filtros seleccionados.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+
 export function Users() {
   const [users, setUsers] = useState([])
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(false)
-  const { user } = useAuth()
+  const [view, setView] = useState('list') // 'list' | 'create' | 'edit'
+  
+  // Usuario seleccionado para edición
+  const [editingUser, setEditingUser] = useState(null)
+
+  // Estados para búsqueda y filtros avanzados
+  const [searchQuery, setSearchQuery] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [locationFilter, setLocationFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('name')
+
+  // Formulario de Usuario (Crear / Editar)
+  const [form, setForm] = useState({
+    username: '',
+    email: '',
+    password: '',
+    role: 'operator',
+    location_id: ''
+  })
+
+  const [message, setMessage] = useState({ text: '', type: '' })
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function load() {
     setLoading(true)
-    const [usersRes, locationsRes] = await Promise.all([apiFetch('/users'), apiFetch('/locations')])
-    if (usersRes.ok) setUsers(await usersRes.json() || [])
-    if (locationsRes.ok) setLocations(await locationsRes.json() || [])
-    setLoading(false)
+    try {
+      const [usersRes, locationsRes] = await Promise.all([
+        apiFetch('/users'),
+        apiFetch('/locations')
+      ])
+      if (usersRes.ok) setUsers(await usersRes.json() || [])
+      if (locationsRes.ok) setLocations(await locationsRes.json() || [])
+    } catch (err) {
+      showMessage('Error de conexión al cargar datos', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [])
 
-  async function changeRole(u, newRole) {
-    const res = await apiFetch(`/users/${u.id}`, { method: 'PUT', body: JSON.stringify({ role: newRole, location_id: u.location_id }) })
-    if (res.ok) load()
+  const showMessage = (text, type = 'info') => {
+    setMessage({ text, type })
+    setTimeout(() => setMessage({ text: '', type: '' }), 4000)
   }
 
-  async function changeLocation(u, newLocationId) {
-    const res = await apiFetch(`/users/${u.id}`, { method: 'PUT', body: JSON.stringify({ location_id: newLocationId }) })
-    if (res.ok) load()
+  // --- NAVEGACIÓN Y CAMBIO DE VISTAS ---
+  const handleSwitchToList = () => {
+    setView('list')
+    setEditingUser(null)
+    setForm({ username: '', email: '', password: '', role: 'operator', location_id: '' })
   }
 
-  const supportsLocationAssignment = false
-
-  async function resetPassword(u) {
-    const pw = prompt('Nueva contraseña para ' + u.username)
-    if (!pw) return
-    const res = await apiFetch(`/users/${u.id}/reset_password`, { method: 'POST', body: JSON.stringify({ new_password: pw }) })
-    if (res.ok) alert('Contraseña actualizada')
+  const handleSwitchToCreate = () => {
+    setForm({ username: '', email: '', password: '', role: 'operator', location_id: '' })
+    setEditingUser(null)
+    setView('create')
   }
 
+  const handleSwitchToEdit = (u) => {
+    setEditingUser(u)
+    setForm({
+      username: u.username || '',
+      email: u.email || '',
+      password: '', // Se deja vacío a menos que se quiera actualizar
+      role: u.role || 'viewer',
+      location_id: u.location_id || ''
+    })
+    setView('edit')
+  }
+
+  // --- OPERACIONES CRUD ---
+
+  // 1. CREAR / GUARDAR
+  async function handleCreateSubmit(e) {
+    e.preventDefault()
+    if (!form.username || !form.password) {
+      showMessage('Usuario y contraseña son requeridos', 'error')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const res = await apiFetch('/users', {
+        method: 'POST',
+        body: JSON.stringify(form)
+      })
+      if (res.ok) {
+        showMessage('Usuario creado exitosamente', 'success')
+        await load()
+        handleSwitchToList()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showMessage(data.message || 'Error al crear usuario', 'error')
+      }
+    } catch (err) {
+      showMessage('Error de red al crear usuario', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // 2. ACTUALIZAR / EDITAR
+  async function handleEditSubmit(e) {
+    e.preventDefault()
+    if (!editingUser) return
+
+    setIsSubmitting(true)
+    try {
+      const payload = {
+        username: form.username,
+        email: form.email,
+        role: form.role,
+        location_id: form.location_id || null
+      }
+      if (form.password.trim() !== '') {
+        payload.password = form.password
+      }
+
+      const res = await apiFetch(`/users/${editingUser.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        showMessage('Usuario actualizado correctamente', 'success')
+        await load()
+        handleSwitchToList()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showMessage(data.message || 'Error al actualizar el usuario', 'error')
+      }
+    } catch (err) {
+      showMessage('Error de conexión al actualizar', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // 3. ELIMINAR CON CONFIRMACIÓN
+  async function handleDeleteUser(u) {
+    const confirmed = window.confirm(
+      `⚠️ ¿Estás seguro de que deseas eliminar al usuario "${u.username}"?\nEsta acción no se puede deshacer.`
+    )
+    if (!confirmed) return
+
+    try {
+      const res = await apiFetch(`/users/${u.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        showMessage(`Usuario "${u.username}" eliminado correctamente`, 'success')
+        load()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        showMessage(data.message || 'No se pudo eliminar el usuario', 'error')
+      }
+    } catch (err) {
+      showMessage('Error al conectar con el servidor', 'error')
+    }
+  }
+
+  // --- LÓGICA DE FILTRADO AVANZADO ---
+  const filteredUsers = users
+    .filter(u => {
+      const query = searchQuery.toLowerCase().trim()
+      const matchesSearch =
+        !query ||
+        u.username?.toLowerCase().includes(query) ||
+        u.email?.toLowerCase().includes(query) ||
+        String(u.id).includes(query)
+
+      const matchesRole = roleFilter === 'all' || u.role === roleFilter
+      const matchesLocation =
+        locationFilter === 'all' ||
+        (locationFilter === 'none' && !u.location_id) ||
+        String(u.location_id) === String(locationFilter)
+
+      return matchesSearch && matchesRole && matchesLocation
+    })
+    .sort((a, b) => {
+      if (sortBy === 'name') return (a.username || '').localeCompare(b.username || '')
+      if (sortBy === 'id') return a.id - b.id
+      if (sortBy === 'date') return new Date(b.created_at || 0) - new Date(a.created_at || 0)
+      return 0
+    })
+
+  // --- VISTA 1: CREAR USUARIO ---
+  if (view === 'create') {
+    return (
+      <div className="card">
+        <div className="card-header-row">
+          <div>
+            <h2>Nuevo Usuario</h2>
+            <p className="muted">Registra las credenciales y rol del nuevo miembro del equipo.</p>
+          </div>
+          <button type="button" className="button secondary" onClick={handleSwitchToList}>
+            ← Volver a la lista
+          </button>
+        </div>
+
+        <form onSubmit={handleCreateSubmit} className="form-card" style={{ marginTop: 16 }}>
+          <div className="form-grid">
+            <label>
+              Nombre de usuario *
+              <input
+                required
+                value={form.username}
+                onChange={e => setForm({ ...form, username: e.target.value })}
+                placeholder="Ej. jgonzales"
+              />
+            </label>
+            <label>
+              Correo Electrónico
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                placeholder="ejemplo@hospital.com"
+              />
+            </label>
+            <label>
+              Contraseña *
+              <input
+                required
+                type="password"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                placeholder="••••••••"
+              />
+            </label>
+            <label>
+              Rol
+              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                <option value="viewer">Viewer</option>
+                <option value="operator">Operator</option>
+                <option value="tenant_admin">Tenant Admin</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <label>
+              Área Asignada
+              <select
+                value={form.location_id}
+                onChange={e => setForm({ ...form, location_id: e.target.value })}
+              >
+                <option value="">Sin asignación</option>
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="button-row" style={{ marginTop: 20 }}>
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Guardando...' : 'Crear Usuario'}
+            </button>
+            <button type="button" className="secondary" onClick={handleSwitchToList}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
+  // --- VISTA 2: EDITAR USUARIO (PANTALLA DEDICADA) ---
+  if (view === 'edit') {
+    return (
+      <div className="card">
+        <div className="card-header-row">
+          <div>
+            <h2>Editar Usuario #{editingUser?.id}</h2>
+            <p className="muted">Actualiza los permisos, área o contraseña de {editingUser?.username}.</p>
+          </div>
+          <button type="button" className="button secondary" onClick={handleSwitchToList}>
+            ← Volver a la lista
+          </button>
+        </div>
+
+        <form onSubmit={handleEditSubmit} className="form-card" style={{ marginTop: 16 }}>
+          <div className="form-grid">
+            <label>
+              Nombre de usuario *
+              <input
+                required
+                value={form.username}
+                onChange={e => setForm({ ...form, username: e.target.value })}
+              />
+            </label>
+            <label>
+              Correo Electrónico
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+              />
+            </label>
+            <label>
+              Nueva Contraseña (Opcional)
+              <input
+                type="password"
+                placeholder="Dejar en blanco para mantener la actual"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+              />
+            </label>
+            <label>
+              Rol
+              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                <option value="viewer">Viewer</option>
+                <option value="operator">Operator</option>
+                <option value="tenant_admin">Tenant Admin</option>
+                <option value="admin">Admin</option>
+              </select>
+            </label>
+            <label>
+              Área / Ubicación
+              <select
+                value={form.location_id}
+                onChange={e => setForm({ ...form, location_id: e.target.value })}
+              >
+                <option value="">Sin asignación</option>
+                {locations.map(loc => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="button-row" style={{ marginTop: 20 }}>
+            <button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Guardando Cambios...' : 'Actualizar Usuario'}
+            </button>
+            <button type="button" className="secondary" onClick={handleSwitchToList}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
+  // --- VISTA 3: LISTADO Y FILTROS (VISTA PRINCIPAL) ---
   return (
     <div className="card">
-      <h2>Gestión de usuarios</h2>
-      {loading ? <p>Cargando...</p> : (
+      {message.text && (
+        <div className={`form-message ${message.type === 'error' ? 'error' : ''}`} style={{ marginBottom: 12 }}>
+          {message.type === 'success' ? '✅ ' : '⚠️ '}
+          {message.text}
+        </div>
+      )}
+
+      <div className="card-header-row">
         <div>
+          <h2>Gestión de usuarios</h2>
+          <p className="muted">Administra los accesos, roles y asignación de áreas operativas.</p>
+        </div>
+        <button type="button" className="button" onClick={handleSwitchToCreate}>
+          + Agregar Usuario
+        </button>
+      </div>
+
+      {/* BLOQUE DE FILTROS AVANZADOS */}
+      <div className="collection-toolbar" style={{ flexWrap: 'wrap', gap: 12, marginTop: 16 }}>
+        <label className="collection-search" style={{ flex: '1 1 200px' }}>
+          <span>Búsqueda general</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Buscar por ID, usuario o correo..."
+          />
+        </label>
+
+        <label style={{ flex: '1 1 140px' }}>
+          <span>Filtrar por Rol</span>
+          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+            <option value="all">Todos los roles</option>
+            <option value="admin">Admin</option>
+            <option value="tenant_admin">Tenant Admin</option>
+            <option value="operator">Operator</option>
+            <option value="viewer">Viewer</option>
+          </select>
+        </label>
+
+        <label style={{ flex: '1 1 160px' }}>
+          <span>Filtrar por Área</span>
+          <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)}>
+            <option value="all">Todas las áreas</option>
+            <option value="none">Sin asignación</option>
+            {locations.map(loc => (
+              <option key={loc.id} value={loc.id}>{loc.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label style={{ flex: '1 1 140px' }}>
+          <span>Ordenar por</span>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
+            <option value="name">Nombre</option>
+            <option value="id">ID</option>
+            <option value="date">Fecha de creación</option>
+          </select>
+        </label>
+      </div>
+
+      {/* TABLA DE RESULTADOS */}
+      {loading ? (
+        <p style={{ marginTop: 20 }}>Cargando usuarios...</p>
+      ) : filteredUsers.length === 0 ? (
+        <div style={{ padding: '24px 0', textAlign: 'center' }}>
+          <p className="muted">No se encontraron usuarios con los filtros especificados.</p>
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto', marginTop: 16 }}>
           <table className="table">
-            <thead><tr><th>ID</th><th>Usuario</th><th>Rol</th><th>Área</th><th>Creado</th><th>Acciones</th></tr></thead>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Correo</th>
+                <th>Rol</th>
+                <th>Área</th>
+                <th>Fecha Creado</th>
+                <th style={{ textAlign: 'right' }}>Acciones</th>
+              </tr>
+            </thead>
             <tbody>
-              {users.map(u => (
-                <tr key={u.id}>
-                  <td>{u.id}</td>
-                  <td>{u.username}</td>
-                  <td>
-                    <select value={u.role} onChange={e => changeRole(u, e.target.value)}>
-                      <option value="viewer">viewer</option>
-                      <option value="operator">operator</option>
-                      <option value="tenant_admin">tenant_admin</option>
-                      <option value="admin">admin</option>
-                    </select>
-                  </td>
-                  <td>
-                    {supportsLocationAssignment ? (
-                      <select value={u.location_id || ''} onChange={e => changeLocation(u, e.target.value || null)}>
-                        <option value="">Sin área</option>
-                        {locations.map(l => (
-                          <option key={l.id} value={l.id}>{l.name}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span>Sin asignación</span>
-                    )}
-                  </td>
-                  <td>{u.created_at ? new Date(u.created_at).toLocaleString() : '—'}</td>
-                  <td>
-                    <button className="button" onClick={() => resetPassword(u)} style={{ marginLeft: 8 }}>Reset PW</button>
-                  </td>
-                </tr>
-              ))}
+              {filteredUsers.map(u => {
+                const areaName = locations.find(l => String(l.id) === String(u.location_id))?.name || 'Sin asignación'
+                return (
+                  <tr key={u.id}>
+                    <td>{u.id}</td>
+                    <td><strong>{u.username}</strong></td>
+                    <td>{u.email || '—'}</td>
+                    <td>
+                      <span className={`badge ${u.role}`}>{u.role}</span>
+                    </td>
+                    <td>{areaName}</td>
+                    <td>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <div className="button-row" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="button secondary sm"
+                          onClick={() => handleSwitchToEdit(u)}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="button danger sm"
+                          onClick={() => handleDeleteUser(u)}
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

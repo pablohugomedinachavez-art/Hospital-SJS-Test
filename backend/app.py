@@ -11,7 +11,9 @@ import jwt
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
-
+import csv
+from io import StringIO
+from flask import request, jsonify, current_app
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 CURRENT_DIR = Path(__file__).resolve().parent
 PARENT_DIR = CURRENT_DIR.parent
@@ -551,7 +553,109 @@ def appointments():
     record_audit('create', 'appointment', new_appointment['id'], appointment_date, tenant_id, claims.get('id'))
     return jsonify({'message': 'Appointment created'})
 
+# ==========================================
+# ENDPOINT: CONSULTAS CON FILTROS DE BÚSQUEDA
+# ==========================================
+@app.route('/api/consultations', methods=['GET', 'POST'])
+@token_required
+def consultations_handler():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user_id = claims.get('id')
 
+    # 1. OBTENER CONSULTAS CON FILTROS (GET)
+    if request.method == 'GET':
+        # Capturar parámetros de la URL
+        search_query = request.args.get('q', '').strip()       # Búsqueda general (Nombre, diagnóstico, motivo)
+        doctor = request.args.get('doctor', '').strip()         # Filtro por médico
+        start_date = request.args.get('start_date', '').strip() # Fecha inicio (YYYY-MM-DD)
+        end_date = request.args.get('end_date', '').strip()     # Fecha fin (YYYY-MM-DD)
+
+        # Base del SQL
+        sql = '''
+            SELECT c.id, c.patient_id, p.full_name as patient_name, c.doctor_name, 
+                   c.reason, c.symptoms, c.diagnosis, c.treatment, c.prescription, 
+                   c.triage_id, t.weight_kg, t.height_cm, t.blood_pressure, t.bmi, 
+                   t.abdominal_perimeter_cm, c.created_at
+            FROM consultations c
+            LEFT JOIN patients p ON p.id = c.patient_id
+            LEFT JOIN triages t ON t.id = c.triage_id
+            WHERE c.tenant_id = %s
+        '''
+        params = [tenant_id]
+
+        # Aplicar filtro de búsqueda general por texto
+        if search_query:
+            sql += ''' AND (
+                p.full_name ILIKE %s OR 
+                c.diagnosis ILIKE %s OR 
+                c.reason ILIKE %s OR 
+                c.symptoms ILIKE %s
+            )'''
+            term = f"%{search_query}%"
+            params.extend([term, term, term, term])
+
+        # Aplicar filtro por médico
+        if doctor:
+            sql += ' AND c.doctor_name ILIKE %s'
+            params.append(f"%{doctor}%")
+
+        # Aplicar filtro por rango de fechas
+        if start_date:
+            sql += ' AND c.created_at >= %s'
+            params.append(start_date)
+
+        if end_date:
+            sql += ' AND c.created_at <= %s'
+            params.append(f"{end_date} 23:59:59")
+
+        sql += ' ORDER BY c.id DESC'
+
+        rows = db_query(sql, tuple(params), fetchall=True)
+        return jsonify(rows or []), 200
+
+    # 2. CREAR CONSULTA (POST)
+    # ... (Se mantiene igual a tu código previo)
+
+# ==========================================
+# ENDPOINT OPCIONAL: TRIAJE INDEPENDIENTE
+# ==========================================
+@app.route('/api/triage', methods=['GET', 'POST'])
+@token_required
+def triage_handler():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        rows = db_query('SELECT * FROM triages WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
+        return jsonify(rows or []), 200
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        weight_kg = data.get('weight_kg')
+        height_cm = data.get('height_cm')
+        blood_pressure = data.get('blood_pressure')
+
+        if not patient_id or not weight_kg or not height_cm or not blood_pressure:
+            return jsonify({'message': 'patient_id, weight_kg, height_cm y blood_pressure son obligatorios'}), 400
+
+        bmi = data.get('bmi')
+        if not bmi and float(height_cm) > 0:
+            h_m = float(height_cm) / 100.0
+            bmi = round(float(weight_kg) / (h_m * h_m), 2)
+
+        new_triage = db_query(
+            '''
+            INSERT INTO triages (tenant_id, patient_id, weight_kg, height_cm, blood_pressure, bmi, abdominal_perimeter_cm, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            ''',
+            (tenant_id, patient_id, weight_kg, height_cm, blood_pressure, bmi, data.get('abdominal_perimeter_cm'), now_utc()),
+            commit=True, fetchone=True
+        )
+
+        return jsonify({'message': 'Triaje registrado', 'id': new_triage['id']}), 201
+    
 @app.route('/api/locations', methods=['GET', 'POST'])
 @token_required
 def locations():
@@ -638,32 +742,6 @@ def location_detail(location_id):
     return jsonify({'message': 'Location updated'})
 
 
-@app.route('/api/devices', methods=['GET', 'POST'])
-@token_required
-def devices():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-
-    if request.method == 'GET':
-        rows = db_query('SELECT * FROM devices WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
-        return jsonify(rows or [])
-
-    if not has_permission(claims.get('role'), 'manage_devices'):
-        return jsonify({'message': 'Permission denied'}), 403
-
-    data = request.get_json() or {}
-    name = data.get('name')
-    location_id = data.get('location_id')
-    type_ = data.get('type', '')
-    if not name:
-        return jsonify({'message': 'name is required'}), 400
-
-    new_row = db_query(
-        'INSERT INTO devices (tenant_id, location_id, name, type, status, created_at) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id',
-        (tenant_id, location_id, name, type_, data.get('status', 'active'), now_utc()), commit=True, fetchone=True
-    )
-    record_audit('create', 'device', new_row['id'], f'Created device {name}', tenant_id, claims.get('id'))
-    return jsonify({'message': 'Device created', 'id': new_row['id']})
 
 @app.route('/api/dashboard')
 @token_required
@@ -909,114 +987,181 @@ def get_sessions():
     return jsonify(rows or [])
 
 
-@app.route('/api/device_actions', methods=['GET'])
+import csv
+from io import StringIO
+from flask import request, jsonify, current_app
+
+
+def get_client_ip():
+    """Obtiene la dirección IP pública real del cliente de forma segura."""
+    x_forwarded = request.headers.get('X-Forwarded-For')
+    if x_forwarded:
+        # Toma la primera IP de la lista
+        return x_forwarded.split(',')[0].strip()
+    return request.remote_addr or '127.0.0.1'
+
+
+@app.route('/api/devices', methods=['GET', 'POST'])
 @token_required
-def list_device_actions():
+def devices():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+
+    if request.method == 'GET':
+        rows = db_query('SELECT * FROM devices WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
+        return jsonify(rows or [])
+
+    if not has_permission(claims.get('role'), 'manage_devices'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    # Filters and pagination
-    page = int(request.args.get('page', 1))
-    per_page = int(request.args.get('per_page', 25))
+    data = request.get_json() or {}
+    name = data.get('name')
+    location_id = data.get('location_id')
+    type_ = data.get('type', '')
+    
+    # Capturar IP y User-Agent si provienen de la petición
+    ip_address = data.get('ip_address') or get_client_ip()
+    user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
+
+    if not name:
+        return jsonify({'message': 'name is required'}), 400
+
+    new_row = db_query(
+        '''
+        INSERT INTO devices (tenant_id, location_id, name, type, status, ip_address, user_agent, created_at) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        ''',
+        (tenant_id, location_id, name, type_, data.get('status', 'active'), ip_address, user_agent, now_utc()), 
+        commit=True, 
+        fetchone=True
+    )
+    record_audit('create', 'device', new_row['id'], f'Created device {name}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Device created', 'id': new_row['id']})
+
+
+def _build_device_actions_query(tenant_id):
+    """
+    Helper para procesar Query Parameters y construir la cláusula WHERE.
+    Ajustado para permitir búsqueda por nombre de usuario (TEXT) o ID.
+    """
     action_type = request.args.get('action_type')
     ip = request.args.get('ip')
-    user_id = request.args.get('user_id')
+    user_filter = request.args.get('user_id') or request.args.get('username')
     start = request.args.get('start')
     end = request.args.get('end')
 
     where_clauses = ['da.tenant_id = %s']
     params = [tenant_id]
+
     if action_type:
-        where_clauses.append('da.action_type = %s')
-        params.append(action_type)
+        where_clauses.append('LOWER(da.action_type) LIKE LOWER(%s)')
+        params.append(f'%{action_type}%')
     if ip:
-        where_clauses.append('da.ip_address = %s')
-        params.append(ip)
-    if user_id:
-        where_clauses.append('da.user_id = %s')
-        params.append(user_id)
+        where_clauses.append('da.ip_address LIKE %s')
+        params.append(f'%{ip}%')
+    if user_filter:
+        # Permite coincidencia parcial por nombre de usuario o coincidencia por ID
+        if user_filter.isdigit():
+            where_clauses.append('(da.user_id = %s OR LOWER(u.username) LIKE LOWER(%s))')
+            params.extend([int(user_filter), f'%{user_filter}%'])
+        else:
+            where_clauses.append('LOWER(u.username) LIKE LOWER(%s)')
+            params.append(f'%{user_filter}%')
+            
     if start:
         where_clauses.append('da.created_at >= %s')
         params.append(start)
     if end:
+        if len(end) == 10:
+            end += ' 23:59:59'
         where_clauses.append('da.created_at <= %s')
         params.append(end)
 
-    where_sql = ' AND '.join(where_clauses)
+    return ' AND '.join(where_clauses), params
 
-    total_row = db_query(f'SELECT COUNT(*) as total FROM device_actions da WHERE {where_sql}', tuple(params), fetchone=True) or {'total': 0}
+
+@app.route('/api/device_actions', methods=['GET', 'POST'])
+@token_required
+def device_actions():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user_id = claims.get('id')
+
+    # 1. REGISTRAR ACCIÓN (POST)
+    if request.method == 'POST':
+        data = request.get_json() or {}
+
+        action_type = data.get('action_type')
+        entity_type = data.get('entity_type')
+        entity_id = data.get('entity_id')
+        details = data.get('details', '')
+
+        if not action_type or not entity_type:
+            return jsonify({'message': 'action_type and entity_type are required'}), 400
+
+        ip_addr = data.get('ip_address') or get_client_ip()
+        user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
+
+        try:
+            new_action = db_query(
+                '''
+                INSERT INTO device_actions 
+                (tenant_id, session_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
+                VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                ''',
+                (tenant_id, user_id, ip_addr, user_agent, action_type, entity_type, entity_id, details, now_utc()),
+                commit=True,
+                fetchone=True
+            )
+            return jsonify({'message': 'Device action logged', 'id': new_action['id']}), 201
+        except Exception as e:
+            return jsonify({'message': f'Error logging action: {str(e)}'}), 500
+
+    # 2. LISTAR ACCIONES CON FILTROS Y PAGINACIÓN (GET)
+    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+        per_page = max(1, min(100, int(request.args.get('per_page', 25))))
+    except ValueError:
+        page, per_page = 1, 25
+
+    where_sql, params = _build_device_actions_query(tenant_id)
+
+    # Conteo total con JOIN para incluir filtro de usuario
+    count_sql = f'''
+        SELECT COUNT(*) as total 
+        FROM device_actions da 
+        LEFT JOIN users u ON u.id = da.user_id 
+        WHERE {where_sql}
+    '''
+    total_row = db_query(count_sql, tuple(params), fetchone=True) or {'total': 0}
     total = total_row.get('total', 0)
 
+    # Consulta paginada
     offset = (page - 1) * per_page
-    sql = f'''
-        SELECT da.id, da.session_id, da.user_id, u.username, da.ip_address, da.user_agent, da.action_type, da.entity_type, da.entity_id, da.details, da.created_at
+    query_sql = f'''
+        SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, da.ip_address, 
+               da.user_agent, da.action_type, da.entity_type, da.entity_id, 
+               da.details, da.created_at
         FROM device_actions da
         LEFT JOIN users u ON u.id = da.user_id
         WHERE {where_sql}
         ORDER BY da.created_at DESC
         LIMIT %s OFFSET %s
     '''
-    params.extend([per_page, offset])
-    rows = db_query(sql, tuple(params), fetchall=True) or []
+    
+    query_params = list(params) + [per_page, offset]
+    rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
 
-    return jsonify({'total': total, 'page': page, 'per_page': per_page, 'items': rows})
-
-
-
-@app.route('/api/device_actions/export', methods=['GET'])
-@token_required
-def export_device_actions_csv():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
-        return jsonify({'message': 'Permission denied'}), 403
-
-    # reuse filters
-    action_type = request.args.get('action_type')
-    ip = request.args.get('ip')
-    user_id = request.args.get('user_id')
-    start = request.args.get('start')
-    end = request.args.get('end')
-
-    where_clauses = ['da.tenant_id = %s']
-    params = [tenant_id]
-    if action_type:
-        where_clauses.append('da.action_type = %s')
-        params.append(action_type)
-    if ip:
-        where_clauses.append('da.ip_address = %s')
-        params.append(ip)
-    if user_id:
-        where_clauses.append('da.user_id = %s')
-        params.append(user_id)
-    if start:
-        where_clauses.append('da.created_at >= %s')
-        params.append(start)
-    if end:
-        where_clauses.append('da.created_at <= %s')
-        params.append(end)
-
-    where_sql = ' AND '.join(where_clauses)
-
-    sql = f"SELECT da.id, da.session_id, da.user_id, u.username, da.ip_address, da.user_agent, da.action_type, da.entity_type, da.entity_id, da.details, da.created_at FROM device_actions da LEFT JOIN users u ON u.id = da.user_id WHERE {where_sql} ORDER BY da.created_at DESC"
-    rows = db_query(sql, tuple(params), fetchall=True) or []
-
-    # Build CSV
-    import csv
-    from io import StringIO
-
-    si = StringIO()
-    writer = csv.writer(si)
-    writer.writerow(['id','session_id','user_id','username','ip_address','user_agent','action_type','entity_type','entity_id','details','created_at'])
-    for r in rows:
-        writer.writerow([r.get('id'), r.get('session_id'), r.get('user_id'), r.get('username'), r.get('ip_address'), r.get('user_agent'), r.get('action_type'), r.get('entity_type'), r.get('entity_id'), r.get('details'), r.get('created_at')])
-
-    output = si.getvalue()
-    return app.response_class(output, mimetype='text/csv', headers={"Content-Disposition": "attachment; filename=device_actions.csv"})
-
-
+    return jsonify({
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'items': rows
+    })
 @app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
 @token_required
 def incidents_handler():

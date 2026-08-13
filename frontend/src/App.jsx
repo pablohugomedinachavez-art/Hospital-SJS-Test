@@ -4,6 +4,7 @@ import { Patients, Consultations, Appointments, Documents, Reports, Locations, D
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 
+
 const normalizeRoute = (hash) => {
   const route = String(hash || '').replace(/^#/, '')
   if (!route || route === '/' || route === '/home') {
