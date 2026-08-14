@@ -369,42 +369,62 @@ export function Patients() {
 export function Consultations() {
   const [consultations, setConsultations] = useState([])
   const [patients, setPatients] = useState([])
-  const [query, setQuery] = useState('') // Estado para la búsqueda de consultas
+  const [query, setQuery] = useState('')
   const [patientQuery, setPatientQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
-  
-  // Estado ampliado con Triaje y Diagnóstico/Tratamiento completo
-  const [form, setForm] = useState({ 
-    patient_id: '', 
-    doctor_name: 'Dr. Demo', 
-    reason: '', 
-    symptoms: '', 
-    // Campos de Triaje
+  const [loading, setLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [message, setMessage] = useState({ text: '', type: '' })
+
+  const initialFormState = {
+    patient_id: '',
+    doctor_name: 'Dr. Demo',
+    reason: '',
+    symptoms: '',
     weight_kg: '',
     height_cm: '',
     blood_pressure: '',
     bmi: '',
     abdominal_perimeter_cm: '',
-    // Campos de Diagnóstico y Tratamiento
-    diagnosis: '', 
-    treatment: '', 
-    prescription: '' 
-  })
-  
-  const [message, setMessage] = useState('')
+    diagnosis: '',
+    treatment: '',
+    prescription: ''
+  }
 
-  // Carga de consultas aceptando un parámetro de búsqueda (q) al igual que Patients
+  const [form, setForm] = useState(initialFormState)
+
+  const showNotification = (text, type = 'info') => {
+    setMessage({ text, type })
+    setTimeout(() => setMessage({ text: '', type: '' }), 5000)
+  }
+
   async function loadConsultations(q = '') {
-    const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`)
-    if (res.ok) setConsultations(await res.json() || [])
+    setLoading(true)
+    try {
+      const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`)
+      if (res.ok) {
+        const data = await res.json()
+        setConsultations(data || [])
+      } else {
+        showNotification('Error al cargar la lista de consultas.', 'error')
+      }
+    } catch (err) {
+      showNotification('Error de red al cargar consultas.', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function searchPatients(q = '') {
-    const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
-    if (res.ok) {
-      const data = await res.json() || []
-      setPatients(data)
-      return data
+    try {
+      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
+      if (res.ok) {
+        const data = await res.json() || []
+        setPatients(data)
+        return data
+      }
+    } catch (err) {
+      console.error('Error al buscar pacientes:', err)
     }
     return []
   }
@@ -414,77 +434,90 @@ export function Consultations() {
     searchPatients()
   }, [])
 
-  // Cálculo automático del Índice de Masa Corporal (IMC)
   const calculateBMI = (weight, height) => {
-    if (weight > 0 && height > 0) {
-      const heightInMeters = height / 100
-      const bmiVal = (weight / (heightInMeters * heightInMeters)).toFixed(2)
-      return bmiVal
+    const w = parseFloat(weight)
+    const h = parseFloat(height)
+    if (w > 0 && h > 0) {
+      const heightInMeters = h / 100
+      return (w / (heightInMeters * heightInMeters)).toFixed(2)
     }
     return ''
   }
 
   const handleTriageChange = (field, value) => {
     const updatedForm = { ...form, [field]: value }
-    
-    // Recalcular IMC cuando cambie peso o talla
     if (field === 'weight_kg' || field === 'height_cm') {
-      const w = field === 'weight_kg' ? parseFloat(value) : parseFloat(form.weight_kg)
-      const h = field === 'height_cm' ? parseFloat(value) : parseFloat(form.height_cm)
+      const w = field === 'weight_kg' ? value : form.weight_kg
+      const h = field === 'height_cm' ? value : form.height_cm
       updatedForm.bmi = calculateBMI(w, h)
     }
-    
     setForm(updatedForm)
   }
 
   async function submit(e) {
     e.preventDefault()
-    setMessage('')
-    const res = await apiFetch('/consultations', { method: 'POST', body: JSON.stringify(form) })
-    if (res.ok) {
-      setMessage('Consulta médica y triaje registrados con éxito.')
-      setForm({ 
-        patient_id: '', 
-        doctor_name: 'Dr. Demo', 
-        reason: '', 
-        symptoms: '', 
-        weight_kg: '',
-        height_cm: '',
-        blood_pressure: '',
-        bmi: '',
-        abdominal_perimeter_cm: '',
-        diagnosis: '', 
-        treatment: '', 
-        prescription: '' 
+    if (!form.patient_id) {
+      showNotification('Debes seleccionar un paciente antes de guardar.', 'error')
+      return
+    }
+
+    setIsSubmitting(true)
+    setMessage({ text: '', type: '' })
+
+    try {
+      const res = await apiFetch('/consultations', {
+        method: 'POST',
+        body: JSON.stringify(form)
       })
-      setShowForm(false)
-      loadConsultations(query)
-    } else {
-      const json = await res.json().catch(() => ({}))
-      setMessage(json.message || 'Error al registrar consulta')
+
+      if (res.ok) {
+        showNotification('Consulta médica y triaje registrados con éxito.', 'success')
+        setForm(initialFormState)
+        setShowForm(false)
+        await loadConsultations(query)
+      } else {
+        const json = await res.json().catch(() => ({}))
+        showNotification(json.message || 'Error al registrar la consulta.', 'error')
+      }
+    } catch (err) {
+      showNotification('Error de conexión con el servidor.', 'error')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   return (
-    <div>
+    <div className="consultations-page">
+      {/* MENSAJE DE NOTIFICACIÓN */}
+      {message.text && (
+        <div className={`form-message ${message.type === 'error' ? 'error' : 'success'}`} style={{ marginBottom: 16 }}>
+          {message.type === 'success' ? '✅ ' : '⚠️ '}
+          {message.text}
+        </div>
+      )}
+
       <div className="card">
         <div className="card-header-row">
           <div>
-            <h2>Consultas Médicas</h2>
+            <h2>{showForm ? 'Nueva Consulta Médica y Triaje' : 'Consultas Médicas'}</h2>
             <p className="muted">
-              {showForm 
-                ? 'Completa los datos de la consulta y triaje del paciente.' 
-                : 'Consulta el historial médico registrado o agrega nuevas consultas.'}
+              {showForm
+                ? 'Completa la información clínica, triaje y diagnósticos del paciente.'
+                : 'Consulta el historial clínico registrado o agrega nuevas atenciones.'}
             </p>
           </div>
           {showForm && (
-            <button type="button" className="button secondary" onClick={() => { setShowForm(false); setMessage('') }}>
-              Volver
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => { setShowForm(false); setMessage({ text: '', type: '' }) }}
+            >
+              ← Volver al historial
             </button>
           )}
         </div>
 
-        {/* BARRA DE BÚSQUEDA IGUAL A LA DE PACIENTES */}
+        {/* BARRA DE BÚSQUEDA Y ACCIONES */}
         {!showForm && (
           <div className="patients-toolbar">
             <label className="collection-search">
@@ -492,23 +525,24 @@ export function Consultations() {
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Paciente, diagnóstico o motivo..."
+                onKeyDown={e => e.key === 'Enter' && loadConsultations(query)}
+                placeholder="Nombre del paciente, DNI, médico o diagnóstico..."
               />
             </label>
             <div className="button-row patients-actions">
-              <button 
-                type="button" 
-                className="button" 
+              <button
+                type="button"
+                className="button"
                 onClick={() => loadConsultations(query)}
               >
                 Buscar
               </button>
-              <button 
-                type="button" 
-                className="button secondary" 
-                onClick={() => { setShowForm(true); setMessage('') }}
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => { setShowForm(true); setMessage({ text: '', type: '' }) }}
               >
-                Agregar
+                + Nueva Consulta
               </button>
             </div>
           </div>
@@ -516,138 +550,236 @@ export function Consultations() {
 
         {/* FORMULARIO DE REGISTRO */}
         {showForm && (
-          <div className="form-card">
-            <form onSubmit={submit}>
-              <div className="form-grid">
-                <label>
-                  Buscar DNI del paciente
-                  <input value={patientQuery} onChange={e => setPatientQuery(e.target.value)} placeholder="DNI o nombre" />
-                </label>
-                <div style={{ alignSelf: 'flex-end', marginBottom: 12 }}>
-                  <button type="button" onClick={async () => {
-                    if (!patientQuery || !patientQuery.trim()) {
-                      setMessage('Introduce un DNI o nombre para filtrar');
-                      return
-                    }
-                    const results = await searchPatients(patientQuery)
-                    const match = results.find(p => String(p.dni).trim() === patientQuery.trim() || String(p.document_number).trim() === patientQuery.trim())
-                    if (match) {
-                      setForm({ ...form, patient_id: match.id.toString() })
-                    } else {
-                      setMessage('No se encontró un paciente con ese DNI.');
-                    }
-                  }}>
-                    Filtrar pacientes
+          <form onSubmit={submit} className="form-card" style={{ marginTop: 16 }}>
+            {/* SECCIÓN 1: SELECCIÓN DEL PACIENTE Y MÉDICO */}
+            <h3>👤 Datos Generales de la Atención</h3>
+            <div className="form-grid" style={{ marginBottom: 20 }}>
+              <label>
+                Filtrar lista de pacientes por DNI o Nombre
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    value={patientQuery}
+                    onChange={e => setPatientQuery(e.target.value)}
+                    placeholder="Escribe DNI o Nombre..."
+                  />
+                  <button
+                    type="button"
+                    className="button secondary sm"
+                    onClick={async () => {
+                      if (!patientQuery.trim()) {
+                        showNotification('Introduce un DNI o nombre para filtrar.', 'error')
+                        return
+                      }
+                      const results = await searchPatients(patientQuery)
+                      const match = results.find(
+                        p => String(p.dni).trim() === patientQuery.trim() ||
+                             String(p.document_number).trim() === patientQuery.trim()
+                      )
+                      if (match) {
+                        setForm(prev => ({ ...prev, patient_id: match.id.toString() }))
+                        showNotification(`Paciente seleccionado: ${match.full_name}`, 'success')
+                      } else {
+                        showNotification('No se encontró coincidencia exacta.', 'info')
+                      }
+                    }}
+                  >
+                    Filtrar
                   </button>
                 </div>
-              </div>
+              </label>
 
               <label>
-                Paciente *
-                <select required value={form.patient_id} onChange={e => setForm({ ...form, patient_id: e.target.value })}>
-                  <option value="">Seleccionar paciente</option>
+                Paciente seleccionado *
+                <select
+                  required
+                  value={form.patient_id}
+                  onChange={e => setForm({ ...form, patient_id: e.target.value })}
+                >
+                  <option value="">-- Selecciona un paciente --</option>
                   {patients.map(patient => (
-                    <option key={patient.id} value={patient.id}>{patient.full_name} — {patient.dni}</option>
+                    <option key={patient.id} value={patient.id}>
+                      {patient.full_name} — DNI: {patient.dni || patient.document_number || 'N/A'}
+                    </option>
                   ))}
                 </select>
               </label>
 
-              <label>Médico<input value={form.doctor_name} onChange={e => setForm({ ...form, doctor_name: e.target.value })} /></label>
-              <label>Motivo de consulta<input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></label>
-              <label>Síntomas<input value={form.symptoms} onChange={e => setForm({ ...form, symptoms: e.target.value })} /></label>
+              <label>
+                Médico Tratante
+                <input
+                  value={form.doctor_name}
+                  onChange={e => setForm({ ...form, doctor_name: e.target.value })}
+                  placeholder="Ej. Dr. Silva"
+                />
+              </label>
 
-              <hr style={{ margin: '20px 0', borderColor: '#e9ecef' }} />
-              <h3>📊 Registro de Triaje</h3>
+              <label>
+                Motivo de Consulta
+                <input
+                  value={form.reason}
+                  onChange={e => setForm({ ...form, reason: e.target.value })}
+                  placeholder="Ej. Dolor de cabeza persistente"
+                />
+              </label>
 
-              <div className="form-grid">
-                <label>
-                  Peso (kg)
-                  <input 
-                    type="number" 
-                    step="0.1" 
-                    value={form.weight_kg} 
-                    onChange={e => handleTriageChange('weight_kg', e.target.value)} 
-                    placeholder="Ej. 70.5" 
-                  />
-                </label>
-                <label>
-                  Talla (cm)
-                  <input 
-                    type="number" 
-                    value={form.height_cm} 
-                    onChange={e => handleTriageChange('height_cm', e.target.value)} 
-                    placeholder="Ej. 170" 
-                  />
-                </label>
-                <label>
-                  Presión Arterial (mmHg)
-                  <input 
-                    value={form.blood_pressure} 
-                    onChange={e => setForm({ ...form, blood_pressure: e.target.value })} 
-                    placeholder="120/80" 
-                  />
-                </label>
-                <label>
-                  Índice de Masa Corporal (IMC)
-                  <input 
-                    value={form.bmi} 
-                    readOnly 
-                    placeholder="Calculado automáticamente" 
-                    style={{ backgroundColor: '#f0f0f0' }}
-                  />
-                </label>
-                <label>
-                  Perímetro Abdominal (cm)
-                  <input 
-                    type="number" 
-                    step="0.1" 
-                    value={form.abdominal_perimeter_cm} 
-                    onChange={e => setForm({ ...form, abdominal_perimeter_cm: e.target.value })} 
-                    placeholder="Ej. 85" 
-                  />
-                </label>
-              </div>
+              <label style={{ gridColumn: '1 / -1' }}>
+                Sintomatología / Anamnesis
+                <input
+                  value={form.symptoms}
+                  onChange={e => setForm({ ...form, symptoms: e.target.value })}
+                  placeholder="Ej. Mareos desde hace 3 días, fiebre leve..."
+                />
+              </label>
+            </div>
 
-              <hr style={{ margin: '20px 0', borderColor: '#e9ecef' }} />
-              <h3>🩺 Diagnóstico y Tratamiento</h3>
+            <hr style={{ margin: '24px 0', borderColor: '#e9ecef' }} />
 
-              <label>Diagnóstico<input value={form.diagnosis} onChange={e => setForm({ ...form, diagnosis: e.target.value })} placeholder="Diagnóstico médico" /></label>
-              <label>Tratamiento<input value={form.treatment} onChange={e => setForm({ ...form, treatment: e.target.value })} placeholder="Plan o tratamiento a seguir" /></label>
-              <label>Receta / Medicamentos<input value={form.prescription} onChange={e => setForm({ ...form, prescription: e.target.value })} placeholder="Detalle de medicamentos indicados" /></label>
+            {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
+            <h3>📊 Registro de Triaje y Signos Vitales</h3>
+            <div className="form-grid" style={{ marginBottom: 20 }}>
+              <label>
+                Peso (kg)
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={form.weight_kg}
+                  onChange={e => handleTriageChange('weight_kg', e.target.value)}
+                  placeholder="Ej. 70.5"
+                />
+              </label>
 
-              <div className="button-row" style={{ marginTop: 16 }}>
-                <button type="submit">Guardar consulta completa</button>
-                <button type="button" className="secondary" onClick={() => { setShowForm(false); setMessage('') }}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-            {message && <div className="form-message" style={{ marginTop: 12 }}>{message}</div>}
-          </div>
+              <label>
+                Talla (cm)
+                <input
+                  type="number"
+                  min="0"
+                  value={form.height_cm}
+                  onChange={e => handleTriageChange('height_cm', e.target.value)}
+                  placeholder="Ej. 170"
+                />
+              </label>
+
+              <label>
+                Índice de Masa Corporal (IMC)
+                <input
+                  value={form.bmi}
+                  readOnly
+                  placeholder="Calculado automáticamente"
+                  style={{ backgroundColor: '#f0f4f8', fontWeight: 'bold' }}
+                />
+              </label>
+
+              <label>
+                Presión Arterial (mmHg)
+                <input
+                  value={form.blood_pressure}
+                  onChange={e => setForm({ ...form, blood_pressure: e.target.value })}
+                  placeholder="Ej. 120/80"
+                />
+              </label>
+
+              <label>
+                Perímetro Abdominal (cm)
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={form.abdominal_perimeter_cm}
+                  onChange={e => setForm({ ...form, abdominal_perimeter_cm: e.target.value })}
+                  placeholder="Ej. 85.0"
+                />
+              </label>
+            </div>
+
+            <hr style={{ margin: '24px 0', borderColor: '#e9ecef' }} />
+
+            {/* SECCIÓN 3: DIAGNÓSTICO Y TRATAMIENTO */}
+            <h3>🩺 Diagnóstico y Prescripción Médica</h3>
+            <div className="form-grid">
+              <label style={{ gridColumn: '1 / -1' }}>
+                Diagnóstico Médico
+                <input
+                  value={form.diagnosis}
+                  onChange={e => setForm({ ...form, diagnosis: e.target.value })}
+                  placeholder="Ej. Cefalea tensional"
+                />
+              </label>
+
+              <label style={{ gridColumn: '1 / -1' }}>
+                Plan de Tratamiento
+                <input
+                  value={form.treatment}
+                  onChange={e => setForm({ ...form, treatment: e.target.value })}
+                  placeholder="Ej. Reposo por 24 horas e hidratación constante"
+                />
+              </label>
+
+              <label style={{ gridColumn: '1 / -1' }}>
+                Receta / Medicamentos Indicados
+                <input
+                  value={form.prescription}
+                  onChange={e => setForm({ ...form, prescription: e.target.value })}
+                  placeholder="Ej. Paracetamol 500mg cada 8 horas por 3 días"
+                />
+              </label>
+            </div>
+
+            {/* BOTONES DE ACCIÓN DEL FORMULARIO */}
+            <div className="button-row" style={{ marginTop: 24 }}>
+              <button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Guardando consulta...' : 'Guardar Consulta Completa'}
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => { setShowForm(false); setMessage({ text: '', type: '' }) }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
         )}
       </div>
 
-      {/* RESULTADOS / TARJETAS */}
+      {/* LISTADO DE RESULTADOS / HISTORIAL */}
       {!showForm && (
-        <div className="card">
-          <h2>Consultas y Triajes Recientes</h2>
-          <p className="collection-total">Número total de registros: {consultations.length}</p>
-          {consultations.length === 0 ? (
-            <div className="patients-empty-state">
-              <div className="patients-empty-icon">🔎</div>
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="card-header-row">
+            <h2>Historial de Consultas Recientes</h2>
+            <p className="collection-total">Total de registros: {consultations.length}</p>
+          </div>
+
+          {loading ? (
+            <p style={{ marginTop: 20 }}>Cargando expediente médico...</p>
+          ) : consultations.length === 0 ? (
+            <div className="patients-empty-state" style={{ padding: '32px 0', textAlign: 'center' }}>
+              <div className="patients-empty-icon" style={{ fontSize: '2rem' }}>🔎</div>
               <h3>No se encontraron consultas</h3>
-              <p>Prueba con otros términos de búsqueda o registra una nueva consulta.</p>
+              <p className="muted">Prueba con otros términos de búsqueda o registra una nueva atención médica.</p>
             </div>
           ) : (
-            <div className="items-grid">
+            <div className="items-grid" style={{ marginTop: 16 }}>
               {consultations.map(item => (
                 <div key={item.id} className="item-card">
-                  <h3>{item.reason || 'Sin motivo registrado'}</h3>
-                  <p><strong>Paciente:</strong> {item.patient_name || item.patient_id}</p>
-                  <p><strong>Médico:</strong> {item.doctor_name}</p>
-                  <p><strong>Diagnóstico:</strong> {item.diagnosis || 'Sin diagnóstico'}</p>
-                  {item.weight_kg && <p><strong>Triaje:</strong> {item.weight_kg}kg | {item.height_cm}cm | IMC: {item.bmi}</p>}
-                  <span className="meta">{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <h3>{item.reason || 'Consulta Médica General'}</h3>
+                    <span className="badge" style={{ fontSize: '0.75rem' }}>ID: #{item.id}</span>
+                  </div>
+
+                  <p><strong>Paciente:</strong> {item.patient_name || `ID #${item.patient_id}`}</p>
+                  <p><strong>Médico:</strong> {item.doctor_name || 'No especificado'}</p>
+                  <p><strong>Diagnóstico:</strong> {item.diagnosis || 'Sin diagnóstico registrado'}</p>
+
+                  {(item.weight_kg || item.height_cm || item.bmi) && (
+                    <div style={{ background: '#f8f9fa', padding: '8px', borderRadius: '6px', margin: '8px 0', fontSize: '0.85rem' }}>
+                      <strong>Triaje:</strong> {item.weight_kg ? `${item.weight_kg} kg` : '—'} | {item.height_cm ? `${item.height_cm} cm` : '—'} | <strong>IMC:</strong> {item.bmi || '—'}
+                    </div>
+                  )}
+
+                  <span className="meta" style={{ display: 'block', marginTop: 8 }}>
+                    📅 {item.created_at ? new Date(item.created_at).toLocaleString() : 'Fecha no registrada'}
+                  </span>
                 </div>
               ))}
             </div>
