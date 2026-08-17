@@ -19,18 +19,6 @@ const loadPatients = async () => {
 
 const phoneConfigs = {
   '+51': { country: 'Perú', length: 9 },
-  '+52': { country: 'México', length: 10 },
-  '+54': { country: 'Argentina', length: 10 },
-  '+57': { country: 'Colombia', length: 9 },
-  '+1': { country: 'Estados Unidos', length: 10 }
-}
-
-import React, { useState, useEffect } from 'react'
-import { useAuth } from './useAuth' // Ajusta la ruta según tu proyecto
-import { apiFetch } from './apiFetch' // Ajusta la ruta según tu proyecto
-
-const phoneConfigs = {
-  '+51': { country: 'Perú', length: 9 },
   '+1': { country: 'EE. UU.', length: 10 },
   '+52': { country: 'México', length: 10 },
   '+57': { country: 'Colombia', length: 10 },
