@@ -3,8 +3,7 @@ import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Responsi
 import { api } from './api';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext'
-import { useAuth } from './useAuth' // Ajusta la ruta según tu proyecto
-import { apiFetch } from './apiFetch' // Ajusta la ruta según tu proyecto
+
 
 const loadPatients = async () => {
   try {
