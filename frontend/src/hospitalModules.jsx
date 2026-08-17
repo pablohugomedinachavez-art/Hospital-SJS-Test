@@ -369,18 +369,24 @@ export function Patients() {
 }
 
 
+
+
 export function Consultations() {
   const [consultations, setConsultations] = useState([])
   const [patients, setPatients] = useState([])
   const [query, setQuery] = useState('')
-  const [view, setView] = useState('list')
-  const [form, setForm] = useState({
+  const [view, setView] = useState('list') // 'list' | 'form'
+  const [editingId, setEditingId] = useState(null)
+  
+  const initialFormState = {
     patient_id: '',
     reason: '',
     diagnosis: '',
     treatment: '',
     notes: ''
-  })
+  }
+  
+  const [form, setForm] = useState(initialFormState)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const { user } = useAuth()
@@ -416,13 +422,39 @@ export function Consultations() {
     load()
   }, [])
 
+  // Ir al formulario de Creación
   const handleSwitchToCreate = () => {
-    setView('create')
+    setEditingId(null)
+    setForm(initialFormState)
     setMessage('')
+    setView('form')
     loadPatients()
-    load('')
   }
 
+  // Ir al formulario de Edición
+  const handleSwitchToEdit = (consultation) => {
+    setEditingId(consultation.id)
+    setForm({
+      patient_id: consultation.patient_id || '',
+      reason: consultation.reason || '',
+      diagnosis: consultation.diagnosis || '',
+      treatment: consultation.treatment || '',
+      notes: consultation.notes || ''
+    })
+    setMessage('')
+    setView('form')
+    loadPatients()
+  }
+
+  // Volver a la lista
+  const handleBackToList = () => {
+    setView('list')
+    setEditingId(null)
+    setForm(initialFormState)
+    setMessage('')
+  }
+
+  // DELETE
   async function deleteConsultation(consultationId) {
     if (!window.confirm('¿Seguro que deseas eliminar esta consulta? Esta acción no se puede deshacer.')) {
       return
@@ -440,25 +472,30 @@ export function Consultations() {
     }
   }
 
+  // POST / PUT (Submit Form)
   async function submit(e) {
     e.preventDefault()
     setLoading(true)
     setMessage('')
 
+    const method = editingId ? 'PUT' : 'POST'
+    const bodyPayload = editingId ? { ...form, consultation_id: editingId } : form
+
     try {
       const res = await apiFetch('/consultations', {
-        method: 'POST',
-        body: JSON.stringify(form)
+        method,
+        body: JSON.stringify(bodyPayload)
       })
       const json = await res.json()
 
       if (res.ok) {
-        setMessage('Consulta registrada correctamente')
-        setForm({ patient_id: '', reason: '', diagnosis: '', treatment: '', notes: '' })
+        setMessage(editingId ? 'Consulta actualizada correctamente' : 'Consulta registrada correctamente')
+        setForm(initialFormState)
+        setEditingId(null)
         setView('list')
         await load(query)
       } else {
-        setMessage(json.message || 'No se pudo registrar la consulta')
+        setMessage(json.message || 'No se pudo guardar la consulta')
       }
     } catch (err) {
       setMessage('Error de conexión con el servidor')
@@ -472,29 +509,38 @@ export function Consultations() {
       <div className="card patients-shell">
         <div className="card-header-row">
           <div>
-            <h2>{view === 'create' ? 'Nueva consulta' : 'Consultas'}</h2>
+            <h2>
+              {view === 'form' 
+                ? (editingId ? 'Editar consulta' : 'Nueva consulta') 
+                : 'Consultas'
+              }
+            </h2>
             <p className="muted">
-              {view === 'create'
+              {view === 'form'
                 ? 'Completa los datos de la consulta médica.'
-                : 'Consulta el historial de atenciones médicas y registra nuevas consultas.'}
+                : 'Consulta el historial de atenciones médicas y gestiona los registros.'}
             </p>
           </div>
-          {view === 'create' && (
+          {view === 'form' && (
             <button
               type="button"
               className="button secondary"
-              onClick={() => { setView('list'); setMessage('') }}
+              onClick={handleBackToList}
             >
               Volver
             </button>
           )}
         </div>
 
-        {view === 'create' ? (
+        {view === 'form' ? (
           <div className="patients-create-layout">
             <div className="patients-hero-card">
-              <h3>Registro clínico</h3>
-              <p>Agrega los detalles de la consulta para mantener el historial médico del paciente actualizado.</p>
+              <h3>{editingId ? 'Actualización de registro' : 'Registro clínico'}</h3>
+              <p>
+                {editingId 
+                  ? 'Modifica los campos necesarios para actualizar la consulta seleccionada.' 
+                  : 'Agrega los detalles de la consulta para mantener el historial médico actualizado.'}
+              </p>
             </div>
 
             <form onSubmit={submit}>
@@ -556,12 +602,14 @@ export function Consultations() {
 
               <div className="button-row">
                 <button type="submit" disabled={loading}>
-                  {loading ? 'Guardando...' : 'Registrar consulta'}
+                  {loading 
+                    ? 'Guardando...' 
+                    : (editingId ? 'Actualizar consulta' : 'Registrar consulta')}
                 </button>
                 <button
                   type="button"
                   className="secondary"
-                  onClick={() => { setView('list'); setMessage('') }}
+                  onClick={handleBackToList}
                 >
                   Cancelar
                 </button>
@@ -624,16 +672,24 @@ export function Consultations() {
                         <span className="meta">
                           Fecha: {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
                         </span>
-                        {isAdmin && (
+                        <div className="button-row" style={{ marginTop: 12 }}>
                           <button
                             type="button"
-                            className="button danger"
-                            style={{ marginTop: 8 }}
-                            onClick={() => deleteConsultation(c.id)}
+                            className="button secondary"
+                            onClick={() => handleSwitchToEdit(c)}
                           >
-                            Eliminar consulta
+                            Editar
                           </button>
-                        )}
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="button danger"
+                              onClick={() => deleteConsultation(c.id)}
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -646,6 +702,7 @@ export function Consultations() {
     </div>
   )
 }
+
 
 export function Locations() {
   const [items, setItems] = useState([])
