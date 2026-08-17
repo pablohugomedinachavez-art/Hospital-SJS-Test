@@ -3,6 +3,8 @@ import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Responsi
 import { api } from './api';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext'
+import { useAuth } from './useAuth' // Ajusta la ruta según tu proyecto
+import { apiFetch } from './apiFetch' // Ajusta la ruta según tu proyecto
 
 const loadPatients = async () => {
   try {
@@ -366,327 +368,280 @@ export function Patients() {
   )
 }
 
+
 export function Consultations() {
   const [consultations, setConsultations] = useState([])
   const [patients, setPatients] = useState([])
   const [query, setQuery] = useState('')
-  const [patientQuery, setPatientQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [message, setMessage] = useState({ text: '', type: '' })
-
-  const initialFormState = {
+  const [view, setView] = useState('list')
+  const [form, setForm] = useState({
     patient_id: '',
-    doctor_name: 'Dr. Demo',
     reason: '',
-    symptoms: '',
-    weight_kg: '',
-    height_cm: '',
-    blood_pressure: '',
-    bmi: '',
-    abdominal_perimeter_cm: '',
     diagnosis: '',
     treatment: '',
-    prescription: ''
-  }
+    notes: ''
+  })
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(false)
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'tenant_admin'
 
-  const [form, setForm] = useState(initialFormState)
-
-  const showNotification = (text, type = 'info') => {
-    setMessage({ text, type })
-    setTimeout(() => setMessage({ text: '', type: '' }), 4000)
-  }
-
-  async function loadConsultations(q = '') {
-    setLoading(true)
+  async function load(q = '') {
     try {
       const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`)
       if (res.ok) {
         const data = await res.json()
         setConsultations(data || [])
       } else {
-        showNotification('Error al cargar consultas.', 'error')
+        setMessage('Error al cargar la lista de consultas.')
       }
-    } catch {
-      showNotification('Error de red al cargar consultas.', 'error')
-    } finally {
-      setLoading(false)
+    } catch (err) {
+      console.error('Error de red al cargar consultas:', err)
     }
   }
 
-  async function searchPatients(q = '') {
+  async function loadPatients() {
     try {
-      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
+      const res = await apiFetch('/patients')
       if (res.ok) {
-        const data = (await res.json()) || []
-        setPatients(data)
-        return data
+        const data = await res.json()
+        setPatients(data || [])
       }
     } catch (err) {
-      console.error('Error al buscar pacientes:', err)
+      console.error('Error al cargar pacientes para el selector:', err)
     }
-    return []
   }
 
   useEffect(() => {
-    loadConsultations()
-    searchPatients()
+    load()
   }, [])
 
-  const calculateBMI = (weight, height) => {
-    const w = parseFloat(weight)
-    const h = parseFloat(height)
-    if (w > 0 && h > 0) {
-      const heightInMeters = h / 100
-      return (w / (heightInMeters * heightInMeters)).toFixed(2)
-    }
-    return ''
+  const handleSwitchToCreate = () => {
+    setView('create')
+    setMessage('')
+    loadPatients()
+    load('')
   }
 
-  const handleTriageChange = (field, value) => {
-    const updatedForm = { ...form, [field]: value }
-    if (field === 'weight_kg' || field === 'height_cm') {
-      const w = field === 'weight_kg' ? value : form.weight_kg
-      const h = field === 'height_cm' ? value : form.height_cm
-      updatedForm.bmi = calculateBMI(w, h)
+  async function deleteConsultation(consultationId) {
+    if (!window.confirm('¿Seguro que deseas eliminar esta consulta? Esta acción no se puede deshacer.')) {
+      return
     }
-    setForm(updatedForm)
+    const res = await apiFetch('/consultations', {
+      method: 'DELETE',
+      body: JSON.stringify({ consultation_id: consultationId })
+    })
+    if (res.ok) {
+      setMessage('Consulta eliminada correctamente')
+      await load(query)
+    } else {
+      const json = await res.json().catch(() => ({}))
+      setMessage(json.message || 'Error al eliminar la consulta')
+    }
   }
 
   async function submit(e) {
     e.preventDefault()
-    if (!form.patient_id) {
-      showNotification('Selecciona un paciente obligatoriamente.', 'error')
-      return
-    }
-
-    setIsSubmitting(true)
-    setMessage({ text: '', type: '' })
+    setLoading(true)
+    setMessage('')
 
     try {
       const res = await apiFetch('/consultations', {
         method: 'POST',
         body: JSON.stringify(form)
       })
+      const json = await res.json()
 
       if (res.ok) {
-        showNotification('Consulta registrada exitosamente.', 'success')
-        setForm(initialFormState)
-        await loadConsultations(query)
+        setMessage('Consulta registrada correctamente')
+        setForm({ patient_id: '', reason: '', diagnosis: '', treatment: '', notes: '' })
+        setView('list')
+        await load(query)
       } else {
-        const json = await res.json().catch(() => ({}))
-        showNotification(json.message || 'Error al guardar consulta.', 'error')
+        setMessage(json.message || 'No se pudo registrar la consulta')
       }
-    } catch {
-      showNotification('Error de conexión con el servidor.', 'error')
+    } catch (err) {
+      setMessage('Error de conexión con el servidor')
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div style={{ width: '100%', padding: '16px', boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif', backgroundColor: '#F8FAFC', minHeight: '100vh' }}>
-      
-      {/* HEADER COMPACTO CON NOTIFICACIÓN INTEGRADA */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', backgroundColor: '#FFFFFF', padding: '12px 20px', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '1.25rem', color: '#0F172A', fontWeight: '700' }}>🩺 Gestión de Consultas Médicas y Triaje</h1>
-          <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Registro continuo de triaje, diagnósticos e historial de pacientes</span>
-        </div>
-
-        {message.text && (
-          <div style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', backgroundColor: message.type === 'error' ? '#FEF2F2' : '#F0FDF4', color: message.type === 'error' ? '#991B1B' : '#166534', border: `1px solid ${message.type === 'error' ? '#FCA5A5' : '#86EFAC'}` }}>
-            {message.type === 'error' ? '⚠️ ' : '✅ '}{message.text}
-          </div>
-        )}
-      </div>
-
-      {/* CONTENEDOR PRINCIPAL: 2 COLUMNAS SIN ESPACIOS MUERTOS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(360px, 420px) 1fr', gap: '16px', alignItems: 'start' }}>
-        
-        {/* COLUMNA IZQUIERDA: FORMULARIO PERMANENTE Y DENSO */}
-        <form onSubmit={submit} style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div style={{ borderBottom: '1px solid #F1F5F9', pb: '8px', marginBottom: '4px' }}>
-            <h2 style={{ margin: 0, fontSize: '1rem', color: '#1E293B', fontWeight: '700' }}>📋 Registro de Consulta</h2>
-          </div>
-
-          {/* Paciente y Médico */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              value={patientQuery}
-              onChange={e => setPatientQuery(e.target.value)}
-              placeholder="Buscar DNI..."
-              style={{ flex: '1', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
-            />
-            <button
-              type="button"
-              onClick={async () => {
-                if (!patientQuery.trim()) return
-                const results = await searchPatients(patientQuery)
-                const match = results.find(p => String(p.dni || p.document_number).trim() === patientQuery.trim())
-                if (match) {
-                  setForm(prev => ({ ...prev, patient_id: match.id.toString() }))
-                  showNotification(`Seleccionado: ${match.full_name}`, 'success')
-                }
-              }}
-              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #CBD5E1', backgroundColor: '#F1F5F9', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer' }}
-            >
-              Filtrar
-            </button>
-          </div>
-
+    <div className="patients-page">
+      <div className="card patients-shell">
+        <div className="card-header-row">
           <div>
-            <select
-              required
-              value={form.patient_id}
-              onChange={e => setForm({ ...form, patient_id: e.target.value })}
-              style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem', backgroundColor: '#FFFFFF' }}
-            >
-              <option value="">-- Seleccionar Paciente * --</option>
-              {patients.map(p => (
-                <option key={p.id} value={p.id}>{p.full_name} ({p.dni || p.document_number || 'S/DNI'})</option>
-              ))}
-            </select>
+            <h2>{view === 'create' ? 'Nueva consulta' : 'Consultas'}</h2>
+            <p className="muted">
+              {view === 'create'
+                ? 'Completa los datos de la consulta médica.'
+                : 'Consulta el historial de atenciones médicas y registra nuevas consultas.'}
+            </p>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <input
-              value={form.doctor_name}
-              onChange={e => setForm({ ...form, doctor_name: e.target.value })}
-              placeholder="Médico"
-              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
-            />
-            <input
-              value={form.reason}
-              onChange={e => setForm({ ...form, reason: e.target.value })}
-              placeholder="Motivo de Consulta"
-              style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
-            />
-          </div>
-
-          {/* Bloque de Triaje */}
-          <div style={{ backgroundColor: '#F8FAFC', padding: '10px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#475569', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>⚖️ Triaje / Vitales</span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-              <div>
-                <label style={{ fontSize: '0.7rem', color: '#64748B' }}>Peso (kg)</label>
-                <input type="number" step="0.1" value={form.weight_kg} onChange={e => handleTriageChange('weight_kg', e.target.value)} placeholder="70" style={{ width: '100%', padding: '4px 6px', borderRadius: '4px', border: '1px solid #CBD5E1', fontSize: '0.8rem', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.7rem', color: '#64748B' }}>Talla (cm)</label>
-                <input type="number" value={form.height_cm} onChange={e => handleTriageChange('height_cm', e.target.value)} placeholder="170" style={{ width: '100%', padding: '4px 6px', borderRadius: '4px', border: '1px solid #CBD5E1', fontSize: '0.8rem', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.7rem', color: '#64748B' }}>IMC</label>
-                <input value={form.bmi} readOnly placeholder="0.0" style={{ width: '100%', padding: '4px 6px', borderRadius: '4px', border: '1px solid #CBD5E1', fontSize: '0.8rem', backgroundColor: '#E2E8F0', fontWeight: '700', boxSizing: 'border-box' }} />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.7rem', color: '#64748B' }}>P. Art.</label>
-                <input value={form.blood_pressure} onChange={e => setForm({ ...form, blood_pressure: e.target.value })} placeholder="120/80" style={{ width: '100%', padding: '4px 6px', borderRadius: '4px', border: '1px solid #CBD5E1', fontSize: '0.8rem', boxSizing: 'border-box' }} />
-              </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <label style={{ fontSize: '0.7rem', color: '#64748B' }}>Perím. Abd. (cm)</label>
-                <input type="number" step="0.1" value={form.abdominal_perimeter_cm} onChange={e => setForm({ ...form, abdominal_perimeter_cm: e.target.value })} placeholder="85.0" style={{ width: '100%', padding: '4px 6px', borderRadius: '4px', border: '1px solid #CBD5E1', fontSize: '0.8rem', boxSizing: 'border-box' }} />
-              </div>
-            </div>
-          </div>
-
-          {/* Diagnóstico y Tratamiento */}
-          <input
-            value={form.diagnosis}
-            onChange={e => setForm({ ...form, diagnosis: e.target.value })}
-            placeholder="Diagnóstico Médico"
-            style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
-          />
-          <input
-            value={form.treatment}
-            onChange={e => setForm({ ...form, treatment: e.target.value })}
-            placeholder="Plan de Tratamiento"
-            style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
-          />
-          <textarea
-            rows={2}
-            value={form.prescription}
-            onChange={e => setForm({ ...form, prescription: e.target.value })}
-            placeholder="Receta Médica / Prescripción..."
-            style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical' }}
-          />
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', backgroundColor: '#2563EB', color: '#FFFFFF', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
-          >
-            {isSubmitting ? 'Guardando...' : '💾 Registrar Consulta'}
-          </button>
-        </form>
-
-        {/* COLUMNA DERECHA: HISTORIAL DENSE Y COMPACTO EN TABLA */}
-        <div style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '12px', border: '1px solid #E2E8F0', boxSchedules: '0 1px 3px rgba(0,0,0,0.05)', minHeight: '100%' }}>
-          
-          {/* BARRA DE BÚSQUEDA INTEGRADA */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && loadConsultations(query)}
-              placeholder="🔍 Buscar por nombre, DNI, médico o diagnóstico..."
-              style={{ flex: 1, padding: '7px 12px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
-            />
+          {view === 'create' && (
             <button
               type="button"
-              onClick={() => loadConsultations(query)}
-              style={{ backgroundColor: '#0F172A', color: '#FFFFFF', padding: '7px 16px', borderRadius: '6px', border: 'none', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}
+              className="button secondary"
+              onClick={() => { setView('list'); setMessage('') }}
             >
-              Buscar
+              Volver
             </button>
-          </div>
-
-          {/* TABLA Densa PARA EVITAR ESPACIOS VACÍOS */}
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '24px', color: '#64748B', fontSize: '0.9rem' }}>Cargando registros...</div>
-          ) : consultations.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px', color: '#64748B', fontSize: '0.85rem' }}>No se encontraron consultas registradas.</div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#475569' }}>
-                    <th style={{ padding: '8px 10px' }}>Fecha</th>
-                    <th style={{ padding: '8px 10px' }}>Paciente</th>
-                    <th style={{ padding: '8px 10px' }}>Motivo / Diagnóstico</th>
-                    <th style={{ padding: '8px 10px' }}>Triaje</th>
-                    <th style={{ padding: '8px 10px' }}>Médico</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {consultations.map(item => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#64748B' }}>
-                        {item.created_at ? new Date(item.created_at).toLocaleDateString() : '—'}
-                      </td>
-                      <td style={{ padding: '8px 10px', fontWeight: '600', color: '#0F172A' }}>
-                        {item.patient_name || `ID #${item.patient_id}`}
-                      </td>
-                      <td style={{ padding: '8px 10px' }}>
-                        <div style={{ fontWeight: '600', color: '#1E293B' }}>{item.reason || 'Consulta General'}</div>
-                        <div style={{ color: '#64748B', fontSize: '0.78rem' }}>{item.diagnosis || 'Sin diagnóstico registrado'}</div>
-                      </td>
-                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                        {item.weight_kg ? `${item.weight_kg}kg` : '—'} | {item.height_cm ? `${item.height_cm}cm` : '—'} 
-                        {item.bmi && <span style={{ fontWeight: '600', color: '#0284C7' }}> (IMC: {item.bmi})</span>}
-                      </td>
-                      <td style={{ padding: '8px 10px', color: '#475569' }}>
-                        {item.doctor_name || '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           )}
         </div>
 
+        {view === 'create' ? (
+          <div className="patients-create-layout">
+            <div className="patients-hero-card">
+              <h3>Registro clínico</h3>
+              <p>Agrega los detalles de la consulta para mantener el historial médico del paciente actualizado.</p>
+            </div>
+
+            <form onSubmit={submit}>
+              <div className="form-grid">
+                <label>
+                  Paciente
+                  <select
+                    required
+                    value={form.patient_id}
+                    onChange={e => setForm({ ...form, patient_id: e.target.value })}
+                  >
+                    <option value="">Seleccionar paciente</option>
+                    {patients.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.full_name} ({p.dni || p.document_number || 'Sin Doc'})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Motivo de consulta
+                  <input
+                    required
+                    value={form.reason}
+                    onChange={e => setForm({ ...form, reason: e.target.value })}
+                    placeholder="Ej. Dolor abdominal, chequeo general"
+                  />
+                </label>
+
+                <label>
+                  Diagnóstico
+                  <input
+                    required
+                    value={form.diagnosis}
+                    onChange={e => setForm({ ...form, diagnosis: e.target.value })}
+                    placeholder="Diagnóstico clínico"
+                  />
+                </label>
+
+                <label>
+                  Tratamiento / Receta
+                  <input
+                    value={form.treatment}
+                    onChange={e => setForm({ ...form, treatment: e.target.value })}
+                    placeholder="Medicamentos o indicaciones"
+                  />
+                </label>
+
+                <label style={{ gridColumn: '1 / -1' }}>
+                  Notas adicionales
+                  <input
+                    value={form.notes}
+                    onChange={e => setForm({ ...form, notes: e.target.value })}
+                    placeholder="Observaciones o comentarios adicionales"
+                  />
+                </label>
+              </div>
+
+              <div className="button-row">
+                <button type="submit" disabled={loading}>
+                  {loading ? 'Guardando...' : 'Registrar consulta'}
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => { setView('list'); setMessage('') }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+            {message && <div className="form-message">{message}</div>}
+          </div>
+        ) : (
+          <>
+            <div className="patients-toolbar">
+              <label className="collection-search">
+                <span>Buscar consultas</span>
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Paciente o diagnóstico"
+                />
+              </label>
+              <div className="button-row patients-actions">
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => {
+                    if (!query || !query.trim()) {
+                      setMessage('Introduce un término para buscar')
+                      return
+                    }
+                    load(query)
+                  }}
+                >
+                  Buscar
+                </button>
+                <button type="button" className="button secondary" onClick={handleSwitchToCreate}>
+                  Agregar
+                </button>
+              </div>
+            </div>
+
+            <div className="patients-list-card">
+              {consultations.length === 0 ? (
+                <div className="patients-empty-state">
+                  <div className="patients-empty-icon">🩺</div>
+                  <h3>No se encontraron consultas</h3>
+                  <p>Prueba con otros términos de búsqueda o registra una nueva consulta.</p>
+                  <button type="button" className="button" onClick={handleSwitchToCreate}>
+                    Crear nueva consulta
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="collection-total">Consultas registradas ({consultations.length})</p>
+                  <div className="items-grid">
+                    {consultations.map(c => (
+                      <div key={c.id} className="item-card">
+                        <h3>{c.patient_name || `Paciente #${c.patient_id}`}</h3>
+                        <p>ID Consulta: {c.id}</p>
+                        <p>Motivo: {c.reason}</p>
+                        <p>Diagnóstico: {c.diagnosis}</p>
+                        <p>Tratamiento: {c.treatment || '—'}</p>
+                        <span className="meta">
+                          Fecha: {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
+                        </span>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="button danger"
+                            style={{ marginTop: 8 }}
+                            onClick={() => deleteConsultation(c.id)}
+                          >
+                            Eliminar consulta
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
