@@ -366,8 +366,6 @@ export function Patients() {
   )
 }
 
-
-
 export function Consultations() {
   const [consultations, setConsultations] = useState([])
   const [patients, setPatients] = useState([])
@@ -693,7 +691,6 @@ export function Consultations() {
     </div>
   )
 }
-
 
 export function Locations() {
   const [items, setItems] = useState([])
