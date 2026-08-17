@@ -436,11 +436,7 @@ export function Consultations() {
 
   const calculateBMI = (weight, height) => {
     const w = parseFloat(weight)
-    const h = parseFloat(height)
-    if (w > 0 && h > 0) {
-      const heightInMeters = h / 100
-      return (w / (heightInMeters * heightInMeters)).toFixed(2)
-    }
+    
     return ''
   }
 
