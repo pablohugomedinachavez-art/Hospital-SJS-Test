@@ -434,12 +434,6 @@ export function Consultations() {
     searchPatients()
   }, [])
 
-  const calculateBMI = (weight, height) => {
-    const w = parseFloat(weight)
-    
-    return ''
-  }
-
   const handleTriageChange = (field, value) => {
     const updatedForm = { ...form, [field]: value }
     if (field === 'weight_kg' || field === 'height_cm') {
