@@ -26,11 +26,26 @@ const phoneConfigs = {
   '+1': { country: 'Estados Unidos', length: 10 }
 }
 
+import React, { useState, useEffect } from 'react'
+import { useAuth } from './useAuth' // Ajusta la ruta según tu proyecto
+import { apiFetch } from './apiFetch' // Ajusta la ruta según tu proyecto
+
+const phoneConfigs = {
+  '+51': { country: 'Perú', length: 9 },
+  '+1': { country: 'EE. UU.', length: 10 },
+  '+52': { country: 'México', length: 10 },
+  '+57': { country: 'Colombia', length: 10 },
+  '+56': { country: 'Chile', length: 9 },
+  '+54': { country: 'Argentina', length: 10 }
+}
+
 export function Patients() {
   const [patients, setPatients] = useState([])
   const [query, setQuery] = useState('')
-  const [view, setView] = useState('list')
-  const [form, setForm] = useState({
+  const [view, setView] = useState('list') // 'list' | 'form'
+  const [editingId, setEditingId] = useState(null)
+
+  const initialFormState = {
     document_type: 'dni',
     document_number: '',
     full_name: '',
@@ -41,7 +56,9 @@ export function Patients() {
     sex: '',
     blood_type: '',
     allergies: ''
-  })
+  }
+
+  const [form, setForm] = useState(initialFormState)
   const [message, setMessage] = useState('')
   const [documentError, setDocumentError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -62,15 +79,63 @@ export function Patients() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
+  // Switch to Create
   const handleSwitchToCreate = () => {
-    setView('create')
+    setEditingId(null)
+    setForm(initialFormState)
     setMessage('')
     setDocumentError('')
+    setView('form')
     load('')
   }
 
+  // Switch to Edit
+  const handleSwitchToEdit = (patient) => {
+    setEditingId(patient.id)
+    
+    // Separar código de país del número de teléfono si aplica
+    let pCountry = '+51'
+    let pNumber = patient.phone || ''
+    
+    for (const code of Object.keys(phoneConfigs)) {
+      if (pNumber.startsWith(code)) {
+        pCountry = code
+        pNumber = pNumber.slice(code.length)
+        break
+      }
+    }
+
+    setForm({
+      document_type: patient.document_type || 'dni',
+      document_number: patient.dni || patient.document_number || '',
+      full_name: patient.full_name || '',
+      date_of_birth: patient.date_of_birth ? patient.date_of_birth.slice(0, 10) : '',
+      phone_country: pCountry,
+      phone_number: pNumber,
+      email: patient.email || '',
+      sex: patient.sex || '',
+      blood_type: patient.blood_type || '',
+      allergies: patient.allergies || ''
+    })
+    setMessage('')
+    setDocumentError('')
+    setView('form')
+  }
+
+  // Switch Back
+  const handleBackToList = () => {
+    setView('list')
+    setEditingId(null)
+    setForm(initialFormState)
+    setMessage('')
+    setDocumentError('')
+  }
+
+  // Handle Document Input Change & Duplicate Check
   const handleDocumentChange = (value, docType = form.document_type) => {
     const cleanValue = docType === 'dni' 
       ? value.replace(/\D/g, '') 
@@ -83,6 +148,7 @@ export function Patients() {
 
     if (docNumber.trim() !== '') {
       const exists = patients.some(p => {
+        if (editingId && p.id === editingId) return false // Ignorar el mismo paciente al editar
         const dniStr = p.dni ? String(p.dni).trim() : ''
         const docStr = p.document_number ? String(p.document_number).trim() : ''
         return dniStr === docNumber || docStr === docNumber
@@ -98,6 +164,7 @@ export function Patients() {
     }
   }
 
+  // DELETE
   async function deletePatient(patientId) {
     if (!window.confirm('¿Seguro que deseas eliminar este paciente? Esta acción no se puede deshacer.')) {
       return
@@ -112,6 +179,7 @@ export function Patients() {
     }
   }
 
+  // POST / PUT Submit
   async function submit(e) {
     e.preventDefault()
     if (documentError) {
@@ -124,6 +192,7 @@ export function Patients() {
     try {
       const docNumStr = form.document_number.trim()
       const existingDocument = patients.find(p => {
+        if (editingId && p.id === editingId) return false
         const dniStr = p.dni ? String(p.dni).trim() : ''
         const docStr = p.document_number ? String(p.document_number).trim() : ''
         return (dniStr === docNumStr || docStr === docNumStr) && docNumStr !== ''
@@ -136,34 +205,46 @@ export function Patients() {
       }
 
       const phoneValue = `${form.phone_country}${form.phone_number}`
-      const existingPhone = patients.find(p => String(p.phone).trim() === phoneValue && form.phone_number.trim() !== '')
+      const existingPhone = patients.find(p => {
+        if (editingId && p.id === editingId) return false
+        return String(p.phone).trim() === phoneValue && form.phone_number.trim() !== ''
+      })
       if (existingPhone) {
         setMessage('El teléfono ya está registrado para otro paciente')
         setLoading(false)
         return
       }
 
-      const existingEmail = patients.find(p => String(p.email).toLowerCase().trim() === form.email.toLowerCase().trim() && form.email.trim() !== '')
+      const existingEmail = patients.find(p => {
+        if (editingId && p.id === editingId) return false
+        return String(p.email).toLowerCase().trim() === form.email.toLowerCase().trim() && form.email.trim() !== ''
+      })
       if (existingEmail) {
         setMessage('El correo ya está registrado para otro paciente')
         setLoading(false)
         return
       }
 
-      const res = await apiFetch('/patients', { method: 'POST', body: JSON.stringify({
+      const method = editingId ? 'PUT' : 'POST'
+      const payload = {
         ...form,
         phone: phoneValue,
-        dni: form.document_number
-      }) })
+        dni: form.document_number,
+        ...(editingId ? { patient_id: editingId } : {})
+      }
+
+      const res = await apiFetch('/patients', { method, body: JSON.stringify(payload) })
       const json = await res.json()
+
       if (res.ok) {
-        setMessage('Paciente registrado correctamente')
-        setForm({ document_type: 'dni', document_number: '', full_name: '', date_of_birth: '', phone_country: '+51', phone_number: '', email: '', sex: '', blood_type: '', allergies: '' })
+        setMessage(editingId ? 'Paciente actualizado correctamente' : 'Paciente registrado correctamente')
+        setForm(initialFormState)
         setDocumentError('')
+        setEditingId(null)
         setView('list')
         await load(query)
       } else {
-        setMessage(json.message || 'No se pudo crear el paciente')
+        setMessage(json.message || 'No se pudo guardar el paciente')
       }
     } catch (err) {
       setMessage('Error de conexión con el servidor')
@@ -177,25 +258,34 @@ export function Patients() {
       <div className="card patients-shell">
         <div className="card-header-row">
           <div>
-            <h2>{view === 'create' ? 'Nuevo paciente' : 'Pacientes'}</h2>
+            <h2>
+              {view === 'form' 
+                ? (editingId ? 'Editar paciente' : 'Nuevo paciente') 
+                : 'Pacientes'
+              }
+            </h2>
             <p className="muted">
-              {view === 'create'
+              {view === 'form'
                 ? 'Completa los datos del paciente en el orden solicitado.'
-                : 'Consulta los pacientes registrados y crea nuevos cuando lo necesites.'}
+                : 'Consulta los pacientes registrados y gestiona sus datos cuando lo necesites.'}
             </p>
           </div>
-          {view === 'create' && (
-            <button type="button" className="button secondary" onClick={() => { setView('list'); setMessage(''); setDocumentError('') }}>
+          {view === 'form' && (
+            <button type="button" className="button secondary" onClick={handleBackToList}>
               Volver
             </button>
           )}
         </div>
 
-        {view === 'create' ? (
+        {view === 'form' ? (
           <div className="patients-create-layout">
             <div className="patients-hero-card">
-              <h3>Registro rápido</h3>
-              <p>Agrega un paciente nuevo para que quede disponible para consultas, citas y documentos.</p>
+              <h3>{editingId ? 'Actualización de datos' : 'Registro rápido'}</h3>
+              <p>
+                {editingId 
+                  ? 'Modifica la información necesaria del paciente para mantener la ficha actualizada.' 
+                  : 'Agrega un paciente nuevo para que quede disponible para consultas, citas y documentos.'}
+              </p>
             </div>
 
             <form onSubmit={submit}>
@@ -297,9 +387,11 @@ export function Patients() {
               </div>
               <div className="button-row">
                 <button type="submit" disabled={loading || Boolean(documentError)}>
-                  {loading ? 'Guardando...' : 'Registrar paciente'}
+                  {loading 
+                    ? 'Guardando...' 
+                    : (editingId ? 'Actualizar paciente' : 'Registrar paciente')}
                 </button>
-                <button type="button" className="secondary" onClick={() => { setView('list'); setMessage(''); setDocumentError('') }}>
+                <button type="button" className="secondary" onClick={handleBackToList}>
                   Cancelar
                 </button>
               </div>
@@ -318,7 +410,17 @@ export function Patients() {
                 />
               </label>
               <div className="button-row patients-actions">
-                <button type="button" className="button" onClick={() => { if (!query || !query.trim()) { setMessage('Introduce un DNI o nombre para buscar'); return } load(query) }}>
+                <button 
+                  type="button" 
+                  className="button" 
+                  onClick={() => { 
+                    if (!query || !query.trim()) { 
+                      setMessage('Introduce un DNI o nombre para buscar')
+                      return 
+                    } 
+                    load(query) 
+                  }}
+                >
                   Buscar
                 </button>
                 <button type="button" className="button secondary" onClick={handleSwitchToCreate}>
@@ -350,11 +452,24 @@ export function Patients() {
                         <p>Tel: {patient.phone || '—'}</p>
                         <p>Correo: {patient.email || '—'}</p>
                         <span className="meta">Estado: {patient.status || 'Activo'}</span>
-                        {isAdmin && (
-                          <button type="button" className="button danger" style={{ marginTop: 8 }} onClick={() => deletePatient(patient.id)}>
-                            Eliminar paciente
+                        <div className="button-row" style={{ marginTop: 12 }}>
+                          <button
+                            type="button"
+                            className="button secondary"
+                            onClick={() => handleSwitchToEdit(patient)}
+                          >
+                            Editar
                           </button>
-                        )}
+                          {isAdmin && (
+                            <button 
+                              type="button" 
+                              className="button danger" 
+                              onClick={() => deletePatient(patient.id)}
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -367,7 +482,6 @@ export function Patients() {
     </div>
   )
 }
-
 
 
 
