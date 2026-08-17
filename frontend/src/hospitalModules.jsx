@@ -4,7 +4,6 @@ import { api } from './api';
 import { apiFetch } from './api';
 import { useAuth } from './AuthContext'
 
-
 const loadPatients = async () => {
   try {
     const res = await api.get('/patients');
@@ -19,20 +18,17 @@ const loadPatients = async () => {
 
 const phoneConfigs = {
   '+51': { country: 'Perú', length: 9 },
-  '+1': { country: 'EE. UU.', length: 10 },
   '+52': { country: 'México', length: 10 },
-  '+57': { country: 'Colombia', length: 10 },
-  '+56': { country: 'Chile', length: 9 },
-  '+54': { country: 'Argentina', length: 10 }
+  '+54': { country: 'Argentina', length: 10 },
+  '+57': { country: 'Colombia', length: 9 },
+  '+1': { country: 'Estados Unidos', length: 10 }
 }
 
 export function Patients() {
   const [patients, setPatients] = useState([])
   const [query, setQuery] = useState('')
-  const [view, setView] = useState('list') // 'list' | 'form'
-  const [editingId, setEditingId] = useState(null)
-
-  const initialFormState = {
+  const [view, setView] = useState('list')
+  const [form, setForm] = useState({
     document_type: 'dni',
     document_number: '',
     full_name: '',
@@ -43,9 +39,7 @@ export function Patients() {
     sex: '',
     blood_type: '',
     allergies: ''
-  }
-
-  const [form, setForm] = useState(initialFormState)
+  })
   const [message, setMessage] = useState('')
   const [documentError, setDocumentError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -66,63 +60,15 @@ export function Patients() {
     }
   }
 
-  useEffect(() => {
-    load()
-  }, [])
+  useEffect(() => { load() }, [])
 
-  // Switch to Create
   const handleSwitchToCreate = () => {
-    setEditingId(null)
-    setForm(initialFormState)
+    setView('create')
     setMessage('')
     setDocumentError('')
-    setView('form')
     load('')
   }
 
-  // Switch to Edit
-  const handleSwitchToEdit = (patient) => {
-    setEditingId(patient.id)
-    
-    // Separar código de país del número de teléfono si aplica
-    let pCountry = '+51'
-    let pNumber = patient.phone || ''
-    
-    for (const code of Object.keys(phoneConfigs)) {
-      if (pNumber.startsWith(code)) {
-        pCountry = code
-        pNumber = pNumber.slice(code.length)
-        break
-      }
-    }
-
-    setForm({
-      document_type: patient.document_type || 'dni',
-      document_number: patient.dni || patient.document_number || '',
-      full_name: patient.full_name || '',
-      date_of_birth: patient.date_of_birth ? patient.date_of_birth.slice(0, 10) : '',
-      phone_country: pCountry,
-      phone_number: pNumber,
-      email: patient.email || '',
-      sex: patient.sex || '',
-      blood_type: patient.blood_type || '',
-      allergies: patient.allergies || ''
-    })
-    setMessage('')
-    setDocumentError('')
-    setView('form')
-  }
-
-  // Switch Back
-  const handleBackToList = () => {
-    setView('list')
-    setEditingId(null)
-    setForm(initialFormState)
-    setMessage('')
-    setDocumentError('')
-  }
-
-  // Handle Document Input Change & Duplicate Check
   const handleDocumentChange = (value, docType = form.document_type) => {
     const cleanValue = docType === 'dni' 
       ? value.replace(/\D/g, '') 
@@ -135,7 +81,6 @@ export function Patients() {
 
     if (docNumber.trim() !== '') {
       const exists = patients.some(p => {
-        if (editingId && p.id === editingId) return false // Ignorar el mismo paciente al editar
         const dniStr = p.dni ? String(p.dni).trim() : ''
         const docStr = p.document_number ? String(p.document_number).trim() : ''
         return dniStr === docNumber || docStr === docNumber
@@ -151,7 +96,6 @@ export function Patients() {
     }
   }
 
-  // DELETE
   async function deletePatient(patientId) {
     if (!window.confirm('¿Seguro que deseas eliminar este paciente? Esta acción no se puede deshacer.')) {
       return
@@ -166,7 +110,6 @@ export function Patients() {
     }
   }
 
-  // POST / PUT Submit
   async function submit(e) {
     e.preventDefault()
     if (documentError) {
@@ -179,7 +122,6 @@ export function Patients() {
     try {
       const docNumStr = form.document_number.trim()
       const existingDocument = patients.find(p => {
-        if (editingId && p.id === editingId) return false
         const dniStr = p.dni ? String(p.dni).trim() : ''
         const docStr = p.document_number ? String(p.document_number).trim() : ''
         return (dniStr === docNumStr || docStr === docNumStr) && docNumStr !== ''
@@ -192,46 +134,34 @@ export function Patients() {
       }
 
       const phoneValue = `${form.phone_country}${form.phone_number}`
-      const existingPhone = patients.find(p => {
-        if (editingId && p.id === editingId) return false
-        return String(p.phone).trim() === phoneValue && form.phone_number.trim() !== ''
-      })
+      const existingPhone = patients.find(p => String(p.phone).trim() === phoneValue && form.phone_number.trim() !== '')
       if (existingPhone) {
         setMessage('El teléfono ya está registrado para otro paciente')
         setLoading(false)
         return
       }
 
-      const existingEmail = patients.find(p => {
-        if (editingId && p.id === editingId) return false
-        return String(p.email).toLowerCase().trim() === form.email.toLowerCase().trim() && form.email.trim() !== ''
-      })
+      const existingEmail = patients.find(p => String(p.email).toLowerCase().trim() === form.email.toLowerCase().trim() && form.email.trim() !== '')
       if (existingEmail) {
         setMessage('El correo ya está registrado para otro paciente')
         setLoading(false)
         return
       }
 
-      const method = editingId ? 'PUT' : 'POST'
-      const payload = {
+      const res = await apiFetch('/patients', { method: 'POST', body: JSON.stringify({
         ...form,
         phone: phoneValue,
-        dni: form.document_number,
-        ...(editingId ? { patient_id: editingId } : {})
-      }
-
-      const res = await apiFetch('/patients', { method, body: JSON.stringify(payload) })
+        dni: form.document_number
+      }) })
       const json = await res.json()
-
       if (res.ok) {
-        setMessage(editingId ? 'Paciente actualizado correctamente' : 'Paciente registrado correctamente')
-        setForm(initialFormState)
+        setMessage('Paciente registrado correctamente')
+        setForm({ document_type: 'dni', document_number: '', full_name: '', date_of_birth: '', phone_country: '+51', phone_number: '', email: '', sex: '', blood_type: '', allergies: '' })
         setDocumentError('')
-        setEditingId(null)
         setView('list')
         await load(query)
       } else {
-        setMessage(json.message || 'No se pudo guardar el paciente')
+        setMessage(json.message || 'No se pudo crear el paciente')
       }
     } catch (err) {
       setMessage('Error de conexión con el servidor')
@@ -245,34 +175,25 @@ export function Patients() {
       <div className="card patients-shell">
         <div className="card-header-row">
           <div>
-            <h2>
-              {view === 'form' 
-                ? (editingId ? 'Editar paciente' : 'Nuevo paciente') 
-                : 'Pacientes'
-              }
-            </h2>
+            <h2>{view === 'create' ? 'Nuevo paciente' : 'Pacientes'}</h2>
             <p className="muted">
-              {view === 'form'
+              {view === 'create'
                 ? 'Completa los datos del paciente en el orden solicitado.'
-                : 'Consulta los pacientes registrados y gestiona sus datos cuando lo necesites.'}
+                : 'Consulta los pacientes registrados y crea nuevos cuando lo necesites.'}
             </p>
           </div>
-          {view === 'form' && (
-            <button type="button" className="button secondary" onClick={handleBackToList}>
+          {view === 'create' && (
+            <button type="button" className="button secondary" onClick={() => { setView('list'); setMessage(''); setDocumentError('') }}>
               Volver
             </button>
           )}
         </div>
 
-        {view === 'form' ? (
+        {view === 'create' ? (
           <div className="patients-create-layout">
             <div className="patients-hero-card">
-              <h3>{editingId ? 'Actualización de datos' : 'Registro rápido'}</h3>
-              <p>
-                {editingId 
-                  ? 'Modifica la información necesaria del paciente para mantener la ficha actualizada.' 
-                  : 'Agrega un paciente nuevo para que quede disponible para consultas, citas y documentos.'}
-              </p>
+              <h3>Registro rápido</h3>
+              <p>Agrega un paciente nuevo para que quede disponible para consultas, citas y documentos.</p>
             </div>
 
             <form onSubmit={submit}>
@@ -374,11 +295,9 @@ export function Patients() {
               </div>
               <div className="button-row">
                 <button type="submit" disabled={loading || Boolean(documentError)}>
-                  {loading 
-                    ? 'Guardando...' 
-                    : (editingId ? 'Actualizar paciente' : 'Registrar paciente')}
+                  {loading ? 'Guardando...' : 'Registrar paciente'}
                 </button>
-                <button type="button" className="secondary" onClick={handleBackToList}>
+                <button type="button" className="secondary" onClick={() => { setView('list'); setMessage(''); setDocumentError('') }}>
                   Cancelar
                 </button>
               </div>
@@ -397,17 +316,7 @@ export function Patients() {
                 />
               </label>
               <div className="button-row patients-actions">
-                <button 
-                  type="button" 
-                  className="button" 
-                  onClick={() => { 
-                    if (!query || !query.trim()) { 
-                      setMessage('Introduce un DNI o nombre para buscar')
-                      return 
-                    } 
-                    load(query) 
-                  }}
-                >
+                <button type="button" className="button" onClick={() => { if (!query || !query.trim()) { setMessage('Introduce un DNI o nombre para buscar'); return } load(query) }}>
                   Buscar
                 </button>
                 <button type="button" className="button secondary" onClick={handleSwitchToCreate}>
@@ -439,24 +348,11 @@ export function Patients() {
                         <p>Tel: {patient.phone || '—'}</p>
                         <p>Correo: {patient.email || '—'}</p>
                         <span className="meta">Estado: {patient.status || 'Activo'}</span>
-                        <div className="button-row" style={{ marginTop: 12 }}>
-                          <button
-                            type="button"
-                            className="button secondary"
-                            onClick={() => handleSwitchToEdit(patient)}
-                          >
-                            Editar
+                        {isAdmin && (
+                          <button type="button" className="button danger" style={{ marginTop: 8 }} onClick={() => deletePatient(patient.id)}>
+                            Eliminar paciente
                           </button>
-                          {isAdmin && (
-                            <button 
-                              type="button" 
-                              className="button danger" 
-                              onClick={() => deletePatient(patient.id)}
-                            >
-                              Eliminar
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -470,340 +366,524 @@ export function Patients() {
   )
 }
 
-
-
 export function Consultations() {
   const [consultations, setConsultations] = useState([])
   const [patients, setPatients] = useState([])
   const [query, setQuery] = useState('')
-  const [view, setView] = useState('list') // 'list' | 'form'
-  const [editingId, setEditingId] = useState(null)
-  
+  const [patientQuery, setPatientQuery] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [message, setMessage] = useState({ text: '', type: '' })
+
   const initialFormState = {
     patient_id: '',
+    doctor_name: 'Dr. Demo',
     reason: '',
+    symptoms: '',
+    weight_kg: '',
+    height_cm: '',
+    blood_pressure: '',
+    bmi: '',
+    abdominal_perimeter_cm: '',
     diagnosis: '',
     treatment: '',
-    notes: ''
+    prescription: ''
   }
-  
-  const [form, setForm] = useState(initialFormState)
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin' || user?.role === 'tenant_admin'
 
-  async function load(q = '') {
+  const [form, setForm] = useState(initialFormState)
+
+  const showNotification = (text, type = 'info') => {
+    setMessage({ text, type })
+    setTimeout(() => setMessage({ text: '', type: '' }), 5000)
+  }
+
+  async function loadConsultations(q = '') {
+    setLoading(true)
     try {
       const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`)
       if (res.ok) {
         const data = await res.json()
         setConsultations(data || [])
       } else {
-        setMessage('Error al cargar la lista de consultas.')
+        showNotification('Error al cargar la lista de consultas.', 'error')
       }
     } catch (err) {
-      console.error('Error de red al cargar consultas:', err)
-    }
-  }
-
-  async function loadPatients() {
-    try {
-      const res = await apiFetch('/patients')
-      if (res.ok) {
-        const data = await res.json()
-        setPatients(data || [])
-      }
-    } catch (err) {
-      console.error('Error al cargar pacientes para el selector:', err)
-    }
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  // Ir al formulario de Creación
-  const handleSwitchToCreate = () => {
-    setEditingId(null)
-    setForm(initialFormState)
-    setMessage('')
-    setView('form')
-    loadPatients()
-  }
-
-  // Ir al formulario de Edición
-  const handleSwitchToEdit = (consultation) => {
-    setEditingId(consultation.id)
-    setForm({
-      patient_id: consultation.patient_id || '',
-      reason: consultation.reason || '',
-      diagnosis: consultation.diagnosis || '',
-      treatment: consultation.treatment || '',
-      notes: consultation.notes || ''
-    })
-    setMessage('')
-    setView('form')
-    loadPatients()
-  }
-
-  // Volver a la lista
-  const handleBackToList = () => {
-    setView('list')
-    setEditingId(null)
-    setForm(initialFormState)
-    setMessage('')
-  }
-
-  // DELETE
-  async function deleteConsultation(consultationId) {
-    if (!window.confirm('¿Seguro que deseas eliminar esta consulta? Esta acción no se puede deshacer.')) {
-      return
-    }
-    const res = await apiFetch('/consultations', {
-      method: 'DELETE',
-      body: JSON.stringify({ consultation_id: consultationId })
-    })
-    if (res.ok) {
-      setMessage('Consulta eliminada correctamente')
-      await load(query)
-    } else {
-      const json = await res.json().catch(() => ({}))
-      setMessage(json.message || 'Error al eliminar la consulta')
-    }
-  }
-
-  // POST / PUT (Submit Form)
-  async function submit(e) {
-    e.preventDefault()
-    setLoading(true)
-    setMessage('')
-
-    const method = editingId ? 'PUT' : 'POST'
-    const bodyPayload = editingId ? { ...form, consultation_id: editingId } : form
-
-    try {
-      const res = await apiFetch('/consultations', {
-        method,
-        body: JSON.stringify(bodyPayload)
-      })
-      const json = await res.json()
-
-      if (res.ok) {
-        setMessage(editingId ? 'Consulta actualizada correctamente' : 'Consulta registrada correctamente')
-        setForm(initialFormState)
-        setEditingId(null)
-        setView('list')
-        await load(query)
-      } else {
-        setMessage(json.message || 'No se pudo guardar la consulta')
-      }
-    } catch (err) {
-      setMessage('Error de conexión con el servidor')
+      showNotification('Error de red al cargar consultas.', 'error')
     } finally {
       setLoading(false)
     }
   }
 
+  async function searchPatients(q = '') {
+    try {
+      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
+      if (res.ok) {
+        const data = (await res.json()) || []
+        setPatients(data)
+        return data
+      }
+    } catch (err) {
+      console.error('Error al buscar pacientes:', err)
+    }
+    return []
+  }
+
+  useEffect(() => {
+    loadConsultations()
+    searchPatients()
+  }, [])
+
+  const calculateBMI = (weight, height) => {
+    const w = parseFloat(weight)
+    const h = parseFloat(height)
+    if (w > 0 && h > 0) {
+      const heightInMeters = h / 100
+      return (w / (heightInMeters * heightInMeters)).toFixed(2)
+    }
+    return ''
+  }
+
+  const handleTriageChange = (field, value) => {
+    const updatedForm = { ...form, [field]: value }
+    if (field === 'weight_kg' || field === 'height_cm') {
+      const w = field === 'weight_kg' ? value : form.weight_kg
+      const h = field === 'height_cm' ? value : form.height_cm
+      updatedForm.bmi = calculateBMI(w, h)
+    }
+    setForm(updatedForm)
+  }
+
+  async function submit(e) {
+    e.preventDefault()
+    if (!form.patient_id) {
+      showNotification('Debes seleccionar un paciente antes de guardar.', 'error')
+      return
+    }
+
+    setIsSubmitting(true)
+    setMessage({ text: '', type: '' })
+
+    try {
+      const res = await apiFetch('/consultations', {
+        method: 'POST',
+        body: JSON.stringify(form)
+      })
+
+      if (res.ok) {
+        showNotification('Consulta médica registrada con éxito.', 'success')
+        setForm(initialFormState)
+        setShowForm(false)
+        await loadConsultations(query)
+      } else {
+        const json = await res.json().catch(() => ({}))
+        showNotification(json.message || 'Error al registrar la consulta.', 'error')
+      }
+    } catch (err) {
+      showNotification('Error de conexión con el servidor.', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <div className="patients-page">
-      <div className="card patients-shell">
-        <div className="card-header-row">
+    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 16px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      
+      {/* NOTIFICACIONES TOAST */}
+      {message.text && (
+        <div style={{
+          padding: '12px 20px',
+          borderRadius: '10px',
+          marginBottom: '20px',
+          fontWeight: '500',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          backgroundColor: message.type === 'error' ? '#FEF2F2' : '#F0FDF4',
+          color: message.type === 'error' ? '#991B1B' : '#166534',
+          border: `1px solid ${message.type === 'error' ? '#FCA5A5' : '#86EFAC'}`
+        }}>
+          <span>{message.type === 'error' ? '⚠️' : '✅'}</span>
+          <span>{message.text}</span>
+        </div>
+      )}
+
+      {/* CABECERA PRINCIPAL */}
+      <div style={{
+        backgroundColor: '#FFFFFF',
+        borderRadius: '16px',
+        padding: '24px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+        marginBottom: '24px',
+        border: '1px solid #E5E7EB'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h2>
-              {view === 'form' 
-                ? (editingId ? 'Editar consulta' : 'Nueva consulta') 
-                : 'Consultas'
-              }
-            </h2>
-            <p className="muted">
-              {view === 'form'
-                ? 'Completa los datos de la consulta médica.'
-                : 'Consulta el historial de atenciones médicas y gestiona los registros.'}
+            <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#111827', fontWeight: '700' }}>
+              {showForm ? '📋 Nueva Consulta Médica y Triaje' : '🩺 Consultas Médicas'}
+            </h1>
+            <p style={{ margin: '4px 0 0 0', color: '#6B7280', fontSize: '0.9rem' }}>
+              {showForm
+                ? 'Ingresa los datos del paciente, medidas de triaje y la receta médica.'
+                : 'Gestiona los expedientes clínicos y consultas agendadas.'}
             </p>
           </div>
-          {view === 'form' && (
-            <button
-              type="button"
-              className="button secondary"
-              onClick={handleBackToList}
-            >
-              Volver
-            </button>
-          )}
+
+          <div>
+            {!showForm ? (
+              <button
+                type="button"
+                onClick={() => { setShowForm(true); setMessage({ text: '', type: '' }) }}
+                style={{
+                  backgroundColor: '#2563EB',
+                  color: '#FFFFFF',
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
+                }}
+              >
+                + Nueva Consulta
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setMessage({ text: '', type: '' }) }}
+                style={{
+                  backgroundColor: '#F3F4F6',
+                  color: '#374151',
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  border: '1px solid #D1D5DB',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ← Volver al Historial
+              </button>
+            )}
+          </div>
         </div>
 
-        {view === 'form' ? (
-          <div className="patients-create-layout">
-            <div className="patients-hero-card">
-              <h3>{editingId ? 'Actualización de registro' : 'Registro clínico'}</h3>
-              <p>
-                {editingId 
-                  ? 'Modifica los campos necesarios para actualizar la consulta seleccionada.' 
-                  : 'Agrega los detalles de la consulta para mantener el historial médico actualizado.'}
-              </p>
-            </div>
-
-            <form onSubmit={submit}>
-              <div className="form-grid">
-                <label>
-                  Paciente
-                  <select
-                    required
-                    value={form.patient_id}
-                    onChange={e => setForm({ ...form, patient_id: e.target.value })}
-                  >
-                    <option value="">Seleccionar paciente</option>
-                    {patients.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.full_name} ({p.dni || p.document_number || 'Sin Doc'})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Motivo de consulta
-                  <input
-                    required
-                    value={form.reason}
-                    onChange={e => setForm({ ...form, reason: e.target.value })}
-                    placeholder="Ej. Dolor abdominal, chequeo general"
-                  />
-                </label>
-
-                <label>
-                  Diagnóstico
-                  <input
-                    required
-                    value={form.diagnosis}
-                    onChange={e => setForm({ ...form, diagnosis: e.target.value })}
-                    placeholder="Diagnóstico clínico"
-                  />
-                </label>
-
-                <label>
-                  Tratamiento / Receta
-                  <input
-                    value={form.treatment}
-                    onChange={e => setForm({ ...form, treatment: e.target.value })}
-                    placeholder="Medicamentos o indicaciones"
-                  />
-                </label>
-
-                <label style={{ gridColumn: '1 / -1' }}>
-                  Notas adicionales
-                  <input
-                    value={form.notes}
-                    onChange={e => setForm({ ...form, notes: e.target.value })}
-                    placeholder="Observaciones o comentarios adicionales"
-                  />
-                </label>
-              </div>
-
-              <div className="button-row">
-                <button type="submit" disabled={loading}>
-                  {loading 
-                    ? 'Guardando...' 
-                    : (editingId ? 'Actualizar consulta' : 'Registrar consulta')}
-                </button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={handleBackToList}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-            {message && <div className="form-message">{message}</div>}
+        {/* BARRA DE BÚSQUEDA Y FILTROS */}
+        {!showForm && (
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && loadConsultations(query)}
+              placeholder="🔍 Buscar por nombre, DNI, médico o diagnóstico..."
+              style={{
+                flex: 1,
+                minWidth: '280px',
+                padding: '10px 16px',
+                borderRadius: '10px',
+                border: '1px solid #D1D5DB',
+                outline: 'none',
+                fontSize: '0.95rem'
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => loadConsultations(query)}
+              style={{
+                backgroundColor: '#1E293B',
+                color: '#FFFFFF',
+                padding: '10px 20px',
+                borderRadius: '10px',
+                border: 'none',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              Buscar
+            </button>
           </div>
-        ) : (
-          <>
-            <div className="patients-toolbar">
-              <label className="collection-search">
-                <span>Buscar consultas</span>
-                <input
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="Paciente o diagnóstico"
-                />
-              </label>
-              <div className="button-row patients-actions">
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => {
-                    if (!query || !query.trim()) {
-                      setMessage('Introduce un término para buscar')
-                      return
-                    }
-                    load(query)
-                  }}
-                >
-                  Buscar
-                </button>
-                <button type="button" className="button secondary" onClick={handleSwitchToCreate}>
-                  Agregar
-                </button>
-              </div>
-            </div>
-
-            <div className="patients-list-card">
-              {consultations.length === 0 ? (
-                <div className="patients-empty-state">
-                  <div className="patients-empty-icon">🩺</div>
-                  <h3>No se encontraron consultas</h3>
-                  <p>Prueba con otros términos de búsqueda o registra una nueva consulta.</p>
-                  <button type="button" className="button" onClick={handleSwitchToCreate}>
-                    Crear nueva consulta
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="collection-total">Consultas registradas ({consultations.length})</p>
-                  <div className="items-grid">
-                    {consultations.map(c => (
-                      <div key={c.id} className="item-card">
-                        <h3>{c.patient_name || `Paciente #${c.patient_id}`}</h3>
-                        <p>ID Consulta: {c.id}</p>
-                        <p>Motivo: {c.reason}</p>
-                        <p>Diagnóstico: {c.diagnosis}</p>
-                        <p>Tratamiento: {c.treatment || '—'}</p>
-                        <span className="meta">
-                          Fecha: {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
-                        </span>
-                        <div className="button-row" style={{ marginTop: 12 }}>
-                          <button
-                            type="button"
-                            className="button secondary"
-                            onClick={() => handleSwitchToEdit(c)}
-                          >
-                            Editar
-                          </button>
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              className="button danger"
-                              onClick={() => deleteConsultation(c.id)}
-                            >
-                              Eliminar
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </>
         )}
       </div>
+
+      {/* FORMULARIO DE REGISTRO */}
+      {showForm && (
+        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* SECCIÓN 1: DATOS GENERALES */}
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            padding: '24px',
+            borderRadius: '16px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+            border: '1px solid #E5E7EB'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              👤 Datos del Paciente y Atención
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Filtrar Lista por DNI
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    value={patientQuery}
+                    onChange={e => setPatientQuery(e.target.value)}
+                    placeholder="Escribe DNI..."
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!patientQuery.trim()) return
+                      const results = await searchPatients(patientQuery)
+                      const match = results.find(p => String(p.dni || p.document_number).trim() === patientQuery.trim())
+                      if (match) {
+                        setForm(prev => ({ ...prev, patient_id: match.id.toString() }))
+                        showNotification(`Paciente seleccionado: ${match.full_name}`, 'success')
+                      }
+                    }}
+                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', cursor: 'pointer', fontWeight: '500' }}
+                  >
+                    Filtrar
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Paciente Seleccionado *
+                </label>
+                <select
+                  required
+                  value={form.patient_id}
+                  onChange={e => setForm({ ...form, patient_id: e.target.value })}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF' }}
+                >
+                  <option value="">-- Selecciona un paciente --</option>
+                  {patients.map(p => (
+                    <option key={p.id} value={p.id}>{p.full_name} — DNI: {p.dni || p.document_number || 'N/A'}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Médico Tratante
+                </label>
+                <input
+                  value={form.doctor_name}
+                  onChange={e => setForm({ ...form, doctor_name: e.target.value })}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
+                />
+              </div>
+
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+                  Motivo de Consulta
+                </label>
+                <input
+                  value={form.reason}
+                  onChange={e => setForm({ ...form, reason: e.target.value })}
+                  placeholder="Ej. Chequeo de rutina / Dolor de cabeza"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
+          <div style={{
+            backgroundColor: '#F8FAFC',
+            padding: '24px',
+            borderRadius: '16px',
+            border: '1px solid #E2E8F0'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📊 Triaje y Signos Vitales
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Peso (kg)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={form.weight_kg}
+                  onChange={e => handleTriageChange('weight_kg', e.target.value)}
+                  placeholder="70.5"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Talla (cm)</label>
+                <input
+                  type="number"
+                  value={form.height_cm}
+                  onChange={e => handleTriageChange('height_cm', e.target.value)}
+                  placeholder="170"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>IMC (Autocalculado)</label>
+                <input
+                  value={form.bmi}
+                  readOnly
+                  placeholder="0.00"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#E2E8F0', fontWeight: '700', color: '#0F172A' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Presión Arterial</label>
+                <input
+                  value={form.blood_pressure}
+                  onChange={e => setForm({ ...form, blood_pressure: e.target.value })}
+                  placeholder="120/80"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Perímetro Abd. (cm)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={form.abdominal_perimeter_cm}
+                  onChange={e => setForm({ ...form, abdominal_perimeter_cm: e.target.value })}
+                  placeholder="85.0"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SECCIÓN 3: DIAGNÓSTICO Y RECETA */}
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            padding: '24px',
+            borderRadius: '16px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
+            border: '1px solid #E5E7EB'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              🩺 Diagnóstico y Tratamiento
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Diagnóstico Médico</label>
+                <input
+                  value={form.diagnosis}
+                  onChange={e => setForm({ ...form, diagnosis: e.target.value })}
+                  placeholder="Escribe el diagnóstico del paciente..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Plan de Tratamiento</label>
+                <input
+                  value={form.treatment}
+                  onChange={e => setForm({ ...form, treatment: e.target.value })}
+                  placeholder="Indicaciones médicas generales..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Receta Médica / Prescripción</label>
+                <textarea
+                  rows={3}
+                  value={form.prescription}
+                  onChange={e => setForm({ ...form, prescription: e.target.value })}
+                  placeholder="Medicamentos, dosis y frecuencia..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', fontFamily: 'inherit' }}
+                />
+              </div>
+            </div>
+
+            {/* BOTONES */}
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', backgroundColor: '#10B981', color: '#FFFFFF', fontWeight: '600', cursor: 'pointer' }}
+              >
+                {isSubmitting ? 'Guardando...' : 'Guardar Consulta'}
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+
+      {/* TARJETAS DEL HISTORIAL DE CONSULTAS */}
+      {!showForm && (
+        <div>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#6B7280' }}>Cargando consultas...</div>
+          ) : consultations.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E5E7EB' }}>
+              <p style={{ fontSize: '1.5rem', margin: 0 }}>🔍</p>
+              <p style={{ fontWeight: '600', color: '#374151', marginTop: '8px' }}>No hay registros coincidentes</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
+              {consultations.map(item => (
+                <div key={item.id} style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '14px',
+                  padding: '20px',
+                  border: '1px solid #E5E7EB',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justify: 'space-between'
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#111827' }}>{item.reason || 'Consulta General'}</h4>
+                      <span style={{ fontSize: '0.75rem', backgroundColor: '#F3F4F6', padding: '2px 8px', borderRadius: '12px', color: '#4B5563', fontWeight: '600' }}>
+                        #{item.id}
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '0.9rem', color: '#374151', margin: '12px 0 4px 0' }}>
+                      <strong>Paciente:</strong> {item.patient_name || `ID #${item.patient_id}`}
+                    </p>
+                    <p style={{ fontSize: '0.85rem', color: '#6B7280', margin: '0 0 12px 0' }}>
+                      <strong>Atendido por:</strong> {item.doctor_name || 'No asignado'}
+                    </p>
+
+                    {(item.weight_kg || item.height_cm || item.bmi) && (
+                      <div style={{ backgroundColor: '#F8FAFC', padding: '10px', borderRadius: '8px', fontSize: '0.8rem', color: '#334155', border: '1px solid #E2E8F0' }}>
+                        ⚖️ {item.weight_kg ? `${item.weight_kg}kg` : '—'} | 📏 {item.height_cm ? `${item.height_cm}cm` : '—'} | <strong>IMC:</strong> {item.bmi || '—'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #F3F4F6', fontSize: '0.75rem', color: '#9CA3AF' }}>
+                    📅 {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Fecha no registrada'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
-
 
 export function Locations() {
   const [items, setItems] = useState([])
