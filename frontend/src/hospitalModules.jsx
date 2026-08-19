@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
 import { api } from './api';
 import { apiFetch } from './api';
@@ -415,24 +415,38 @@ export function Consultations() {
     }
   }
 
-  async function searchPatients(q = '') {
-    try {
-      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
-      if (res.ok) {
-        const data = (await res.json()) || []
-        setPatients(data)
-        return data
+  // 1. Permite realizar la búsqueda con el valor correcto
+async function searchPatients(query = '') {
+  try {
+    // Pasa la query como parámetro 'q' o 'search' según tu API
+    const res = await apiFetch(`/api/patients?q=${encodeURIComponent(query)}`)
+    if (res.ok) {
+      const data = await res.json()
+      setPatients(data || [])
+      
+      // Si encuentra exactamente 1 paciente, selecciónalo automáticamente
+      if (data && data.length === 1) {
+        setForm((prev) => ({ ...prev, patient_id: data[0].id }))
       }
-    } catch (err) {
-      console.error('Error al buscar pacientes:', err)
     }
-    return []
+  } catch (err) {
+    setMessage('Error de conexión al buscar pacientes')
   }
+}
 
-  useEffect(() => {
-    loadConsultations()
-    searchPatients()
-  }, [])
+// 2. Modifica el campo de entrada para que busque mientras el usuario escribe o al presionar Enter:
+<label>
+  Buscar DNI o Nombre del paciente
+  <input
+    value={patientQuery}
+    onChange={(e) => {
+      const value = e.target.value
+      setPatientQuery(value)
+      searchPatients(value) // Búsqueda en tiempo real
+    }}
+    placeholder="Escribe DNI o Nombre..."
+  />
+</label>
 
   const handleTriageChange = (field, value) => {
     const updatedForm = { ...form, [field]: value }
@@ -1531,57 +1545,122 @@ export function Appointments() {
   )
 }
 
+
+
 export function Documents() {
   const [documents, setDocuments] = useState([])
   const [patients, setPatients] = useState([])
   const [patientQuery, setPatientQuery] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ patient_id: '', document_type: 'result', file_name: '', description: '' })
+  const [form, setForm] = useState({
+    patient_id: '',
+    document_type: 'result',
+    file_name: '',
+    description: ''
+  })
   const [selectedFile, setSelectedFile] = useState(null)
   const [message, setMessage] = useState('')
 
-  async function loadDocuments() {
-    const res = await apiFetch('/documents')
-    if (res.ok) setDocuments(await res.json() || [])
+  // Ref to explicitly reset native file input DOM node
+  const fileInputRef = useRef(null)
+
+  const resetFormState = () => {
+    setForm({
+      patient_id: '',
+      document_type: 'result',
+      file_name: '',
+      description: ''
+    })
+    setSelectedFile(null)
+    setPatientQuery('')
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
-  async function searchPatients(query = '') {
+// CÓDIGO CORREGIDO EN Documents.jsx
+async function searchPatients(query = '') {
+  try {
+    // Se elimina el primer "/api" para evitar "/api/api/patients"
     const res = await apiFetch(`/patients?q=${encodeURIComponent(query)}`)
-    if (res.ok) setPatients(await res.json() || [])
+    if (res.ok) {
+      const data = await res.json()
+      setPatients(data || [])
+    }
+  } catch (err) {
+    setMessage('Error de conexión al buscar pacientes')
   }
+}
 
-  useEffect(() => {
-    loadDocuments()
-    searchPatients()
-  }, [])
+async function loadDocuments() {
+  try {
+    // También corrige las demás peticiones del componente:
+    const res = await apiFetch('/documents') 
+    if (res.ok) {
+      const data = await res.json()
+      setDocuments(data || [])
+    }
+  } catch (err) {
+    setMessage('Error de conexión al cargar documentos')
+  }
+}
 
   async function submit(e) {
-    e.preventDefault()
-    setMessage('')
+  e.preventDefault()
+  setMessage('')
 
-    if (!selectedFile) {
-      setMessage('Selecciona un archivo PDF antes de enviar')
-      return
-    }
+  if (!selectedFile) {
+    setMessage('Selecciona un archivo PDF antes de enviar')
+    return
+  }
 
-    const formData = new FormData()
-    formData.append('patient_id', form.patient_id)
-    formData.append('document_type', form.document_type)
-    formData.append('description', form.description)
-    formData.append('file_name', form.file_name || selectedFile.name)
-    formData.append('file', selectedFile)
+  const formData = new FormData()
+  formData.append('patient_id', form.patient_id)
+  formData.append('document_type', form.document_type)
+  formData.append('description', form.description)
+  formData.append('file_name', form.file_name || selectedFile.name)
+  formData.append('file', selectedFile)
 
-    const res = await apiFetch('/documents', { method: 'POST', body: formData })
+  try {
+    // Se elimina el '/api' inicial para usar la base de apiFetch
+    const res = await apiFetch('/documents', {
+      method: 'POST',
+      body: formData
+    })
+
     if (res.ok) {
-      setMessage('Documento registrado')
-      setForm({ patient_id: '', document_type: 'result', file_name: '', description: '' })
-      setSelectedFile(null)
+      setMessage('Documento registrado con éxito')
+      resetFormState()
       setShowForm(false)
       loadDocuments()
     } else {
       const json = await res.json().catch(() => ({}))
       setMessage(json.message || 'Error al registrar documento')
     }
+  } catch (err) {
+    setMessage('Error de red al intentar registrar el documento')
+  }
+}
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+
+    if (!file) {
+      setSelectedFile(null)
+      setForm((prev) => ({ ...prev, file_name: '' }))
+      return
+    }
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setMessage('Solo se permiten archivos PDF')
+      e.target.value = ''
+      setSelectedFile(null)
+      setForm((prev) => ({ ...prev, file_name: '' }))
+      return
+    }
+
+    setMessage('')
+    setSelectedFile(file)
+    setForm((prev) => ({ ...prev, file_name: file.name }))
   }
 
   return (
@@ -1590,32 +1669,71 @@ export function Documents() {
         <div className="card-header-row">
           <h2>Subir documento clínico</h2>
           {!showForm && (
-            <button type="button" className="button add-button" onClick={() => { setShowForm(true); setMessage('') }}>
+            <button
+              type="button"
+              className="button add-button"
+              onClick={() => {
+                setShowForm(true)
+                setMessage('')
+              }}
+            >
               Agregar
             </button>
           )}
         </div>
+
         {showForm && (
           <div className="form-card">
             <form onSubmit={submit}>
               <label>
                 Buscar DNI del paciente
-                <input value={patientQuery} onChange={e => setPatientQuery(e.target.value)} placeholder="DNI o nombre" />
+                <input
+                  value={patientQuery}
+                  onChange={(e) => setPatientQuery(e.target.value)}
+                  placeholder="DNI o nombre"
+                />
               </label>
-              <button type="button" onClick={() => { if (!patientQuery || !patientQuery.trim()) { setMessage('Introduce un DNI o nombre para filtrar'); return } searchPatients(patientQuery) }} style={{ marginBottom: 12 }}>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!patientQuery || !patientQuery.trim()) {
+                    setMessage('Introduce un DNI o nombre para filtrar')
+                    return
+                  }
+                  searchPatients(patientQuery)
+                }}
+                style={{ marginBottom: 12 }}
+              >
                 Filtrar pacientes
               </button>
+
               <label>
                 Paciente *
-                <select required value={form.patient_id} onChange={e => setForm({ ...form, patient_id: e.target.value })}>
+                <select
+                  required
+                  value={form.patient_id}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, patient_id: e.target.value }))
+                  }
+                >
                   <option value="">Seleccionar paciente</option>
-                  {patients.map(patient => (
-                    <option key={patient.id} value={patient.id}>{patient.full_name} — {patient.dni}</option>
+                  {patients.map((patient) => (
+                    <option key={patient.id} value={patient.id}>
+                      {patient.full_name} — {patient.dni}
+                    </option>
                   ))}
                 </select>
               </label>
-              <label>Tipo de documento
-                <select value={form.document_type} onChange={e => setForm({ ...form, document_type: e.target.value })}>
+
+              <label>
+                Tipo de documento
+                <select
+                  value={form.document_type}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, document_type: e.target.value }))
+                  }
+                >
                   <option value="">Seleccionar tipo de documento</option>
                   <option value="result">Resultado</option>
                   <option value="report">Informe</option>
@@ -1623,35 +1741,50 @@ export function Documents() {
                   <option value="other">Otro</option>
                 </select>
               </label>
-              <label>Archivo PDF *
+
+              <label>
+                Archivo PDF *
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept="application/pdf"
                   required
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (!file) {
-                      setSelectedFile(null)
-                      setForm({ ...form, file_name: '' })
-                      return
-                    }
-                    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-                      setMessage('Solo se permiten archivos PDF')
-                      e.target.value = null
-                      return
-                    }
-                    setSelectedFile(file)
-                    setForm({ ...form, file_name: file.name })
-                  }}
+                  onChange={handleFileChange}
                 />
               </label>
-              <label>Nombre del archivo *
-                <input required value={form.file_name} onChange={e => setForm({ ...form, file_name: e.target.value })} />
+
+              <label>
+                Nombre del archivo *
+                <input
+                  required
+                  value={form.file_name}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, file_name: e.target.value }))
+                  }
+                />
               </label>
-              <label>Descripción<input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
+
+              <label>
+                Descripción
+                <input
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                />
+              </label>
+
               <div className="button-row">
                 <button type="submit">Guardar documento</button>
-                <button type="button" className="secondary" onClick={() => { setShowForm(false); setMessage('') }}>
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => {
+                    resetFormState()
+                    setShowForm(false)
+                    setMessage('')
+                  }}
+                >
                   Cancelar
                 </button>
               </div>
@@ -1660,14 +1793,17 @@ export function Documents() {
           </div>
         )}
       </div>
+
       <div className="card">
         <h2>Documentos cargados</h2>
-        <p className="collection-total">Número total de elementos: {documents.length}</p>
+        <p className="collection-total">
+          Número total de elementos: {documents.length}
+        </p>
         {documents.length === 0 ? (
           <p className="muted">No hay documentos cargados.</p>
         ) : (
           <div className="items-grid">
-            {documents.map(item => (
+            {documents.map((item) => (
               <div key={item.id} className="item-card">
                 <h3>{item.file_name}</h3>
                 <p>ID: {item.id}</p>
@@ -1682,6 +1818,7 @@ export function Documents() {
     </div>
   )
 }
+
 
 export function Reports() {
   const [data, setData] = useState(null)

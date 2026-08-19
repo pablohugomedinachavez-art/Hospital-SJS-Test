@@ -617,6 +617,86 @@ def consultations_handler():
     # 2. CREAR CONSULTA (POST)
     # ... (Se mantiene igual a tu código previo)
 
+
+@app.route('/api/documents', methods=['GET', 'POST', 'DELETE'])
+@token_required
+def documents():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    # 1. OBTENER DOCUMENTOS (GET)
+    if request.method == 'GET':
+        patient_id = request.args.get('patient_id')
+        sql = '''
+            SELECT d.id, d.patient_id, p.full_name as patient_name, 
+                   d.document_type, d.file_name, d.description, d.created_at
+            FROM documents d
+            LEFT JOIN patients p ON p.id = d.patient_id
+            WHERE d.tenant_id = %s
+        '''
+        params = [tenant_id]
+
+        if patient_id:
+            sql += ' AND d.patient_id = %s'
+            params.append(patient_id)
+
+        sql += ' ORDER BY d.id DESC'
+        rows = db_query(sql, tuple(params), fetchall=True)
+        return jsonify(rows or []), 200
+
+    # 2. ELIMINAR DOCUMENTO (DELETE)
+    if request.method == 'DELETE':
+        if not has_permission(claims.get('role'), 'manage_patients'):
+            return jsonify({'message': 'Permission denied'}), 403
+        
+        data = request.get_json() or {}
+        doc_id = data.get('document_id')
+        if not doc_id:
+            return jsonify({'message': 'document_id es requerido'}), 400
+
+        deleted = db_query(
+            'DELETE FROM documents WHERE id = %s AND tenant_id = %s RETURNING id',
+            (doc_id, tenant_id), commit=True, fetchone=True
+        )
+        if not deleted:
+            return jsonify({'message': 'Documento no encontrado'}), 404
+
+        record_audit('delete', 'document', deleted['id'], f'Deleted document {deleted["id"]}', tenant_id, claims.get('id'))
+        return jsonify({'message': 'Documento eliminado'}), 200
+
+    # 3. REGISTRAR DOCUMENTO (POST)
+    if not has_permission(claims.get('role'), 'manage_patients'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    # Al enviar FormData en React, los campos de texto llegan mediante request.form
+    patient_id = request.form.get('patient_id')
+    document_type = request.form.get('document_type', 'General')
+    description = request.form.get('description', '')
+    file_name = request.form.get('file_name', '')
+
+    # El archivo físico llega mediante request.files
+    file = request.files.get('file')
+
+    if not patient_id:
+        return jsonify({'message': 'patient_id es obligatorio'}), 400
+
+    if not file_name and file:
+        file_name = file.filename
+
+    new_doc = db_query(
+        '''
+        INSERT INTO documents (tenant_id, patient_id, document_type, file_name, description, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id
+        ''',
+        (tenant_id, patient_id, document_type, file_name, description, now_utc()),
+        commit=True,
+        fetchone=True
+    )
+
+    record_audit('create', 'document', new_doc['id'], f'Uploaded document {file_name}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Documento registrado con éxito', 'id': new_doc['id']}), 201
+
 # ==========================================
 # ENDPOINT OPCIONAL: TRIAJE INDEPENDIENTE
 # ==========================================
@@ -855,8 +935,8 @@ def metrics():
     tenant_id = claims['tenant_id']
     try:
         # Active users: distinct user_id in sessions last 24h
-        active_users = (db_query('SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= now() - interval '"'1 day'"'', (tenant_id,), fetchone=True) or {}).get('count', 0)
-
+        # CÓDIGO CORREGIDO
+        active_users = (db_query("SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id ="" %s AND last_seen >= NOW() - INTERVAL '1 day'",(tenant_id,),fetchone=True,)or {}).get("count", 0)
         # Average session duration (seconds) across sessions with last_seen
         avg_row = db_query("SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", (tenant_id,), fetchone=True) or {'avg_seconds': None}
         avg_seconds = avg_row.get('avg_seconds') or 0
