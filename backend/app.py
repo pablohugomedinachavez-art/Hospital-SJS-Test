@@ -42,18 +42,15 @@ if not env_loaded:
 
 # 2. Obtener y validar variables
 SUPABASE_DB_URL = os.getenv('SUPABASE_DB_URL') or os.getenv('DATABASE_URL')
+SUPABASE_URL = os.getenv('SUPABASE_URL') or os.getenv('VITE_SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY') or os.getenv('VITE_SUPABASE_ANON_KEY')
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
-FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
-ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:5174',
-    'http://127.0.0.1:5174',
-]
-DEMO_DATA_ENABLED = os.getenv('DEMO_DATA_ENABLED', 'true').lower() in {'1', 'true', 'yes', 'on'}
 
 if not SUPABASE_DB_URL:
-    raise ValueError("No se encontró la variable SUPABASE_DB_URL ni DATABASE_URL en el archivo .env")
+    raise ValueError("No se encontró SUPABASE_DB_URL en el archivo .env")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Faltan SUPABASE_URL o SUPABASE_KEY para inicializar el cliente de Supabase")
 
 # 3. Inicialización de Flask y SQLAlchemy
 app = Flask(__name__)
@@ -63,21 +60,23 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JSON_SORT_KEYS'] = False
 
 CORS(app,
-     resources={r"/api/*": {"origins": "*"}},  # Permite orígenes en entorno de desarrollo local
+     resources={r"/api/*": {"origins": "*"}},  
      supports_credentials=True,
      allow_headers=['Content-Type', 'Authorization'],
      expose_headers=['Authorization'])
 
 db = SQLAlchemy(app)
-
-# Inicializa el cliente de Supabase
-
-supabase: Client = create_client(SUPABASE_DB_URL, SECRET_KEY)
-
+# ==========================================
 # 4. Modelos de Base de Datos (SQLAlchemy)
+# ==========================================
+class Tenant(db.Model):
+    __tablename__ = 'tenants'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
+
 class User(db.Model):
     __tablename__ = 'users'
-    
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, unique=True, nullable=False)
     password = db.Column(db.String, nullable=False)
@@ -85,13 +84,12 @@ class User(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
 
-class Tenant(db.Model):
-    __tablename__ = 'tenants'
     
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String, nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
+# Inicializa el cliente de Supabase
+SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
+SUPABASE_KEY = "sb_secret_u9xY6CJEUJtu3IpiI5yLBQ_nK-g5p7J"
 
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 5. Funciones auxiliares
 def now_utc():
@@ -407,6 +405,7 @@ def auth_verify():
         return jsonify({'authenticated': False, 'message': 'Token expired'}), 401
     except Exception:
         return jsonify({'authenticated': False, 'message': 'Invalid token'}), 401
+
     
 
 @app.route('/api/profile')
