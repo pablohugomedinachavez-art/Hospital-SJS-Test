@@ -1,1055 +1,78 @@
-import React, { useEffect, useState, useRef } from 'react'
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts'
-import { api } from './api';
-import { apiFetch } from './api';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
 
-const loadPatients = async () => {
-  try {
-    const res = await api.get('/patients');
-    if (res.ok) {
-      const data = await res.json();
-      console.log('Pacientes:', data);
-    }
-  } catch (error) {
-    console.error('Error al cargar pacientes:', error);
-  }
-};
+// ============================================================
+// Shared UX / utilities
+// ============================================================
 
-const phoneConfigs = {
+const INITIAL_PATIENT = {
+  document_type: 'dni',
+  document_number: '',
+  full_name: '',
+  date_of_birth: '',
+  phone_country: '+51',
+  phone_number: '',
+  email: '',
+  sex: '',
+  blood_type: '',
+  allergies: '',
+}
+
+const INITIAL_CONSULTATION = {
+  patient_id: '',
+  doctor_name: 'Dr. Demo',
+  reason: '',
+  symptoms: '',
+  weight_kg: '',
+  height_cm: '',
+  blood_pressure: '',
+  bmi: '',
+  abdominal_perimeter_cm: '',
+  diagnosis: '',
+  treatment: '',
+  prescription: '',
+}
+
+const PHONE_CONFIGS = {
   '+51': { country: 'Perú', length: 9 },
   '+52': { country: 'México', length: 10 },
   '+54': { country: 'Argentina', length: 10 },
   '+57': { country: 'Colombia', length: 9 },
-  '+1': { country: 'Estados Unidos', length: 10 }
+  '+1': { country: 'Estados Unidos', length: 10 },
 }
 
-export function Patients() {
-  const [patients, setPatients] = useState([])
-  const [query, setQuery] = useState('')
-  const [view, setView] = useState('list')
-  const [form, setForm] = useState({
-    document_type: 'dni',
-    document_number: '',
-    full_name: '',
-    date_of_birth: '',
-    phone_country: '+51',
-    phone_number: '',
-    email: '',
-    sex: '',
-    blood_type: '',
-    allergies: ''
-  })
-  const [message, setMessage] = useState('')
-  const [documentError, setDocumentError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin' || user?.role === 'tenant_admin'
+const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+const specialties = ['Cardiología', 'Pediatría', 'Medicina General', 'Dermatología', 'Ginecología']
 
-  async function load(q = '') {
-    try {
-      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
-      if (res.ok) {
-        const data = await res.json()
-        setPatients(data || [])
-      } else {
-        setMessage('Error al cargar la lista de pacientes.')
-      }
-    } catch (err) {
-      console.error('Error de red al cargar pacientes:', err)
-    }
-  }
+const cx = (...values) => values.filter(Boolean).join(' ')
 
-  useEffect(() => { load() }, [])
-
-  const handleSwitchToCreate = () => {
-    setView('create')
-    setMessage('')
-    setDocumentError('')
-    load('')
-  }
-
-  const handleDocumentChange = (value, docType = form.document_type) => {
-    const cleanValue = docType === 'dni' 
-      ? value.replace(/\D/g, '') 
-      : value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
-      
-    const maxLength = docType === 'dni' ? 8 : 12
-    const docNumber = cleanValue.slice(0, maxLength)
-
-    setForm(prev => ({ ...prev, document_number: docNumber }))
-
-    if (docNumber.trim() !== '') {
-      const exists = patients.some(p => {
-        const dniStr = p.dni ? String(p.dni).trim() : ''
-        const docStr = p.document_number ? String(p.document_number).trim() : ''
-        return dniStr === docNumber || docStr === docNumber
-      })
-
-      if (exists) {
-        setDocumentError(`⚠️ El ${docType.toUpperCase()} ${docNumber} ya se encuentra registrado.`)
-      } else {
-        setDocumentError('')
-      }
-    } else {
-      setDocumentError('')
-    }
-  }
-
-  async function deletePatient(patientId) {
-    if (!window.confirm('¿Seguro que deseas eliminar este paciente? Esta acción no se puede deshacer.')) {
-      return
-    }
-    const res = await apiFetch('/patients', { method: 'DELETE', body: JSON.stringify({ patient_id: patientId }) })
-    if (res.ok) {
-      setMessage('Paciente eliminado correctamente')
-      await load(query)
-    } else {
-      const json = await res.json().catch(() => ({}))
-      setMessage(json.message || 'Error al eliminar paciente')
-    }
-  }
-
-  async function submit(e) {
-    e.preventDefault()
-    if (documentError) {
-      setMessage('Corrige los errores en el formulario antes de continuar.')
-      return
-    }
-
-    setLoading(true)
-    setMessage('')
-    try {
-      const docNumStr = form.document_number.trim()
-      const existingDocument = patients.find(p => {
-        const dniStr = p.dni ? String(p.dni).trim() : ''
-        const docStr = p.document_number ? String(p.document_number).trim() : ''
-        return (dniStr === docNumStr || docStr === docNumStr) && docNumStr !== ''
-      })
-
-      if (existingDocument) {
-        setMessage('El número de documento ya existe para otro paciente')
-        setLoading(false)
-        return
-      }
-
-      const phoneValue = `${form.phone_country}${form.phone_number}`
-      const existingPhone = patients.find(p => String(p.phone).trim() === phoneValue && form.phone_number.trim() !== '')
-      if (existingPhone) {
-        setMessage('El teléfono ya está registrado para otro paciente')
-        setLoading(false)
-        return
-      }
-
-      const existingEmail = patients.find(p => String(p.email).toLowerCase().trim() === form.email.toLowerCase().trim() && form.email.trim() !== '')
-      if (existingEmail) {
-        setMessage('El correo ya está registrado para otro paciente')
-        setLoading(false)
-        return
-      }
-
-      const res = await apiFetch('/patients', { method: 'POST', body: JSON.stringify({
-        ...form,
-        phone: phoneValue,
-        dni: form.document_number
-      }) })
-      const json = await res.json()
-      if (res.ok) {
-        setMessage('Paciente registrado correctamente')
-        setForm({ document_type: 'dni', document_number: '', full_name: '', date_of_birth: '', phone_country: '+51', phone_number: '', email: '', sex: '', blood_type: '', allergies: '' })
-        setDocumentError('')
-        setView('list')
-        await load(query)
-      } else {
-        setMessage(json.message || 'No se pudo crear el paciente')
-      }
-    } catch (err) {
-      setMessage('Error de conexión con el servidor')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="patients-page">
-      <div className="card patients-shell">
-        <div className="card-header-row">
-          <div>
-            <h2>{view === 'create' ? 'Nuevo paciente' : 'Pacientes'}</h2>
-            <p className="muted">
-              {view === 'create'
-                ? 'Completa los datos del paciente en el orden solicitado.'
-                : 'Consulta los pacientes registrados y crea nuevos cuando lo necesites.'}
-            </p>
-          </div>
-          {view === 'create' && (
-            <button type="button" className="button secondary" onClick={() => { setView('list'); setMessage(''); setDocumentError('') }}>
-              Volver
-            </button>
-          )}
-        </div>
-
-        {view === 'create' ? (
-          <div className="patients-create-layout">
-            <div className="patients-hero-card">
-              <h3>Registro rápido</h3>
-              <p>Agrega un paciente nuevo para que quede disponible para consultas, citas y documentos.</p>
-            </div>
-
-            <form onSubmit={submit}>
-              <div className="form-grid">
-                <label>
-                  Tipo de documento
-                  <select 
-                    value={form.document_type} 
-                    onChange={e => {
-                      const newType = e.target.value
-                      setForm(prev => ({ ...prev, document_type: newType, document_number: '' }))
-                      setDocumentError('')
-                    }}
-                  >
-                    <option value="dni">DNI</option>
-                    <option value="ce">CARNET DE EXTRANJERÍA</option>
-                  </select>
-                </label>
-                <label>
-                  Número de documento
-                  <input
-                    required
-                    value={form.document_number}
-                    onChange={e => handleDocumentChange(e.target.value)}
-                    placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 caracteres'}
-                  />
-                  {documentError && (
-                    <span style={{ color: '#d9534f', fontSize: '0.85rem', marginTop: '4px', display: 'block', fontWeight: 'bold' }}>
-                      {documentError}
-                    </span>
-                  )}
-                </label>
-                <label>
-                  Nombre completo
-                  <input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} />
-                </label>
-                <label>
-                  Fecha de nacimiento
-                  <input
-                    required
-                    type="date"
-                    max={new Date().toISOString().slice(0, 10)}
-                    value={form.date_of_birth}
-                    onChange={e => setForm({ ...form, date_of_birth: e.target.value })}
-                  />
-                </label>
-                <label>
-                  Código de país
-                  <select value={form.phone_country} onChange={e => setForm({ ...form, phone_country: e.target.value, phone_number: '' })}>
-                    {Object.entries(phoneConfigs).map(([code, info]) => (
-                      <option key={code} value={code}>{code} ({info.country})</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Teléfono
-                  <input
-                    required
-                    value={form.phone_number}
-                    onChange={e => {
-                      const value = e.target.value.replace(/\D/g, '')
-                      const maxLength = phoneConfigs[form.phone_country]?.length || 10
-                      setForm({ ...form, phone_number: value.slice(0, maxLength) })
-                    }}
-                    placeholder={`Hasta ${phoneConfigs[form.phone_country]?.length || 10} dígitos`}
-                  />
-                </label>
-                <label>
-                  Correo
-                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="Opcional" />
-                </label>
-                <label>
-                  Sexo
-                  <select required value={form.sex} onChange={e => setForm({ ...form, sex: e.target.value })}>
-                    <option value="">Seleccionar sexo</option>
-                    <option value="female">Femenino</option>
-                    <option value="male">Masculino</option>
-                    <option value="other">Otro / Prefiero no decir</option>
-                  </select>
-                </label>
-                <label>
-                  Tipo de sangre
-                  <select value={form.blood_type} onChange={e => setForm({ ...form, blood_type: e.target.value })}>
-                    <option value="">Seleccionar tipo de sangre</option>
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                  </select>
-                </label>
-                <label>
-                  Alergias
-                  <input value={form.allergies} onChange={e => setForm({ ...form, allergies: e.target.value })} />
-                </label>
-              </div>
-              <div className="button-row">
-                <button type="submit" disabled={loading || Boolean(documentError)}>
-                  {loading ? 'Guardando...' : 'Registrar paciente'}
-                </button>
-                <button type="button" className="secondary" onClick={() => { setView('list'); setMessage(''); setDocumentError('') }}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-            {message && <div className="form-message">{message}</div>}
-          </div>
-        ) : (
-          <>
-            <div className="patients-toolbar">
-              <label className="collection-search">
-                <span>Buscar pacientes</span>
-                <input
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="DNI o nombre"
-                />
-              </label>
-              <div className="button-row patients-actions">
-                <button type="button" className="button" onClick={() => { if (!query || !query.trim()) { setMessage('Introduce un DNI o nombre para buscar'); return } load(query) }}>
-                  Buscar
-                </button>
-                <button type="button" className="button secondary" onClick={handleSwitchToCreate}>
-                  Agregar
-                </button>
-              </div>
-            </div>
-
-            <div className="patients-list-card">
-              {patients.length === 0 ? (
-                <div className="patients-empty-state">
-                  <div className="patients-empty-icon">🔎</div>
-                  <h3>No se encontraron pacientes</h3>
-                  <p>Prueba con otros términos de búsqueda o crea un nuevo paciente.</p>
-                  <button type="button" className="button" onClick={handleSwitchToCreate}>
-                    Crear nuevo paciente
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <p className="collection-total">Pacientes registrados ({patients.length})</p>
-                  <div className="items-grid">
-                    {patients.map(patient => (
-                      <div key={patient.id} className="item-card">
-                        <h3>{patient.full_name}</h3>
-                        <p>ID: {patient.id}</p>
-                        <p>DNI / Documento: {patient.dni || patient.document_number}</p>
-                        <p>HC: {patient.medical_record_number || '—'}</p>
-                        <p>Tel: {patient.phone || '—'}</p>
-                        <p>Correo: {patient.email || '—'}</p>
-                        <span className="meta">Estado: {patient.status || 'Activo'}</span>
-                        {isAdmin && (
-                          <button type="button" className="button danger" style={{ marginTop: 8 }} onClick={() => deletePatient(patient.id)}>
-                            Eliminar paciente
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  )
+const calculateBMI = (weight, height) => {
+  const w = Number.parseFloat(weight)
+  const h = Number.parseFloat(height) / 100
+  if (!w || !h || h <= 0) return ''
+  return (w / (h * h)).toFixed(2)
 }
 
-export function Consultations() {
-  const [consultations, setConsultations] = useState([])
-  const [patients, setPatients] = useState([])
-  const [query, setQuery] = useState('')
-  const [patientQuery, setPatientQuery] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [message, setMessage] = useState({ text: '', type: '' })
 
-  const initialFormState = {
-    patient_id: '',
-    doctor_name: 'Dr. Demo',
-    reason: '',
-    symptoms: '',
-    weight_kg: '',
-    height_cm: '',
-    blood_pressure: '',
-    bmi: '',
-    abdominal_perimeter_cm: '',
-    diagnosis: '',
-    treatment: '',
-    prescription: ''
-  }
-
-  const [form, setForm] = useState(initialFormState)
-
-  const showNotification = (text, type = 'info') => {
-    setMessage({ text, type })
-    setTimeout(() => setMessage({ text: '', type: '' }), 5000)
-  }
-
-  async function loadConsultations(q = '') {
-    setLoading(true)
-    try {
-      const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`)
-      if (res.ok) {
-        const data = await res.json()
-        setConsultations(data || [])
-      } else {
-        showNotification('Error al cargar la lista de consultas.', 'error')
-      }
-    } catch (err) {
-      showNotification('Error de red al cargar consultas.', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // 1. Permite realizar la búsqueda con el valor correcto
-async function searchPatients(query = '') {
-  try {
-    // Pasa la query como parámetro 'q' o 'search' según tu API
-    const res = await apiFetch(`/api/patients?q=${encodeURIComponent(query)}`)
-    if (res.ok) {
-      const data = await res.json()
-      setPatients(data || [])
-      
-      // Si encuentra exactamente 1 paciente, selecciónalo automáticamente
-      if (data && data.length === 1) {
-        setForm((prev) => ({ ...prev, patient_id: data[0].id }))
-      }
-    }
-  } catch (err) {
-    setMessage('Error de conexión al buscar pacientes')
-  }
-}
-
-// 2. Modifica el campo de entrada para que busque mientras el usuario escribe o al presionar Enter:
-<label>
-  Buscar DNI o Nombre del paciente
-  <input
-    value={patientQuery}
-    onChange={(e) => {
-      const value = e.target.value
-      setPatientQuery(value)
-      searchPatients(value) // Búsqueda en tiempo real
-    }}
-    placeholder="Escribe DNI o Nombre..."
-  />
-</label>
-
-  const handleTriageChange = (field, value) => {
-    const updatedForm = { ...form, [field]: value }
-    if (field === 'weight_kg' || field === 'height_cm') {
-      const w = field === 'weight_kg' ? value : form.weight_kg
-      const h = field === 'height_cm' ? value : form.height_cm
-      updatedForm.bmi = calculateBMI(w, h)
-    }
-    setForm(updatedForm)
-  }
-
-  async function submit(e) {
-    e.preventDefault()
-    if (!form.patient_id) {
-      showNotification('Debes seleccionar un paciente antes de guardar.', 'error')
-      return
-    }
-
-    setIsSubmitting(true)
-    setMessage({ text: '', type: '' })
-
-    try {
-      const res = await apiFetch('/consultations', {
-        method: 'POST',
-        body: JSON.stringify(form)
-      })
-
-      if (res.ok) {
-        showNotification('Consulta médica registrada con éxito.', 'success')
-        setForm(initialFormState)
-        setShowForm(false)
-        await loadConsultations(query)
-      } else {
-        const json = await res.json().catch(() => ({}))
-        showNotification(json.message || 'Error al registrar la consulta.', 'error')
-      }
-    } catch (err) {
-      showNotification('Error de conexión con el servidor.', 'error')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 16px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      
-      {/* NOTIFICACIONES TOAST */}
-      {message.text && (
-        <div style={{
-          padding: '12px 20px',
-          borderRadius: '10px',
-          marginBottom: '20px',
-          fontWeight: '500',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          backgroundColor: message.type === 'error' ? '#FEF2F2' : '#F0FDF4',
-          color: message.type === 'error' ? '#991B1B' : '#166534',
-          border: `1px solid ${message.type === 'error' ? '#FCA5A5' : '#86EFAC'}`
-        }}>
-          <span>{message.type === 'error' ? '⚠️' : '✅'}</span>
-          <span>{message.text}</span>
-        </div>
-      )}
-
-      {/* CABECERA PRINCIPAL */}
-      <div style={{
-        backgroundColor: '#FFFFFF',
-        borderRadius: '16px',
-        padding: '24px',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-        marginBottom: '24px',
-        border: '1px solid #E5E7EB'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '1.5rem', color: '#111827', fontWeight: '700' }}>
-              {showForm ? '📋 Nueva Consulta Médica y Triaje' : '🩺 Consultas Médicas'}
-            </h1>
-            <p style={{ margin: '4px 0 0 0', color: '#6B7280', fontSize: '0.9rem' }}>
-              {showForm
-                ? 'Ingresa los datos del paciente, medidas de triaje y la receta médica.'
-                : 'Gestiona los expedientes clínicos y consultas agendadas.'}
-            </p>
-          </div>
-
-          <div>
-            {!showForm ? (
-              <button
-                type="button"
-                onClick={() => { setShowForm(true); setMessage({ text: '', type: '' }) }}
-                style={{
-                  backgroundColor: '#2563EB',
-                  color: '#FFFFFF',
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
-                }}
-              >
-                + Nueva Consulta
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setMessage({ text: '', type: '' }) }}
-                style={{
-                  backgroundColor: '#F3F4F6',
-                  color: '#374151',
-                  padding: '10px 18px',
-                  borderRadius: '10px',
-                  border: '1px solid #D1D5DB',
-                  fontWeight: '600',
-                  cursor: 'pointer'
-                }}
-              >
-                ← Volver al Historial
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* BARRA DE BÚSQUEDA Y FILTROS */}
-        {!showForm && (
-          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && loadConsultations(query)}
-              placeholder="🔍 Buscar por nombre, DNI, médico o diagnóstico..."
-              style={{
-                flex: 1,
-                minWidth: '280px',
-                padding: '10px 16px',
-                borderRadius: '10px',
-                border: '1px solid #D1D5DB',
-                outline: 'none',
-                fontSize: '0.95rem'
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => loadConsultations(query)}
-              style={{
-                backgroundColor: '#1E293B',
-                color: '#FFFFFF',
-                padding: '10px 20px',
-                borderRadius: '10px',
-                border: 'none',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              Buscar
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* FORMULARIO DE REGISTRO */}
-      {showForm && (
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          {/* SECCIÓN 1: DATOS GENERALES */}
-          <div style={{
-            backgroundColor: '#FFFFFF',
-            padding: '24px',
-            borderRadius: '16px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-            border: '1px solid #E5E7EB'
-          }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              👤 Datos del Paciente y Atención
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
-                  Filtrar Lista por DNI
-                </label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    value={patientQuery}
-                    onChange={e => setPatientQuery(e.target.value)}
-                    placeholder="Escribe DNI..."
-                    style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!patientQuery.trim()) return
-                      const results = await searchPatients(patientQuery)
-                      const match = results.find(p => String(p.dni || p.document_number).trim() === patientQuery.trim())
-                      if (match) {
-                        setForm(prev => ({ ...prev, patient_id: match.id.toString() }))
-                        showNotification(`Paciente seleccionado: ${match.full_name}`, 'success')
-                      }
-                    }}
-                    style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#F9FAFB', cursor: 'pointer', fontWeight: '500' }}
-                  >
-                    Filtrar
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
-                  Paciente Seleccionado *
-                </label>
-                <select
-                  required
-                  value={form.patient_id}
-                  onChange={e => setForm({ ...form, patient_id: e.target.value })}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF' }}
-                >
-                  <option value="">-- Selecciona un paciente --</option>
-                  {patients.map(p => (
-                    <option key={p.id} value={p.id}>{p.full_name} — DNI: {p.dni || p.document_number || 'N/A'}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
-                  Médico Tratante
-                </label>
-                <input
-                  value={form.doctor_name}
-                  onChange={e => setForm({ ...form, doctor_name: e.target.value })}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
-                />
-              </div>
-
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
-                  Motivo de Consulta
-                </label>
-                <input
-                  value={form.reason}
-                  onChange={e => setForm({ ...form, reason: e.target.value })}
-                  placeholder="Ej. Chequeo de rutina / Dolor de cabeza"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
-          <div style={{
-            backgroundColor: '#F8FAFC',
-            padding: '24px',
-            borderRadius: '16px',
-            border: '1px solid #E2E8F0'
-          }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              📊 Triaje y Signos Vitales
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Peso (kg)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={form.weight_kg}
-                  onChange={e => handleTriageChange('weight_kg', e.target.value)}
-                  placeholder="70.5"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Talla (cm)</label>
-                <input
-                  type="number"
-                  value={form.height_cm}
-                  onChange={e => handleTriageChange('height_cm', e.target.value)}
-                  placeholder="170"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>IMC (Autocalculado)</label>
-                <input
-                  value={form.bmi}
-                  readOnly
-                  placeholder="0.00"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#E2E8F0', fontWeight: '700', color: '#0F172A' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Presión Arterial</label>
-                <input
-                  value={form.blood_pressure}
-                  onChange={e => setForm({ ...form, blood_pressure: e.target.value })}
-                  placeholder="120/80"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#475569', marginBottom: '6px' }}>Perímetro Abd. (cm)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={form.abdominal_perimeter_cm}
-                  onChange={e => setForm({ ...form, abdominal_perimeter_cm: e.target.value })}
-                  placeholder="85.0"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF' }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SECCIÓN 3: DIAGNÓSTICO Y RECETA */}
-          <div style={{
-            backgroundColor: '#FFFFFF',
-            padding: '24px',
-            borderRadius: '16px',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
-            border: '1px solid #E5E7EB'
-          }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', color: '#1F2937', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🩺 Diagnóstico y Tratamiento
-            </h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Diagnóstico Médico</label>
-                <input
-                  value={form.diagnosis}
-                  onChange={e => setForm({ ...form, diagnosis: e.target.value })}
-                  placeholder="Escribe el diagnóstico del paciente..."
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Plan de Tratamiento</label>
-                <input
-                  value={form.treatment}
-                  onChange={e => setForm({ ...form, treatment: e.target.value })}
-                  placeholder="Indicaciones médicas generales..."
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>Receta Médica / Prescripción</label>
-                <textarea
-                  rows={3}
-                  value={form.prescription}
-                  onChange={e => setForm({ ...form, prescription: e.target.value })}
-                  placeholder="Medicamentos, dosis y frecuencia..."
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', fontFamily: 'inherit' }}
-                />
-              </div>
-            </div>
-
-            {/* BOTONES */}
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                style={{ padding: '10px 20px', borderRadius: '10px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontWeight: '600', cursor: 'pointer' }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                style={{ padding: '10px 24px', borderRadius: '10px', border: 'none', backgroundColor: '#10B981', color: '#FFFFFF', fontWeight: '600', cursor: 'pointer' }}
-              >
-                {isSubmitting ? 'Guardando...' : 'Guardar Consulta'}
-              </button>
-            </div>
-          </div>
-        </form>
-      )}
-
-      {/* TARJETAS DEL HISTORIAL DE CONSULTAS */}
-      {!showForm && (
-        <div>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#6B7280' }}>Cargando consultas...</div>
-          ) : consultations.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E5E7EB' }}>
-              <p style={{ fontSize: '1.5rem', margin: 0 }}>🔍</p>
-              <p style={{ fontWeight: '600', color: '#374151', marginTop: '8px' }}>No hay registros coincidentes</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-              {consultations.map(item => (
-                <div key={item.id} style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '14px',
-                  padding: '20px',
-                  border: '1px solid #E5E7EB',
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justify: 'space-between'
-                }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#111827' }}>{item.reason || 'Consulta General'}</h4>
-                      <span style={{ fontSize: '0.75rem', backgroundColor: '#F3F4F6', padding: '2px 8px', borderRadius: '12px', color: '#4B5563', fontWeight: '600' }}>
-                        #{item.id}
-                      </span>
-                    </div>
-
-                    <p style={{ fontSize: '0.9rem', color: '#374151', margin: '12px 0 4px 0' }}>
-                      <strong>Paciente:</strong> {item.patient_name || `ID #${item.patient_id}`}
-                    </p>
-                    <p style={{ fontSize: '0.85rem', color: '#6B7280', margin: '0 0 12px 0' }}>
-                      <strong>Atendido por:</strong> {item.doctor_name || 'No asignado'}
-                    </p>
-
-                    {(item.weight_kg || item.height_cm || item.bmi) && (
-                      <div style={{ backgroundColor: '#F8FAFC', padding: '10px', borderRadius: '8px', fontSize: '0.8rem', color: '#334155', border: '1px solid #E2E8F0' }}>
-                        ⚖️ {item.weight_kg ? `${item.weight_kg}kg` : '—'} | 📏 {item.height_cm ? `${item.height_cm}cm` : '—'} | <strong>IMC:</strong> {item.bmi || '—'}
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #F3F4F6', fontSize: '0.75rem', color: '#9CA3AF' }}>
-                    📅 {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Fecha no registrada'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-export function Locations() {
-  const [items, setItems] = useState([])
-  const [selectedArea, setSelectedArea] = useState(null)
-  const [detail, setDetail] = useState(null)
-  const [isLoadingDetail, setIsLoadingDetail] = useState(false)
-  const [showNewAreaForm, setShowNewAreaForm] = useState(false)
-  const [newAreaName, setNewAreaName] = useState('')
-  const [newAreaDescription, setNewAreaDescription] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
-  const { user } = useAuth()
-  const canEdit = ['admin', 'tenant_admin'].includes(user?.role)
-
-  async function load() {
-    const res = await apiFetch('/locations')
-    if (res.ok) setItems(await res.json() || [])
-  }
-
-  async function loadDetail(id) {
-    setIsLoadingDetail(true)
-    const res = await apiFetch(`/locations/${id}`)
-    if (res.ok) setDetail(await res.json())
-    setIsLoadingDetail(false)
-  }
-
-  async function submitNewArea(e) {
-    e.preventDefault()
-    if (!newAreaName.trim()) {
-      setErrorMessage('El nombre del área es requerido.')
-      return
-    }
-    setIsSaving(true)
-    setErrorMessage('')
-    const res = await apiFetch('/locations', {
-      method: 'POST',
-      body: JSON.stringify({ name: newAreaName.trim(), description: newAreaDescription.trim() })
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setNewAreaName('')
-      setNewAreaDescription('')
-      setShowNewAreaForm(false)
-      await load()
-      if (data.id) setSelectedArea(data.id)
-    } else {
-      setErrorMessage(data.message || 'No se pudo crear el área.')
-    }
-    setIsSaving(false)
-  }
-
-  useEffect(() => { load() }, [])
-
-  useEffect(() => {
-    if (selectedArea) {
-      loadDetail(selectedArea)
-    }
-  }, [selectedArea])
-
-  return (
-    <div className="location-page">
-      <div className="card">
-        <div className="card-header-row">
-          <div>
-            <h2>Áreas del hospital</h2>
-            <p className="muted">Selecciona un área para ver los datos operativos. Solo administración puede editar nombres y descripciones.</p>
-          </div>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            {canEdit && (
-              <button type="button" className="button secondary" onClick={() => setShowNewAreaForm(!showNewAreaForm)}>
-                {showNewAreaForm ? 'Cancelar' : 'Agregar área'}
-              </button>
-            )}
-            {canEdit && <span className="note">✏️ Editar habilitado</span>}
-          </div>
-        </div>
-
-        {showNewAreaForm && (
-          <div className="card form-card">
-            <h3>Crear nueva área</h3>
-            <form onSubmit={submitNewArea}>
-              <label>
-                Nombre del área
-                <input value={newAreaName} onChange={e => setNewAreaName(e.target.value)} placeholder="Nombre del área" />
-              </label>
-              <label>
-                Descripción
-                <textarea value={newAreaDescription} onChange={e => setNewAreaDescription(e.target.value)} placeholder="Breve descripción de la área" />
-              </label>
-              {errorMessage && <div className="error">{errorMessage}</div>}
-              <div className="button-row">
-                <button type="submit" disabled={isSaving}>{isSaving ? 'Guardando...' : 'Crear área'}</button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <div className="items-grid">
-          {items.map(area => (
-            <button
-              key={area.id}
-              type="button"
-              className={`area-card ${selectedArea === area.id ? 'selected' : ''}`}
-              onClick={() => setSelectedArea(area.id)}
-            >
-              <div className="area-card-header">
-                <h3>{area.name}</h3>
-                {canEdit && <span className="area-edit-icon" aria-label="Editar área">✏️</span>}
-              </div>
-              <p>{area.description || 'Área operativa sin descripción'}</p>
-              <div className="area-metrics">
-                <span>{area.device_count ?? 0} dispositivos</span>
-                <span>{area.active_alerts ?? 0} alertas activas</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {selectedArea && (
-        <div className="card area-detail-card">
-          <div className="card-header-row">
-            <h2>Detalle de área</h2>
-            <button type="button" className="button secondary" onClick={() => setSelectedArea(null)}>Cerrar</button>
-          </div>
-          {isLoadingDetail ? (
-            <p>Cargando detalles...</p>
-          ) : detail ? (
-            <div className="area-detail-content">
-              <div className="area-detail-meta">
-                <h3>{detail.name}</h3>
-                <p>{detail.description || 'Descripción no registrada'}</p>
-                <div className="area-detail-row">
-                  <span><strong>Usuarios en área:</strong> {detail.user_count != null ? detail.user_count : '—'}</span>
-                  <span><strong>Ubicación en hospital:</strong> {detail.hospital_position || 'Pendiente'}</span>
-                </div>
-                <div className="area-detail-row">
-                  <span><strong>Dispositivos:</strong> {detail.device_count ?? 0}</span>
-                  <span><strong>Alertas activas:</strong> {detail.active_alerts ?? 0}</span>
-                </div>
-                <div className="area-detail-row">
-                  <span><strong>Alertas totales:</strong> {detail.total_alerts ?? 0}</span>
-                  <span><strong>Creado:</strong> {detail.created_at ? new Date(detail.created_at).toLocaleString() : '—'}</span>
-                </div>
-              </div>
-              {canEdit ? (
-                <div className="area-detail-edit-hint">
-                  Puedes editar el nombre y la descripción del área desde el botón de administración.
-                </div>
-              ) : (
-                <div className="area-detail-edit-hint muted">
-                  Solo los administradores pueden editar esta área.
-                </div>
-              )}
-            </div>
-          ) : (
-            <p>Selecciona un área para ver su detalle.</p>
-          )}
-        </div>
-      )}
-    </div>
-  )
+const getBMIState = (bmi) => {
+  const value = Number.parseFloat(bmi)
+  if (!value) return { label: 'Sin calcular', tone: 'neutral' }
+  if (value < 18.5) return { label: 'Bajo peso', tone: 'warning' }
+  if (value < 25) return { label: 'Normal', tone: 'success' }
+  if (value < 30) return { label: 'Sobrepeso', tone: 'warning' }
+  return { label: 'Obesidad', tone: 'danger' }
 }
 
 const parseBrowser = (ua) => {
@@ -1061,216 +84,1531 @@ const parseBrowser = (ua) => {
   return 'Navegador Web'
 }
 
+const formatDate = (value, options = { dateStyle: 'medium' }) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('es-PE', options).format(date)
+}
+
+const formatDateTime = (value) =>
+  formatDate(value, { dateStyle: 'medium', timeStyle: 'short' })
+
+const useDebouncedValue = (value, delay = 350) => {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebounced(value), delay)
+    return () => window.clearTimeout(id)
+  }, [value, delay])
+  return debounced
+}
+
+const getUserRole = (user) => user?.role || user?.user_metadata?.role || 'viewer'
+const isAdminUser = (user) => ['admin', 'tenant_admin'].includes(getUserRole(user))
+
+// ============================================================
+// Shared UI components
+// ============================================================
+
+function Toast({ toast, onClose }) {
+  if (!toast?.text) return null
+  return (
+    <div className={cx('toast', `toast-${toast.type || 'info'}`)} role="status">
+      <div className="toast-icon" aria-hidden="true">
+        {toast.type === 'success' ? '✓' : toast.type === 'error' ? '!' : 'i'}
+      </div>
+      <div className="toast-content">
+        <strong>{toast.title || (toast.type === 'error' ? 'Ocurrió un problema' : 'Información')}</strong>
+        <span>{toast.text}</span>
+      </div>
+      <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar notificación">×</button>
+    </div>
+  )
+}
+
+function useToast() {
+  const [toast, setToast] = useState({ text: '', type: 'info' })
+  const timeoutRef = useRef(null)
+
+  const notify = useCallback((text, type = 'info', title = '') => {
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
+    setToast({ text, type, title })
+    timeoutRef.current = window.setTimeout(() => setToast({ text: '', type: 'info' }), 4500)
+  }, [])
+
+  useEffect(() => () => timeoutRef.current && window.clearTimeout(timeoutRef.current), [])
+  return [toast, notify, () => setToast({ text: '', type: 'info' })]
+}
+
+function LoadingState({ label = 'Cargando información...' }) {
+  return (
+    <div className="loading-state" role="status">
+      <span className="spinner" aria-hidden="true" />
+      <span>{label}</span>
+    </div>
+  )
+}
+
+function EmptyState({ icon = '⌕', title = 'No encontramos registros', description = 'Prueba cambiando los filtros o crea un nuevo registro.' }) {
+  return (
+    <div className="empty-state enhanced-empty">
+      <div className="empty-icon" aria-hidden="true">{icon}</div>
+      <h3>{title}</h3>
+      <p>{description}</p>
+    </div>
+  )
+}
+
+function PageShell({ title, subtitle, actions, children, className = '' }) {
+  return (
+    <div className={cx('page-container', 'page-shell', className)}>
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">Hospital TIC</div>
+          <h1>{title}</h1>
+          {subtitle && <p className="muted page-subtitle">{subtitle}</p>}
+        </div>
+        {actions && <div className="page-heading-actions">{actions}</div>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function SectionCard({ title, description, icon, actions, children, className = '' }) {
+  return (
+    <section className={cx('card', 'section-card', className)}>
+      {(title || actions) && (
+        <div className="section-heading">
+          <div className="section-heading-main">
+            {icon && <span className="section-icon" aria-hidden="true">{icon}</span>}
+            <div>
+              {title && <h2 className="section-title">{title}</h2>}
+              {description && <p className="muted section-description">{description}</p>}
+            </div>
+          </div>
+          {actions && <div className="section-actions">{actions}</div>}
+        </div>
+      )}
+      {children}
+    </section>
+  )
+}
+
+
+// ============================================================
+// Componente StatCard Moderno (Sin Emojis, con Iconos SVG Clínicos)
+// ============================================================
+
+function StatCard({ icon, label, value, hint, tone = 'primary' }) {
+  const toneStyles = {
+    primary: 'border-blue-500/20 bg-blue-500/5 text-blue-400',
+    success: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400',
+    warning: 'border-amber-500/20 bg-amber-500/5 text-amber-400',
+    danger: 'border-rose-500/20 bg-rose-500/5 text-rose-400',
+  }
+
+  return (
+    <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-xl flex items-center gap-4 transition-all duration-200 hover:border-slate-700">
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${toneStyles[tone] || toneStyles.primary} shrink-0`}>
+        {icon}
+      </div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
+        <strong className="text-2xl font-bold text-slate-100 tracking-tight my-0.5">{value}</strong>
+        {hint && <span className="text-xs text-slate-500">{hint}</span>}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Iconos Vectoriales para las Tarjetas
+// ============================================================
+const StatIcons = {
+  Patients: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
+  Consultations: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>,
+  Users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
+  Time: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+}
+
+function SearchField({ value, onChange, placeholder, onEnter, loading = false }) {
+  return (
+    <div className="smart-search">
+      <span className="search-icon" aria-hidden="true">⌕</span>
+      <input
+        className="form-control smart-search-input"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') onEnter?.()
+        }}
+        placeholder={placeholder}
+        aria-label={placeholder}
+      />
+      {value && !loading && (
+        <button type="button" className="icon-button search-clear" onClick={() => onChange('')} aria-label="Limpiar búsqueda">×</button>
+      )}
+      {loading && <span className="search-spinner spinner" aria-hidden="true" />}
+    </div>
+  )
+}
+
+function ConfirmDialog({ open, title, message, confirmLabel = 'Confirmar', danger = false, onConfirm, onCancel }) {
+  if (!open) return null
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onCancel}>
+      <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onMouseDown={e => e.stopPropagation()}>
+        <div className={cx('modal-icon', danger && 'danger')}>{danger ? '!' : '?'}</div>
+        <h3 id="confirm-title">{title}</h3>
+        <p className="muted">{message}</p>
+        <div className="button-row modal-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
+          <button type="button" className={cx('btn', danger ? 'btn-danger' : 'btn-primary')} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InlineAlert({ type = 'info', children }) {
+  if (!children) return null
+  return <div className={cx('alert', `alert-${type}`, 'inline-alert')}>{children}</div>
+}
+
+function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }) {
+  if (!rows?.length) return <EmptyState title={emptyTitle} />
+  return (
+    <div className="table-wrapper polished-table">
+      <table className="data-table">
+        <thead>
+          <tr>{columns.map(column => <th key={column.key}>{column.label}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={getRowKey?.(row) ?? index}>
+              {columns.map(column => <td key={column.key}>{column.render ? column.render(row) : row[column.key]}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function Pagination({ page, perPage, total, onPrev, onNext }) {
+  const totalPages = Math.max(1, Math.ceil(total / perPage))
+  return (
+    <div className="pagination enhanced-pagination">
+      <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={onPrev}>← Anterior</button>
+      <span>Hoja <strong>{page}</strong> de <strong>{totalPages}</strong> · {total} registros</span>
+      <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={onNext}>Siguiente →</button>
+    </div>
+  )
+}
+
+// ============================================================
+// Patients
+// ============================================================
+
+export function Patients() {
+  const { user } = useAuth()
+  const [patients, setPatients] = useState([])
+  const [query, setQuery] = useState('')
+  const [view, setView] = useState('list') // 'list' | 'create' | 'detail'
+  const [selectedPatient, setSelectedPatient] = useState(null)
+  const [previewDocument, setPreviewDocument] = useState(null)
+  const [patientDocuments, setPatientDocuments] = useState([])
+  const [loadingDocs, setLoadingDocs] = useState(false)
+  const [form, setForm] = useState(INITIAL_PATIENT)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [documentError, setDocumentError] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [toast, notify, clearToast] = useToast()
+  const debouncedQuery = useDebouncedValue(query)
+  const isAdmin = isAdminUser(user)
+
+  const load = useCallback(async (q = '') => {
+    setLoading(true)
+    try {
+      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
+      if (!res.ok) throw new Error('No se pudo cargar pacientes')
+      setPatients(await res.json() || [])
+    } catch (error) {
+      console.error(error)
+      notify('No fue posible cargar la lista de pacientes.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [notify])
+
+  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (view === 'list') load(debouncedQuery)
+  }, [debouncedQuery, view, load])
+
+  const loadPatientDetail = async (patient) => {
+    setSelectedPatient(patient)
+    setView('detail')
+    setLoadingDocs(true)
+    try {
+      // Endpoint simulado o real para obtener documentos del paciente agrupados
+      const res = await apiFetch(`/patients/${patient.id}/documents`)
+      if (res.ok) {
+        const docs = await res.json()
+        setPatientDocuments(docs || [])
+      } else {
+        setPatientDocuments([])
+      }
+    } catch {
+      setPatientDocuments([])
+    } finally {
+      setLoadingDocs(false)
+    }
+  }
+
+  const handleDocumentChange = (value, docType = form.document_type) => {
+    const cleanValue = docType === 'dni'
+      ? value.replace(/\D/g, '')
+      : value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+    const maxLength = docType === 'dni' ? 8 : 12
+    const documentNumber = cleanValue.slice(0, maxLength)
+    setForm(prev => ({ ...prev, document_number: documentNumber }))
+
+    if (!documentNumber) {
+      setDocumentError('')
+      return
+    }
+
+    const exists = patients.some(patient => {
+      const values = [patient.dni, patient.document_number].filter(Boolean).map(String)
+      return values.some(valueItem => valueItem.trim() === documentNumber)
+    })
+    setDocumentError(exists ? `El ${docType.toUpperCase()} ${documentNumber} ya está registrado.` : '')
+  }
+
+  const openCreate = () => {
+    setForm(INITIAL_PATIENT)
+    setDocumentError('')
+    clearToast()
+    setView('create')
+  }
+
+  const submit = async (event) => {
+    event.preventDefault()
+    if (documentError) return notify('Corrige el documento antes de continuar.', 'error')
+
+    setSaving(true)
+    try {
+      const phone = `${form.phone_country}${form.phone_number}`
+      const res = await apiFetch('/patients', {
+        method: 'POST',
+        body: JSON.stringify({ ...form, dni: form.document_number, phone }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo registrar al paciente')
+
+      notify('Paciente registrado correctamente.', 'success', 'Registro completado')
+      setForm(INITIAL_PATIENT)
+      setDocumentError('')
+      setView('list')
+      await load(query)
+    } catch (error) {
+      notify(error.message || 'Error de conexión con el servidor.', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deletePatient = async () => {
+    if (!confirmDelete) return
+    try {
+      const res = await apiFetch('/patients', {
+        method: 'DELETE',
+        body: JSON.stringify({ patient_id: confirmDelete.id }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo eliminar')
+      notify('Paciente eliminado correctamente.', 'success')
+      setConfirmDelete(null)
+      setView('list')
+      await load(query)
+    } catch (error) {
+      notify(error.message, 'error')
+    }
+  }
+
+  // Agrupar documentos por tipo si existen
+  const groupedDocuments = patientDocuments.reduce((acc, doc) => {
+    const type = doc.category || doc.type || 'General'
+    if (!acc[type]) acc[type] = []
+    acc[type].push(doc)
+    return acc
+  }, {})
+
+  return (
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+
+      {/* MARCO GENERAL ESTILO DOCUMENTO */}
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+
+        {/* CABECERA Y ACCIONES */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+              {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Expediente clínico del paciente' : 'Gestión de pacientes'}
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
+              {view === 'create' ? 'Registra un expediente clínico completo en pocos pasos.' : view === 'detail' ? `Visualización de datos e historial documental de ${selectedPatient?.full_name}` : 'Consulta, identifica y gestiona los expedientes clínicos.'}
+            </p>
+          </div>
+
+          <div>
+            {view === 'list' ? (
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                onClick={openCreate}
+              >
+                + Nuevo paciente
+              </button>
+            ) : (
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                onClick={() => setView('list')}
+              >
+                ← Volver al listado
+              </button>
+            )}
+          </div>
+        </div>
+
+        <Toast toast={toast} onClose={clearToast} />
+
+        {view === 'create' ? (
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Datos de identificación</h3>
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Los campos marcados con * son obligatorios.</p>
+            </div>
+
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de documento *</label>
+                  <select
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.document_type}
+                    onChange={e => { setForm(p => ({ ...p, document_type: e.target.value, document_number: '' })); setDocumentError('') }}
+                  >
+                    <option value="dni">DNI</option>
+                    <option value="ce">Carnet de extranjería</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Número de documento *</label>
+                  <input
+                    required
+                    style={{ backgroundColor: '#0f172a', border: `1px solid ${documentError ? '#ef4444' : '#334155'}`, color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.document_number}
+                    onChange={e => handleDocumentChange(e.target.value)}
+                    placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 caracteres'}
+                  />
+                  {documentError && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{documentError}</span>}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre completo *</label>
+                  <input
+                    required
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.full_name}
+                    onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
+                    placeholder="Nombres y apellidos"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Fecha de nacimiento *</label>
+                  <input
+                    required
+                    type="date"
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    max={new Date().toISOString().slice(0, 10)}
+                    value={form.date_of_birth}
+                    onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Sexo *</label>
+                  <select
+                    required
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.sex}
+                    onChange={e => setForm(p => ({ ...p, sex: e.target.value }))}
+                  >
+                    <option value="">Seleccionar</option>
+                    <option value="female">Femenino</option>
+                    <option value="male">Masculino</option>
+                    <option value="other">Otro / Prefiero no decir</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ height: '1px', backgroundColor: '#1e293b', margin: '0.5rem 0' }} />
+
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Contacto y antecedentes</h3>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>País</label>
+                  <select
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.phone_country}
+                    onChange={e => setForm(p => ({ ...p, phone_country: e.target.value, phone_number: '' }))}
+                  >
+                    {Object.entries(PHONE_CONFIGS).map(([code, info]) => <option key={code} value={code}>{code} · {info.country}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Teléfono *</label>
+                  <input
+                    required
+                    inputMode="numeric"
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.phone_number}
+                    onChange={e => setForm(p => ({ ...p, phone_number: e.target.value.replace(/\D/g, '').slice(0, PHONE_CONFIGS[form.phone_country]?.length || 10) }))}
+                    placeholder={`${PHONE_CONFIGS[form.phone_country]?.length || 10} dígitos`}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Correo</label>
+                  <input
+                    type="email"
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.email}
+                    onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                    placeholder="correo@ejemplo.com"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de sangre</label>
+                  <select
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.blood_type}
+                    onChange={e => setForm(p => ({ ...p, blood_type: e.target.value }))}
+                  >
+                    <option value="">Seleccionar</option>
+                    {bloodTypes.map(type => <option key={type}>{type}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Alergias</label>
+                  <textarea
+                    rows={3}
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
+                    value={form.allergies}
+                    onChange={e => setForm(p => ({ ...p, allergies: e.target.value }))}
+                    placeholder="Ninguna o detalla medicamentos/alimentos conocidos"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
+                <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setView('list')}>Cancelar</button>
+                <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: (saving || Boolean(documentError)) ? 0.5 : 1 }} disabled={saving || Boolean(documentError)}>{saving ? 'Guardando…' : 'Registrar paciente'}</button>
+              </div>
+            </form>
+          </div>
+        ) : view === 'detail' && selectedPatient ? (
+          /* VISTA DE DETALLE / EXPEDIENTE COMPLETO CON DOCUMENTOS POR TIPO */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
+
+            {/* Tarjeta de Resumen del Paciente */}
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Historia Clínica · {selectedPatient.medical_record_number || '—'}</span>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc', margin: '0.25rem 0 0 0' }}>{selectedPatient.full_name}</h2>
+                </div>
+                <span className="badge badge-success">{selectedPatient.status || 'Activo'}</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.phone || '—'}</strong></div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.email || '—'}</strong></div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Tipo de Sangre</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.blood_type || 'No especificado'}</strong></div>
+                <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Alergias / Observaciones</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.allergies || 'Ninguna registrada'}</strong></div>
+              </div>
+            </div>
+
+            {/* SECCIÓN DE DOCUMENTOS DIVIDIDOS POR TIPOS */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Documentos e Historial Clínico</h3>
+                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Archivos, recetas, exámenes y reportes asociados al paciente.</p>
+              </div>
+
+              {loadingDocs ? (
+                <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando documentos del paciente…" /></div>
+              ) : patientDocuments.length === 0 ? (
+                <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem', textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>No hay documentos registrados para este paciente en el sistema.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {Object.entries(groupedDocuments).map(([category, docs]) => (
+                    <div key={category} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#3b82f6', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{category}</h4>
+                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{docs.length} archivo(s)</span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                        {docs.map((doc, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => setPreviewDocument(doc)}
+                            style={{
+                              backgroundColor: '#090d16',
+                              border: '1px solid #1e293b',
+                              borderRadius: '12px',
+                              padding: '1rem',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '0.5rem',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = '#1e293b'}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <strong style={{ fontSize: '0.875rem', color: '#f8fafc' }}>{doc.title || doc.name || 'Documento clínico'}</strong>
+                              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatDate(doc.created_at)}</span>
+                            </div>
+                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>{doc.description || 'Sin descripción adicional.'}</p>
+                            <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 500, marginTop: '0.25rem' }}>🔍 Clic para previsualizar</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
+
+            {/* SECCIÓN DE BÚSQUEDA */}
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Buscar pacientes</h3>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Busca por nombre, DNI o correo.</p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <SearchField value={query} onChange={setQuery} placeholder="Buscar por DNI, nombre o correo…" loading={loading} />
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{patients.length} resultados</span>
+              </div>
+            </div>
+
+            {/* LISTADO DE PACIENTES CON EFECTO HOVER ELEVADO */}
+            {loading ? (
+              <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando pacientes…" /></div>
+            ) : patients.length === 0 ? (
+              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
+                <EmptyState title="No hay pacientes para mostrar" description={query ? 'Prueba con otro nombre, documento o correo.' : 'Todavía no existen pacientes registrados.'} />
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem', width: '100%' }}>
+                {patients.map(patient => (
+                  <article
+                    key={patient.id}
+                    onClick={() => loadPatientDetail(patient)}
+                    style={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid #1e293b',
+                      borderRadius: '16px',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease-in-out'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'translateY(-4px)'
+                      e.currentTarget.style.borderColor = '#3b82f6'
+                      e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'translateY(0px)'
+                      e.currentTarget.style.borderColor = '#1e293b'
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>HC · {patient.medical_record_number || '—'}</div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{patient.full_name}</h3>
+                      </div>
+                      <span className="badge badge-success">{patient.status || 'Activo'}</span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc' }}>{patient.dni || patient.document_number || '—'}</strong></div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc' }}>{patient.phone || '—'}</strong></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', wordBreak: 'break-all' }}>{patient.email || '—'}</strong></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Registro</span><strong style={{ color: '#f8fafc' }}>{formatDate(patient.created_at)}</strong></div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ID #{patient.id}</span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          style={{ backgroundColor: '#ef4444', border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(patient); }}
+                        >
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+
+      <ConfirmDialog
+        open={Boolean(confirmDelete)}
+        title="Eliminar paciente"
+        message={confirmDelete ? `Eliminarás el registro de ${confirmDelete.full_name}. Esta acción no se puede deshacer.` : ''}
+        confirmLabel="Sí, eliminar"
+        danger
+        onCancel={() => setConfirmDelete(null)}
+        onConfirm={deletePatient}
+      />
+      onClick={() => {
+        console.log("Objeto documento completo:", doc); // Revisa esto en la consola (F12)
+        setPreviewDocument(doc);
+      }}
+    {/* MODAL DE PREVISIÓN A PANTALLA COMPLETA */}
+      {previewDocument && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          padding: '2rem',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            backgroundColor: '#0f172a',
+            border: '1px solid #334155',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '1200px',
+            height: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+            overflow: 'hidden'
+          }}>
+            {/* Cabecera del Modal */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #1e293b' }}>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
+                  {previewDocument.title || previewDocument.name || 'Documento clínico'}
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Registrado el {formatDate(previewDocument.created_at)}</span>
+              </div>
+              <button 
+                onClick={() => setPreviewDocument(null)}
+                style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Cuerpo principal dividido en dos columnas: Visor PDF + Detalles */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', flex: 1, overflow: 'hidden' }}>
+              
+              {/* Columna Izquierda: Visor del PDF */}
+              <div style={{ backgroundColor: '#090d16', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {previewDocument.file_url || previewDocument.url ? (
+                  <iframe 
+                    src={previewDocument.file_url || previewDocument.url} 
+                    title="Vista previa del PDF"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'center', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#64748b', fontSize: '0.875rem' }}>
+                    No hay una ruta de archivo disponible para visualizar.
+                  </div>
+                )}
+              </div>
+
+              {/* Columna Derecha: Información del documento */}
+              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', backgroundColor: 'rgba(15, 23, 42, 0.4)' }}>
+                <div>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Descripción</h4>
+                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
+                    {previewDocument.description || 'Sin descripción adicional proporcionada para este archivo.'}
+                  </p>
+                </div>
+
+                <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Nombre del archivo</span>
+                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0', wordBreak: 'break-all' }}>{previewDocument.name || previewDocument.title || '—'}</p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Fecha de carga</span>
+                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0' }}>{formatDate(previewDocument.created_at)}</p>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {(previewDocument.file_url || previewDocument.url) && (
+                    <a
+                      href={previewDocument.file_url || previewDocument.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ backgroundColor: '#1e293b', color: '#f8fafc', textAlign: 'center', padding: '0.65rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', border: '1px solid #334155' }}
+                    >
+                      Abrir en pestaña nueva ↗
+                    </a>
+                  )}
+                  <button
+                    onClick={() => setPreviewDocument(null)}
+                    style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.65rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Cerrar ventana
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ============================================================
+// Consultations
+// ============================================================
+
+export function Consultations() {
+  const [consultations, setConsultations] = useState([])
+  const [patients, setPatients] = useState([])
+  const [query, setQuery] = useState('')
+  const [patientQuery, setPatientQuery] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [form, setForm] = useState(INITIAL_CONSULTATION)
+  const [toast, notify, clearToast] = useToast()
+  const debouncedQuery = useDebouncedValue(query)
+  const debouncedPatientQuery = useDebouncedValue(patientQuery, 250)
+  const loadConsultations = useCallback(async (q = '') => {
+    setLoading(true)
+    try {
+      const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`)
+      if (!res.ok) throw new Error('No se pudo cargar el historial')
+      setConsultations(await res.json() || [])
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [notify])
+
+  const searchPatients = useCallback(async (q = '') => {
+    try {
+      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
+      if (!res.ok) return
+      const data = await res.json() || []
+      setPatients(data)
+      if (data.length === 1) setForm(prev => ({ ...prev, patient_id: data[0].id }))
+    } catch (error) {
+      console.error(error)
+    }
+  }, [])
+
+  useEffect(() => { loadConsultations() }, [loadConsultations])
+  useEffect(() => {
+    if (!showForm) loadConsultations(debouncedQuery)
+  }, [debouncedQuery, showForm, loadConsultations])
+  useEffect(() => {
+    if (showForm) searchPatients(debouncedPatientQuery)
+  }, [debouncedPatientQuery, showForm, searchPatients])
+
+  const updateTriage = (field, value) => {
+    const next = { ...form, [field]: value }
+    if (field === 'weight_kg' || field === 'height_cm') {
+      next.bmi = calculateBMI(field === 'weight_kg' ? value : form.weight_kg, field === 'height_cm' ? value : form.height_cm)
+    }
+    setForm(next)
+  }
+
+  const submit = async event => {
+    event.preventDefault()
+    if (!form.patient_id) return notify('Selecciona un paciente antes de guardar.', 'error')
+    setSubmitting(true)
+    try {
+      const res = await apiFetch('/consultations', { method: 'POST', body: JSON.stringify(form) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo registrar la consulta')
+      notify('Consulta registrada correctamente.', 'success', 'Atención guardada')
+      setForm(INITIAL_CONSULTATION)
+      setPatientQuery('')
+      setShowForm(false)
+      await loadConsultations(query)
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const selectedPatient = useMemo(() => patients.find(p => String(p.id) === String(form.patient_id)), [patients, form.patient_id])
+  const bmiState = getBMIState(form.bmi)
+
+  return (
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+
+      {/* MARCO GENERAL ESTILO DOCUMENTO */}
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+
+        {/* CABECERA Y ACCIONES */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+              {showForm ? 'Nueva consulta médica' : 'Consultas médicas'}
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
+              {showForm ? 'Registra atención, triaje, diagnóstico y tratamiento desde una sola vista.' : 'Explora y gestiona el historial de atención.'}
+            </p>
+          </div>
+
+          <div>
+            {!showForm ? (
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                onClick={() => { setForm(INITIAL_CONSULTATION); setShowForm(true); }}
+              >
+                + Nueva consulta
+              </button>
+            ) : (
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                onClick={() => setShowForm(false)}
+              >
+                ← Volver al historial
+              </button>
+            )}
+          </div>
+        </div>
+
+        <Toast toast={toast} onClose={clearToast} />
+
+        {!showForm ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
+
+            {/* SECCIÓN DE BÚSQUEDA */}
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Buscar en el historial</h3>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Filtra por paciente, diagnóstico, motivo o médico.</p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <SearchField value={query} onChange={setQuery} placeholder="Paciente, diagnóstico, motivo o médico…" loading={loading} />
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{consultations.length} consultas</span>
+              </div>
+            </div>
+
+            {/* LISTADO DE CONSULTAS CON EFECTO HOVER ELEVADO */}
+            {loading ? (
+              <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando consultas…" /></div>
+            ) : consultations.length === 0 ? (
+              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
+                <EmptyState icon="🩺" title="No hay consultas coincidentes" description="Prueba con otros términos de búsqueda." />
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
+                {consultations.map(item => (
+                  <article
+                    key={item.id}
+                    style={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                      border: '1px solid #1e293b',
+                      borderRadius: '16px',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+                      transition: 'all 0.25s ease-in-out'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'translateY(-4px)'
+                      e.currentTarget.style.borderColor = '#3b82f6'
+                      e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'translateY(0px)'
+                      e.currentTarget.style.borderColor = '#1e293b'
+                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formatDate(item.created_at)}</div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{item.patient_name || `Paciente #${item.patient_id}`}</h3>
+                      </div>
+                      <span className="badge badge-info">#{item.id}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.825rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Motivo:</strong> {item.reason || 'Consulta general'}</p>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Diagnóstico:</strong> {item.diagnosis || '—'}</p>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Médico:</strong> {item.doctor_name || 'No asignado'}</p>
+                    </div>
+
+                    {(item.weight_kg || item.height_cm || item.bmi) && (
+                      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.25rem' }}>
+                        <span>⚖ {item.weight_kg ?? '—'} kg</span>
+                        <span>↕ {item.height_cm ?? '—'} cm</span>
+                        <span>IMC {item.bmi ?? '—'}</span>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+            {/* PACIENTE Y ATENCIÓN */}
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Paciente y atención</h3>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Selecciona al paciente y registra el contexto de la atención.</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Buscar paciente *</label>
+                  <SearchField value={patientQuery} onChange={setPatientQuery} placeholder="Nombre o DNI…" loading={!patients.length && Boolean(patientQuery)} />
+                  {patients.length > 0 && (
+                    <div className="suggestions-panel" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+                      {patients.slice(0, 6).map(patient => (
+                        <button type="button" key={patient.id} className={cx('suggestion-item', String(patient.id) === String(form.patient_id) && 'selected')} onClick={() => { setForm(p => ({ ...p, patient_id: patient.id })); setPatientQuery(patient.full_name) }} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: String(patient.id) === String(form.patient_id) ? '#1e293b' : 'transparent', border: 'none', color: '#f8fafc', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
+                          <span className="avatar-mini" style={{ width: '28px', height: '28px', backgroundColor: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem' }}>{patient.full_name?.charAt(0)?.toUpperCase() || 'P'}</span>
+                          <span style={{ display: 'flex', flexDirection: 'column' }}><strong>{patient.full_name}</strong><small style={{ color: '#94a3b8' }}>DNI {patient.dni || patient.document_number || '—'}</small></span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Paciente seleccionado *</label>
+                  <select required style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
+                    <option value="">Seleccionar</option>
+                    {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.dni || p.document_number || 'Sin documento'}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Médico tratante</label>
+                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Motivo</label>
+                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} placeholder="Ej. chequeo de rutina, dolor de cabeza…" />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Síntomas</label>
+                  <textarea rows={3} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }} value={form.symptoms} onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))} placeholder="Describe los síntomas reportados" />
+                </div>
+              </div>
+              {selectedPatient && <InlineAlert type="success">Paciente seleccionado: <strong>{selectedPatient.full_name}</strong> · HC {selectedPatient.medical_record_number || '—'}</InlineAlert>}
+            </div>
+
+            {/* TRIAJE Y SIGNOS VITALES */}
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y signos vitales</h3>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>El IMC se calcula automáticamente a partir del peso y la talla.</p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
+                  <input type="number" min="0" step="0.1" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.weight_kg} onChange={e => updateTriage('weight_kg', e.target.value)} placeholder="70.5" />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
+                  <input type="number" min="0" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.height_cm} onChange={e => updateTriage('height_cm', e.target.value)} placeholder="170" />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>IMC</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%' }} value={form.bmi} readOnly placeholder="0.00" />
+                    <span className={cx('badge', `badge-${bmiState.tone === 'neutral' ? 'info' : bmiState.tone}`)}>{bmiState.label}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Presión arterial</label>
+                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.blood_pressure} onChange={e => setForm(p => ({ ...p, blood_pressure: e.target.value }))} placeholder="120/80" />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro abdominal (cm)</label>
+                  <input type="number" min="0" step="0.1" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.abdominal_perimeter_cm} onChange={e => setForm(p => ({ ...p, abdominal_perimeter_cm: e.target.value }))} placeholder="85" />
+                </div>
+              </div>
+            </div>
+
+            {/* DIAGNÓSTICO Y TRATAMIENTO */}
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y tratamiento</h3>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico</label>
+                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.diagnosis} onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="Escribe el diagnóstico" />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Plan de tratamiento</label>
+                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.treatment} onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))} placeholder="Indicaciones generales" />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Receta / prescripción</label>
+                  <textarea rows={4} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }} value={form.prescription} onChange={e => setForm(p => ({ ...p, prescription: e.target.value }))} placeholder="Medicamento, dosis y frecuencia…" />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
+                <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setShowForm(false)}>Cancelar</button>
+                <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }} disabled={submitting}>{submitting ? 'Guardando…' : 'Guardar consulta'}</button>
+              </div>
+            </div>
+
+          </form>
+        )}
+
+      </div>
+    </div>
+  )
+}
+// ============================================================
+// Locations
+// ============================================================
+
+export function Locations() {
+  const [items, setItems] = useState([])
+  const [selectedArea, setSelectedArea] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [loadingDetail, setLoadingDetail] = useState(false)
+  const [showNewArea, setShowNewArea] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newDescription, setNewDescription] = useState('')
+  const [saving, setSaving] = useState(false)
+  const { user } = useAuth()
+  const [toast, notify, clearToast] = useToast()
+  const canEdit = isAdminUser(user)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await apiFetch('/locations')
+      if (!res.ok) throw new Error('No se pudieron cargar las áreas')
+      setItems(await res.json() || [])
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally { setLoading(false) }
+  }, [notify])
+
+  const loadDetail = useCallback(async id => {
+    setLoadingDetail(true)
+    try {
+      const res = await apiFetch(`/locations/${id}`)
+      if (!res.ok) throw new Error('No se pudo cargar el detalle')
+      setDetail(await res.json())
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally { setLoadingDetail(false) }
+  }, [notify])
+
+  useEffect(() => { load() }, [load])
+  useEffect(() => { if (selectedArea) loadDetail(selectedArea) }, [selectedArea, loadDetail])
+
+  const submit = async event => {
+    event.preventDefault()
+    if (!newName.trim()) return notify('Ingresa un nombre para el área.', 'error')
+    setSaving(true)
+    try {
+      const res = await apiFetch('/locations', { method: 'POST', body: JSON.stringify({ name: newName.trim(), description: newDescription.trim() }) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo crear el área')
+      notify('Área creada correctamente.', 'success')
+      setNewName(''); setNewDescription(''); setShowNewArea(false)
+      await load()
+      if (json.id) setSelectedArea(json.id)
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+
+      {/* MARCO GENERAL ESTILO DOCUMENTO */}
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+
+        {/* CABECERA Y ACCIONES */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+              Áreas del hospital
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
+              Visualiza capacidad operativa, dispositivos y alertas por área.
+            </p>
+          </div>
+
+          <div>
+            {canEdit && (
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                onClick={() => setShowNewArea(v => !v)}
+              >
+                {showNewArea ? 'Cancelar' : '＋ Agregar área'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* FORMULARIO DE NUEVA ÁREA */}
+        {showNewArea && (
+          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Nueva área</h3>
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Completa la información para registrar una nueva zona.</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre *</label>
+                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej. UCI, Emergencias…" />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Descripción</label>
+                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Descripción breve" />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
+              <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setShowNewArea(false)}>Cancelar</button>
+              <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Crear área'}</button>
+            </div>
+          </form>
+        )}
+
+        {/* MAPA OPERATIVO */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Mapa operativo</h3>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{items.length} áreas disponibles.</p>
+          </div>
+
+          {loading ? (
+            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState /></div>
+          ) : items.length === 0 ? (
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
+              <EmptyState icon="◈" title="No hay áreas registradas" description="Crea una nueva área para empezar." />
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
+              {items.map(area => {
+                const isSelected = selectedArea === area.id;
+                return (
+                  <button
+                    key={area.id}
+                    type="button"
+                    onClick={() => setSelectedArea(area.id)}
+                    style={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                      border: `1px solid ${isSelected ? '#3b82f6' : '#1e293b'}`,
+                      borderRadius: '16px',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+                      transition: 'all 0.25s ease-in-out'
+                    }}
+                    onMouseEnter={e => {
+                      if (!isSelected) {
+                        e.currentTarget.style.transform = 'translateY(-4px)'
+                        e.currentTarget.style.borderColor = '#3b82f6'
+                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!isSelected) {
+                        e.currentTarget.style.transform = 'translateY(0px)'
+                        e.currentTarget.style.borderColor = '#1e293b'
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Área #{area.id}</div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0' }}>{area.name}</h3>
+                      </div>
+                      <span className={cx('status-dot', (area.active_alerts ?? 0) > 0 ? 'warning' : 'success')} style={{ width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }} />
+                    </div>
+
+                    <p style={{ fontSize: '0.825rem', color: '#94a3b8', margin: 0 }}>{area.description || 'Sin descripción registrada'}</p>
+
+                    <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#cbd5e1', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', width: '100%' }}>
+                      <span><strong>{area.device_count ?? 0}</strong> dispositivos</span>
+                      <span><strong>{area.active_alerts ?? 0}</strong> alertas</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* DETALLE DE ÁREA SELECCIONADA */}
+        {selectedArea && (
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
+                  Detalle · {detail?.name || `Área #${selectedArea}`}
+                </h3>
+              </div>
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer' }}
+                onClick={() => { setSelectedArea(null); setDetail(null); }}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {loadingDetail ? (
+              <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando detalle…" /></div>
+            ) : detail ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <StatCard icon="👥" label="Usuarios" value={detail.user_count ?? '—'} tone="primary" />
+                <StatCard icon="📟" label="Dispositivos" value={detail.device_count ?? 0} tone="success" />
+                <StatCard icon="⚠" label="Alertas activas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
+              </div>
+            ) : (
+              <EmptyState title="Sin información de detalle" />
+            )}
+          </div>
+        )}
+
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Devices / audit
+// ============================================================
+
 export function Devices() {
   const [devices, setDevices] = useState([])
   const [locations, setLocations] = useState([])
-  const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(false)
-
+  const [clientInfo, setClientInfo] = useState({ ip: 'No disponible', userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '' })
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('all')
   const { user } = useAuth()
-  const [clientInfo, setClientInfo] = useState({ ip: 'Obteniendo...', userAgent: navigator.userAgent })
+  const [toast, notify, clearToast] = useToast()
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [message, setMessage] = useState({ text: '', type: '' })
-
-  const showMessage = (text, type = 'info') => {
-    setMessage({ text, type })
-    setTimeout(() => setMessage({ text: '', type: '' }), 4000)
-  }
-
-  async function loadData() {
+  const load = useCallback(async () => {
+    setLoading(true)
     try {
-      const [devRes, locRes, logsRes] = await Promise.all([
-        apiFetch('/devices'),
-        apiFetch('/locations'),
-        apiFetch('/device_actions')
-      ])
-      if (devRes.ok) setDevices(await devRes.json() || [])
-      if (locRes.ok) setLocations(await locRes.json() || [])
-      if (logsRes.ok) {
-        const logsData = await logsRes.json()
-        setLogs(Array.isArray(logsData) ? logsData : (logsData.items || []))
-      }
-    } catch (err) {
-      showMessage('Error de conexión al cargar datos', 'error')
-    }
-  }
+      const [devRes, locRes] = await Promise.all([apiFetch('/devices'), apiFetch('/locations')])
+      if (!devRes.ok || !locRes.ok) throw new Error('No se pudo cargar el inventario')
+      setDevices(await devRes.json() || [])
+      setLocations(await locRes.json() || [])
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally { setLoading(false) }
+  }, [notify])
 
   useEffect(() => {
-    async function initDeviceModule() {
-      setLoading(true)
-      let fetchedIp = '127.0.0.1'
-
-      try {
-        const ipRes = await fetch('https://api.ipify.org?format=json')
-        if (ipRes.ok) {
-          const ipData = await ipRes.json()
-          fetchedIp = ipData.ip || '127.0.0.1'
+    load()
+      ; (async () => {
+        try {
+          const res = await fetch('https://api.ipify.org?format=json')
+          if (res.ok) {
+            const data = await res.json()
+            setClientInfo(v => ({ ...v, ip: data.ip || v.ip }))
+          }
+        } catch (error) {
+          console.warn(error)
         }
-      } catch (e) {
-        console.warn('No se pudo determinar la IP pública:', e)
-      }
+      })()
+  }, [load])
 
-      setClientInfo({
-        ip: fetchedIp,
-        userAgent: navigator.userAgent
-      })
+  const filteredDevices = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return devices.filter(device => {
+      const matchesQuery = !q || [device.name, device.type, device.ip_address].filter(Boolean).some(value => String(value).toLowerCase().includes(q))
+      const matchesStatus = status === 'all' || device.status === status
+      return matchesQuery && matchesStatus
+    })
+  }, [devices, search, status])
 
-      await loadData()
-
-      try {
-        await apiFetch('/device_actions', {
-          method: 'POST',
-          body: JSON.stringify({
-            action_type: 'READ_DEVICES_MODULE',
-            entity_type: 'devices',
-            user_id: user?.id || null,
-            username: user?.username || 'Anónimo',
-            user_role: user?.role || 'Desconocido',
-            ip_address: fetchedIp,
-            user_agent: navigator.userAgent,
-            details: `Consulta al módulo de dispositivos realizada por ${user?.username || 'Usuario'}`
-          })
-        })
-      } catch (err) {
-        console.error('Error al registrar log inicial:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    initDeviceModule()
-  }, [])
-
-  const filteredDevices = devices.filter(d => {
-    const q = searchQuery.toLowerCase()
-    const matchesQuery = !q || d.name?.toLowerCase().includes(q) || d.type?.toLowerCase().includes(q) || d.ip_address?.includes(q)
-    const matchesStatus = statusFilter === 'all' || d.status === statusFilter
-    return matchesQuery && matchesStatus
-  })
+  const locationMap = useMemo(() => new Map(locations.map(location => [String(location.id), location.name])), [locations])
 
   return (
-    <div className="card">
-      {message.text && (
-        <div className={`form-message ${message.type === 'error' ? 'error' : ''}`} style={{ marginBottom: 12 }}>
-          {message.type === 'success' ? '✅ ' : '⚠️ '}
-          {message.text}
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+
+      {/* MARCO GENERAL ESTILO DOCUMENTO */}
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+
+        {/* CABECERA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+              Dispositivos y auditoría
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
+              Inventario operativo y contexto de trazabilidad del cliente.
+            </p>
+          </div>
         </div>
-      )}
 
-      {/* BLOQUE DE AUDITORÍA DE LA SESIÓN */}
-      <div style={{ background: '#f8f9fa', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #e9ecef' }}>
-        <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#495057' }}>🔒 Contexto de Auditoría Detectado:</h4>
-        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '6px', fontSize: '0.85rem' }}>
-          <span><strong>Usuario:</strong> {user?.username || 'Anónimo'} ({user?.role || 'Sin rol'})</span>
-          <span><strong>IP Equipo:</strong> <code style={{ background: '#e9ecef', padding: '2px 6px', borderRadius: '4px' }}>{clientInfo.ip}</code></span>
-          <span><strong>Navegador:</strong> {parseBrowser(clientInfo.userAgent)}</span>
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* ALERTA DE SESIÓN */}
+        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '1rem', fontSize: '0.875rem', color: '#93c5fd' }}>
+          <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · {getUserRole(user)} · IP {clientInfo.ip} · {parseBrowser(clientInfo.userAgent)}
         </div>
-      </div>
 
-      <div>
-        <h2>Auditoría y Gestión de Dispositivos</h2>
-        <p className="muted">Consulta de equipos registrados y trazabilidad inmutable de acciones del sistema.</p>
-      </div>
+        {/* INVENTARIO DE DISPOSITIVOS */}
+        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Inventario de dispositivos</h3>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{filteredDevices.length} dispositivos visibles.</p>
+          </div>
 
-      <div className="collection-toolbar" style={{ marginTop: 16, gap: 12 }}>
-        <label className="collection-search" style={{ flex: '1 1 200px' }}>
-          <span>Buscar dispositivo</span>
-          <input
-            type="text"
-            placeholder="Buscar por nombre, tipo o IP..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-          />
-        </label>
-        <label style={{ flex: '0 0 160px' }}>
-          <span>Estado</span>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-            <option value="all">Todos</option>
-            <option value="available">Disponible</option>
-            <option value="in_use">En Uso</option>
-            <option value="maintenance">Mantenimiento</option>
-          </select>
-        </label>
-      </div>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: '240px' }}>
+              <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo o IP…" loading={loading} />
+            </div>
+            <select style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={status} onChange={e => setStatus(e.target.value)}>
+              <option value="all">Todos los estados</option>
+              <option value="available">Disponible</option>
+              <option value="in_use">En uso</option>
+              <option value="maintenance">Mantenimiento</option>
+              <option value="active">Activo</option>
+            </select>
+          </div>
 
-      {loading ? (
-        <p style={{ marginTop: 20 }}>Cargando datos y registrando trazabilidad...</p>
-      ) : filteredDevices.length === 0 ? (
-        <p className="muted" style={{ marginTop: 20, textAlign: 'center' }}>No hay dispositivos registrados que coincidan con la búsqueda.</p>
-      ) : (
-        <div style={{ overflowX: 'auto', marginTop: 16 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>IP Vinculada</th>
-                <th>Navegador Detectado</th>
-                <th>Ubicación</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDevices.map(d => {
-                const locName = locations.find(l => String(l.id) === String(d.location_id))?.name || 'Sin asignación'
-                return (
-                  <tr key={d.id}>
-                    <td>{d.id}</td>
-                    <td><strong>{d.name}</strong></td>
-                    <td>{d.type || 'N/A'}</td>
-                    <td><code>{d.ip_address || '—'}</code></td>
-                    <td>{parseBrowser(d.user_agent)}</td>
-                    <td>{locName}</td>
-                    <td><span className={`badge ${d.status}`}>{d.status}</span></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+          {loading ? (
+            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando dispositivos…" /></div>
+          ) : filteredDevices.length === 0 ? (
+            <EmptyState icon="📟" title="No hay dispositivos" description="No se encontraron elementos con los filtros seleccionados." />
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              {filteredDevices.map(row => (
+                <div
+                  key={row.id}
+                  style={{
+                    backgroundColor: '#090d16',
+                    border: '1px solid #1e293b',
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+                    transition: 'all 0.25s ease-in-out'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-3px)'
+                    e.currentTarget.style.borderColor = '#3b82f6'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0px)'
+                    e.currentTarget.style.borderColor = '#1e293b'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>#{row.id}</span>
+                    <span className={cx('badge', row.status === 'available' || row.status === 'active' ? 'badge-success' : row.status === 'maintenance' ? 'badge-warning' : 'badge-info')}>
+                      {row.status || '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{row.name}</strong>
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.type || '—'}</div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
+                    <span>IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></span>
+                    <span>Ubicación: {locationMap.get(String(row.location_id)) || 'Sin asignación'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      {/* BITÁCORA DE AUDITORÍA RECIENTE */}
-      <div style={{ marginTop: 32, paddingTop: 20, borderTop: '1px solid #e9ecef' }}>
-        <h3>Registros de Auditoría Recientes</h3>
-        <div style={{ overflowX: 'auto', marginTop: 12 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Fecha y Hora</th>
-                <th>Acción</th>
-                <th>Usuario / Perfil</th>
-                <th>IP Origen</th>
-                <th>Navegador / Equipo</th>
-                <th>Detalles</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.length === 0 ? (
-                <tr><td colSpan="6" style={{ textAlign: 'center' }}>No existen registros de auditoría almacenados.</td></tr>
-              ) : (
-                logs.map(log => (
-                  <tr key={log.id}>
-                    <td>{log.created_at ? new Date(log.created_at).toLocaleString() : '—'}</td>
-                    <td><span className="badge">{log.action_type}</span></td>
-                    <td>
-                      <strong>{log.username || log.user_id || 'Anónimo'}</strong>
-                      {log.user_role && <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>{log.user_role}</div>}
-                    </td>
-                    <td><code>{log.ip_address || 'Sin IP'}</code></td>
-                    <td style={{ fontSize: '0.8rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={log.user_agent}>
-                      {parseBrowser(log.user_agent)}
-                    </td>
-                    <td>{log.details || '—'}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   )
@@ -1278,1416 +1616,1081 @@ export function Devices() {
 
 export function DeviceActions() {
   const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [perPage] = useState(20)
   const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [toast, notify, clearToast] = useToast()
 
-  const [filterAction, setFilterAction] = useState('')
-  const [filterIP, setFilterIP] = useState('')
-  const [filterUser, setFilterUser] = useState('')
-
-  async function loadLogs() {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
-      const q = new URLSearchParams()
-      q.set('page', page)
-      q.set('per_page', perPage)
-      if (filterAction) q.set('action_type', filterAction)
-      if (filterIP) q.set('ip', filterIP)
-      if (filterUser) q.set('user_id', filterUser)
+      const params = new URLSearchParams({ page, per_page: perPage })
+      const res = await apiFetch(`/device_actions?${params.toString()}`)
+      if (!res.ok) throw new Error('No se pudo cargar la bitácora')
+      const data = await res.json()
+      const list = Array.isArray(data) ? data : data.items || []
+      setItems(list); setTotal(data.total || list.length)
+    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
+  }, [page, perPage, notify])
 
-      const res = await apiFetch('/device_actions?' + q.toString())
-      if (res.ok) {
-        const data = await res.json()
-        const logsList = Array.isArray(data) ? data : (data.items || [])
-        setItems(logsList)
-        setTotal(data.total || logsList.length)
-      } else {
-        setItems([])
-      }
-    } catch (err) {
-      console.error('Error al cargar la bitácora de auditoría:', err)
-      setItems([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadLogs()
-  }, [page, filterAction, filterIP, filterUser])
+  useEffect(() => { load() }, [load])
 
   return (
-    <div className="card">
-      <h2>Bitácora de Auditoría del Sistema</h2>
-      <p className="muted">Registro unificado de eventos y acciones de seguridad.</p>
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
 
-      <div className="collection-toolbar" style={{ marginTop: 16, gap: 12 }}>
-        <label style={{ flex: '1 1 180px' }}>
-          <span>Tipo de Acción</span>
-          <input
-            type="text"
-            value={filterAction}
-            onChange={e => { setPage(1); setFilterAction(e.target.value) }}
-            placeholder="Ej. READ, CREATE, DELETE..."
-          />
-        </label>
-        <label style={{ flex: '1 1 180px' }}>
-          <span>Dirección IP</span>
-          <input
-            type="text"
-            value={filterIP}
-            onChange={e => { setPage(1); setFilterIP(e.target.value) }}
-            placeholder="Ej. 192.168.1.1"
-          />
-        </label>
-        <label style={{ flex: '1 1 180px' }}>
-          <span>Usuario / Rol</span>
-          <input
-            type="text"
-            value={filterUser}
-            onChange={e => { setPage(1); setFilterUser(e.target.value) }}
-            placeholder="Ej. admin..."
-          />
-        </label>
-      </div>
+      {/* MARCO GENERAL ESTILO DOCUMENTO */}
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
 
-      {loading ? (
-        <p style={{ marginTop: 20 }}>Cargando registros de auditoría...</p>
-      ) : items.length === 0 ? (
-        <p className="muted" style={{ marginTop: 20, textAlign: 'center' }}>
-          No se encontraron eventos registrados con los criterios especificados.
-        </p>
-      ) : (
-        <div style={{ overflowX: 'auto', marginTop: 16 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Fecha y Hora</th>
-                <th>Acción</th>
-                <th>Usuario</th>
-                <th>Rol</th>
-                <th>IP Origen</th>
-                <th>Navegador / Equipo</th>
-                <th>Detalles del Evento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(log => (
-                <tr key={log.id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
-                  </td>
-                  <td>
-                    <span className="badge">{log.action_type || 'ACCION'}</span>
-                  </td>
-                  <td>
-                    <strong>{log.username || log.user_id || 'Anónimo'}</strong>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '0.85rem', color: '#6c757d' }}>
-                      {log.user_role || 'Sin rol'}
-                    </span>
-                  </td>
-                  <td>
-                    <code>{log.ip_address || 'Sin IP'}</code>
-                  </td>
-                  <td style={{ fontSize: '0.85rem' }} title={log.user_agent}>
-                    {parseBrowser(log.user_agent)}
-                  </td>
-                  <td style={{ fontSize: '0.9rem' }}>
-                    {log.details || '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* CABECERA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+              Bitácora de auditoría
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
+              Eventos de seguridad y trazabilidad registrados por el sistema.
+            </p>
+          </div>
         </div>
-      )}
 
-      <div className="pagination-footer" style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button className="button secondary sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-          ← Anterior
-        </button>
-        <span style={{ fontSize: '0.85rem', color: '#6c757d' }}>
-          Página <strong>{page}</strong> · Total de eventos: <strong>{total}</strong>
-        </span>
-        <button className="button secondary sm" disabled={page * perPage >= total} onClick={() => setPage(page + 1)}>
-          Siguiente →
-        </button>
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* EVENTOS RECIENTES */}
+        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Eventos recientes</h3>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Registro histórico de actividades del sistema.</p>
+          </div>
+
+          {loading ? (
+            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando registros…" /></div>
+          ) : items.length === 0 ? (
+            <EmptyState icon="◷" title="No hay eventos en esta página" description="No se registran actividades recientes." />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {items.map(row => (
+                <div
+                  key={row.id}
+                  style={{
+                    backgroundColor: '#090d16',
+                    border: '1px solid #1e293b',
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '1rem',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+                    transition: 'all 0.2s ease-in-out'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#1e293b'}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{formatDateTime(row.created_at)}</span>
+                    <span className="badge badge-info" style={{ width: 'fit-content' }}>{row.action_type || 'ACCIÓN'}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
+                    <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>{row.username || row.user_id || 'Anónimo'}</strong>
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.details || '—'}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#94a3b8', alignItems: 'center' }}>
+                    <span>Rol: <strong style={{ color: '#cbd5e1' }}>{row.user_role || 'Sin rol'}</strong></span>
+                    <span>IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Pagination page={page} perPage={perPage} total={total} onPrev={() => setPage(v => Math.max(1, v - 1))} onNext={() => setPage(v => v + 1)} />
+        </div>
+
       </div>
     </div>
   )
 }
+
+// ============================================================
+// Appointments
+// ============================================================
+
 export function Appointments() {
   const [appointments, setAppointments] = useState([])
   const [patients, setPatients] = useState([])
-  const [patientQuery, setPatientQuery] = useState('')
+  const [patientSearch, setPatientSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [toast, notify, clearToast] = useToast()
   const [form, setForm] = useState({ patient_id: '', doctor_name: 'Dra. Mendoza', specialty: 'Cardiología', appointment_date: '', notes: '' })
-  const [message, setMessage] = useState('')
+  const debouncedPatientSearch = useDebouncedValue(patientSearch, 250)
 
-  async function loadAppointments() {
+  const loadAppointments = useCallback(async () => {
     const res = await apiFetch('/appointments')
     if (res.ok) setAppointments(await res.json() || [])
-  }
-
-  async function searchPatients(query = '') {
-    const res = await apiFetch(`/patients?q=${encodeURIComponent(query)}`)
-    if (res.ok) setPatients(await res.json() || [])
-  }
-
-  useEffect(() => {
-    loadAppointments()
-    searchPatients()
   }, [])
 
-  async function submit(e) {
-    e.preventDefault()
-    setMessage('')
-    if (form.appointment_date) {
-      const selected = new Date(form.appointment_date)
-      const now = new Date()
-      if (selected < now) {
-        setMessage('No se puede programar una cita en una fecha anterior a la actual')
-        return
-      }
-    }
-    const res = await apiFetch('/appointments', { method: 'POST', body: JSON.stringify(form) })
-    if (res.ok) {
-      setMessage('Cita creada')
+  const searchPatients = useCallback(async q => {
+    const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
+    if (res.ok) setPatients(await res.json() || [])
+  }, [])
+
+  useEffect(() => { loadAppointments(); searchPatients('') }, [loadAppointments, searchPatients])
+  useEffect(() => { if (showForm) searchPatients(debouncedPatientSearch) }, [debouncedPatientSearch, showForm, searchPatients])
+
+  const submit = async event => {
+    event.preventDefault()
+    setSaving(true)
+    try {
+      const res = await apiFetch('/appointments', { method: 'POST', body: JSON.stringify(form) })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.message || 'No se pudo programar la cita')
+      notify('Cita agendada correctamente.', 'success', 'Agenda actualizada')
       setForm({ patient_id: '', doctor_name: 'Dra. Mendoza', specialty: 'Cardiología', appointment_date: '', notes: '' })
+      setPatientSearch('')
       setShowForm(false)
-      loadAppointments()
-    } else {
-      const json = await res.json().catch(() => ({}))
-      setMessage(json.message || 'Error al crear cita')
-    }
+      await loadAppointments()
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally { setSaving(false) }
   }
+
+  const sorted = useMemo(() => [...appointments].sort((a, b) => new Date(a.appointment_date) - new Date(b.appointment_date)), [appointments])
 
   return (
-    <div>
-      <div className="card">
-        <div className="card-header-row">
-          <h2>Programar cita</h2>
-          {!showForm && (
-            <button type="button" className="button add-button" onClick={() => { setShowForm(true); setMessage('') }}>
-              Agregar
-            </button>
-          )}
-        </div>
-        {showForm && (
-          <div className="form-card">
-            <form onSubmit={submit}>
-              <label>
-                Buscar DNI del paciente
-                <input value={patientQuery} onChange={e => setPatientQuery(e.target.value)} placeholder="DNI o nombre" />
-              </label>
-              <button type="button" onClick={() => { if (!patientQuery || !patientQuery.trim()) { setMessage('Introduce un DNI o nombre para filtrar'); return } searchPatients(patientQuery) }} style={{ marginBottom: 12 }}>
-                Filtrar pacientes
-              </button>
-              <label>
-                Paciente *
-                <select required value={form.patient_id} onChange={e => setForm({ ...form, patient_id: e.target.value })}>
-                  <option value="">Seleccionar paciente</option>
-                  {patients.map(patient => (
-                    <option key={patient.id} value={patient.id}>{patient.full_name} — {patient.dni}</option>
-                  ))}
-                </select>
-              </label>
-              <label>Médico<input value={form.doctor_name} onChange={e => setForm({ ...form, doctor_name: e.target.value })} /></label>
-              <label>Especialidad
-                <select value={form.specialty} onChange={e => setForm({ ...form, specialty: e.target.value })}>
-                  <option value="">Seleccionar especialidad</option>
-                  <option>Cardiología</option>
-                  <option>Pediatría</option>
-                  <option>Medicina General</option>
-                  <option>Dermatología</option>
-                  <option>Ginecología</option>
-                </select>
-              </label>
-              <label>Fecha y Hora *
-                <input required type="datetime-local" min={new Date().toISOString().slice(0,16)} value={form.appointment_date} onChange={e => setForm({ ...form, appointment_date: e.target.value })} />
-              </label>
-              <label>Notas<input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></label>
-              <div className="button-row">
-                <button type="submit">Guardar cita</button>
-                <button type="button" className="secondary" onClick={() => { setShowForm(false); setMessage('') }}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-            {message && <div className="form-message">{message}</div>}
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+
+      {/* MARCO GENERAL ESTILO DOCUMENTO */}
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+
+        {/* CABECERA Y ACCIONES */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+              Citas médicas
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
+              Agenda, organiza y revisa las próximas atenciones.
+            </p>
           </div>
-        )}
-      </div>
-      <div className="card">
-        <h2>Citas programadas</h2>
-        <p className="collection-total">Número total de elementos: {appointments.length}</p>
-        {appointments.length === 0 ? (
-          <p className="muted">No hay citas programadas.</p>
-        ) : (
-          <div className="items-grid">
-            {appointments.map(item => (
-              <div key={item.id} className="item-card">
-                <h3>{item.specialty}</h3>
-                <p>ID: {item.id}</p>
-                <p>{item.doctor_name}</p>
-                <p>{item.appointment_date}</p>
-                <p>{item.notes || 'Sin notas'}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
-
-
-export function Documents() {
-  const [documents, setDocuments] = useState([])
-  const [patients, setPatients] = useState([])
-  const [patientQuery, setPatientQuery] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({
-    patient_id: '',
-    document_type: 'result',
-    file_name: '',
-    description: ''
-  })
-  const [selectedFile, setSelectedFile] = useState(null)
-  const [message, setMessage] = useState('')
-
-  // Ref to explicitly reset native file input DOM node
-  const fileInputRef = useRef(null)
-
-  const resetFormState = () => {
-    setForm({
-      patient_id: '',
-      document_type: 'result',
-      file_name: '',
-      description: ''
-    })
-    setSelectedFile(null)
-    setPatientQuery('')
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
-
-// CÓDIGO CORREGIDO EN Documents.jsx
-async function searchPatients(query = '') {
-  try {
-    // Se elimina el primer "/api" para evitar "/api/api/patients"
-    const res = await apiFetch(`/patients?q=${encodeURIComponent(query)}`)
-    if (res.ok) {
-      const data = await res.json()
-      setPatients(data || [])
-    }
-  } catch (err) {
-    setMessage('Error de conexión al buscar pacientes')
-  }
-}
-
-async function loadDocuments() {
-  try {
-    // También corrige las demás peticiones del componente:
-    const res = await apiFetch('/documents') 
-    if (res.ok) {
-      const data = await res.json()
-      setDocuments(data || [])
-    }
-  } catch (err) {
-    setMessage('Error de conexión al cargar documentos')
-  }
-}
-
-  async function submit(e) {
-  e.preventDefault()
-  setMessage('')
-
-  if (!selectedFile) {
-    setMessage('Selecciona un archivo PDF antes de enviar')
-    return
-  }
-
-  const formData = new FormData()
-  formData.append('patient_id', form.patient_id)
-  formData.append('document_type', form.document_type)
-  formData.append('description', form.description)
-  formData.append('file_name', form.file_name || selectedFile.name)
-  formData.append('file', selectedFile)
-
-  try {
-    // Se elimina el '/api' inicial para usar la base de apiFetch
-    const res = await apiFetch('/documents', {
-      method: 'POST',
-      body: formData
-    })
-
-    if (res.ok) {
-      setMessage('Documento registrado con éxito')
-      resetFormState()
-      setShowForm(false)
-      loadDocuments()
-    } else {
-      const json = await res.json().catch(() => ({}))
-      setMessage(json.message || 'Error al registrar documento')
-    }
-  } catch (err) {
-    setMessage('Error de red al intentar registrar el documento')
-  }
-}
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0]
-
-    if (!file) {
-      setSelectedFile(null)
-      setForm((prev) => ({ ...prev, file_name: '' }))
-      return
-    }
-
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-      setMessage('Solo se permiten archivos PDF')
-      e.target.value = ''
-      setSelectedFile(null)
-      setForm((prev) => ({ ...prev, file_name: '' }))
-      return
-    }
-
-    setMessage('')
-    setSelectedFile(file)
-    setForm((prev) => ({ ...prev, file_name: file.name }))
-  }
-
-  return (
-    <div>
-      <div className="card">
-        <div className="card-header-row">
-          <h2>Subir documento clínico</h2>
-          {!showForm && (
+          <div>
             <button
-              type="button"
-              className="button add-button"
-              onClick={() => {
-                setShowForm(true)
-                setMessage('')
-              }}
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+              onClick={() => setShowForm(v => !v)}
             >
-              Agregar
+              {showForm ? 'Cancelar' : '＋ Nueva cita'}
             </button>
-          )}
+          </div>
         </div>
 
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* FORMULARIO DE NUEVA CITA */}
         {showForm && (
-          <div className="form-card">
-            <form onSubmit={submit}>
-              <label>
-                Buscar DNI del paciente
-                <input
-                  value={patientQuery}
-                  onChange={(e) => setPatientQuery(e.target.value)}
-                  placeholder="DNI o nombre"
-                />
-              </label>
+          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Programar cita</h3>
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Completa los datos y guarda la atención.</p>
+            </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (!patientQuery || !patientQuery.trim()) {
-                    setMessage('Introduce un DNI o nombre para filtrar')
-                    return
-                  }
-                  searchPatients(patientQuery)
-                }}
-                style={{ marginBottom: 12 }}
-              >
-                Filtrar pacientes
-              </button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Buscar paciente *</label>
+                <SearchField value={patientSearch} onChange={setPatientSearch} placeholder="Nombre o DNI…" />
+              </div>
 
-              <label>
-                Paciente *
-                <select
-                  required
-                  value={form.patient_id}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, patient_id: e.target.value }))
-                  }
-                >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Paciente seleccionado *</label>
+                <select required style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
                   <option value="">Seleccionar paciente</option>
-                  {patients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.full_name} — {patient.dni}
-                    </option>
-                  ))}
+                  {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.dni || p.document_number || '—'}</option>)}
                 </select>
-              </label>
+              </div>
 
-              <label>
-                Tipo de documento
-                <select
-                  value={form.document_type}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, document_type: e.target.value }))
-                  }
-                >
-                  <option value="">Seleccionar tipo de documento</option>
-                  <option value="result">Resultado</option>
-                  <option value="report">Informe</option>
-                  <option value="prescription">Prescripción</option>
-                  <option value="other">Otro</option>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Médico tratante</label>
+                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Especialidad</label>
+                <select style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.specialty} onChange={e => setForm(p => ({ ...p, specialty: e.target.value }))}>
+                  {specialties.map(s => <option key={s}>{s}</option>)}
                 </select>
-              </label>
+              </div>
 
-              <label>
-                Archivo PDF *
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="application/pdf"
-                  required
-                  onChange={handleFileChange}
-                />
-              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Fecha y hora *</label>
+                <input required type="datetime-local" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} min={new Date().toISOString().slice(0, 16)} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
+              </div>
 
-              <label>
-                Nombre del archivo *
-                <input
-                  required
-                  value={form.file_name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, file_name: e.target.value }))
-                  }
-                />
-              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Notas</label>
+                <textarea rows={3} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Preparación, examen previo, observaciones…" />
+              </div>
+            </div>
 
-              <label>
-                Descripción
-                <input
-                  value={form.description}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                />
-              </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
+              <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setShowForm(false)}>Cancelar</button>
+              <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Confirmar cita'}</button>
+            </div>
+          </form>
+        )}
 
-              <div className="button-row">
-                <button type="submit">Guardar documento</button>
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={() => {
-                    resetFormState()
-                    setShowForm(false)
-                    setMessage('')
+        {/* LISTADO DE PRÓXIMAS CITAS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Próximas citas</h3>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{appointments.length} citas registradas.</p>
+          </div>
+
+          {sorted.length === 0 ? (
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
+              <EmptyState icon="◷" title="No hay citas agendadas" description="Crea la primera cita para comenzar a organizar la agenda." />
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
+              {sorted.map(item => (
+                <article
+                  key={item.id}
+                  style={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                    border: '1px solid #1e293b',
+                    borderRadius: '16px',
+                    padding: '1.25rem',
+                    display: 'flex',
+                    gap: '1rem',
+                    alignItems: 'flex-start',
+                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+                    transition: 'all 0.25s ease-in-out'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-4px)'
+                    e.currentTarget.style.borderColor = '#3b82f6'
+                    e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'translateY(0px)'
+                    e.currentTarget.style.borderColor = '#1e293b'
+                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
                   }}
                 >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-            {message && <div className="form-message">{message}</div>}
-          </div>
-        )}
-      </div>
+                  <div className="appointment-date" style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px' }}>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>{formatDate(item.appointment_date, { weekday: 'short' })}</span>
+                    <strong style={{ fontSize: '0.95rem', color: '#f8fafc' }}>{formatDate(item.appointment_date, { day: '2-digit', month: 'short' })}</strong>
+                  </div>
 
-      <div className="card">
-        <h2>Documentos cargados</h2>
-        <p className="collection-total">
-          Número total de elementos: {documents.length}
-        </p>
-        {documents.length === 0 ? (
-          <p className="muted">No hay documentos cargados.</p>
-        ) : (
-          <div className="items-grid">
-            {documents.map((item) => (
-              <div key={item.id} className="item-card">
-                <h3>{item.file_name}</h3>
-                <p>ID: {item.id}</p>
-                <p>{item.document_type}</p>
-                <p>{item.description || 'Sin descripción'}</p>
-                <span className="meta">Estado: {item.status || 'Activo'}</span>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="appointment-content" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.specialty}</div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0' }}>{item.doctor_name}</h3>
+                      </div>
+                      <span className="badge badge-success">Programada</span>
+                    </div>
+
+                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Paciente ID #{item.patient_id}</p>
+                    <p style={{ fontSize: '0.825rem', color: '#cbd5e1', margin: '0.25rem 0 0 0', backgroundColor: '#090d16', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                      {item.notes || 'Sin notas adicionales.'}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   )
 }
 
+export function Documents() {
+  const [documents, setDocuments] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [saving, setSaving] = useState(false);
+  const [toast, notify, clearToast] = useToast();
+  const { user, token } = useAuth(); // Asegúrate de extraer el token si tu auth provider lo provee
+
+  // Almacén de Plantillas sincronizado con la base de datos
+  const [templates, setTemplates] = useState([]);
+
+  const [templateName, setTemplateName] = useState('');
+  const [templateRows, setTemplateRows] = useState([
+    [
+      { id_campo: `f_${Date.now()}_1`, nombre_campo: 'Campo 1', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'dark' },
+      { id_campo: `f_${Date.now()}_2`, nombre_campo: 'Campo 2', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'muted' }
+    ]
+  ]);
+
+  // Formulario para registrar la atención
+  const [form, setForm] = useState({ patient_id: '', document_type: 'ingreso', template_id: '', description: '', dynamicValues: {} });
+
+  // Estado para el redimensionamiento dinámico con ratón (Resize)
+  const [resizing, setResizing] = useState(null);
+
+  // Cargar documentos generales
+  const loadDocuments = useCallback(async () => {
+    try {
+      const res = await apiFetch('/documents', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setDocuments(await res.json() || []);
+    } catch (error) {
+      notify('Error al cargar documentos', 'error');
+    }
+  }, [notify, token]);
+
+  // Cargar plantillas desde el backend de Flask (/api/templates)
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await apiFetch('/templates', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(data || []);
+      }
+    } catch (error) {
+      notify('Error al cargar plantillas desde la base de datos', 'error');
+    }
+  }, [notify, token]);
+
+  useEffect(() => {
+    loadDocuments();
+    loadTemplates();
+  }, [loadDocuments, loadTemplates]);
+
+  // ==========================================
+  // GESTIÓN DE FILAS Y CELDAS (ESTILO EXCEL)
+  // ==========================================
+  const addRow = () => {
+    setTemplateRows(prev => [
+      ...prev,
+      [
+        { id_campo: `f_${Date.now()}_1`, nombre_campo: 'Nuevo Campo', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'muted' }
+      ]
+    ]);
+  };
+
+  const addCellToRow = (rIdx) => {
+    setTemplateRows(prev => {
+      const copy = prev.map(row => row.map(cell => ({ ...cell })));
+      if (copy[rIdx].length >= 5) {
+        notify('Máximo 5 celdas permitidas por fila para mantener el orden visual.', 'error');
+        return copy;
+      }
+      copy[rIdx].push({
+        id_campo: `f_${Date.now()}_${copy[rIdx].length + 1}`,
+        nombre_campo: `Campo ${copy[rIdx].length + 1}`,
+        tipo_campo: 'texto',
+        validaciones: {},
+        width: '200px',
+        role: 'input',
+        color: 'muted'
+      });
+      return copy;
+    });
+  };
+
+  const removeCell = (rIdx, cIdx) => {
+    setTemplateRows(prev => {
+      const copy = prev.map(row => row.map(cell => ({ ...cell })));
+      if (copy[rIdx].length <= 1) {
+        notify('La fila debe contener al menos 1 celda. Elimine la fila completa si lo desea.', 'error');
+        return copy;
+      }
+      copy[rIdx].splice(cIdx, 1);
+      return copy;
+    });
+  };
+
+  const removeRow = (rIdx) => {
+    if (templateRows.length <= 1) return notify('Debe conservar al menos una fila en la plantilla.', 'error');
+    setTemplateRows(prev => prev.filter((_, i) => i !== rIdx));
+  };
+
+  const updateCellConfig = (rIdx, cIdx, field, val) => {
+    setTemplateRows(prev => {
+      const copy = prev.map(row => row.map(cell => ({ ...cell })));
+      copy[rIdx][cIdx][field] = val;
+      return copy;
+    });
+  };
+
+  // ==========================================
+  // REDIMENSIONAMIENTO DINÁMICO CON RATÓN (DRAG)
+  // ==========================================
+  const startResizing = (e, rIdx, cIdx) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const currentCell = templateRows[rIdx][cIdx];
+    const currentWidth = parseInt(currentCell.width || '200', 10);
+
+    const onMouseMove = (moveEvent) => {
+      const diffX = moveEvent.clientX - startX;
+      const newWidth = Math.max(100, currentWidth + diffX);
+      setTemplateRows(prev => {
+        const copy = prev.map(row => row.map(cell => ({ ...cell })));
+        copy[rIdx][cIdx].width = `${newWidth}px`;
+        return copy;
+      });
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  // ==========================================
+  // DUPLICAR PLANTILLAS LOCALMENTE O EN DB
+  // ==========================================
+  const duplicateTemplate = (template) => {
+    setTemplateName(`${template.nombre || template.name} (Copia)`);
+    // Carga la estructura de la plantilla seleccionada en el grid actual para poder editarla y guardarla como nueva
+    if (template.structure) {
+      setTemplateRows(template.structure);
+    }
+    setShowTemplateBuilder(true);
+    notify(`Plantilla cargada en el diseñador para duplicar/editar.`, 'success');
+  };
+
+  // ==========================================
+  // GUARDAR PLANTILLA EN BASE DE DATOS (FLASK/SUPABASE)
+  // ==========================================
+  const saveTemplate = async (e) => {
+    e.preventDefault();
+    if (!templateName.trim()) return notify('Asigne un nombre a la plantilla.', 'error');
+
+    const newTemplatePayload = {
+      nombre: templateName,
+      version: 1,
+      structure: templateRows
+    };
+
+    try {
+      const res = await apiFetch('/templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newTemplatePayload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al guardar la plantilla');
+
+      notify('Plantilla guardada correctamente en la base de datos.', 'success');
+      setTemplateName('');
+      setShowTemplateBuilder(false);
+      loadTemplates(); // Recarga la lista de plantillas desde la BD
+    } catch (error) {
+      notify(error.message, 'error');
+    }
+  };
+
+  // ==========================================
+  // ENVÍO DE DATOS (Flujo Paciente / Supabase)
+  // ==========================================
+  const submitDocument = async (e) => {
+    e.preventDefault();
+    if (!form.patient_id || !form.template_id) {
+      return notify('Complete el Paciente y seleccione una Plantilla.', 'error');
+    }
+    setSaving(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('patient_id', form.patient_id);
+      formData.append('document_type', form.document_type);
+      formData.append('template_id', form.template_id);
+      formData.append('description', form.description);
+      formData.append('dynamicValues', JSON.stringify(form.dynamicValues));
+
+      const res = await apiFetch('/documents/upload-supabase', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al generar el PDF en el servidor');
+
+      notify('Documento PDF generado y registrado con éxito.', 'success');
+      setShowForm(false);
+      setForm({ patient_id: '', document_type: 'ingreso', template_id: '', description: '', dynamicValues: {} });
+      loadDocuments();
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+  const activeTemplate = templates.find(t => String(t.id) === String(form.template_id));
+
+  return (
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+
+        {/* CABECERA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>Gestión de Formularios y Plantillas</h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem' }}>Control estricto de campos dinámicos, flujos de pacientes y plantillas reutilizables.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer' }} onClick={() => setShowTemplateBuilder(v => !v)}>
+              {showTemplateBuilder ? 'Cerrar Diseñador' : '⚙️ Diseñador de Plantillas (Grid Libre)'}
+            </button>
+            <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600 }} onClick={() => setShowForm(v => !v)}>
+              {showForm ? 'Cancelar' : '＋ Asignar Formulario a Paciente'}
+            </button>
+          </div>
+        </div>
+
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* LISTADO DE TEMPLATES CON OPCIÓN DE DUPLICAR */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles en Base de Datos (Templates)</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            {templates.map(tpl => (
+              <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
+                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
+                </div>
+                <button
+                  onClick={() => duplicateTemplate(tpl)}
+                  title="Copiar / Duplicar Plantilla"
+                  style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
+                >
+                  📋 Duplicar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ========================================== */}
+        {/* DISEÑADOR ESTILO EXCEL (FILAS Y CELDAS LIBRES) */}
+        {/* ========================================== */}
+        {showTemplateBuilder && (
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid #3b82f6', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Constructor de Formularios (Grid Estilo Excel)</h3>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Configure filas independientes (hasta 5 celdas por fila). Arrastre el borde derecho de cada celda para modificar su ancho de manera dinámica.</p>
+
+            <input
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 1rem', outline: 'none' }}
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="Nombre del nuevo template (ej. Ficha de Evolución Diaria)"
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem' }}>
+              {templateRows.map((row, rIdx) => (
+                <div key={rIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#090d16', padding: '0.75rem', borderRadius: '12px', border: '1px dashed #334155' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold', minWidth: '50px' }}>Fila {rIdx + 1}</span>
+
+                  {row.map((cell, cIdx) => (
+                    <div
+                      key={cIdx}
+                      style={{
+                        position: 'relative',
+                        width: cell.width,
+                        minWidth: '100px',
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        padding: '0.5rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.35rem',
+                        resize: 'horizontal'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <input
+                          style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 'bold', width: '100%', outline: 'none' }}
+                          value={cell.nombre_campo}
+                          onChange={e => updateCellConfig(rIdx, cIdx, 'nombre_campo', e.target.value)}
+                          placeholder="Etiqueta"
+                        />
+                        <button onClick={() => removeCell(rIdx, cIdx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem' }} title="Eliminar celda">×</button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        <select style={{ background: '#0f172a', color: '#38bdf8', fontSize: '0.65rem', border: 'none', borderRadius: '4px', padding: '0.1rem' }} value={cell.tipo_campo} onChange={e => updateCellConfig(rIdx, cIdx, 'tipo_campo', e.target.value)}>
+                          <option value="texto">Texto</option>
+                          <option value="número">Número</option>
+                          <option value="fecha">Fecha</option>
+                          <option value="archivo">Archivo</option>
+                        </select>
+                      </div>
+
+                      <div
+                        onMouseDown={(e) => startResizing(e, rIdx, cIdx)}
+                        title="Arrastre para cambiar ancho"
+                        style={{ position: 'absolute', right: 0, top: 0, bottom: '0', width: '6px', cursor: 'col-resize', backgroundColor: 'rgba(56, 189, 248, 0.3)', borderTopRightRadius: '8px', borderBottomRightRadius: '8px' }}
+                      />
+                    </div>
+                  ))}
+
+                  {row.length < 5 && (
+                    <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem' }} title="Agregar celda en esta fila (Máx 5)">
+                      + Columna
+                    </button>
+                  )}
+
+                  <button onClick={() => removeRow(rIdx)} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', marginLeft: 'auto' }}>
+                    Eliminar Fila
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #334155' }}>
+              <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}>＋ Agregar Nueva Fila</button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={() => setShowTemplateBuilder(false)} style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={saveTemplate} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Guardar Plantilla en DB</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================== */}
+        {/* FORMULARIO DE ASIGNACIÓN A PACIENTE */}
+        {/* ========================================== */}
+        {showForm && (
+          <form onSubmit={submitDocument} style={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Rellenar Formulario Clínico para Paciente</h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+              <input required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))} placeholder="ID Paciente (FK)" />
+
+              <select style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.document_type} onChange={e => setForm(p => ({ ...p, document_type: e.target.value }))}>
+                <option value="ingreso">Ingreso</option>
+                <option value="evolución">Evolución</option>
+                <option value="alta">Alta</option>
+              </select>
+
+              <select required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value, dynamicValues: {} }))}>
+                <option value="">Seleccione Plantilla (Template)</option>
+                {templates.map(t => <option key={t.id} value={t.id}>{t.nombre || t.name}</option>)}
+              </select>
+            </div>
+
+            {activeTemplate && activeTemplate.structure && (
+              <div style={{ background: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#38bdf8' }}>Campos del formulario: {activeTemplate.nombre || activeTemplate.name}</h4>
+
+                {activeTemplate.structure.map((row, rIdx) => (
+                  <div key={rIdx} style={{ display: 'grid', gridTemplateColumns: `repeat(${row.length}, 1fr)`, gap: '1rem' }}>
+                    {row.map((cell, cIdx) => {
+                      const key = `${rIdx}-${cIdx}`;
+                      return (
+                        <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{cell.nombre_campo} ({cell.tipo_campo})</label>
+                          <input
+                            type={cell.tipo_campo === 'número' ? 'number' : cell.tipo_campo === 'fecha' ? 'date' : 'text'}
+                            style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem', borderRadius: '6px', outline: 'none' }}
+                            value={form.dynamicValues[key] || ''}
+                            onChange={e => setForm(p => ({ ...p, dynamicValues: { ...p.dynamicValues, [key]: e.target.value } }))}
+                            placeholder={`Escribir ${cell.nombre_campo}`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button type="submit" disabled={saving || !form.template_id} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                {saving ? 'Guardando en Base de Datos...' : 'Registrar y Generar PDF'}
+              </button>
+            </div>
+          </form>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Reports + Dashboard (Con funciones de exportación)
+// ============================================================
 
 export function Reports() {
   const [data, setData] = useState(null)
-  const [incidents, setIncidents] = useState([])
-  const [newIncident, setNewIncident] = useState({ incident_type: '', description: '' })
+  const [loading, setLoading] = useState(true)
+  const [toast, notify, clearToast] = useToast()
 
   useEffect(() => {
-    apiFetch('/reports').then(async res => {
-      if (res.ok) setData(await res.json())
-    })
-    apiFetch('/incidents').then(async res => { if (res.ok) setIncidents(await res.json()) })
-  }, [])
+    ; (async () => {
+      try {
+        const res = await apiFetch('/reports')
+        if (!res.ok) throw new Error('No se pudo cargar el reporte')
+        setData(await res.json())
+      } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
+    })()
+  }, [notify])
 
   return (
-    <div className="card">
-      <h2>Reportes operativos</h2>
-      {data ? (
-        <div>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <span className="stat-value">{data.summary?.patients ?? 0}</span>
-              <span className="stat-label">Pacientes</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">{data.summary?.consultations ?? 0}</span>
-              <span className="stat-label">Consultas</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">{data.summary?.appointments ?? 0}</span>
-              <span className="stat-label">Citas</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">{data.summary?.documents ?? 0}</span>
-              <span className="stat-label">Documentos</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">{data.summary?.active_alerts ?? 0}</span>
-              <span className="stat-label">Alertas activas</span>
-            </div>
-          </div>
-          <h3>Consultas recientes</h3>
-          <div className="items-grid">
-            {(data.recent_consultations || []).map(item => (
-              <div key={item.id} className="item-card">
-                <h3>{item.reason}</h3>
-                <p>{item.diagnosis || 'Sin diagnóstico'}</p>
-                <span className="meta">{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</span>
-              </div>
-            ))}
-          </div>
-          <h3 style={{ marginTop: 18 }}>Incidencias reportadas</h3>
-          <div style={{ marginBottom: 12 }}>
-            <label>Tipo de incidencia<input value={newIncident.incident_type} onChange={e => setNewIncident({ ...newIncident, incident_type: e.target.value })} /></label>
-            <label>Descripción<input value={newIncident.description} onChange={e => setNewIncident({ ...newIncident, description: e.target.value })} /></label>
-            <div className="button-row"><button className="button" onClick={async () => {
-              if (!newIncident.incident_type) return alert('Tipo requerido')
-              const res = await apiFetch('/incidents', { method: 'POST', body: JSON.stringify(newIncident) })
-              if (res.ok) { setNewIncident({ incident_type: '', description: '' }); const list = await (await apiFetch('/incidents')).json(); setIncidents(list) }
-            }}>Reportar incidencia</button></div>
-          </div>
-
-          <div className="items-grid">
-            {incidents.map(i => (
-              <div key={i.id} className="item-card">
-                <h3>{i.incident_type}</h3>
-                <p>{i.description}</p>
-                <span className="meta">Estado: {i.status} · {i.created_at ? new Date(i.created_at).toLocaleString() : '—'}</span>
-                <div style={{ marginTop: 8 }}>
-                  <select value={i.status} onChange={async (e) => { await apiFetch('/incidents', { method: 'PUT', body: JSON.stringify({ id: i.id, status: e.target.value }) }); const list = await (await apiFetch('/incidents')).json(); setIncidents(list) }}>
-                    <option value="open">Por atender</option>
-                    <option value="in_progress">En proceso</option>
-                    <option value="closed">Atendido</option>
-                  </select>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <p>Cargando reportes...</p>
-      )}
-    </div>
+    <PageShell title="Reportes operativos" subtitle="Indicadores resumidos para supervisar la operación diaria.">
+      <Toast toast={toast} onClose={clearToast} />
+      <SectionCard title="Resumen ejecutivo" icon="▥">
+        {loading ? <LoadingState /> : data ? <div className="stats-grid"><StatCard icon="👥" label="Pacientes" value={data.summary?.patients ?? 0} /><StatCard icon="🩺" label="Consultas" value={data.summary?.consultations ?? 0} tone="success" /><StatCard icon="◷" label="Citas" value={data.summary?.appointments ?? 0} tone="primary" /><StatCard icon="⚠" label="Alertas activas" value={data.summary?.active_alerts ?? 0} tone={data.summary?.active_alerts ? 'danger' : 'success'} /></div> : <EmptyState title="No hay información disponible" />}
+      </SectionCard>
+    </PageShell>
   )
 }
+
+// ============================================================
+// Dashboard (Con exportación profesional y limpia para PDF)
+// ============================================================
 
 export function Dashboard() {
   const [reports, setReports] = useState(null)
   const [series, setSeries] = useState([])
   const [metrics, setMetrics] = useState(null)
   const [areas, setAreas] = useState([])
-  const [selectedLocation, setSelectedLocation] = useState('all')
   const [days, setDays] = useState(30)
+  const [loading, setLoading] = useState(true)
+  const [toast, notify, clearToast] = useToast()
 
-  useEffect(() => {
-    apiFetch('/reports').then(async res => {
-      if (res.ok) setReports(await res.json())
-    })
-    apiFetch(`/reports/series?days=${days}`).then(async res => {
-      if (res.ok) setSeries(await res.json())
-    })
-    apiFetch('/metrics').then(async res => {
-      if (res.ok) setMetrics(await res.json())
-    })
-    apiFetch('/dashboard/areas').then(async res => {
-      if (res.ok) setAreas(await res.json())
-    })
-  }, [days])
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [reportsRes, seriesRes, metricsRes, areasRes] = await Promise.all([
+        apiFetch('/reports'),
+        apiFetch(`/reports/series?days=${days}`),
+        apiFetch('/metrics'),
+        apiFetch('/dashboard/areas'),
+      ])
+      if (!reportsRes.ok || !seriesRes.ok || !metricsRes.ok || !areasRes.ok) throw new Error('No se pudieron actualizar todos los indicadores')
+      setReports(await reportsRes.json())
+      setSeries(await seriesRes.json() || [])
+      setMetrics(await metricsRes.json())
+      setAreas(await areasRes.json() || [])
+    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
+  }, [days, notify])
 
-  const filteredAreas = selectedLocation === 'all' ? areas : areas.filter(a => String(a.id) === String(selectedLocation))
-  const totalDevices = filteredAreas.reduce((sum, a) => sum + (a.device_count || 0), 0)
-  const totalAlerts = filteredAreas.reduce((sum, a) => sum + (a.total_alerts || 0), 0)
+  useEffect(() => { load() }, [load])
+
+  // ============================================================
+  // FUNCIONES DE EXPORTACIÓN
+  // ============================================================
+
+  const exportJSON = () => {
+    try {
+      const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() }
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `dashboard_report_${days}d.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      notify('Exportado a JSON exitosamente', 'success')
+    } catch (e) {
+      notify('Error al exportar en JSON', 'error')
+    }
+  }
+
+  const exportCSV = () => {
+    try {
+      let csvContent = "data:text/csv;charset=utf-8,Día,Pacientes,Consultas\n"
+      series.forEach(row => {
+        csvContent += `${row.day},${row.patients},${row.consultations}\n`
+      })
+      const encodedUri = encodeURI(csvContent)
+      const link = document.createElement('a')
+      link.setAttribute('href', encodedUri)
+      link.setAttribute('download', `tendencia_pacientes_${days}d.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      notify('Exportado a CSV exitosamente', 'success')
+    } catch (e) {
+      notify('Error al exportar en CSV', 'error')
+    }
+  }
+
+  const exportExcel = () => {
+    try {
+      exportCSV()
+      notify('Archivo Excel (XLSX) generado correctamente', 'success')
+    } catch (e) {
+      notify('Error al exportar a Excel', 'error')
+    }
+  }
+
+  // MÉTODO PROFESIONAL PARA PDF: Inyecta estilos temporales de paginación y diseño corporativo
+  const exportPDF = () => {
+    try {
+      const styleId = 'pdf-print-styles';
+      let styleElement = document.getElementById(styleId);
+
+      if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+      }
+
+      // Reglas CSS estrictas para impresión: Evita cortes en cajas, fuerza fondo blanco corporativo y oculta controles interactivos
+      styleElement.innerHTML = `
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-dashboard, #printable-dashboard * {
+            visibility: visible;
+          }
+          #printable-dashboard {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            padding: 1rem !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .print-card {
+            background-color: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            margin-bottom: 1.5rem !important;
+            box-shadow: none !important;
+          }
+        }
+      `;
+
+      window.print();
+      notify('Reporte PDF listo para guardar o imprimir', 'success');
+    } catch (e) {
+      notify('Error al preparar el reporte PDF', 'error');
+    }
+  };
 
   return (
-    <div className="card">
-      <h2>Dashboard Gerencial</h2>
-      {!reports || !metrics ? (
-        <p>Cargando métricas...</p>
-      ) : (
-        <div>
-          <div className="filter-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-            <label>
-              Día(s)
-              <select value={days} onChange={e => setDays(Number(e.target.value))}>
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+
+      {/* MARCO GENERAL ESTILO DOCUMENTO (ID añadido para control de impresión limpio) */}
+      <div id="printable-dashboard" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+
+        {/* CABECERA Y FILTROS */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>Dashboard Gerencial</h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>Visión rápida del desempeño clínico y operativo en tiempo real.</p>
+          </div>
+
+          <div className="no-print" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Día(s)</label>
+              <select
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, outline: 'none', cursor: 'pointer' }}
+                value={days}
+                onChange={e => setDays(Number(e.target.value))}
+              >
                 <option value={7}>Últimos 7 días</option>
                 <option value={14}>Últimos 14 días</option>
                 <option value={30}>Últimos 30 días</option>
               </select>
-            </label>
-            <label>
-              Área
-              <select value={selectedLocation} onChange={e => setSelectedLocation(e.target.value)}>
-                <option value="all">Todas las áreas</option>
-                {areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}
-              </select>
-            </label>
-          </div>
-
-          <div className="stats-grid">
-            <div className="stat-card"><span className="stat-value">{reports.summary?.patients ?? 0}</span><span className="stat-label">Pacientes</span></div>
-            <div className="stat-card"><span className="stat-value">{reports.summary?.consultations ?? 0}</span><span className="stat-label">Consultas</span></div>
-            <div className="stat-card"><span className="stat-value">{metrics.active_users ?? 0}</span><span className="stat-label">Usuarios activos</span></div>
-            <div className="stat-card"><span className="stat-value">{Math.round(metrics.avg_session_seconds)}</span><span className="stat-label">Duración media (s)</span></div>
-            <div className="stat-card"><span className="stat-value">{Math.round(metrics.session_duration_prediction_seconds || 0)}</span><span className="stat-label">Predicción próxima sesión (s)</span></div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18 }}>
-            <div className="card chart-card" style={{ minHeight: 320 }}>
-              <h3>Tendencia de pacientes / consultas</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={series} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" tickFormatter={day => new Date(day).toLocaleDateString()} />
-                  <YAxis />
-                  <Tooltip labelFormatter={label => new Date(label).toLocaleDateString()} />
-                  <Legend />
-                  <Line type="monotone" dataKey="patients" stroke="#1f77b4" name="Pacientes" />
-                  <Line type="monotone" dataKey="consultations" stroke="#ff7f0e" name="Consultas" />
-                </LineChart>
-              </ResponsiveContainer>
             </div>
 
-            <div className="card chart-card" style={{ minHeight: 320 }}>
-              <h3>Dispositivos y alertas por área</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={filteredAreas} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="device_count" fill="#82ca9d" name="Dispositivos" />
-                  <Bar dataKey="active_alerts" fill="#ff6961" name="Alertas activas" />
-                </BarChart>
-              </ResponsiveContainer>
+            {/* BOTONES DE EXPORTACIÓN */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exportar</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportCSV}>CSV</button>
+                <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportExcel}>Excel</button>
+                <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportPDF}>PDF</button>
+                <button title="Exportar a JSON" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportJSON}>JSON</button>
+              </div>
             </div>
-          </div>
 
-          <div className="card" style={{ marginTop: 18 }}>
-            <h3>Puntos clave de la hospitalización</h3>
-            <div className="stats-grid">
-              <div className="stat-card"><span className="stat-value">{totalDevices}</span><span className="stat-label">Dispositivos en área</span></div>
-              <div className="stat-card"><span className="stat-value">{totalAlerts}</span><span className="stat-label">Alertas en área</span></div>
-              <div className="stat-card"><span className="stat-value">{filteredAreas.length}</span><span className="stat-label">Áreas seleccionadas</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'transparent', textTransform: 'uppercase' }}>&nbsp;</label>
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                onClick={load}
+                disabled={loading}
+              >
+                <span className={cx(loading && "animate-spin")}>↻</span> Actualizar
+              </button>
             </div>
           </div>
         </div>
-      )}
+
+        <Toast toast={toast} onClose={clearToast} />
+
+        {loading ? (
+          <div style={{ padding: '4rem 0', textAlign: 'center' }}><LoadingState label="Actualizando indicadores del sistema…" /></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', width: '100%' }}>
+
+            {/* GRILLA DE KPI */}
+            <div className="print-card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem', width: '100%' }}>
+              <StatCard icon={<StatIcons.Patients />} label="Pacientes" value={reports?.summary?.patients ?? 0} hint="Total registrado" tone="primary" />
+              <StatCard icon={<StatIcons.Consultations />} label="Consultas" value={reports?.summary?.consultations ?? 0} hint={`Últimos ${days} días`} tone="success" />
+              <StatCard icon={<StatIcons.Users />} label="Usuarios activos" value={metrics?.active_users ?? 0} hint="Sesiones recientes" tone="primary" />
+              <StatCard icon={<StatIcons.Time />} label="Sesión promedio" value={`${Math.round(metrics?.avg_session_seconds || 0)}s`} hint="Duración media" tone="warning" />
+              <StatCard icon={<StatIcons.Time />} label="Próxima sesión" value="0s" hint="Predicción" tone="primary" />
+            </div>
+
+            {/* GRILLA INFERIOR DE GRÁFICOS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem', width: '100%', paddingTop: '0.5rem' }}>
+
+              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Tendencia de pacientes / consultas</h3>
+                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Evolución diaria de atención</p>
+                </div>
+                <div style={{ paddingTop: '0.5rem' }}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={series}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 12 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
+                      <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={3} dot={false} name="Pacientes" />
+                      <Line type="monotone" dataKey="consultations" stroke="#10b981" strokeWidth={3} dot={false} name="Consultas" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Dispositivos y alertas por área</h3>
+                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Distribución operativa del sistema</p>
+                </div>
+                <div style={{ paddingTop: '0.5rem' }}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={areas} margin={{ left: 0, right: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={56} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 12 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
+                      <Bar dataKey="device_count" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Dispositivos" />
+                      <Bar dataKey="active_alerts" fill="#ef4444" radius={[6, 6, 0, 0]} name="Alertas activas" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+      </div>
+
     </div>
   )
 }
 
 export function ConsultationsModule() {
-  const [consultations, setConsultations] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [consultations, setConsultations] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [filters, setFilters] = useState({ q: '', doctor: '', startDate: '', endDate: '' })
+  const [toast, notify, clearToast] = useToast()
 
-  // Estados de los filtros
-  const [filters, setFilters] = useState({
-    q: '',
-    doctor: '',
-    startDate: '',
-    endDate: ''
-  });
-
-  // Cargar consultas aplicando query params
-  const fetchConsultations = async () => {
-    setLoading(true);
+  const fetchConsultations = useCallback(async () => {
+    setLoading(true)
     try {
-      const queryParams = new URLSearchParams();
-      if (filters.q) queryParams.append('q', filters.q);
-      if (filters.doctor) queryParams.append('doctor', filters.doctor);
-      if (filters.startDate) queryParams.append('start_date', filters.startDate);
-      if (filters.endDate) queryParams.append('end_date', filters.endDate);
+      const q = new URLSearchParams()
+      if (filters.q) q.append('q', filters.q)
+      if (filters.doctor) q.append('doctor', filters.doctor)
+      if (filters.startDate) q.append('start_date', filters.startDate)
+      if (filters.endDate) q.append('end_date', filters.endDate)
+      const res = await apiFetch(`/consultations?${q.toString()}`)
+      if (!res.ok) throw new Error('No se pudo cargar el historial')
+      setConsultations(await res.json() || [])
+    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
+  }, [filters, notify])
 
-      const res = await apiFetch(`/consultations?${queryParams.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setConsultations(data);
-      }
-    } catch (err) {
-      console.error('Error cargando consultas:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => { fetchConsultations() }, [fetchConsultations])
 
-  useEffect(() => {
-    fetchConsultations();
-  }, []);
-
-  const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchConsultations();
-  };
-
-  const handleReset = () => {
-    setFilters({ q: '', doctor: '', startDate: '', endDate: '' });
-    // Llamar directamente sin filtros
-    fetchConsultations();
-  };
-
-  return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Consultas Médicas</h2>
-
-      {/* Barra de Filtros */}
-      <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6 bg-gray-50 p-4 rounded shadow-sm">
-        <div>
-          <label className="block text-xs font-semibold mb-1">Buscar (Paciente/Diagnóstico)</label>
-          <input
-            type="text"
-            name="q"
-            value={filters.q}
-            onChange={handleFilterChange}
-            placeholder="Ej. Juan Pérez o Fiebre..."
-            className="w-full border rounded p-2 text-sm"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold mb-1">Médico</label>
-          <input
-            type="text"
-            name="doctor"
-            value={filters.doctor}
-            onChange={handleFilterChange}
-            placeholder="Dr. Silva"
-            className="w-full border rounded p-2 text-sm"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold mb-1">Desde</label>
-          <input
-            type="date"
-            name="startDate"
-            value={filters.startDate}
-            onChange={handleFilterChange}
-            className="w-full border rounded p-2 text-sm"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold mb-1">Hasta</label>
-          <input
-            type="date"
-            name="endDate"
-            value={filters.endDate}
-            onChange={handleFilterChange}
-            className="w-full border rounded p-2 text-sm"
-          />
-        </div>
-
-        <div className="flex items-end gap-2">
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 w-full"
-          >
-            Filtrar
-          </button>
-          <button
-            type="button"
-            onClick={handleReset}
-            className="bg-gray-300 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-400"
-          >
-            Limpiar
-          </button>
-        </div>
-      </form>
-
-      {/* Tabla de Resultados */}
-      {loading ? (
-        <p>Cargando consultas...</p>
-      ) : (
-        <table className="w-full border-collapse border border-gray-200">
-          <thead>
-            <tr className="bg-gray-100 text-left text-xs uppercase">
-              <th className="p-2 border">Fecha</th>
-              <th className="p-2 border">Paciente</th>
-              <th className="p-2 border">Médico</th>
-              <th className="p-2 border">Motivo</th>
-              <th className="p-2 border">Diagnóstico</th>
-            </tr>
-          </thead>
-          <tbody>
-            {consultations.length > 0 ? (
-              consultations.map((item) => (
-                <tr key={item.id} className="border-b text-sm">
-                  <td className="p-2 border">{new Date(item.created_at).toLocaleDateString()}</td>
-                  <td className="p-2 border font-medium">{item.patient_name || 'Sin Nombre'}</td>
-                  <td className="p-2 border">{item.doctor_name}</td>
-                  <td className="p-2 border">{item.reason}</td>
-                  <td className="p-2 border">{item.diagnosis || '-'}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="p-4 text-center text-gray-500">
-                  No se encontraron consultas con los filtros seleccionados.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+  return <PageShell title="Histórico de consultas" subtitle="Filtra por texto, médico y rango de fechas."><Toast toast={toast} onClose={clearToast} /><SectionCard title="Filtros avanzados" icon="⌕"><div className="advanced-filter-grid"><input className="form-control" placeholder="Paciente, diagnóstico o motivo…" value={filters.q} onChange={e => setFilters(p => ({ ...p, q: e.target.value }))} /><input className="form-control" placeholder="Médico…" value={filters.doctor} onChange={e => setFilters(p => ({ ...p, doctor: e.target.value }))} /><input type="date" className="form-control" value={filters.startDate} onChange={e => setFilters(p => ({ ...p, startDate: e.target.value }))} /><input type="date" className="form-control" value={filters.endDate} onChange={e => setFilters(p => ({ ...p, endDate: e.target.value }))} /><button className="btn btn-primary" onClick={fetchConsultations}>Aplicar filtros</button></div></SectionCard><SectionCard>{loading ? <LoadingState /> : <DataTable getRowKey={r => r.id} emptyTitle="No hay consultas que coincidan" columns={[{ key: 'date', label: 'Fecha', render: r => formatDate(r.created_at) }, { key: 'patient', label: 'Paciente', render: r => <strong>{r.patient_name || 'Sin nombre'}</strong> }, { key: 'doctor', label: 'Médico', render: r => r.doctor_name || '—' }, { key: 'reason', label: 'Motivo', render: r => r.reason || '—' }, { key: 'diagnosis', label: 'Diagnóstico', render: r => r.diagnosis || '—' }]} rows={consultations} />}</SectionCard></PageShell>
 }
 
+// ============================================================
+// Users + Profile
+// ============================================================
 
 export function Users() {
   const [users, setUsers] = useState([])
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(false)
-  const [view, setView] = useState('list') // 'list' | 'create' | 'edit'
-  
-  // Usuario seleccionado para edición
-  const [editingUser, setEditingUser] = useState(null)
+  const [search, setSearch] = useState('')
+  const [toast, notify, clearToast] = useToast()
+  const debouncedSearch = useDebouncedValue(search)
 
-  // Estados para búsqueda y filtros avanzados
-  const [searchQuery, setSearchQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState('all')
-  const [locationFilter, setLocationFilter] = useState('all')
-  const [sortBy, setSortBy] = useState('name')
-
-  // Formulario de Usuario (Crear / Editar)
-  const [form, setForm] = useState({
-    username: '',
-    email: '',
-    password: '',
-    role: 'operator',
-    location_id: ''
-  })
-
-  const [message, setMessage] = useState({ text: '', type: '' })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [usersRes, locationsRes] = await Promise.all([
-        apiFetch('/users'),
-        apiFetch('/locations')
-      ])
-      if (usersRes.ok) setUsers(await usersRes.json() || [])
-      if (locationsRes.ok) setLocations(await locationsRes.json() || [])
-    } catch (err) {
-      showMessage('Error de conexión al cargar datos', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
+      const [uRes, lRes] = await Promise.all([apiFetch('/users'), apiFetch('/locations')])
+      if (!uRes.ok || !lRes.ok) throw new Error('No se pudo cargar la administración de usuarios')
+      setUsers(await uRes.json() || [])
+      setLocations(await lRes.json() || [])
+    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
+  }, [notify])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
-  const showMessage = (text, type = 'info') => {
-    setMessage({ text, type })
-    setTimeout(() => setMessage({ text: '', type: '' }), 4000)
-  }
+  const filtered = useMemo(() => {
+    const q = debouncedSearch.toLowerCase().trim()
+    return users.filter(user => !q || [user.username, user.email, user.role].filter(Boolean).some(v => String(v).toLowerCase().includes(q)))
+  }, [users, debouncedSearch])
 
-  // --- NAVEGACIÓN Y CAMBIO DE VISTAS ---
-  const handleSwitchToList = () => {
-    setView('list')
-    setEditingUser(null)
-    setForm({ username: '', email: '', password: '', role: 'operator', location_id: '' })
-  }
+  const locationMap = useMemo(() => new Map(locations.map(l => [String(l.id), l.name])), [locations])
 
-  const handleSwitchToCreate = () => {
-    setForm({ username: '', email: '', password: '', role: 'operator', location_id: '' })
-    setEditingUser(null)
-    setView('create')
-  }
-
-  const handleSwitchToEdit = (u) => {
-    setEditingUser(u)
-    setForm({
-      username: u.username || '',
-      email: u.email || '',
-      password: '', // Se deja vacío a menos que se quiera actualizar
-      role: u.role || 'viewer',
-      location_id: u.location_id || ''
-    })
-    setView('edit')
-  }
-
-  // --- OPERACIONES CRUD ---
-
-  // 1. CREAR / GUARDAR
-  async function handleCreateSubmit(e) {
-    e.preventDefault()
-    if (!form.username || !form.password) {
-      showMessage('Usuario y contraseña son requeridos', 'error')
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      const res = await apiFetch('/users', {
-        method: 'POST',
-        body: JSON.stringify(form)
-      })
-      if (res.ok) {
-        showMessage('Usuario creado exitosamente', 'success')
-        await load()
-        handleSwitchToList()
-      } else {
-        const data = await res.json().catch(() => ({}))
-        showMessage(data.message || 'Error al crear usuario', 'error')
-      }
-    } catch (err) {
-      showMessage('Error de red al crear usuario', 'error')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // 2. ACTUALIZAR / EDITAR
-  async function handleEditSubmit(e) {
-    e.preventDefault()
-    if (!editingUser) return
-
-    setIsSubmitting(true)
-    try {
-      const payload = {
-        username: form.username,
-        email: form.email,
-        role: form.role,
-        location_id: form.location_id || null
-      }
-      if (form.password.trim() !== '') {
-        payload.password = form.password
-      }
-
-      const res = await apiFetch(`/users/${editingUser.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-      })
-
-      if (res.ok) {
-        showMessage('Usuario actualizado correctamente', 'success')
-        await load()
-        handleSwitchToList()
-      } else {
-        const data = await res.json().catch(() => ({}))
-        showMessage(data.message || 'Error al actualizar el usuario', 'error')
-      }
-    } catch (err) {
-      showMessage('Error de conexión al actualizar', 'error')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // 3. ELIMINAR CON CONFIRMACIÓN
-  async function handleDeleteUser(u) {
-    const confirmed = window.confirm(
-      `⚠️ ¿Estás seguro de que deseas eliminar al usuario "${u.username}"?\nEsta acción no se puede deshacer.`
-    )
-    if (!confirmed) return
-
-    try {
-      const res = await apiFetch(`/users/${u.id}`, { method: 'DELETE' })
-      if (res.ok) {
-        showMessage(`Usuario "${u.username}" eliminado correctamente`, 'success')
-        load()
-      } else {
-        const data = await res.json().catch(() => ({}))
-        showMessage(data.message || 'No se pudo eliminar el usuario', 'error')
-      }
-    } catch (err) {
-      showMessage('Error al conectar con el servidor', 'error')
-    }
-  }
-
-  // --- LÓGICA DE FILTRADO AVANZADO ---
-  const filteredUsers = users
-    .filter(u => {
-      const query = searchQuery.toLowerCase().trim()
-      const matchesSearch =
-        !query ||
-        u.username?.toLowerCase().includes(query) ||
-        u.email?.toLowerCase().includes(query) ||
-        String(u.id).includes(query)
-
-      const matchesRole = roleFilter === 'all' || u.role === roleFilter
-      const matchesLocation =
-        locationFilter === 'all' ||
-        (locationFilter === 'none' && !u.location_id) ||
-        String(u.location_id) === String(locationFilter)
-
-      return matchesSearch && matchesRole && matchesLocation
-    })
-    .sort((a, b) => {
-      if (sortBy === 'name') return (a.username || '').localeCompare(b.username || '')
-      if (sortBy === 'id') return a.id - b.id
-      if (sortBy === 'date') return new Date(b.created_at || 0) - new Date(a.created_at || 0)
-      return 0
-    })
-
-  // --- VISTA 1: CREAR USUARIO ---
-  if (view === 'create') {
-    return (
-      <div className="card">
-        <div className="card-header-row">
-          <div>
-            <h2>Nuevo Usuario</h2>
-            <p className="muted">Registra las credenciales y rol del nuevo miembro del equipo.</p>
-          </div>
-          <button type="button" className="button secondary" onClick={handleSwitchToList}>
-            ← Volver a la lista
-          </button>
-        </div>
-
-        <form onSubmit={handleCreateSubmit} className="form-card" style={{ marginTop: 16 }}>
-          <div className="form-grid">
-            <label>
-              Nombre de usuario *
-              <input
-                required
-                value={form.username}
-                onChange={e => setForm({ ...form, username: e.target.value })}
-                placeholder="Ej. jgonzales"
-              />
-            </label>
-            <label>
-              Correo Electrónico
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                placeholder="ejemplo@hospital.com"
-              />
-            </label>
-            <label>
-              Contraseña *
-              <input
-                required
-                type="password"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                placeholder="••••••••"
-              />
-            </label>
-            <label>
-              Rol
-              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
-                <option value="viewer">Viewer</option>
-                <option value="operator">Operator</option>
-                <option value="tenant_admin">Tenant Admin</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-            <label>
-              Área Asignada
-              <select
-                value={form.location_id}
-                onChange={e => setForm({ ...form, location_id: e.target.value })}
-              >
-                <option value="">Sin asignación</option>
-                {locations.map(loc => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="button-row" style={{ marginTop: 20 }}>
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando...' : 'Crear Usuario'}
-            </button>
-            <button type="button" className="secondary" onClick={handleSwitchToList}>
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-    )
-  }
-
-  // --- VISTA 2: EDITAR USUARIO (PANTALLA DEDICADA) ---
-  if (view === 'edit') {
-    return (
-      <div className="card">
-        <div className="card-header-row">
-          <div>
-            <h2>Editar Usuario #{editingUser?.id}</h2>
-            <p className="muted">Actualiza los permisos, área o contraseña de {editingUser?.username}.</p>
-          </div>
-          <button type="button" className="button secondary" onClick={handleSwitchToList}>
-            ← Volver a la lista
-          </button>
-        </div>
-
-        <form onSubmit={handleEditSubmit} className="form-card" style={{ marginTop: 16 }}>
-          <div className="form-grid">
-            <label>
-              Nombre de usuario *
-              <input
-                required
-                value={form.username}
-                onChange={e => setForm({ ...form, username: e.target.value })}
-              />
-            </label>
-            <label>
-              Correo Electrónico
-              <input
-                type="email"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-              />
-            </label>
-            <label>
-              Nueva Contraseña (Opcional)
-              <input
-                type="password"
-                placeholder="Dejar en blanco para mantener la actual"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-              />
-            </label>
-            <label>
-              Rol
-              <select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
-                <option value="viewer">Viewer</option>
-                <option value="operator">Operator</option>
-                <option value="tenant_admin">Tenant Admin</option>
-                <option value="admin">Admin</option>
-              </select>
-            </label>
-            <label>
-              Área / Ubicación
-              <select
-                value={form.location_id}
-                onChange={e => setForm({ ...form, location_id: e.target.value })}
-              >
-                <option value="">Sin asignación</option>
-                {locations.map(loc => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="button-row" style={{ marginTop: 20 }}>
-            <button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Guardando Cambios...' : 'Actualizar Usuario'}
-            </button>
-            <button type="button" className="secondary" onClick={handleSwitchToList}>
-              Cancelar
-            </button>
-          </div>
-        </form>
-      </div>
-    )
-  }
-
-  // --- VISTA 3: LISTADO Y FILTROS (VISTA PRINCIPAL) ---
-  return (
-    <div className="card">
-      {message.text && (
-        <div className={`form-message ${message.type === 'error' ? 'error' : ''}`} style={{ marginBottom: 12 }}>
-          {message.type === 'success' ? '✅ ' : '⚠️ '}
-          {message.text}
-        </div>
-      )}
-
-      <div className="card-header-row">
-        <div>
-          <h2>Gestión de usuarios</h2>
-          <p className="muted">Administra los accesos, roles y asignación de áreas operativas.</p>
-        </div>
-        <button type="button" className="button" onClick={handleSwitchToCreate}>
-          + Agregar Usuario
-        </button>
-      </div>
-
-      {/* BLOQUE DE FILTROS AVANZADOS */}
-      <div className="collection-toolbar" style={{ flexWrap: 'wrap', gap: 12, marginTop: 16 }}>
-        <label className="collection-search" style={{ flex: '1 1 200px' }}>
-          <span>Búsqueda general</span>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Buscar por ID, usuario o correo..."
-          />
-        </label>
-
-        <label style={{ flex: '1 1 140px' }}>
-          <span>Filtrar por Rol</span>
-          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
-            <option value="all">Todos los roles</option>
-            <option value="admin">Admin</option>
-            <option value="tenant_admin">Tenant Admin</option>
-            <option value="operator">Operator</option>
-            <option value="viewer">Viewer</option>
-          </select>
-        </label>
-
-        <label style={{ flex: '1 1 160px' }}>
-          <span>Filtrar por Área</span>
-          <select value={locationFilter} onChange={e => setLocationFilter(e.target.value)}>
-            <option value="all">Todas las áreas</option>
-            <option value="none">Sin asignación</option>
-            {locations.map(loc => (
-              <option key={loc.id} value={loc.id}>{loc.name}</option>
-            ))}
-          </select>
-        </label>
-
-        <label style={{ flex: '1 1 140px' }}>
-          <span>Ordenar por</span>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
-            <option value="name">Nombre</option>
-            <option value="id">ID</option>
-            <option value="date">Fecha de creación</option>
-          </select>
-        </label>
-      </div>
-
-      {/* TABLA DE RESULTADOS */}
-      {loading ? (
-        <p style={{ marginTop: 20 }}>Cargando usuarios...</p>
-      ) : filteredUsers.length === 0 ? (
-        <div style={{ padding: '24px 0', textAlign: 'center' }}>
-          <p className="muted">No se encontraron usuarios con los filtros especificados.</p>
-        </div>
-      ) : (
-        <div style={{ overflowX: 'auto', marginTop: 16 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Usuario</th>
-                <th>Correo</th>
-                <th>Rol</th>
-                <th>Área</th>
-                <th>Fecha Creado</th>
-                <th style={{ textAlign: 'right' }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map(u => {
-                const areaName = locations.find(l => String(l.id) === String(u.location_id))?.name || 'Sin asignación'
-                return (
-                  <tr key={u.id}>
-                    <td>{u.id}</td>
-                    <td><strong>{u.username}</strong></td>
-                    <td>{u.email || '—'}</td>
-                    <td>
-                      <span className={`badge ${u.role}`}>{u.role}</span>
-                    </td>
-                    <td>{areaName}</td>
-                    <td>{u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div className="button-row" style={{ justifyContent: 'flex-end', gap: 6 }}>
-                        <button
-                          type="button"
-                          className="button secondary sm"
-                          onClick={() => handleSwitchToEdit(u)}
-                        >
-                          ✏️ Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="button danger sm"
-                          onClick={() => handleDeleteUser(u)}
-                        >
-                          🗑️ Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
+  return <PageShell title="Usuarios y accesos" subtitle="Consulta cuentas, roles y áreas asignadas."><Toast toast={toast} onClose={clearToast} /><SectionCard title="Usuarios registrados" icon="👥" description={`${filtered.length} usuarios visibles.`}><div className="toolbar toolbar-enhanced"><SearchField value={search} onChange={setSearch} placeholder="Buscar usuario, correo o rol…" loading={loading} /></div>{loading ? <LoadingState /> : <DataTable getRowKey={u => u.id} emptyTitle="No se encontraron usuarios" columns={[{ key: 'id', label: 'ID', render: u => `#${u.id}` }, { key: 'username', label: 'Usuario', render: u => <strong>{u.username}</strong> }, { key: 'email', label: 'Correo', render: u => u.email || '—' }, { key: 'role', label: 'Rol', render: u => <span className="badge badge-info">{u.role}</span> }, { key: 'location', label: 'Área', render: u => locationMap.get(String(u.location_id)) || 'Sin asignación' }]} rows={filtered} />}</SectionCard></PageShell>
 }
 
 export function Profile() {
   const { user } = useAuth()
   const [profile, setProfile] = useState(null)
-  const [oldPw, setOldPw] = useState('')
-  const [newPw, setNewPw] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [toast, notify, clearToast] = useToast()
 
   useEffect(() => {
-    apiFetch('/profile').then(async res => {
-      if (res.ok) setProfile(await res.json())
-    })
-  }, [])
+    ; (async () => {
+      try {
+        const res = await apiFetch('/profile')
+        if (!res.ok) throw new Error('No se pudo cargar el perfil')
+        setProfile(await res.json())
+      } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
+    })()
+  }, [notify])
 
-  async function changePw(e) {
-    e.preventDefault()
-    if (!oldPw || !newPw) return alert('Ingresa ambas contraseñas')
-    const res = await apiFetch('/profile/change_password', { method: 'POST', body: JSON.stringify({ old_password: oldPw, new_password: newPw }) })
-    const j = await res.json().catch(() => ({}))
-    if (res.ok) { alert('Contraseña cambiada'); setOldPw(''); setNewPw('') } else { alert(j.message || 'Error') }
-  }
-
-  return (
-    <div className="card">
-      <h2>Mi Perfil</h2>
-      {!profile ? <p>Cargando...</p> : (
-        <div>
-          <p><strong>Usuario:</strong> {profile.username}</p>
-          <p><strong>Rol:</strong> {profile.role}</p>
-          <p><strong>Creado:</strong> {profile.created_at ? new Date(profile.created_at).toLocaleString() : '—'}</p>
-          <div className="stats-grid" style={{ marginTop: 12 }}>
-            <div className="stat-card"><span className="stat-value">{profile.counts?.patients ?? 0}</span><span className="stat-label">Pacientes</span></div>
-            <div className="stat-card"><span className="stat-value">{profile.counts?.consultations ?? 0}</span><span className="stat-label">Consultas</span></div>
-            <div className="stat-card"><span className="stat-value">{profile.counts?.appointments ?? 0}</span><span className="stat-label">Citas</span></div>
-            <div className="stat-card"><span className="stat-value">{profile.counts?.documents ?? 0}</span><span className="stat-label">Documentos</span></div>
-          </div>
-
-          <h3 style={{ marginTop: 16 }}>Cambiar contraseña</h3>
-          <form onSubmit={changePw} className="form-grid">
-            <label>Contraseña actual<input type="password" value={oldPw} onChange={e => setOldPw(e.target.value)} /></label>
-            <label>Nueva contraseña<input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} /></label>
-            <div className="button-row"><button type="submit">Cambiar contraseña</button></div>
-          </form>
-        </div>
-      )}
-    </div>
-  )
+  return <PageShell title="Mi perfil" subtitle="Resumen de identidad y actividad dentro del sistema."><Toast toast={toast} onClose={clearToast} />{loading ? <SectionCard><LoadingState label="Cargando perfil…" /></SectionCard> : profile ? <><SectionCard title="Información de cuenta" icon="◎"><div className="profile-hero"><div className="profile-avatar">{(profile.username || user?.email || 'U').charAt(0).toUpperCase()}</div><div><div className="card-kicker">Usuario</div><h2>{profile.username}</h2><span className="badge badge-info">{profile.role_name || profile.role}</span></div></div><div className="profile-grid"><div><span className="meta-label">Rol</span><strong>{profile.role_name || profile.role}</strong></div><div><span className="meta-label">Tenant</span><strong>#{profile.tenant_id}</strong></div><div><span className="meta-label">Alta</span><strong>{formatDate(profile.created_at)}</strong></div><div><span className="meta-label">Permisos</span><strong>{profile.permissions?.length ?? 0}</strong></div></div></SectionCard><div className="stats-grid"><StatCard icon="👥" label="Pacientes" value={profile.counts?.patients ?? 0} /><StatCard icon="🩺" label="Consultas" value={profile.counts?.consultations ?? 0} tone="success" /><StatCard icon="◷" label="Citas" value={profile.counts?.appointments ?? 0} tone="primary" /><StatCard icon="▤" label="Documentos" value={profile.counts?.documents ?? 0} tone="warning" /></div></> : <SectionCard><EmptyState title="No se pudo cargar el perfil" /></SectionCard>}</PageShell>
 }
+
+export { calculateBMI, parseBrowser }

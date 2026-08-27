@@ -14,26 +14,28 @@ export const apiFetch = async (endpoint, options = {}) => {
     ...options.headers,
   };
 
-  // Asigna Content-Type solo si hay un body y NO es FormData
   if (options.body && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
   }
 
-  // Agrega el token de autenticación si existe
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  // Asegura que el endpoint comience siempre con '/'
   const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  
+  // ASEGÚRATE DE QUE EL MÉTODO SEA MAYÚSCULA (Por defecto GET si no viene)
+  const method = (options.method || 'GET').toUpperCase();
+
+  console.log(`[API DEBUG] Enviando ${method} a: ${BASE_URL}${formattedEndpoint}`);
 
   try {
     const response = await fetch(`${BASE_URL}${formattedEndpoint}`, {
       ...options,
+      method, // Forzamos el método en mayúsculas
       headers,
     });
 
-    // Si la API responde 401 (No autorizado), limpia la sesión expirada
     if (response.status === 401) {
       localStorage.removeItem('token');
     }
@@ -56,7 +58,8 @@ export const api = {
   post: (endpoint, body, options = {}) =>
     apiFetch(endpoint, {
       method: 'POST',
-      body: typeof body === 'string' ? body : JSON.stringify(body),
+      // Si es FormData, se queda como está; de lo contrario, se convierte a JSON
+      body: body instanceof FormData || typeof body === 'string' ? body : JSON.stringify(body),
       ...options,
     }),
 

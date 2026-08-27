@@ -1,6 +1,8 @@
 import os
 import datetime
+import time
 from datetime import timezone
+from supabase import create_client, Client
 from functools import wraps
 from pathlib import Path
 from dotenv import load_dotenv
@@ -13,8 +15,17 @@ from psycopg2.extras import RealDictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
 import csv
 from io import StringIO
-from flask import request, jsonify, current_app
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import io
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
+
+
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
 CURRENT_DIR = Path(__file__).resolve().parent
 PARENT_DIR = CURRENT_DIR.parent
 
@@ -59,6 +70,11 @@ CORS(app,
 
 db = SQLAlchemy(app)
 
+# Inicializa el cliente de Supabase
+SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 4. Modelos de Base de Datos (SQLAlchemy)
 class User(db.Model):
@@ -144,6 +160,10 @@ def create_token(user):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        # PERMITIR QUE LAS PETICIONES OPTIONS PASEN LIBREMENTE PARA CORS
+        if request.method == 'OPTIONS':
+            return '', 200
+
         auth = request.headers.get('Authorization', None)
         if not auth:
             return jsonify({'message': 'Missing authorization header'}), 401
@@ -618,6 +638,245 @@ def consultations_handler():
     # ... (Se mantiene igual a tu código previo)
 
 
+# ==========================================
+# ENDPOINT: SUBIR DOCUMENTO Y VINCULAR PACIENTE
+# ==========================================
+@app.route('/api/documents/upload-supabase', methods=['POST', 'OPTIONS'])
+@token_required
+def upload_supabase_document():
+    if request.method == 'OPTIONS':
+        return '', 200
+
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if not has_permission(claims.get('role'), 'manage_patients'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    patient_id = request.form.get('patient_id')
+    document_type = request.form.get('document_type', 'evolución')
+    template_id = request.form.get('template_id')
+    description = request.form.get('description', '')
+    dynamic_values_str = request.form.get('dynamicValues', '{}')
+
+    if not patient_id or not template_id:
+        return jsonify({'message': 'patient_id y template_id son obligatorios'}), 400
+
+    try:
+        import json
+        import io
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+
+        # 1. Obtener la plantilla de la base de datos
+        template_res = db_query(
+            "SELECT nombre, structure FROM templates_formulario WHERE id = %s",
+            (template_id,),
+            fetchone=True
+        )
+        
+        if not template_res:
+            return jsonify({'message': 'Plantilla no encontrada'}), 404
+
+        template_name = template_res.get('nombre', 'Documento Clínico')
+        structure = template_res.get('structure', [])
+        dynamic_values = json.loads(dynamic_values_str)
+
+        # 2. Generar el PDF en memoria usando ReportLab
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+        story = []
+        styles = getSampleStyleSheet()
+
+        # Título
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=colors.HexColor('#0f172a'),
+            spaceAfter=15
+        )
+        story.append(Paragraph(f"<b>{template_name}</b>", title_style))
+        story.append(Paragraph(f"<b>ID de Paciente:</b> {patient_id} | <b>Tipo:</b> {document_type}", styles['Normal']))
+        story.append(Spacer(1, 15))
+
+        # Construir tabla con los valores dinámicos
+        table_data = []
+        if isinstance(structure, list):
+            for rIdx, row in enumerate(structure):
+                row_cells = []
+                for cIdx, cell in enumerate(row):
+                    cell_key = f"{rIdx}-{cIdx}"
+                    val = dynamic_values.get(cell_key, cell.get('nombre_campo', ''))
+                    field_label = cell.get('nombre_campo', 'Campo')
+                    cell_text = f"<b>{field_label}:</b><br/>{val}"
+                    row_cells.append(Paragraph(cell_text, styles['Normal']))
+                if row_cells:
+                    table_data.append(row_cells)
+
+        if table_data:
+            t = Table(table_data, colWidths=[270, 270])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1'))
+            ]))
+            story.append(t)
+
+        doc.build(story)
+        file_bytes = buffer.getvalue()
+        buffer.close()
+
+        # 3. Subir el PDF binario a Supabase Storage
+        filename = f"doc_{patient_id}_{int(time.time())}.pdf"
+        storage_path = f"tenant_{tenant_id}/patient_{patient_id}/{filename}"
+        bucket_name = "documents" # Cambia por el nombre real de tu bucket si es distinto
+
+        supabase.storage.from_(bucket_name).upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": "application/pdf", "x-upsert": "true"}
+        )
+
+        # 4. Obtener URL pública de forma segura
+        public_url_response = supabase.storage.from_(bucket_name).get_public_url(storage_path)
+        if isinstance(public_url_response, str):
+            file_url = public_url_response
+        elif isinstance(public_url_response, dict):
+            file_url = public_url_response.get('publicUrl') or public_url_response.get('data', {}).get('publicUrl')
+        else:
+            file_url = getattr(public_url_response, 'public_url', str(public_url_response))
+
+        # 5. Insertar el registro en la base de datos (con la variable correctamente definida)
+        new_doc = db_query(
+            '''
+            INSERT INTO documents (
+                tenant_id, patient_id, document_type, file_name, 
+                file_url, description, status, created_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            ''',
+            (
+                int(tenant_id), int(patient_id), document_type, filename, 
+                file_url, description, 'active', now_utc()
+            ),
+            commit=True,
+            fetchone=True
+        )
+
+        if not new_doc or 'id' not in new_doc:
+            raise Exception("No se pudo registrar el documento en la base de datos.")
+
+        record_audit('create', 'document', new_doc['id'], f'Generated PDF template {template_id}', tenant_id, claims.get('id'))
+
+        return jsonify({
+            'message': 'Documento PDF generado y registrado con éxito',
+            'id': new_doc['id'],
+            'file_url': file_url
+        }), 201
+
+    except Exception as e:
+        print(f"--- ERROR AL GENERAR/SUBIR PDF A SUPABASE: {str(e)} ---")
+        return jsonify({'message': f'Error interno: {str(e)}'}), 500
+    
+
+    
+# ==========================================
+# ENDPOINT: OBTENER DOCUMENTOS DE UN PACIENTE
+# ==========================================
+@app.route('/api/patients/<int:patient_id>/documents', methods=['GET'])
+@token_required
+def get_patient_documents(patient_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    try:
+        # Consultar los documentos asociados al paciente y tenant actual
+        docs = db_query(
+            '''
+            SELECT id, document_type as category, file_name as title, file_name, file_url, description, status, created_at
+            FROM documents
+            WHERE tenant_id = %s AND patient_id = %s
+            ORDER BY created_at DESC
+            ''',
+            (tenant_id, patient_id),
+            fetchall=True
+        )
+
+        return jsonify(docs or []), 200
+
+    except Exception as e:
+        print(f"--- ERROR AL OBTENER DOCUMENTOS DEL PACIENTE: {e} ---")
+        return jsonify({'message': f'Error interno: {str(e)}'}), 500
+
+
+# ==========================================
+# ENDPOINTS: PLANTILLAS DE FORMULARIOS (TEMPLATES)
+# ==========================================
+@app.route('/api/templates', methods=['GET', 'POST'])
+@token_required
+def templates_handler():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    # 1. OBTENER PLANTILLAS (GET)
+    if request.method == 'GET':
+        rows = db_query(
+            '''
+            SELECT id, nombre, version, estado, structure, creado_por, fecha_creacion 
+            FROM templates_formulario 
+            ORDER BY id DESC
+            ''', 
+            fetchall=True
+        )
+        return jsonify(rows or []), 200
+
+    # 2. CREAR O GUARDAR PLANTILLA (POST)
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        nombre = data.get('nombre')
+        structure = data.get('structure')
+        version = data.get('version', 1)
+        creado_por = claims.get('username', 'Sistema')
+
+        if not nombre or not structure:
+            return jsonify({'message': 'nombre y structure son obligatorios'}), 400
+
+        try:
+            new_template = db_query(
+                '''
+                INSERT INTO templates_formulario (nombre, version, estado, structure, creado_por, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id
+                ''',
+                (nombre, version, 'activo', psycopg2.extras.Json(structure), creado_por, now_utc()),
+                commit=True,
+                fetchone=True
+            )
+
+            record_audit('create', 'template', new_template['id'], f'Created template {nombre}', tenant_id, claims.get('id'))
+            
+            return jsonify({
+                'message': 'Plantilla guardada con éxito',
+                'id': new_template['id']
+            }), 201
+
+        except Exception as e:
+            print(f"--- ERROR AL GUARDAR PLANTILLA: {e} ---")
+            return jsonify({'message': f'Error interno al guardar la plantilla: {str(e)}'}), 500
+
+
+
+
 @app.route('/api/documents', methods=['GET', 'POST', 'DELETE'])
 @token_required
 def documents():
@@ -628,8 +887,9 @@ def documents():
     if request.method == 'GET':
         patient_id = request.args.get('patient_id')
         sql = '''
-            SELECT d.id, d.patient_id, p.full_name as patient_name, 
-                   d.document_type, d.file_name, d.description, d.created_at
+            SELECT d.id, d.tenant_id, d.patient_id, p.full_name as patient_name, 
+                   d.document_type, d.file_name, d.file_url, 
+                   d.description, d.status, d.created_at
             FROM documents d
             LEFT JOIN patients p ON p.id = d.patient_id
             WHERE d.tenant_id = %s
@@ -654,49 +914,120 @@ def documents():
         if not doc_id:
             return jsonify({'message': 'document_id es requerido'}), 400
 
+        doc_to_delete = db_query(
+            'SELECT id, file_url FROM documents WHERE id = %s AND tenant_id = %s',
+            (doc_id, tenant_id), fetchone=True
+        )
+        if not doc_to_delete:
+            return jsonify({'message': 'Documento no encontrado'}), 404
+
         deleted = db_query(
             'DELETE FROM documents WHERE id = %s AND tenant_id = %s RETURNING id',
             (doc_id, tenant_id), commit=True, fetchone=True
         )
-        if not deleted:
-            return jsonify({'message': 'Documento no encontrado'}), 404
+
+        file_url = doc_to_delete.get('file_url')
+        if file_url and '/documents/' in file_url:
+            try:
+                storage_path = file_url.split('/documents/')[-1]
+                storage_path = unquote(storage_path)
+                supabase.storage.from_("documents").remove([storage_path])
+            except Exception as st_err:
+                print(f"Error removiendo archivo de Supabase Storage: {st_err}")
 
         record_audit('delete', 'document', deleted['id'], f'Deleted document {deleted["id"]}', tenant_id, claims.get('id'))
         return jsonify({'message': 'Documento eliminado'}), 200
 
-    # 3. REGISTRAR DOCUMENTO (POST)
+    # 3. REGISTRAR Y SUBIR DOCUMENTO (POST)
     if not has_permission(claims.get('role'), 'manage_patients'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    # Al enviar FormData en React, los campos de texto llegan mediante request.form
     patient_id = request.form.get('patient_id')
-    document_type = request.form.get('document_type', 'General')
+    document_type = request.form.get('document_type', 'result')
     description = request.form.get('description', '')
     file_name = request.form.get('file_name', '')
-
-    # El archivo físico llega mediante request.files
     file = request.files.get('file')
 
     if not patient_id:
         return jsonify({'message': 'patient_id es obligatorio'}), 400
 
-    if not file_name and file:
+    if not file:
+        return jsonify({'message': 'El archivo es obligatorio'}), 400
+
+    if not file_name:
         file_name = file.filename
 
-    new_doc = db_query(
-        '''
-        INSERT INTO documents (tenant_id, patient_id, document_type, file_name, description, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        RETURNING id
-        ''',
-        (tenant_id, patient_id, document_type, file_name, description, now_utc()),
-        commit=True,
-        fetchone=True
-    )
+    try:
+        file_bytes = file.read()
+        file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else 'pdf'
+        
+        mime_types = {
+            'pdf': 'application/pdf',
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+        
+        mime_type = mime_types.get(file_ext, file.mimetype if file.mimetype != 'text/plain' else 'application/pdf')
 
-    record_audit('create', 'document', new_doc['id'], f'Uploaded document {file_name}', tenant_id, claims.get('id'))
-    return jsonify({'message': 'Documento registrado con éxito', 'id': new_doc['id']}), 201
+        storage_path = f"tenant_{tenant_id}/patient_{patient_id}/{int(time.time())}_{file_name}"
+        if not storage_path.lower().endswith(f".{file_ext}"):
+            storage_path += f".{file_ext}"
 
+        # Subida a Supabase
+        supabase.storage.from_("documents").upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": mime_type, "x-upsert": "true"}
+        )
+
+        # Obtener URL pública
+        public_url_response = supabase.storage.from_("documents").get_public_url(storage_path)
+        
+        if isinstance(public_url_response, str):
+            public_url = public_url_response
+        elif isinstance(public_url_response, dict):
+            public_url = public_url_response.get('publicUrl') or public_url_response.get('data', {}).get('publicUrl')
+        else:
+            public_url = getattr(public_url_response, 'public_url', str(public_url_response))
+
+    except Exception as st_err:
+        print(f"--- ERROR DE SUPABASE STORAGE: {st_err} ---")
+        return jsonify({'message': f'Error al subir el archivo al almacenamiento: {str(st_err)}'}), 500
+
+    # Inserción con las 8 columnas exactas en la base de datos
+    try:
+        new_doc = db_query(
+            '''
+            INSERT INTO documents (
+                tenant_id, patient_id, document_type, file_name, 
+                file_url, description, status, created_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            ''',
+            (
+                int(tenant_id), int(patient_id), document_type, file_name, 
+                public_url, description, 'active', now_utc()
+            ),
+            commit=True,
+            fetchone=True
+        )
+
+        record_audit('create', 'document', new_doc['id'], f'Uploaded document {file_name}', tenant_id, claims.get('id'))
+        
+        return jsonify({
+            'message': 'Documento registrado con éxito',
+            'id': new_doc['id'],
+            'file_url': public_url
+        }), 201
+
+    except Exception as db_err:
+        print(f"--- ERROR DE BASE DE DATOS: {db_err} ---")
+        return jsonify({'message': f'Error al registrar en la base de datos: {str(db_err)}'}), 500
+    
 # ==========================================
 # ENDPOINT OPCIONAL: TRIAJE INDEPENDIENTE
 # ==========================================

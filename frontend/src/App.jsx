@@ -3,25 +3,27 @@ import './styles.css'
 import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
+import { Login } from './Login'
 
+const Icons = {
+  Dashboard: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
+  Clinical: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
+  Operations: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  Users: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  Reports: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+  Account: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+}
 
 const normalizeRoute = (hash) => {
   const route = String(hash || '').replace(/^#/, '')
-  if (!route || route === '/' || route === '/home') {
-    return '/login'
-  }
+  if (!route || route === '/' || route === '/home') return '/login'
   return route
 }
 
-function Sidebar({ isCollapsed, onToggle, currentRoute }) {
+function Sidebar({ currentRoute }) {
   const { user, logout } = useAuth()
   const [openSections, setOpenSections] = useState({
-    dashboard: true,
-    clinical: true,
-    operations: true,
-    users: true,
-    reports: true,
-    account: true
+    dashboard: true, clinical: true, operations: true, users: true, reports: true, account: true
   })
 
   const hasPermission = (permission) => {
@@ -30,16 +32,9 @@ function Sidebar({ isCollapsed, onToggle, currentRoute }) {
   }
 
   const navGroups = [
+    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' }] },
     {
-      key: 'dashboard',
-      title: 'Panel',
-      icon: '🏠',
-      items: [{ label: 'Dashboard', path: '/dashboard' }]
-    },
-    {
-      key: 'clinical',
-      title: 'Gestión clínica',
-      icon: '🩺',
+      key: 'clinical', title: 'Gestión clínica', icon: <Icons.Clinical />,
       items: [
         { label: 'Pacientes', path: '/patients' },
         { label: 'Consultas', path: '/consultations' },
@@ -48,55 +43,32 @@ function Sidebar({ isCollapsed, onToggle, currentRoute }) {
       ]
     },
     {
-      key: 'operations',
-      title: 'Gestión operativa',
-      icon: '⚙️',
+      key: 'operations', title: 'Gestión operativa', icon: <Icons.Operations />,
       items: [
         { label: 'Ubicaciones', path: '/locations' },
         { label: 'Dispositivos', path: '/devices' },
-        { label: 'Alertas', path: '/alerts' },
-        { label: 'Métricas', path: '/metrics' }
+        { label: 'Alertas', path: '/alerts' }
       ]
     },
-    {
-      key: 'users',
-      title: 'Gestión de usuarios',
-      icon: '👥',
-      items: [{ label: 'Usuarios', path: '/users', permission: 'manage_users' }]
-    },
-    {
-      key: 'reports',
-      title: 'Informes',
-      icon: '📊',
-      items: [{ label: 'Reportes', path: '/reports' }]
-    },
-    {
-      key: 'account',
-      title: 'Cuenta',
-      icon: '👤',
-      items: [{ label: 'Perfil', path: '/profile' }]
-    }
+    { key: 'users', title: 'Usuarios', icon: <Icons.Users />, items: [{ label: 'Usuarios', path: '/users', permission: 'manage_users' }] },
+    { key: 'reports', title: 'Informes', icon: <Icons.Reports />, items: [{ label: 'Reportes', path: '/reports' }] },
+    { key: 'account', title: 'Cuenta', icon: <Icons.Account />, items: [{ label: 'Perfil', path: '/profile' }] }
   ]
 
-  const toggleSection = (key) => {
-    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
-  }
+  const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : 'open'}`}>
+    <aside className="sidebar">
       <div className="sidebar-header">
-        <button type="button" className="sidebar-toggle" onClick={onToggle} aria-label={isCollapsed ? 'Expandir menú' : 'Ocultar menú'}>
-          ☰
-        </button>
-        <div className="sidebar-header-copy">
+        <div>
           <div className="sidebar-brand">Hospital TIC</div>
-          <p className="sidebar-subtitle">Panel de control</p>
+          <p className="sidebar-subtitle">Panel de Control</p>
         </div>
       </div>
 
       <div className="sidebar-welcome">
-        <span>Hola,</span>
-        <strong>{user?.username || user?.email || 'Invitado'}</strong>
+        <span>Hola, </span>
+        <strong style={{ color: 'var(--text-main)' }}>{user?.username || user?.email || 'Invitado'}</strong>
       </div>
 
       <nav className="sidebar-nav">
@@ -126,88 +98,12 @@ function Sidebar({ isCollapsed, onToggle, currentRoute }) {
 
       <div className="sidebar-footer">
         {user ? (
-          <button type="button" className="button secondary sidebar-logout" onClick={logout}>Cerrar sesión</button>
+          <button type="button" className="sidebar-logout" onClick={logout}>Cerrar sesión</button>
         ) : (
-          <a href="#/login" className="button secondary sidebar-logout">Login</a>
+          <a href="#/login" className="button secondary sidebar-logout" style={{ textAlign: 'center' }}>Login</a>
         )}
       </div>
     </aside>
-  )
-}
-
-function AuthenticationForm({ mode, onLoginSuccess }) {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [messageType, setMessageType] = useState('')
-  const [loading, setLoading] = useState(false)
-  const { login, register } = useAuth()
-
-  async function submit(e) {
-    e.preventDefault()
-    if (!email || !password) {
-      setMessageType('error')
-      setMessage('Por favor ingresa correo y contraseña.')
-      return
-    }
-    setLoading(true)
-    setMessage('')
-    setMessageType('')
-    try {
-      if (mode === 'login') {
-        await login(email, password)
-      } else {
-        await register(email, password)
-      }
-      setMessageType('success')
-      setMessage('Autenticación correcta. Redirigiendo...')
-      
-      if (onLoginSuccess) {
-        onLoginSuccess()
-      } else {
-        setTimeout(() => { window.location.hash = '#/dashboard' }, 500)
-      }
-    } catch (err) {
-      setMessageType('error')
-      setMessage(err.message || 'Error inesperado')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const altText = mode === 'login' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'
-  const altLink = mode === 'login' ? '#/register' : '#/login'
-  const altAction = mode === 'login' ? 'Regístrate ahora' : 'Inicia sesión'
-
-  return (
-    <div className="auth-page">
-      <div className="card form-card">
-        <h2>{mode === 'login' ? 'Bienvenido de vuelta' : 'Crea tu cuenta'}</h2>
-        <p className="form-intro">
-          {mode === 'login'
-            ? 'Ingresa tus credenciales para ver el panel de control hospitalario.'
-            : 'Regístrate para comenzar a gestionar ubicaciones, dispositivos y alertas.'}
-        </p>
-        <form onSubmit={submit}>
-          <div className="form-grid">
-            <label>
-              Correo Electrónico / Usuario
-              <input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="usuario@ejemplo.com" disabled={loading} />
-            </label>
-            <label>
-              Contraseña
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="contraseña" disabled={loading} />
-            </label>
-          </div>
-          <button type="submit" disabled={loading}>{loading ? 'Procesando...' : (mode === 'login' ? 'Iniciar sesión' : 'Registrarse')}</button>
-        </form>
-        {message && <div className={messageType === 'success' ? 'message' : 'error'}>{message}</div>}
-        <div className="form-footer">
-          <span>{altText}</span>
-          <a className="link-action" href={altLink}>{altAction}</a>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -216,9 +112,7 @@ function CollectionList({ title, items = [], render, filters = [] }) {
   const [activeFilter, setActiveFilter] = useState(filters.length ? filters[0].value : 'all')
   const [currentPage, setCurrentPage] = useState(1)
 
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [query, activeFilter, items])
+  useEffect(() => { setCurrentPage(1) }, [query, activeFilter, items])
 
   const normalizedQuery = query.toLowerCase().trim()
   const filteredItems = items.filter(item => {
@@ -228,52 +122,45 @@ function CollectionList({ title, items = [], render, filters = [] }) {
     return searchMatch && filterMatch
   })
 
-  const pageSize = filteredItems.length > 15 ? 15 : 10
+  const pageSize = 12
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
-  const pageStart = filteredItems.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const pageEnd = Math.min(filteredItems.length, currentPage * pageSize)
   const pageItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   return (
     <div className="card collection-card">
       <div className="collection-header">
         <h2>{title}</h2>
-        <span className="collection-count">
-          Total: {filteredItems.length} elementos
-          {filteredItems.length > pageSize && ` · mostrando ${pageStart}-${pageEnd}`}
-        </span>
+        <span className="collection-count">{filteredItems.length} elementos</span>
       </div>
       <div className="collection-toolbar">
-        <label className="collection-search">
-          <span>Buscar</span>
-          <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar en la lista..." />
-        </label>
+        <div className="collection-search">
+          <span>Búsqueda</span>
+          <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Filtrar registros..." />
+        </div>
         {filters.length > 0 && (
-          <label className="collection-filter">
+          <div className="collection-filter">
             <span>Filtro</span>
             <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)}>
-              {filters.map(filter => (
-                <option key={filter.value} value={filter.value}>{filter.label}</option>
-              ))}
+              {filters.map(filter => <option key={filter.value} value={filter.value}>{filter.label}</option>)}
             </select>
-          </label>
+          </div>
         )}
       </div>
 
       {items.length === 0 ? (
-        <p className="muted">No hay elementos aún.</p>
+        <p style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '2rem' }}>No hay registros.</p>
       ) : filteredItems.length === 0 ? (
-        <p className="muted">No se encontraron elementos para esa búsqueda.</p>
+        <p style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '2rem' }}>No hay resultados para la búsqueda.</p>
       ) : (
         <>
           <div className="items-grid">
             {pageItems.map(item => render(item))}
           </div>
-          {filteredItems.length > pageSize && (
+          {totalPages > 1 && (
             <div className="pagination-footer">
-              <button type="button" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1}>Anterior</button>
+              <button type="button" className="button secondary" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1}>Anterior</button>
               <span>Página {currentPage} de {totalPages}</span>
-              <button type="button" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages}>Siguiente</button>
+              <button type="button" className="button secondary" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages}>Siguiente</button>
             </div>
           )}
         </>
@@ -311,78 +198,73 @@ function Alerts() {
         method: 'POST',
         body: JSON.stringify({ device_id: deviceId, alert_type: alertType, message, severity })
       })
-      const json = await res.json()
       if (res.ok) {
         setMessage('')
         setInfo('Alerta creada')
         setShowForm(false)
         load()
-      } else {
-        setInfo(json.message || 'Error al crear alerta')
       }
     } catch (err) {
-      setInfo('Error de red al registrar la alerta')
+      setInfo('Error de red')
     }
   }
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div className="card">
         <div className="card-header-row">
-          <h2>Alertas</h2>
+          <div>
+            <h2>Monitoreo de Alertas</h2>
+            <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Pase el cursor por el borde izquierdo para desplegar la barra lateral</p>
+          </div>
           {!showForm && (
-            <button type="button" className="button add-button" onClick={() => setShowForm(true)}>
-              Agregar
-            </button>
+            <button type="button" className="button" onClick={() => setShowForm(true)}>+ Crear Alerta</button>
           )}
         </div>
         {showForm && (
-          <div className="card form-card">
-            <h2>Registrar alerta</h2>
-            <form onSubmit={submit}>
-              <div className="form-grid">
-                <label>
-                  Dispositivo
-                  <select value={deviceId} onChange={e => setDeviceId(e.target.value)}>
-                    <option value="">Seleccionar dispositivo</option>
-                    {devices.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Tipo de alerta
-                  <input value={alertType} onChange={e => setAlertType(e.target.value)} placeholder="device_offline" />
-                </label>
-                <label>
-                  Mensaje
-                  <input value={message} onChange={e => setMessage(e.target.value)} placeholder="Descripción de la alerta" />
-                </label>
-                <label>
-                  Severidad
-                  <select value={severity} onChange={e => setSeverity(e.target.value)}>
-                    <option value="low">Baja</option>
-                    <option value="medium">Media</option>
-                    <option value="high">Alta</option>
-                  </select>
-                </label>
-              </div>
-              <div className="button-row">
-                <button type="submit">Crear alerta</button>
-                <button type="button" className="secondary" onClick={() => setShowForm(false)}>Cancelar</button>
-              </div>
-            </form>
-            {info && <div className="form-message">{info}</div>}
-          </div>
+          <form onSubmit={submit} style={{ marginTop: '1rem' }}>
+            <div className="form-grid">
+              <label>
+                Dispositivo
+                <select value={deviceId} onChange={e => setDeviceId(e.target.value)}>
+                  <option value="">Seleccionar dispositivo</option>
+                  {devices.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}
+                </select>
+              </label>
+              <label>
+                Tipo de alerta
+                <input value={alertType} onChange={e => setAlertType(e.target.value)} placeholder="device_offline" />
+              </label>
+              <label>
+                Severidad
+                <select value={severity} onChange={e => setSeverity(e.target.value)}>
+                  <option value="low">Baja</option>
+                  <option value="medium">Media</option>
+                  <option value="high">Alta</option>
+                </select>
+              </label>
+              <label style={{ gridColumn: '1 / -1' }}>
+                Mensaje
+                <input value={message} onChange={e => setMessage(e.target.value)} placeholder="Detalle de la alerta" />
+              </label>
+            </div>
+            <div className="button-row">
+              <button type="submit">Guardar</button>
+              <button type="button" className="button secondary" onClick={() => setShowForm(false)}>Cancelar</button>
+            </div>
+          </form>
         )}
       </div>
+
       <CollectionList
         title="Alertas recientes"
         items={alerts}
         render={alert => (
           <div key={alert.id} className="item-card">
+            <span className={`badge ${alert.severity}`}>{alert.severity}</span>
             <h3>{alert.alert_type}</h3>
             <p>{alert.message}</p>
-            <span className={`badge ${alert.severity}`}>{alert.severity}</span>
-            <span className="meta">Creado: {new Date(alert.created_at).toLocaleString()}</span>
+            <span className="meta">{new Date(alert.created_at).toLocaleString()}</span>
           </div>
         )}
       />
@@ -394,56 +276,48 @@ function AppHeader() {
   const { user } = useAuth()
   return (
     <header className="app-header">
-      {user && <span>Bienvenido, {user.username || user.email}</span>}
+      <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{ color: 'var(--primary)' }}>•</span> Panel General
+      </div>
+      {user && (
+        <div className="user-badge">
+          <div className="avatar-circle">{(user.username || user.email || 'U')[0].toUpperCase()}</div>
+          <span>{user.username || user.email}</span>
+        </div>
+      )}
     </header>
   )
 }
 
 function AppContent() {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [route, setRoute] = useState(() => normalizeRoute(window.location.hash))
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setRoute(normalizeRoute(window.location.hash))
-    }
-
+    const handleHashChange = () => setRoute(normalizeRoute(window.location.hash))
     window.addEventListener('hashchange', handleHashChange)
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
   const renderRoute = () => {
     switch (route) {
-      case '/patients':
-        return <Patients />
-      case '/dashboard':
-        return <Dashboard />
-      case '/device_actions':
-        return <DeviceActions />
-      case '/users':
-        return <Users />
-      case '/locations':
-        return <Locations />
-      case '/devices':
-        return <Devices />
-      case '/consultations':
-        return <Consultations />
-      case '/appointments':
-        return <Appointments />
-      case '/profile':
-        return <Profile />
-      case '/documents':
-        return <Documents />
-      case '/reports':
-        return <Reports />
-      case '/alerts':
-        return <Alerts />
-      case '/dashboard':
+      case '/patients': return <Patients />
+      case '/dashboard': return <Dashboard />
+      case '/users': return <Users />
+      case '/locations': return <Locations />
+      case '/devices': return <Devices />
+      case '/consultations': return <Consultations />
+      case '/appointments': return <Appointments />
+      case '/profile': return <Profile />
+      case '/documents': return <Documents />
+      case '/reports': return <Reports />
+      case '/alerts': return <Alerts />
       default:
         return (
           <div className="card">
-            <h2>Panel principal</h2>
-            <p>Bienvenido al panel de control del Hospital TIC.</p>
+            <h2>Panel Principal</h2>
+            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
+            </p>
           </div>
         )
     }
@@ -451,11 +325,7 @@ function AppContent() {
 
   return (
     <div className="app-layout">
-      <Sidebar 
-        isCollapsed={isSidebarCollapsed} 
-        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-        currentRoute={route}
-      />
+      <Sidebar currentRoute={route} />
       <main className="main-content">
         <AppHeader />
         {renderRoute()}
@@ -476,16 +346,13 @@ function MainApp() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        Cargando...
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff', background: '#090d16' }}>
+        Cargando interfaz...
       </div>
     )
   }
 
-  if (!user) {
-    const authMode = route === '/register' ? 'register' : 'login'
-    return <AuthenticationForm mode={authMode} onLoginSuccess={() => { window.location.hash = '#/dashboard' }} />
-  }
+  if (!user) return <Login />
 
   if (route === '/register' || route === '/login') {
     window.location.hash = '#/dashboard'

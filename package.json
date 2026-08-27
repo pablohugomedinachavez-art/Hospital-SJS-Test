@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.2"
+    "@supabase/supabase-js": "^2.112.4",
+    "dotenv": "^17.4.2",
+    "multer": "^2.2.0"
   }
 }
