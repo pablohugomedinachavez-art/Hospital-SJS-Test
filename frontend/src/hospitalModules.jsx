@@ -2400,6 +2400,7 @@ export function Dashboard() {
   // FUNCIONES DE EXPORTACIÓN
   // ============================================================
 
+  // 1. Exportar a JSON (Se mantiene limpio y directo en el cliente)
   const exportJSON = () => {
     try {
       const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() }
@@ -2408,7 +2409,9 @@ export function Dashboard() {
       const a = document.createElement('a')
       a.href = url
       a.download = `dashboard_report_${days}d.json`
+      document.body.appendChild(a)
       a.click()
+      a.remove()
       URL.revokeObjectURL(url)
       notify('Exportado a JSON exitosamente', 'success')
     } catch (e) {
@@ -2416,34 +2419,57 @@ export function Dashboard() {
     }
   }
 
+  // 2. Exportar a CSV mejorado con soporte para tildes (UTF-8 BOM)
   const exportCSV = () => {
     try {
-      let csvContent = "data:text/csv;charset=utf-8,Día,Pacientes,Consultas\n"
+      let csvContent = "\uFEFFDía,Pacientes,Consultas\n"; // \uFEFF asegura que Excel reconozca tildes y caracteres en español
       series.forEach(row => {
-        csvContent += `${row.day},${row.patients},${row.consultations}\n`
+        csvContent += `"${row.day}","${row.patients}","${row.consultations}"\n`;
       })
-      const encodedUri = encodeURI(csvContent)
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.setAttribute('href', encodedUri)
+      link.href = url
       link.setAttribute('download', `tendencia_pacientes_${days}d.csv`)
       document.body.appendChild(link)
       link.click()
-      document.body.removeChild(link)
+      link.remove()
       notify('Exportado a CSV exitosamente', 'success')
     } catch (e) {
       notify('Error al exportar en CSV', 'error')
     }
   }
 
-  const exportExcel = () => {
+ // 3. Exportar a Excel (XLSX) profesional consumiendo el endpoint del Dashboard
+  const exportExcel = async () => {
     try {
-      exportCSV()
-      notify('Archivo Excel (XLSX) generado correctamente', 'success')
-    } catch (e) {
-      notify('Error al exportar a Excel', 'error')
-    }
-  }
+      // Recuperar el token del localStorage (o de donde lo guardes al iniciar sesión)
+      const currentToken = localStorage.getItem('token') || '';
 
+      const res = await apiFetch('/dashboard/export/excel', {
+        headers: { 
+          'Authorization': `Bearer ${currentToken}` 
+        }
+      });
+      
+      if (!res.ok) throw new Error('Error al generar el archivo Excel en el servidor');
+      
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard_reporte_${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      notify('Archivo Excel (XLSX) del dashboard generado correctamente', 'success');
+    } catch (e) {
+      notify(e.message || 'Error al exportar a Excel', 'error');
+    }
+  };
+
+  
   // MÉTODO PROFESIONAL PARA PDF: Inyecta estilos temporales de paginación y diseño corporativo
   const exportPDF = () => {
     try {

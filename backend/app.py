@@ -20,6 +20,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
+import pandas as pd
+from flask import send_file
+import openpyxl
+from openpyxl.chart import BarChart, Reference
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
@@ -84,7 +88,7 @@ class User(db.Model):
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
 
-    
+
 # Inicializa el cliente de Supabase
 SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
 SUPABASE_KEY = "sb_secret_u9xY6CJEUJtu3IpiI5yLBQ_nK-g5p7J"
@@ -1625,5 +1629,89 @@ def static_proxy(path):
         return send_from_directory(FRONTEND_DIR, path)
     return send_from_directory(FRONTEND_DIR, 'index.html')
 
+
+
+@app.route('/api/dashboard/export/excel', methods=['GET'])
+@token_required
+def export_dashboard_excel():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    # 1. Obtener métricas independientes reales del dashboard
+    total_patients = db_query("SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    total_consultations = db_query("SELECT COUNT(*) as count FROM documents WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    
+    # Asumiendo que tienes una tabla o conteo separado para sesiones (ajusta la tabla si difiere)
+    try:
+        total_sessions = db_query("SELECT COUNT(*) as count FROM sessions WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    except Exception:
+        total_sessions = 0 # Valor por defecto si la tabla de sesiones tiene otro nombre
+
+    active_users = db_query("SELECT COUNT(*) as count FROM users WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+
+    # 2. Obtener la tendencia diaria diferenciando consultas y sesiones si aplica
+    series_sql = '''
+        SELECT DATE(created_at) as dia, COUNT(DISTINCT patient_id) as pacientes, COUNT(*) as consultas
+        FROM documents
+        WHERE tenant_id = %s
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at) ASC
+    '''
+    series_rows = db_query(series_sql, (tenant_id,), fetchall=True)
+
+    # 3. Crear libro de Excel con openpyxl e incrustar gráficos
+    wb = openpyxl.Workbook()
+    
+    # --- PESTAÑA 1: Resumen General ---
+    ws_summary = wb.active
+    ws_summary.title = "Resumen General"
+    ws_summary.append(["Métrica del Sistema", "Valor Total"])
+    ws_summary.append(["Total Pacientes Registrados", total_patients])
+    ws_summary.append(["Total Consultas Médicas", total_consultations])
+    ws_summary.append(["Total Sesiones Registradas", total_sessions])
+    ws_summary.append(["Usuarios Activos", active_users])
+
+    # --- PESTAÑA 2: Tendencia Diaria con Gráfico de Barras ---
+    ws_trend = wb.create_sheet(title="Tendencia Diaria")
+    ws_trend.append(["Día", "Pacientes", "Consultas"])
+
+    if series_rows:
+        for row in series_rows:
+            dia_str = pd.to_datetime(row['dia']).strftime('%Y-%m-%d')
+            ws_trend.append([dia_str, row['pacientes'], row['consultas']])
+
+        # Crear un gráfico de barras profesional incorporado en la hoja
+        chart = BarChart()
+        chart.type = "col"
+        chart.style = 10
+        chart.title = "Evolución Diaria de Pacientes y Consultas"
+        chart.y_axis.title = "Cantidad"
+        chart.x_axis.title = "Día"
+
+        # Referencias de datos (asumiendo cabecera en fila 1 y datos hasta len)
+        data_ref = Reference(ws_trend, min_col=2, min_row=1, max_col=3, max_row=len(series_rows) + 1)
+        cats_ref = Reference(ws_trend, min_col=1, min_row=2, max_row=len(series_rows) + 1)
+        
+        chart.add_data(data_ref, titles_from_data=True)
+        chart.set_categories(cats_ref)
+        
+        # Insertar gráfico en la celda E2
+        ws_trend.add_chart(chart, "E2")
+
+    # Guardar en memoria y retornar
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'dashboard_analitico_{int(time.time())}.xlsx'
+    )
+    
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
+
+
