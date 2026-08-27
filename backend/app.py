@@ -72,7 +72,7 @@ db = SQLAlchemy(app)
 
 # Inicializa el cliente de Supabase
 SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = "sb_secret_u9xY6CJEUJtu3IpiI5yLBQ_nK-g5p7J"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
