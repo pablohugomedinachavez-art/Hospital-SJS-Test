@@ -1401,6 +1401,23 @@ def reset_user_password(user_id):
     record_audit('update', 'user', user_id, 'Password reset by admin', tenant_id, claims.get('id'))
     return jsonify({'message': 'Password reset'})
 
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@token_required
+def delete_user(user_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    # Opcional: evitar que el usuario se elimine a sí mismo
+    if claims.get('id') == user_id:
+        return jsonify({'message': 'No puedes eliminar tu propia cuenta'}), 400
+
+    # Ejecutar la eliminación asegurando el aislamiento por tenant_id
+    db_query('DELETE FROM users WHERE id = %s AND tenant_id = %s', (user_id, tenant_id), commit=True)
+    
+    record_audit('delete', 'user', user_id, f'Deleted user id {user_id}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'User deleted successfully'})
 
 @app.route('/api/sessions', methods=['GET'])
 @token_required
