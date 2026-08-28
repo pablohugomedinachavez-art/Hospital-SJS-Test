@@ -9,10 +9,25 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+
+  
 } from 'recharts'
 import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
-
+import { 
+  User, 
+  Mail, 
+  Shield, 
+  MapPin, 
+  Key, 
+  ArrowLeft, 
+  Plus, 
+  Edit3, 
+  Trash2, 
+  AlertTriangle,
+  Stethoscope,
+  UserCheck
+} from 'lucide-react'
 // ============================================================
 // Shared UX / utilities
 // ============================================================
@@ -2641,35 +2656,6 @@ export function Dashboard() {
   )
 }
 
-export function ConsultationsModule() {
-  const [consultations, setConsultations] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [filters, setFilters] = useState({ q: '', doctor: '', startDate: '', endDate: '' })
-  const [toast, notify, clearToast] = useToast()
-
-  const fetchConsultations = useCallback(async () => {
-    setLoading(true)
-    try {
-      const q = new URLSearchParams()
-      if (filters.q) q.append('q', filters.q)
-      if (filters.doctor) q.append('doctor', filters.doctor)
-      if (filters.startDate) q.append('start_date', filters.startDate)
-      if (filters.endDate) q.append('end_date', filters.endDate)
-      const res = await apiFetch(`/consultations?${q.toString()}`)
-      if (!res.ok) throw new Error('No se pudo cargar el historial')
-      setConsultations(await res.json() || [])
-    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-  }, [filters, notify])
-
-  useEffect(() => { fetchConsultations() }, [fetchConsultations])
-
-  return <PageShell title="Histórico de consultas" subtitle="Filtra por texto, médico y rango de fechas."><Toast toast={toast} onClose={clearToast} /><SectionCard title="Filtros avanzados" icon="⌕"><div className="advanced-filter-grid"><input className="form-control" placeholder="Paciente, diagnóstico o motivo…" value={filters.q} onChange={e => setFilters(p => ({ ...p, q: e.target.value }))} /><input className="form-control" placeholder="Médico…" value={filters.doctor} onChange={e => setFilters(p => ({ ...p, doctor: e.target.value }))} /><input type="date" className="form-control" value={filters.startDate} onChange={e => setFilters(p => ({ ...p, startDate: e.target.value }))} /><input type="date" className="form-control" value={filters.endDate} onChange={e => setFilters(p => ({ ...p, endDate: e.target.value }))} /><button className="btn btn-primary" onClick={fetchConsultations}>Aplicar filtros</button></div></SectionCard><SectionCard>{loading ? <LoadingState /> : <DataTable getRowKey={r => r.id} emptyTitle="No hay consultas que coincidan" columns={[{ key: 'date', label: 'Fecha', render: r => formatDate(r.created_at) }, { key: 'patient', label: 'Paciente', render: r => <strong>{r.patient_name || 'Sin nombre'}</strong> }, { key: 'doctor', label: 'Médico', render: r => r.doctor_name || '—' }, { key: 'reason', label: 'Motivo', render: r => r.reason || '—' }, { key: 'diagnosis', label: 'Diagnóstico', render: r => r.diagnosis || '—' }]} rows={consultations} />}</SectionCard></PageShell>
-}
-
-// ============================================================
-// Users + Profile
-// ============================================================
-
 export function Users() {
   const [users, setUsers] = useState([])
   const [locations, setLocations] = useState([])
@@ -2677,6 +2663,14 @@ export function Users() {
   const [search, setSearch] = useState('')
   const [toast, notify, clearToast] = useToast()
   const debouncedSearch = useDebouncedValue(search)
+
+  const [viewMode, setViewMode] = useState('list')
+  const [editingUser, setEditingUser] = useState(null)
+  const [formData, setFormData] = useState({ username: '', email: '', role: 'admin', location_id: '', password: '' })
+  const [submitting, setSubmitting] = useState(false)
+
+  const [deleteModalUser, setDeleteModalUser] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -2697,83 +2691,393 @@ export function Users() {
 
   const locationMap = useMemo(() => new Map(locations.map(l => [String(l.id), l.name])), [locations])
 
+  const roleConfig = {
+    admin: { bg: 'bg-red-500/10 text-red-400 border-red-500/20', Icon: Shield, label: 'Admin' },
+    doctor: { bg: 'bg-blue-500/10 text-blue-400 border-blue-500/20', Icon: Stethoscope, label: 'Doctor' },
+    nurse: { bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', Icon: UserCheck, label: 'Enfermera(o)' },
+    user: { bg: 'bg-slate-800 text-slate-300 border-slate-700', Icon: User, label: 'Usuario' }
+  }
+
+  const handleOpenCreate = () => {
+    setEditingUser(null)
+    setFormData({ username: '', email: '', role: 'admin', location_id: '', password: '' })
+    setViewMode('form')
+  }
+
+  const handleOpenEdit = (user) => {
+    setEditingUser(user)
+    setFormData({ 
+      username: user.username || '', 
+      email: user.email || '', 
+      role: user.role || 'admin', 
+      location_id: user.location_id || '', 
+      password: '' 
+    })
+    setViewMode('form')
+  }
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const endpoint = editingUser ? `/users/${editingUser.id}` : '/users'
+      const method = editingUser ? 'PUT' : 'POST'
+      
+      const res = await apiFetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      if (!res.ok) throw new Error('Error al guardar el usuario')
+
+      notify(editingUser ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente', 'success')
+      setViewMode('list')
+      load()
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteModalUser) return
+    setDeleting(true)
+    try {
+      const res = await apiFetch(`/users/${deleteModalUser.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('No se pudo eliminar el usuario')
+      notify('Usuario eliminado correctamente', 'success')
+      setDeleteModalUser(null)
+      load()
+    } catch (error) {
+      notify(error.message, 'error')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  if (viewMode === 'form') {
+    return (
+      <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }} className="animate-fadeIn">
+        <Toast toast={toast} onClose={clearToast} />
+        
+        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem', maxWidth: '56rem', margin: '0 auto' }}>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.05em', color: '#818cf8', textTransform: 'uppercase', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '9999px', border: '1px solid rgba(99, 102, 241, 0.2)', width: 'fit-content' }}>
+                <Shield style={{ width: '0.875rem', height: '0.875rem' }} />
+                {editingUser ? `ID de Cuenta: #${editingUser.id}` : 'Alta de Cuenta'}
+              </span>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+                {editingUser ? 'Editar Cuenta de Usuario' : 'Registrar Nuevo Usuario'}
+              </h1>
+              <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.15rem', marginBottom: 0 }}>
+                {editingUser ? 'Modifica los parámetros de acceso y privilegios en la plataforma.' : 'Ingresa la información necesaria para dar de alta el perfil.'}
+              </p>
+            </div>
+
+            <div>
+              <button
+                type="button"
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                onClick={() => setViewMode('list')}
+              >
+                ← Volver al listado
+              </button>
+            </div>
+          </div>
+
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Información de la cuenta</h3>
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Los campos marcados con * son obligatorios.</p>
+            </div>
+
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
+                    <User style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
+                    Nombre de Usuario *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={formData.username}
+                    onChange={e => setFormData({...formData, username: e.target.value})}
+                    placeholder="ej. jperez"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
+                    <Mail style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
+                    Correo Electrónico *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    placeholder="correo@institucion.com"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
+                    <Shield style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
+                    Rol Asignado *
+                  </label>
+                  <select
+                    required
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', cursor: 'pointer' }}
+                    value={formData.role}
+                    onChange={e => setFormData({...formData, role: e.target.value})}
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="doctor">Doctor</option>
+                    <option value="nurse">Enfermera(o)</option>
+                    <option value="user">Usuario</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
+                    <MapPin style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
+                    Área / Ubicación
+                  </label>
+                  <select
+                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', cursor: 'pointer' }}
+                    value={formData.location_id}
+                    onChange={e => setFormData({...formData, location_id: e.target.value})}
+                  >
+                    <option value="">Sin asignación</option>
+                    {locations.map(l => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingTop: '0.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
+                  <Key style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
+                  {editingUser ? 'Nueva Contraseña (Opcional)' : 'Contraseña de Acceso *'}
+                </label>
+                <input
+                  type="password"
+                  {...(!editingUser ? { required: true } : {})}
+                  style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  placeholder={editingUser ? "Dejar en blanco para mantener la actual" : "••••••••"}
+                />
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>
+                  {editingUser ? 'Deja este campo vacío si no requieres actualizar la clave actual.' : 'Se recomienda una clave alfanumérica segura.'}
+                </p>
+              </div>
+
+              <div style={{ height: '1px', backgroundColor: '#1e293b', margin: '0.5rem 0' }} />
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}
+                  onClick={() => setViewMode('list')}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Guardando…' : (editingUser ? 'Actualizar Usuario' : 'Crear Usuario')}
+                </button>
+              </div>
+            </form>
+          </div>
+
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <PageShell 
-      title="Gestión de Usuarios y Accesos" 
-      subtitle="Administra cuentas, roles institucionales y áreas asignadas en el sistema."
-    >
+    <div className="page-shell animate-fadeIn">
       <Toast toast={toast} onClose={clearToast} />
       
-      <SectionCard 
-        title="Directorio de Usuarios" 
-        icon="👥" 
-        description={`${filtered.length} cuentas registradas en el sistema.`}
-      >
-        <div className="toolbar toolbar-enhanced flex items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100">
-          <SearchField 
-            value={search} 
-            onChange={setSearch} 
-            placeholder="Buscar por usuario, correo o rol..." 
-            loading={loading} 
-          />
+      <div className="card collection-card">
+        <div className="collection-header">
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Directorio de Usuarios</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{filtered.length} cuentas registradas en el sistema.</p>
+          </div>
+          <button 
+            type="button"
+            onClick={handleOpenCreate}
+            className="btn btn-primary flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
+            <span>Nuevo Usuario</span>
+          </button>
+        </div>
+
+        <div className="collection-toolbar pt-2">
+          <div className="collection-search" style={{ flex: '1' }}>
+            <input 
+              type="search"
+              value={search} 
+              onChange={e => setSearch(e.target.value)} 
+              placeholder="Buscar por usuario, correo o rol..." 
+              className="form-control transition-all focus:ring-2 focus:ring-indigo-500/40"
+            />
+          </div>
         </div>
 
         {loading ? (
-          <LoadingState />
+          <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
+            <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+            <span className="text-sm">Cargando registros...</span>
+          </div>
         ) : (
-          <DataTable 
-            getRowKey={u => u.id} 
-            emptyTitle="No se encontraron usuarios registrados" 
-            columns={[
-              { 
-                key: 'user', 
-                label: 'Usuario', 
-                render: u => (
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-semibold text-sm border border-blue-100">
-                      {u.username ? u.username.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                    <div>
-                      <strong className="text-gray-900 block">{u.username}</strong>
-                      <span className="text-xs text-gray-500">ID: #{u.id}</span>
-                    </div>
-                  </div>
-                ) 
-              },
-              { 
-                key: 'email', 
-                label: 'Correo Electrónico', 
-                render: u => <span className="text-gray-600">{u.email || '—'}</span> 
-              },
-              { 
-                key: 'role', 
-                label: 'Rol Asignado', 
-                render: u => (
-                  <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                    {u.role}
-                  </span>
-                ) 
-              },
-              { 
-                key: 'location', 
-                label: 'Área / Ubicación', 
-                render: u => {
-                  const area = locationMap.get(String(u.location_id));
-                  return area ? (
-                    <span className="text-gray-700 font-medium">{area}</span>
-                  ) : (
-                    <span className="text-gray-400 italic">Sin asignación</span>
-                  );
-                } 
-              }
-            ]} 
-            rows={filtered} 
-          />
+          <div className="overflow-x-auto">
+            <table className="data-table-container">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Correo Electrónico</th>
+                  <th>Rol Asignado</th>
+                  <th>Área / Ubicación</th>
+                  <th className="text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="text-center py-12 text-slate-500 italic">
+                      No se encontraron usuarios registrados
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(u => {
+                    const roleKey = String(u.role || 'user').toLowerCase()
+                    const config = roleConfig[roleKey] || roleConfig.user
+                    const RoleIcon = config.Icon
+                    const area = locationMap.get(String(u.location_id))
+
+                    return (
+                      <tr key={u.id} className="transition-all duration-150 hover:bg-slate-800/40 group">
+                        <td>
+                          <div className="flex items-center gap-3 py-2">
+                            <div className="avatar-circle shrink-0 text-white shadow-sm font-semibold transition-transform duration-200 group-hover:scale-110">
+                              {u.username ? u.username.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                            <div className="min-w-0">
+                              <strong className="text-white block truncate max-w-xs">{u.username}</strong>
+                              <span className="text-xs text-slate-400">ID: #{u.id}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="text-slate-300 text-sm truncate block max-w-xs">{u.email || '—'}</span>
+                        </td>
+                        <td>
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-transform duration-200 hover:scale-105 ${config.bg}`}>
+                            <RoleIcon className="w-3.5 h-3.5" />
+                            <span className="capitalize">{config.label}</span>
+                          </span>
+                        </td>
+                        <td>
+                          {area ? (
+                            <span className="text-slate-200 text-sm font-medium">{area}</span>
+                          ) : (
+                            <span className="text-slate-500 text-sm italic">Sin asignación</span>
+                          )}
+                        </td>
+                        <td className="text-right">
+                          <div className="flex items-center justify-end gap-4">
+                            <button 
+                              type="button"
+                              onClick={() => handleOpenEdit(u)}
+                              className="btn btn-secondary px-3.5 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-all duration-200 hover:scale-105 hover:bg-slate-800 active:scale-95"
+                              title="Editar usuario"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-slate-300" />
+                              <span>Editar</span>
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={() => setDeleteModalUser(u)}
+                              className="btn px-3.5 py-1.5 text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
+                              title="Eliminar usuario"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                              <span>Eliminar</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
-      </SectionCard>
-    </PageShell>
+      </div>
+
+      {deleteModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-white p-8 space-y-6 transform animate-scaleUp">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto shadow-inner animate-bounce">
+              <AlertTriangle className="w-8 h-8 text-red-400" />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="font-bold text-xl text-white">¿Eliminar usuario?</h3>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Estás a punto de eliminar permanentemente a <span className="text-slate-200 font-semibold">{deleteModalUser.username}</span>. Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-4 pt-4 border-t border-slate-800">
+              <button 
+                type="button"
+                onClick={() => setDeleteModalUser(null)}
+                className="btn btn-secondary flex-1 py-3 transition-all duration-200 hover:bg-slate-800 active:scale-95"
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="btn flex-1 bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/25 disabled:opacity-50 py-3 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    <span>Eliminando...</span>
+                  </span>
+                ) : (
+                  <span>Sí, eliminar</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
+
+
 export function Profile() {
   const { user } = useAuth()
   const [profile, setProfile] = useState(null)
