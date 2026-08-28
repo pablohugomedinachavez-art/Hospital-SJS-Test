@@ -15,7 +15,6 @@ from psycopg2.extras import RealDictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
 import csv
 from io import StringIO
-from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -24,6 +23,13 @@ import pandas as pd
 from flask import send_file
 import openpyxl
 from openpyxl.chart import BarChart, Reference
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
@@ -91,9 +97,13 @@ class User(db.Model):
 
 # Inicializa el cliente de Supabase
 SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
-SUPABASE_KEY = "sb_secret_u9xY6CJEUJtu3IpiI5yLBQ_nK-g5p7J"
+# Usa el token JWT clásico (eyJ...) en lugar de la llave sb_secret_...
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdnFwcGlxdm1mYW9yeml0dnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODI1MTksImV4cCI6MjA5OTg1ODUxOX0.oDAydesqnzPNrK9-YNQlg5nJxGt4K3aLJHnr4KK6cy4" 
 
+
+# Inicialización correcta y limpia para el servidor Flask
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 # 5. Funciones auxiliares
 def now_utc():
@@ -666,12 +676,12 @@ def upload_supabase_document():
     try:
         import json
         import io
-        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.pagesizes import A4  # <--- Cambiado a A4
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
 
-        # 1. Obtener la plantilla de la base de datos
+       # 1. Obtener la plantilla de la base de datos
         template_res = db_query(
             "SELECT nombre, structure FROM templates_formulario WHERE id = %s",
             (template_id,),
@@ -685,12 +695,15 @@ def upload_supabase_document():
         structure = template_res.get('structure', [])
         dynamic_values = json.loads(dynamic_values_str)
 
-        # 2. Generar el PDF en memoria usando ReportLab
+        # 2. Generar el PDF en memoria usando A4 y márgenes seguros de 36 pt (0.5 pulgadas)
+        # A4 dimensiones: 595.27 x 841.89 pt. Ancho útil = 595.27 - 72 = 523.27 pt
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+        ancho_util = A4[0] - 72  # ~523.27 puntos disponibles para contenido
+
         story = []
         styles = getSampleStyleSheet()
-
+        
         # Título
         title_style = ParagraphStyle(
             'TitleStyle',
@@ -703,34 +716,36 @@ def upload_supabase_document():
         story.append(Paragraph(f"<b>ID de Paciente:</b> {patient_id} | <b>Tipo:</b> {document_type}", styles['Normal']))
         story.append(Spacer(1, 15))
 
-        # Construir tabla con los valores dinámicos
-        table_data = []
+        # 3. Construcción dinámica de tablas por cada fila del template adaptadas al ancho A4
         if isinstance(structure, list):
             for rIdx, row in enumerate(structure):
                 row_cells = []
+                num_cols = len(row) if len(row) > 0 else 1
+                ancho_por_columna = ancho_util / num_cols
+                col_widths = [ancho_por_columna] * num_cols
+
                 for cIdx, cell in enumerate(row):
                     cell_key = f"{rIdx}-{cIdx}"
                     val = dynamic_values.get(cell_key, cell.get('nombre_campo', ''))
                     field_label = cell.get('nombre_campo', 'Campo')
                     cell_text = f"<b>{field_label}:</b><br/>{val}"
                     row_cells.append(Paragraph(cell_text, styles['Normal']))
+                
                 if row_cells:
-                    table_data.append(row_cells)
-
-        if table_data:
-            t = Table(table_data, colWidths=[270, 270])
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
-                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-                ('TOPPADDING', (0, 0), (-1, -1), 8),
-                ('LEFTPADDING', (0, 0), (-1, -1), 10),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 10),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1'))
-            ]))
-            story.append(t)
+                    t = Table([row_cells], colWidths=col_widths)
+                    t.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+                        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                        ('TOPPADDING', (0, 0), (-1, -1), 8),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1'))
+                    ]))
+                    story.append(t)
+                    story.append(Spacer(1, 6)) # Espaciado limpio entre filas del grid
 
         doc.build(story)
         file_bytes = buffer.getvalue()
@@ -740,7 +755,7 @@ def upload_supabase_document():
         filename = f"doc_{patient_id}_{int(time.time())}.pdf"
         storage_path = f"tenant_{tenant_id}/patient_{patient_id}/{filename}"
         bucket_name = "documents" # Cambia por el nombre real de tu bucket si es distinto
-
+        
         supabase.storage.from_(bucket_name).upload(
             path=storage_path,
             file=file_bytes,
