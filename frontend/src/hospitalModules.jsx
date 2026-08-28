@@ -2697,9 +2697,83 @@ export function Users() {
 
   const locationMap = useMemo(() => new Map(locations.map(l => [String(l.id), l.name])), [locations])
 
-  return <PageShell title="Usuarios y accesos" subtitle="Consulta cuentas, roles y áreas asignadas."><Toast toast={toast} onClose={clearToast} /><SectionCard title="Usuarios registrados" icon="👥" description={`${filtered.length} usuarios visibles.`}><div className="toolbar toolbar-enhanced"><SearchField value={search} onChange={setSearch} placeholder="Buscar usuario, correo o rol…" loading={loading} /></div>{loading ? <LoadingState /> : <DataTable getRowKey={u => u.id} emptyTitle="No se encontraron usuarios" columns={[{ key: 'id', label: 'ID', render: u => `#${u.id}` }, { key: 'username', label: 'Usuario', render: u => <strong>{u.username}</strong> }, { key: 'email', label: 'Correo', render: u => u.email || '—' }, { key: 'role', label: 'Rol', render: u => <span className="badge badge-info">{u.role}</span> }, { key: 'location', label: 'Área', render: u => locationMap.get(String(u.location_id)) || 'Sin asignación' }]} rows={filtered} />}</SectionCard></PageShell>
-}
+  return (
+    <PageShell 
+      title="Gestión de Usuarios y Accesos" 
+      subtitle="Administra cuentas, roles institucionales y áreas asignadas en el sistema."
+    >
+      <Toast toast={toast} onClose={clearToast} />
+      
+      <SectionCard 
+        title="Directorio de Usuarios" 
+        icon="👥" 
+        description={`${filtered.length} cuentas registradas en el sistema.`}
+      >
+        <div className="toolbar toolbar-enhanced flex items-center justify-between gap-4 mb-6 pb-4 border-b border-gray-100">
+          <SearchField 
+            value={search} 
+            onChange={setSearch} 
+            placeholder="Buscar por usuario, correo o rol..." 
+            loading={loading} 
+          />
+        </div>
 
+        {loading ? (
+          <LoadingState />
+        ) : (
+          <DataTable 
+            getRowKey={u => u.id} 
+            emptyTitle="No se encontraron usuarios registrados" 
+            columns={[
+              { 
+                key: 'user', 
+                label: 'Usuario', 
+                render: u => (
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-semibold text-sm border border-blue-100">
+                      {u.username ? u.username.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 block">{u.username}</strong>
+                      <span className="text-xs text-gray-500">ID: #{u.id}</span>
+                    </div>
+                  </div>
+                ) 
+              },
+              { 
+                key: 'email', 
+                label: 'Correo Electrónico', 
+                render: u => <span className="text-gray-600">{u.email || '—'}</span> 
+              },
+              { 
+                key: 'role', 
+                label: 'Rol Asignado', 
+                render: u => (
+                  <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                    {u.role}
+                  </span>
+                ) 
+              },
+              { 
+                key: 'location', 
+                label: 'Área / Ubicación', 
+                render: u => {
+                  const area = locationMap.get(String(u.location_id));
+                  return area ? (
+                    <span className="text-gray-700 font-medium">{area}</span>
+                  ) : (
+                    <span className="text-gray-400 italic">Sin asignación</span>
+                  );
+                } 
+              }
+            ]} 
+            rows={filtered} 
+          />
+        )}
+      </SectionCard>
+    </PageShell>
+  )
+}
 export function Profile() {
   const { user } = useAuth()
   const [profile, setProfile] = useState(null)
