@@ -867,8 +867,9 @@ def get_patient_documents(patient_id):
 # ENDPOINTS: PLANTILLAS DE FORMULARIOS (TEMPLATES)
 # ==========================================
 @app.route('/api/templates', methods=['GET', 'POST'])
+@app.route('/api/templates/<int:template_id>', methods=['DELETE'])
 @token_required
-def templates_handler():
+def templates_handler(template_id=None):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
 
@@ -876,10 +877,12 @@ def templates_handler():
     if request.method == 'GET':
         rows = db_query(
             '''
-            SELECT id, nombre, version, estado, structure, creado_por, fecha_creacion 
+            SELECT id, tenant_id, nombre, version, estado, structure, creado_por, fecha_creacion 
             FROM templates_formulario 
+            WHERE tenant_id = %s
             ORDER BY id DESC
             ''', 
+            (tenant_id,),
             fetchall=True
         )
         return jsonify(rows or []), 200
@@ -898,11 +901,11 @@ def templates_handler():
         try:
             new_template = db_query(
                 '''
-                INSERT INTO templates_formulario (nombre, version, estado, structure, creado_por, fecha_creacion)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO templates_formulario (tenant_id, nombre, version, estado, structure, creado_por, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 ''',
-                (nombre, version, 'activo', psycopg2.extras.Json(structure), creado_por, now_utc()),
+                (tenant_id, nombre, version, 'activo', psycopg2.extras.Json(structure), creado_por, now_utc()),
                 commit=True,
                 fetchone=True
             )
@@ -918,6 +921,19 @@ def templates_handler():
             print(f"--- ERROR AL GUARDAR PLANTILLA: {e} ---")
             return jsonify({'message': f'Error interno al guardar la plantilla: {str(e)}'}), 500
 
+    # 3. ELIMINAR PLANTILLA (DELETE)
+    if request.method == 'DELETE' and template_id:
+        existing = db_query('SELECT id FROM templates_formulario WHERE id = %s AND tenant_id = %s', (template_id, tenant_id), fetchone=True)
+        if not existing:
+            return jsonify({'message': 'Plantilla no encontrada'}), 404
+
+        try:
+            db_query('DELETE FROM templates_formulario WHERE id = %s AND tenant_id = %s', (template_id, tenant_id), commit=True)
+            record_audit('delete', 'template', template_id, 'Deleted template', tenant_id, claims.get('id'))
+            return jsonify({'message': 'Plantilla eliminada correctamente'}), 200
+        except Exception as e:
+            print(f"--- ERROR AL ELIMINAR PLANTILLA: {e} ---")
+            return jsonify({'message': f'Error interno al eliminar la plantilla: {str(e)}'}), 500
 
 
 

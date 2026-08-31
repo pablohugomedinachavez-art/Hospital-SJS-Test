@@ -2478,7 +2478,29 @@ export function Documents() {
       notify(error.message, 'error');
     }
   };
+  // ==========================================
+  // ELIMINAR PLANTILLA EN BASE DE DATOS
+  // ==========================================
+  const deleteTemplate = async (templateId) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta plantilla?')) return;
 
+    try {
+      const res = await apiFetch(`/templates/${templateId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al eliminar la plantilla');
+
+      notify('Plantilla eliminada correctamente.', 'success');
+      loadTemplates(); // Recarga la lista desde la BD
+    } catch (error) {
+      notify(error.message, 'error');
+    }
+  };
   // ==========================================
   // ENVÍO DE DATOS (Flujo Paciente / Supabase)
   // ==========================================
@@ -2542,27 +2564,36 @@ export function Documents() {
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* LISTADO DE TEMPLATES CON OPCIÓN DE DUPLICAR */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles en Base de Datos (Templates)</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-            {templates.map(tpl => (
-              <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
-                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
-                </div>
-                <button
-                  onClick={() => duplicateTemplate(tpl)}
-                  title="Copiar / Duplicar Plantilla"
-                  style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
-                >
-                  📋 Duplicar
-                </button>
-              </div>
-            ))}
-          </div>
+        {/* LISTADO DE TEMPLATES CON OPCIÓN DE DUPLICAR Y ELIMINAR */}
+<div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+  <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles en Base de Datos (Templates)</h3>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+    {templates.map(tpl => (
+      <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
+          <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
         </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => duplicateTemplate(tpl)}
+            title="Copiar / Duplicar Plantilla"
+            style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
+          >
+            📋
+          </button>
+          <button
+            onClick={() => deleteTemplate(tpl.id)}
+            title="Eliminar Plantilla"
+            style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
 
         {/* ========================================== */}
         {/* DISEÑADOR ESTILO EXCEL (FILAS Y CELDAS LIBRES) */}
