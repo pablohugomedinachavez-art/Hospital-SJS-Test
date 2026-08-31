@@ -17,11 +17,15 @@ export const apiFetch = async (endpoint, options = {}) => {
     headers['Content-Type'] = 'application/json';
   }
 
+  const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+    console.log(`[API DEBUG] Token adjuntado correctamente (Primeros 10 chars): ${token.substring(0, 10)}... para: ${formattedEndpoint}`);
+  } else {
+    console.warn(`[API DEBUG] ¡ADVERTENCIA! No se encontró ningún token en localStorage ni sessionStorage para la petición: ${formattedEndpoint}`);
   }
 
-  const formattedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const method = (options.method || 'GET').toUpperCase();
 
   console.log(`[API DEBUG] Enviando ${method} a: ${BASE_URL}${formattedEndpoint}`);
