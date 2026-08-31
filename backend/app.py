@@ -550,39 +550,67 @@ def patients():
     record_audit('create', 'patient', new_patient['id'], f'Created patient {full_name}', tenant_id, claims.get('id'))
     return jsonify({'message': 'Patient created', 'id': new_patient['id'], 'medical_record_number': medical_record_number})
 
-@app.route('/api/appointments', methods=['GET', 'POST', 'DELETE'])
+@app.route('/api/appointments', methods=['GET', 'POST'])
+@app.route('/api/appointments/<int:appointment_id>', methods=['PUT', 'DELETE'])
 @token_required
-def appointments():
+def appointments(appointment_id=None):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
     
+    # Listar citas
     if request.method == 'GET':
         rows = db_query('SELECT * FROM appointments WHERE tenant_id = %s ORDER BY appointment_date ASC', (tenant_id,), fetchall=True)
         return jsonify(rows or [])
 
+    # Verificar permisos para modificaciones
     if not has_permission(claims.get('role'), 'manage_appointments'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    data = request.get_json() or {}
-    patient_id = data.get('patient_id')
-    appointment_date = data.get('appointment_date')
-    specialty = data.get('specialty', 'General')
-    
-    if not patient_id or not appointment_date:
-        return jsonify({'message': 'patient_id and appointment_date are required'}), 400
+    # Crear nueva cita (POST)
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        appointment_date = data.get('appointment_date')
+        specialty = data.get('specialty', 'General')
+        
+        if not patient_id or not appointment_date:
+            return jsonify({'message': 'patient_id and appointment_date are required'}), 400
 
-    patient = db_query('SELECT id FROM patients WHERE id = %s AND tenant_id = %s', (patient_id, tenant_id), fetchone=True)
-    if not patient:
-        return jsonify({'message': 'invalid patient'}), 400
+        patient = db_query('SELECT id FROM patients WHERE id = %s AND tenant_id = %s', (patient_id, tenant_id), fetchone=True)
+        if not patient:
+            return jsonify({'message': 'invalid patient'}), 400
 
-    new_appointment = db_query(
-        'INSERT INTO appointments (tenant_id, patient_id, doctor_name, specialty, appointment_date, status, notes, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id',
-        (tenant_id, patient_id, data.get('doctor_name', 'Dr. Demo'), specialty, appointment_date, data.get('status', 'scheduled'), data.get('notes', ''), now_utc()),
-        commit=True, fetchone=True
-    )
-    
-    record_audit('create', 'appointment', new_appointment['id'], appointment_date, tenant_id, claims.get('id'))
-    return jsonify({'message': 'Appointment created'})
+        new_appointment = db_query(
+            'INSERT INTO appointments (tenant_id, patient_id, doctor_name, specialty, appointment_date, status, notes, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id',
+            (tenant_id, patient_id, data.get('doctor_name', 'Dr. Demo'), specialty, appointment_date, data.get('status', 'scheduled'), data.get('notes', ''), now_utc()),
+            commit=True, fetchone=True
+        )
+        
+        record_audit('create', 'appointment', new_appointment['id'], appointment_date, tenant_id, claims.get('id'))
+        return jsonify({'message': 'Appointment created'})
+
+    # Validar existencia de la cita para PUT / DELETE
+    if appointment_id:
+        existing = db_query('SELECT id FROM appointments WHERE id = %s AND tenant_id = %s', (appointment_id, tenant_id), fetchone=True)
+        if not existing:
+            return jsonify({'message': 'Appointment not found'}), 404
+
+    # Actualizar cita (PUT)
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        db_query(
+            'UPDATE appointments SET doctor_name = %s, specialty = %s, appointment_date = %s, end_time = %s, notes = %s WHERE id = %s AND tenant_id = %s',
+            (data.get('doctor_name'), data.get('specialty'), data.get('appointment_date'), data.get('end_time'), data.get('notes'), appointment_id, tenant_id),
+            commit=True
+        )
+        record_audit('update', 'appointment', appointment_id, data.get('appointment_date'), tenant_id, claims.get('id'))
+        return jsonify({'message': 'Appointment updated'})
+
+    # Eliminar cita (DELETE)
+    if request.method == 'DELETE':
+        db_query('DELETE FROM appointments WHERE id = %s AND tenant_id = %s', (appointment_id, tenant_id), commit=True)
+        record_audit('delete', 'appointment', appointment_id, None, tenant_id, claims.get('id'))
+        return jsonify({'message': 'Appointment deleted'})
 
 # ==========================================
 # ENDPOINT: CONSULTAS CON FILTROS DE BÚSQUEDA
