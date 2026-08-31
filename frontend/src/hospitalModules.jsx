@@ -1486,11 +1486,6 @@ export function Locations() {
 // Devices / audit
 // ============================================================
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { apiFetch } from './path-to-your-apiFetch'; // Ajusta la ruta según tu proyecto
-import { useAuth } from './path-to-useAuth';       // Ajusta la ruta según tu proyecto
-import { useToast, Toast, LoadingState, EmptyState, SearchField } from './path-to-components';
-
 export function Devices() {
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -1507,7 +1502,6 @@ export function Devices() {
   const { user } = useAuth();
   const [toast, notify, clearToast] = useToast();
 
-  // Carga paralela y segura de dispositivos y ubicaciones
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -1535,7 +1529,6 @@ export function Devices() {
   useEffect(() => {
     loadData();
 
-    // Obtener IP pública del cliente de forma asíncrona
     (async () => {
       try {
         const res = await fetch('https://api.ipify.org?format=json');
@@ -1701,10 +1694,6 @@ export function Devices() {
   );
 }
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from './path-to-your-apiFetch'; // Ajusta la ruta según tu proyecto
-import { useToast, Toast, LoadingState, EmptyState, Pagination } from './path-to-components';
-
 export function DeviceActions() {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
@@ -1789,6 +1778,7 @@ export function DeviceActions() {
     </div>
   );
 }
+
 
 // ============================================================
 // Appointments
