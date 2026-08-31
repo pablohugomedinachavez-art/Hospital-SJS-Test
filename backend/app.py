@@ -550,7 +550,7 @@ def patients():
     record_audit('create', 'patient', new_patient['id'], f'Created patient {full_name}', tenant_id, claims.get('id'))
     return jsonify({'message': 'Patient created', 'id': new_patient['id'], 'medical_record_number': medical_record_number})
 
-@app.route('/api/appointments', methods=['GET', 'POST','DELETE'])
+@app.route('/api/appointments', methods=['GET', 'POST', 'DELETE'])
 @token_required
 def appointments():
     claims = get_current_user()
