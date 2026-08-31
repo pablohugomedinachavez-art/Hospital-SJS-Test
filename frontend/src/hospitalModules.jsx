@@ -1486,80 +1486,108 @@ export function Locations() {
 // Devices / audit
 // ============================================================
 
-export function Devices() {
-  const [devices, setDevices] = useState([])
-  const [locations, setLocations] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [clientInfo, setClientInfo] = useState({ ip: 'No disponible', userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '' })
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('all')
-  const [showForm, setShowForm] = useState(false)
-  const [formData, setFormData] = useState({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' })
-  const { user } = useAuth()
-  const [toast, notify, clearToast] = useToast()
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { apiFetch } from './path-to-your-apiFetch'; // Ajusta la ruta según tu proyecto
+import { useAuth } from './path-to-useAuth';       // Ajusta la ruta según tu proyecto
+import { useToast, Toast, LoadingState, EmptyState, SearchField } from './path-to-components';
 
-  const load = useCallback(async () => {
-    setLoading(true)
+export function Devices() {
+  const [devices, setDevices] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [clientInfo, setClientInfo] = useState({ 
+    ip: 'No disponible', 
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '' 
+  });
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData] = useState({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' });
+  
+  const { user } = useAuth();
+  const [toast, notify, clearToast] = useToast();
+
+  // Carga paralela y segura de dispositivos y ubicaciones
+  const loadData = useCallback(async () => {
+    setLoading(true);
     try {
-      const [devRes, locRes] = await Promise.all([apiFetch('/devices'), apiFetch('/locations')])
-      if (!devRes.ok || !locRes.ok) throw new Error('No se pudo cargar el inventario')
-      setDevices(await devRes.json() || [])
-      setLocations(await locRes.json() || [])
+      const [devRes, locRes] = await Promise.all([
+        apiFetch('/devices'), 
+        apiFetch('/locations')
+      ]);
+
+      if (!devRes.ok || !locRes.ok) {
+        throw new Error('No se pudo cargar el inventario o las ubicaciones.');
+      }
+
+      const devData = await devRes.json();
+      const locData = await locRes.json();
+
+      setDevices(Array.isArray(devData) ? devData : []);
+      setLocations(Array.isArray(locData) ? locData : []);
     } catch (error) {
-      notify(error.message, 'error')
-    } finally { setLoading(false) }
-  }, [notify])
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [notify]);
 
   useEffect(() => {
-    load()
-    ;(async () => {
+    loadData();
+
+    // Obtener IP pública del cliente de forma asíncrona
+    (async () => {
       try {
-        const res = await fetch('https://api.ipify.org?format=json')
+        const res = await fetch('https://api.ipify.org?format=json');
         if (res.ok) {
-          const data = await res.json()
-          setClientInfo(v => ({ ...v, ip: data.ip || v.ip }))
+          const data = await res.json();
+          setClientInfo(v => ({ ...v, ip: data.ip || v.ip }));
         }
       } catch (error) {
-        console.warn(error)
+        console.warn('No se pudo obtener la IP pública:', error);
       }
-    })()
-  }, [load])
+    })();
+  }, [loadData]);
 
   const handleSave = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
       const res = await apiFetch('/devices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...formData, ip_address: clientInfo.ip })
-      })
+      });
+
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.message || 'Error al registrar dispositivo')
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Error al registrar dispositivo');
       }
-      notify('Dispositivo registrado con éxito', 'success')
-      setShowForm(false)
-      setFormData({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' })
-      load()
+
+      notify('Dispositivo registrado con éxito', 'success');
+      setShowForm(false);
+      setFormData({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' });
+      loadData();
     } catch (error) {
-      notify(error.message, 'error')
+      notify(error.message, 'error');
     }
-  }
+  };
 
   const filteredDevices = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = search.trim().toLowerCase();
     return devices.filter(device => {
-      const matchesQuery = !q || [device.name, device.type, device.ip_address].filter(Boolean).some(value => String(value).toLowerCase().includes(q))
-      const matchesStatus = status === 'all' || device.status === status
-      return matchesQuery && matchesStatus
-    })
-  }, [devices, search, status])
+      const matchesQuery = !q || [device.name, device.type, device.ip_address]
+        .filter(Boolean)
+        .some(value => String(value).toLowerCase().includes(q));
+      const matchesStatus = status === 'all' || device.status === status;
+      return matchesQuery && matchesStatus;
+    });
+  }, [devices, search, status]);
 
-  const locationMap = useMemo(() => new Map(locations.map(location => [String(location.id), location.name])), [locations])
+  const locationMap = useMemo(() => {
+    return new Map(locations.map(location => [String(location.id), location.name]));
+  }, [locations]);
 
   return (
     <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-
       <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
@@ -1582,7 +1610,7 @@ export function Devices() {
         <Toast toast={toast} onClose={clearToast} />
 
         <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '1rem', fontSize: '0.875rem', color: '#93c5fd' }}>
-          <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · {getUserRole(user)} · IP {clientInfo.ip} · {parseBrowser(clientInfo.userAgent)}
+          <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · IP {clientInfo.ip}
         </div>
 
         {showForm && (
@@ -1591,13 +1619,13 @@ export function Devices() {
               type="text" 
               placeholder="Nombre del dispositivo" 
               value={formData.name} 
-              onChange={e => setFormData({...formData, name: e.target.value})} 
+              onChange={e => setFormData({ ...formData, name: e.target.value })} 
               required 
               style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }} 
             />
             <select 
               value={formData.type} 
-              onChange={e => setFormData({...formData, type: e.target.value})} 
+              onChange={e => setFormData({ ...formData, type: e.target.value })} 
               style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
             >
               <option value="pc">PC de Escritorio</option>
@@ -1609,7 +1637,7 @@ export function Devices() {
             </select>
             <select 
               value={formData.location_id} 
-              onChange={e => setFormData({...formData, location_id: e.target.value})} 
+              onChange={e => setFormData({ ...formData, location_id: e.target.value })} 
               style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
             >
               <option value="">Seleccionar ubicación</option>
@@ -1625,16 +1653,15 @@ export function Devices() {
         )}
 
         <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Inventario de dispositivos</h3>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{filteredDevices.length} dispositivos visibles.</p>
-          </div>
-
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '240px' }}>
               <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo o IP…" loading={loading} />
             </div>
-            <select style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={status} onChange={e => setStatus(e.target.value)}>
+            <select 
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} 
+              value={status} 
+              onChange={e => setStatus(e.target.value)}
+            >
               <option value="all">Todos los estados</option>
               <option value="available">Disponible</option>
               <option value="in_use">En uso</option>
@@ -1650,33 +1677,10 @@ export function Devices() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               {filteredDevices.map(row => (
-                <div
-                  key={row.id}
-                  style={{
-                    backgroundColor: '#090d16',
-                    border: '1px solid #1e293b',
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
-                    transition: 'all 0.25s ease-in-out'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-3px)'
-                    e.currentTarget.style.borderColor = '#3b82f6'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = 'translateY(0px)'
-                    e.currentTarget.style.borderColor = '#1e293b'
-                  }}
-                >
+                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>#{row.id}</span>
-                    <span className={cx('badge', row.status === 'available' || row.status === 'active' ? 'badge-success' : row.status === 'maintenance' ? 'badge-warning' : 'badge-info')}>
-                      {row.status || '—'}
-                    </span>
+                    <span className="badge">{row.status || '—'}</span>
                   </div>
                   <div>
                     <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{row.name}</strong>
@@ -1694,34 +1698,47 @@ export function Devices() {
 
       </div>
     </div>
-  )
+  );
 }
 
+import React, { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from './path-to-your-apiFetch'; // Ajusta la ruta según tu proyecto
+import { useToast, Toast, LoadingState, EmptyState, Pagination } from './path-to-components';
+
 export function DeviceActions() {
-  const [items, setItems] = useState([])
-  const [page, setPage] = useState(1)
-  const [perPage] = useState(20)
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [toast, notify, clearToast] = useToast()
+  const [items, setItems] = useState([]);
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [toast, notify, clearToast] = useToast();
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const loadActions = useCallback(async () => {
+    setLoading(true);
     try {
-      const params = new URLSearchParams({ page, per_page: perPage })
-      const res = await apiFetch(`/device_actions?${params.toString()}`)
-      if (!res.ok) throw new Error('No se pudo cargar la bitácora')
-      const data = await res.json()
-      const list = Array.isArray(data) ? data : data.items || []
-      setItems(list); setTotal(data.total || list.length)
-    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-  }, [page, perPage, notify])
+      const params = new URLSearchParams({ page, per_page: perPage });
+      const res = await apiFetch(`/device_actions?${params.toString()}`);
+      
+      if (!res.ok) throw new Error('No se pudo cargar la bitácora');
+      
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.items || [];
+      
+      setItems(list);
+      setTotal(data.total || list.length);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, perPage, notify]);
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    loadActions();
+  }, [loadActions]);
 
   return (
     <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-
       <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
@@ -1738,11 +1755,6 @@ export function DeviceActions() {
         <Toast toast={toast} onClose={clearToast} />
 
         <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Eventos recientes</h3>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Registro histórico de actividades del sistema.</p>
-          </div>
-
           {loading ? (
             <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando registros…" /></div>
           ) : items.length === 0 ? (
@@ -1750,26 +1762,9 @@ export function DeviceActions() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {items.map(row => (
-                <div
-                  key={row.id}
-                  style={{
-                    backgroundColor: '#090d16',
-                    border: '1px solid #1e293b',
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '1rem',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
-                    transition: 'all 0.2s ease-in-out'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = '#1e293b'}
-                >
+                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.0rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{formatDateTime(row.created_at)}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{row.created_at}</span>
                     <span className="badge badge-info" style={{ width: 'fit-content' }}>{row.action_type || 'ACCIÓN'}</span>
                   </div>
 
@@ -1792,7 +1787,7 @@ export function DeviceActions() {
 
       </div>
     </div>
-  )
+  );
 }
 
 // ============================================================

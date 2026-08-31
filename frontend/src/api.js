@@ -73,3 +73,37 @@ export const api = {
   delete: (endpoint, options = {}) => 
     apiFetch(endpoint, { method: 'DELETE', ...options }),
 };
+
+const API_BASE_URL = 'https://hospital-sjs-test.onrender.com/api';
+
+export async function apiFetch(endpoint, options = {}) {
+  // Obtiene el token de autenticación del almacenamiento local o de sesión
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+
+  const url = endpoint.startsWith('http') 
+    ? endpoint 
+    : `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (response.status === 401) {
+      console.warn('Sesión no autorizada o expirada (401).');
+      // Opcional: limpiar credenciales y redirigir al login si es necesario
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Error de red en apiFetch:', error);
+    throw error;
+  }
+}
