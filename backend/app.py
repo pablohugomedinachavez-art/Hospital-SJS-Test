@@ -32,7 +32,7 @@ from reportlab.lib import colors
 
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
-app.config["JWT_SECRET_KEY"] = os.getenv("SECRET_KEY")
+
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
