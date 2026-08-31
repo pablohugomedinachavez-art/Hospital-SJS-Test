@@ -322,6 +322,10 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
   )
 }
 
+
+
+
+
 // ============================================================
 // Patients
 // ============================================================
@@ -1489,6 +1493,8 @@ export function Devices() {
   const [clientInfo, setClientInfo] = useState({ ip: 'No disponible', userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '' })
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
+  const [showForm, setShowForm] = useState(false)
+  const [formData, setFormData] = useState({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' })
   const { user } = useAuth()
   const [toast, notify, clearToast] = useToast()
 
@@ -1506,18 +1512,39 @@ export function Devices() {
 
   useEffect(() => {
     load()
-      ; (async () => {
-        try {
-          const res = await fetch('https://api.ipify.org?format=json')
-          if (res.ok) {
-            const data = await res.json()
-            setClientInfo(v => ({ ...v, ip: data.ip || v.ip }))
-          }
-        } catch (error) {
-          console.warn(error)
+    ;(async () => {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json')
+        if (res.ok) {
+          const data = await res.json()
+          setClientInfo(v => ({ ...v, ip: data.ip || v.ip }))
         }
-      })()
+      } catch (error) {
+        console.warn(error)
+      }
+    })()
   }, [load])
+
+  const handleSave = async (e) => {
+    e.preventDefault()
+    try {
+      const res = await apiFetch('/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, ip_address: clientInfo.ip })
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.message || 'Error al registrar dispositivo')
+      }
+      notify('Dispositivo registrado con éxito', 'success')
+      setShowForm(false)
+      setFormData({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' })
+      load()
+    } catch (error) {
+      notify(error.message, 'error')
+    }
+  }
 
   const filteredDevices = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -1533,10 +1560,8 @@ export function Devices() {
   return (
     <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
 
-      {/* MARCO GENERAL ESTILO DOCUMENTO */}
       <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
 
-        {/* CABECERA */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
           <div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
@@ -1546,16 +1571,59 @@ export function Devices() {
               Inventario operativo y contexto de trazabilidad del cliente.
             </p>
           </div>
+          <button 
+            onClick={() => setShowForm(!showForm)} 
+            style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}
+          >
+            {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
+          </button>
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* ALERTA DE SESIÓN */}
         <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '1rem', fontSize: '0.875rem', color: '#93c5fd' }}>
           <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · {getUserRole(user)} · IP {clientInfo.ip} · {parseBrowser(clientInfo.userAgent)}
         </div>
 
-        {/* INVENTARIO DE DISPOSITIVOS */}
+        {showForm && (
+          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
+            <input 
+              type="text" 
+              placeholder="Nombre del dispositivo" 
+              value={formData.name} 
+              onChange={e => setFormData({...formData, name: e.target.value})} 
+              required 
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }} 
+            />
+            <select 
+              value={formData.type} 
+              onChange={e => setFormData({...formData, type: e.target.value})} 
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+            >
+              <option value="pc">PC de Escritorio</option>
+              <option value="laptop">Laptop</option>
+              <option value="mobile">Móvil</option>
+              <option value="tablet">Tablet</option>
+              <option value="server">Servidor</option>
+              <option value="other">Otro</option>
+            </select>
+            <select 
+              value={formData.location_id} 
+              onChange={e => setFormData({...formData, location_id: e.target.value})} 
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+            >
+              <option value="">Seleccionar ubicación</option>
+              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+            <button 
+              type="submit" 
+              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem' }}
+            >
+              Guardar Dispositivo
+            </button>
+          </form>
+        )}
+
         <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Inventario de dispositivos</h3>
@@ -1654,10 +1722,8 @@ export function DeviceActions() {
   return (
     <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
 
-      {/* MARCO GENERAL ESTILO DOCUMENTO */}
       <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
 
-        {/* CABECERA */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
           <div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
@@ -1671,7 +1737,6 @@ export function DeviceActions() {
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* EVENTOS RECIENTES */}
         <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Eventos recientes</h3>
@@ -2565,35 +2630,35 @@ export function Documents() {
         <Toast toast={toast} onClose={clearToast} />
 
         {/* LISTADO DE TEMPLATES CON OPCIÓN DE DUPLICAR Y ELIMINAR */}
-<div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-  <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles en Base de Datos (Templates)</h3>
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-    {templates.map(tpl => (
-      <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
-          <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles en Base de Datos (Templates)</h3>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+      {templates.map(tpl => (
+        <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
+            <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={() => duplicateTemplate(tpl)}
+              title="Copiar / Duplicar Plantilla"
+              style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
+            >
+              📋
+            </button>
+            <button
+              onClick={() => deleteTemplate(tpl.id)}
+              title="Eliminar Plantilla"
+              style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
+            >
+              🗑️
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={() => duplicateTemplate(tpl)}
-            title="Copiar / Duplicar Plantilla"
-            style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
-          >
-            📋
-          </button>
-          <button
-            onClick={() => deleteTemplate(tpl.id)}
-            title="Eliminar Plantilla"
-            style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
-          >
-            🗑️
-          </button>
-        </div>
-      </div>
-    ))}
+      ))}
+    </div>
   </div>
-</div>
 
         {/* ========================================== */}
         {/* DISEÑADOR ESTILO EXCEL (FILAS Y CELDAS LIBRES) */}

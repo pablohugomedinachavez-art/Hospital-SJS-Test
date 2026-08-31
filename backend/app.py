@@ -121,6 +121,56 @@ def close_db(error=None):
     if db_conn is not None:
         db_conn.close()
 
+def parse_device_type(user_agent_str):
+    ua = user_agent_str.lower()
+    if 'mobi' in ua or 'android' in ua and 'mobile' in ua or 'iphone' in ua:
+        return 'mobile'
+    elif 'ipad' in ua or 'tablet' in ua:
+        return 'tablet'
+    elif 'macintosh' in ua or 'windows' in ua or 'linux' in ua:
+        # Distinguir portátil de escritorio si es posible, por defecto PC o laptop
+        if 'laptop' in ua or 'book' in ua:
+            return 'laptop'
+        return 'pc'
+    return 'other'
+
+def register_client_device(db_connection, tenant_id, user_id, location_id=None):
+    user_agent = request.headers.get('User-Agent', '')
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+    device_type = parse_device_type(user_agent)
+    device_name = f"{device_type.upper()} - {ip_address}"
+    created_at = datetime.now(timezone.utc)
+    
+    cursor = db_connection.cursor()
+    
+    # Verificar si el dispositivo ya existe para esta IP y tenant para evitar duplicados
+    cursor.execute(
+        """
+        SELECT id FROM public.devices 
+        WHERE tenant_id = %s AND ip_address = %s AND user_agent = %s
+        """,
+        (tenant_id, ip_address, user_agent)
+    )
+    existing = cursor.fetchone()
+    
+    if existing:
+        device_id = existing[0]
+        # Opcional: actualizar última actividad o estado
+    else:
+        cursor.execute(
+            """
+            INSERT INTO public.devices 
+            (tenant_id, location_id, name, type, status, created_at, ip_address, user_agent)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (tenant_id, location_id, device_name, device_type, 'active', created_at, ip_address, user_agent)
+        )
+        device_id = cursor.fetchone()[0]
+        db_connection.commit()
+        
+    return device_id
+
 def db_query(query, params=(), commit=False, fetchone=False, fetchall=False):
     conn = get_db()
     with conn.cursor() as cur:
@@ -170,19 +220,16 @@ def create_token(user):
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        # PERMITIR QUE LAS PETICIONES OPTIONS PASEN LIBREMENTE PARA CORS
         if request.method == 'OPTIONS':
             return '', 200
-
         auth = request.headers.get('Authorization', None)
         if not auth:
             return jsonify({'message': 'Missing authorization header'}), 401
         parts = auth.split()
         if parts[0].lower() != 'bearer' or len(parts) != 2:
             return jsonify({'message': 'Invalid authorization header'}), 401
-        token = parts[1]
         try:
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            data = jwt.decode(parts[1], current_app.config['SECRET_KEY'], algorithms=['HS256'])
             request.claims = data
         except jwt.ExpiredSignatureError:
             return jsonify({'message': 'Token expired'}), 401
@@ -190,6 +237,12 @@ def token_required(f):
             return jsonify({'message': 'Invalid token'}), 401
         return f(*args, **kwargs)
     return decorated
+
+def get_client_ip():
+    x_forwarded = request.headers.get('X-Forwarded-For')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.remote_addr or '127.0.0.1'
 
 def get_role_permissions(role_name):
     try:
@@ -1466,33 +1519,24 @@ def delete_user(user_id):
 @app.route('/api/sessions', methods=['GET'])
 @token_required
 def get_sessions():
-    claims = get_current_user()
+    claims = request.claims
     tenant_id = claims['tenant_id']
     if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    rows = db_query('SELECT s.id, s.user_id, u.username, s.ip_address, s.user_agent, s.created_at, s.last_seen FROM sessions s LEFT JOIN users u ON u.id = s.user_id WHERE s.tenant_id = %s ORDER BY s.created_at DESC', (tenant_id,), fetchall=True)
+    rows = db_query(
+        '''SELECT s.id, s.user_id, u.username, s.ip_address, s.user_agent, s.created_at, s.last_seen 
+           FROM sessions s LEFT JOIN users u ON u.id = s.user_id 
+           WHERE s.tenant_id = %s ORDER BY s.created_at DESC''', 
+        (tenant_id,), fetchall=True
+    )
     return jsonify(rows or [])
-
-
-import csv
-from io import StringIO
-from flask import request, jsonify, current_app
-
-
-def get_client_ip():
-    """Obtiene la dirección IP pública real del cliente de forma segura."""
-    x_forwarded = request.headers.get('X-Forwarded-For')
-    if x_forwarded:
-        # Toma la primera IP de la lista
-        return x_forwarded.split(',')[0].strip()
-    return request.remote_addr or '127.0.0.1'
 
 
 @app.route('/api/devices', methods=['GET', 'POST'])
 @token_required
 def devices():
-    claims = get_current_user()
+    claims = request.claims
     tenant_id = claims['tenant_id']
 
     if request.method == 'GET':
@@ -1505,9 +1549,9 @@ def devices():
     data = request.get_json() or {}
     name = data.get('name')
     location_id = data.get('location_id')
-    type_ = data.get('type', '')
+    patient_id = data.get('patient_id')
+    type_ = data.get('type', 'pc')
     
-    # Capturar IP y User-Agent si provienen de la petición
     ip_address = data.get('ip_address') or get_client_ip()
     user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
 
@@ -1516,69 +1560,26 @@ def devices():
 
     new_row = db_query(
         '''
-        INSERT INTO devices (tenant_id, location_id, name, type, status, ip_address, user_agent, created_at) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        INSERT INTO devices (tenant_id, location_id, patient_id, name, type, status, ip_address, user_agent, created_at) 
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
         ''',
-        (tenant_id, location_id, name, type_, data.get('status', 'active'), ip_address, user_agent, now_utc()), 
+        (tenant_id, location_id, patient_id, name, type_, data.get('status', 'active'), ip_address, user_agent, now_utc()), 
         commit=True, 
         fetchone=True
     )
     record_audit('create', 'device', new_row['id'], f'Created device {name}', tenant_id, claims.get('id'))
-    return jsonify({'message': 'Device created', 'id': new_row['id']})
-
-
-def _build_device_actions_query(tenant_id):
-    """
-    Helper para procesar Query Parameters y construir la cláusula WHERE.
-    Ajustado para permitir búsqueda por nombre de usuario (TEXT) o ID.
-    """
-    action_type = request.args.get('action_type')
-    ip = request.args.get('ip')
-    user_filter = request.args.get('user_id') or request.args.get('username')
-    start = request.args.get('start')
-    end = request.args.get('end')
-
-    where_clauses = ['da.tenant_id = %s']
-    params = [tenant_id]
-
-    if action_type:
-        where_clauses.append('LOWER(da.action_type) LIKE LOWER(%s)')
-        params.append(f'%{action_type}%')
-    if ip:
-        where_clauses.append('da.ip_address LIKE %s')
-        params.append(f'%{ip}%')
-    if user_filter:
-        # Permite coincidencia parcial por nombre de usuario o coincidencia por ID
-        if user_filter.isdigit():
-            where_clauses.append('(da.user_id = %s OR LOWER(u.username) LIKE LOWER(%s))')
-            params.extend([int(user_filter), f'%{user_filter}%'])
-        else:
-            where_clauses.append('LOWER(u.username) LIKE LOWER(%s)')
-            params.append(f'%{user_filter}%')
-            
-    if start:
-        where_clauses.append('da.created_at >= %s')
-        params.append(start)
-    if end:
-        if len(end) == 10:
-            end += ' 23:59:59'
-        where_clauses.append('da.created_at <= %s')
-        params.append(end)
-
-    return ' AND '.join(where_clauses), params
+    return jsonify({'message': 'Device created', 'id': new_row['id']}), 201
 
 
 @app.route('/api/device_actions', methods=['GET', 'POST'])
 @token_required
 def device_actions():
-    claims = get_current_user()
+    claims = request.claims
     tenant_id = claims['tenant_id']
     user_id = claims.get('id')
 
-    # 1. REGISTRAR ACCIÓN (POST)
     if request.method == 'POST':
         data = request.get_json() or {}
-
         action_type = data.get('action_type')
         entity_type = data.get('entity_type')
         entity_id = data.get('entity_id')
@@ -1606,7 +1607,6 @@ def device_actions():
         except Exception as e:
             return jsonify({'message': f'Error logging action: {str(e)}'}), 500
 
-    # 2. LISTAR ACCIONES CON FILTROS Y PAGINACIÓN (GET)
     if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
@@ -1618,7 +1618,6 @@ def device_actions():
 
     where_sql, params = _build_device_actions_query(tenant_id)
 
-    # Conteo total con JOIN para incluir filtro de usuario
     count_sql = f'''
         SELECT COUNT(*) as total 
         FROM device_actions da 
@@ -1628,7 +1627,6 @@ def device_actions():
     total_row = db_query(count_sql, tuple(params), fetchone=True) or {'total': 0}
     total = total_row.get('total', 0)
 
-    # Consulta paginada
     offset = (page - 1) * per_page
     query_sql = f'''
         SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, da.ip_address, 
@@ -1650,6 +1648,8 @@ def device_actions():
         'per_page': per_page,
         'items': rows
     })
+
+
 @app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
 @token_required
 def incidents_handler():
