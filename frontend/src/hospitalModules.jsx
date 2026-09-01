@@ -2269,85 +2269,91 @@ export function Appointments() {
           )}
 
           {/* VISTA SEMANA */}
-          {calendarView === 'week' && (
-            <div style={{ display: 'flex', flexDirection: 'column', overflowX: 'auto' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', backgroundColor: '#201f1f', borderBottom: '1px solid #333333' }}>
-                <div style={{ padding: '0.5rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'center' }}>Hora</div>
-                {weekDays.map(d => (
-                  <div key={d.toISOString()} style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: '#f3f2f1', textAlign: 'center', borderLeft: '1px solid #333333' }}>
-                    {d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {hoursRange.map(hour => (
-                  <div key={hour} style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', borderBottom: '1px solid #333333', minHeight: '60px' }}>
-                    <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
-                    {weekDays.map(d => {
-                      const dateStr = d.toISOString().slice(0, 10)
-                      const cellApps = filteredAppointments.filter(item => {
-                        if (!item.appointment_date || !item.appointment_date.startsWith(dateStr)) return false
-                        const itemHour = parseInt(item.appointment_date.slice(11, 13), 10)
-                        return itemHour === hour
-                      })
-
-                      return (
-                        <div
-                          key={d.toISOString()}
-                          onClick={() => {
-                            setForm(p => ({ ...p, appointment_date: `${dateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
-                            setShowForm(true)
-                          }}
-                          style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px', position: 'relative', cursor: 'pointer' }}
-                        >
-                          {cellApps.map(item => renderAppointmentCard(item))}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* VISTA DÍA */}
-          {calendarView === 'day' && (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {hoursRange.map(hour => {
-                  const dateStr = currentDate.toISOString().slice(0, 10)
-                  const cellApps = filteredAppointments.filter(item => {
-                    if (!item.appointment_date || !item.appointment_date.startsWith(dateStr)) return false
-                    return parseInt(item.appointment_date.slice(11, 13), 10) === hour
-                  })
-
-                  return (
-                    <div
-                      key={hour}
-                      onClick={() => {
-                        setForm(p => ({ ...p, appointment_date: `${dateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
-                        setShowForm(true)
-                      }}
-                      style={{ display: 'flex', borderBottom: '1px solid #333333', minHeight: '65px', alignItems: 'stretch', cursor: 'pointer' }}
-                    >
-                      <div style={{ width: '70px', padding: '0.5rem', fontSize: '0.8rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '1rem', borderRight: '1px solid #333333' }}>
-                        {`${String(hour).padStart(2, '0')}:00`}
-                      </div>
-                      <div style={{ flex: 1, padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }} onClick={e => e.stopPropagation()}>
-                        {cellApps.map(item => renderAppointmentCard(item))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
+{calendarView === 'week' && (
+  <div style={{ display: 'flex', flexDirection: 'column', overflowX: 'auto' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', backgroundColor: '#201f1f', borderBottom: '1px solid #333333' }}>
+      <div style={{ padding: '0.5rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'center' }}>Hora</div>
+      {weekDays.map(d => (
+        <div key={d.toISOString()} style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: '#f3f2f1', textAlign: 'center', borderLeft: '1px solid #333333' }}>
+          {d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
         </div>
+      ))}
+    </div>
 
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {hoursRange.map(hour => (
+        <div key={hour} style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', borderBottom: '1px solid #333333', minHeight: '60px' }}>
+          <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
+          {weekDays.map(d => {
+            const weekCellDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+            
+            const cellApps = filteredAppointments.filter(item => {
+              if (!item.appointment_date) return false
+              const localDateObj = new Date(item.appointment_date)
+              if (isNaN(localDateObj.getTime())) return false
+              
+              const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
+              if (itemDateStr !== weekCellDateStr) return false
+              return localDateObj.getHours() === hour
+            })
 
+            return (
+              <div 
+                key={d.toISOString()}
+                onClick={() => {
+                  setForm(p => ({ ...p, appointment_date: `${weekCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
+                  setShowForm(true)
+                }}
+                style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px', position: 'relative', cursor: 'pointer' }}
+              >
+                {cellApps.map(item => renderAppointmentCard(item))}
+              </div>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* VISTA DÍA */}
+{calendarView === 'day' && (
+  <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {hoursRange.map(hour => {
+        const dayCellDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
+        
+        const cellApps = filteredAppointments.filter(item => {
+          if (!item.appointment_date) return false
+          const localDateObj = new Date(item.appointment_date)
+          if (isNaN(localDateObj.getTime())) return false
+          
+          const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
+          if (itemDateStr !== dayCellDateStr) return false
+          return localDateObj.getHours() === hour
+        })
+
+        return (
+          <div 
+            key={hour}
+            onClick={() => {
+              setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
+              setShowForm(true)
+            }}
+            style={{ display: 'flex', borderBottom: '1px solid #333333', minHeight: '65px', alignItems: 'stretch', cursor: 'pointer' }}
+          >
+            <div style={{ width: '70px', padding: '0.5rem', fontSize: '0.8rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '1rem', borderRight: '1px solid #333333' }}>
+              {`${String(hour).padStart(2, '0')}:00`}
+            </div>
+            <div style={{ flex: 1, padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }} onClick={e => e.stopPropagation()}>
+              {cellApps.map(item => renderAppointmentCard(item))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  </div>
+)}
       {/* POPUP DE EDICIÓN / DETALLE */}
       {selectedAppointment && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
