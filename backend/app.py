@@ -1556,7 +1556,14 @@ def devices():
     
     ip_address = data.get('ip_address') or get_client_ip()
     user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
+    # Cambiar esto:
+    # if not has_permission(claims.get('role'), 'manage_devices'):
+    #     return jsonify({'message': 'Permission denied'}), 403
 
+    # Por una validación basada en el rol (ejemplo: admin o soporte)
+    role = claims.get('role')
+    if role not in ['admin', 'it_support']: # Añade los roles permitidos
+        return jsonify({'message': 'Permission denied'}), 403
     if not name:
         return jsonify({'message': 'name is required'}), 400
 
@@ -1569,6 +1576,7 @@ def devices():
         commit=True, 
         fetchone=True
     )
+
     record_audit('create', 'device', new_row['id'], f'Created device {name}', tenant_id, claims.get('id'))
     return jsonify({'message': 'Device created', 'id': new_row['id']}), 201
 
