@@ -1785,7 +1785,7 @@ export function DeviceActions() {
 
 
 // ============================================================
-// Appointments - Microsoft Teams Calendar Style
+// Appointments - Microsoft Teams Calendar Style (Updated)
 // ============================================================
 
 export function Appointments() {
@@ -1808,11 +1808,33 @@ export function Appointments() {
   // Estado para modal / vista de detalle estilo Teams
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [editingAppointment, setEditingAppointment] = useState(false)
-  const [editForm, setEditForm] = useState({ doctor_name: '', specialty: '', appointment_date: '', end_time: '', notes: '' })
+  const [editForm, setEditForm] = useState({ doctor_name: '', specialty: '', appointment_date: '', end_time: '', notes: '', color: '#464775' })
   const [actionLoading, setActionLoading] = useState(false)
 
-  const [form, setForm] = useState({ patient_id: '', doctor_name: 'Dra. Mendoza', specialty: 'Cardiología', appointment_date: '', end_time: '', notes: '' })
+  // Formulario con color personalizable por especialidad / selector de color
+  const [form, setForm] = useState({ 
+    patient_id: '', 
+    doctor_name: 'Dra. Mendoza', 
+    specialty: 'Cardiología', 
+    appointment_date: '', 
+    end_time: '', 
+    notes: '',
+    color: '#464775'
+  })
+
+  // Vista de horas del día seleccionado (para chequear solapamientos / conflictos)
+  const [dayScheduleViewDate, setDayScheduleViewDate] = useState(null)
+
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 250)
+
+  // Mapa de colores predeterminados por especialidad
+  const specialtyColors = {
+    'Cardiología': '#464775',
+    'Pediatría': '#237b4b',
+    'Neurología': '#881798',
+    'Dermatología': '#b8860b',
+    'General': '#005a9e'
+  }
 
   const loadAppointments = useCallback(async () => {
     const res = await apiFetch('/appointments')
@@ -1827,15 +1849,60 @@ export function Appointments() {
   useEffect(() => { loadAppointments(); searchPatients('') }, [loadAppointments, searchPatients])
   useEffect(() => { if (showForm) searchPatients(debouncedPatientSearch) }, [debouncedPatientSearch, showForm, searchPatients])
 
+  // Lógica para detectar solapamiento de horarios (Overlap Detection)
+  const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
+    if (!newDateStr) return false
+    const newStart = new Date(newDateStr).getTime()
+    // Asumimos 30 minutos por defecto si no hay end_time
+    let newEnd = 0
+    if (newEndTimeStr) {
+      const [sh, sm] = newDateStr.slice(11, 16).split(':').map(Number)
+      const [eh, em] = newEndTimeStr.split(':').map(Number)
+      const startDateObj = new Date(newDateStr)
+      startDateObj.setHours(eh, em, 0, 0)
+      newEnd = startDateObj.getTime()
+    } else {
+      newEnd = newStart + 30 * 60000
+    }
+
+    return appointments.some(app => {
+      if (excludeId && app.id === excludeId) return false
+      if (!app.appointment_date) return false
+
+      const appStart = new Date(app.appointment_date).getTime()
+      let appEnd = appStart + 30 * 60000
+      if (app.end_time) {
+        const [eh, em] = app.end_time.split(':').map(Number)
+        const endDateObj = new Date(app.appointment_date)
+        endDateObj.setHours(eh, em, 0, 0)
+        appEnd = endDateObj.getTime()
+      }
+
+      // Verificamos si las franjas horarias se cruzan en el mismo día
+      const sameDay = new Date(newDateStr).toDateString() === new Date(app.appointment_date).toDateString()
+      if (!sameDay) return false
+
+      return (newStart < appEnd && newEnd > appStart)
+    })
+  }
+
   const submit = async event => {
     event.preventDefault()
+    
+    // Validar solapamiento antes de enviar
+    if (checkOverlap(form.appointment_date, form.end_time)) {
+      if (!window.confir("¡Atención! Este horario se solapa con otra cita existente. ¿Deseas guardarla de todas formas?")) {
+        return
+      }
+    }
+
     setSaving(true)
     try {
       const res = await apiFetch('/appointments', { method: 'POST', body: JSON.stringify(form) })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(json.message || 'No se pudo programar la cita')
       notify('Cita agendada correctamente.', 'success', 'Agenda actualizada')
-      setForm({ patient_id: '', doctor_name: 'Dra. Mendoza', specialty: 'Cardiología', appointment_date: '', end_time: '', notes: '' })
+      setForm({ patient_id: '', doctor_name: 'Dra. Mendoza', specialty: 'Cardiología', appointment_date: '', end_time: '', notes: '', color: '#464775' })
       setPatientSearch('')
       setShowForm(false)
       await loadAppointments()
@@ -1847,6 +1914,13 @@ export function Appointments() {
   const handleUpdateAppointment = async (e) => {
     e.preventDefault()
     if (!selectedAppointment) return
+
+    if (checkOverlap(editForm.appointment_date, editForm.end_time, selectedAppointment.id)) {
+      if (!window.confirm("¡Atención! Este horario actualizado se solapa con otra cita. ¿Continuar?")) {
+        return
+      }
+    }
+
     setActionLoading(true)
     try {
       const res = await apiFetch(`/appointments/${selectedAppointment.id}`, {
@@ -1926,18 +2000,15 @@ export function Appointments() {
     const totalDays = new Date(year, month + 1, 0).getDate()
     
     const days = []
-    // Días del mes anterior para rellenar
     const prevMonthDays = new Date(year, month, 0).getDate()
     for (let i = firstDayIndex - 1; i >= 0; i--) {
       const d = new Date(year, month - 1, prevMonthDays - i)
       days.push({ date: d, isCurrentMonth: false })
     }
-    // Días del mes actual
     for (let i = 1; i <= totalDays; i++) {
       const d = new Date(year, month, i)
       days.push({ date: d, isCurrentMonth: true })
     }
-    // Días del siguiente mes para completar la cuadrícula (hasta 35 o 42 celdas)
     const remainingCells = days.length % 7 === 0 ? 0 : 7 - (days.length % 7)
     for (let i = 1; i <= remainingCells; i++) {
       const d = new Date(year, month + 1, i)
@@ -1948,18 +2019,9 @@ export function Appointments() {
 
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-  // Función para manejar el clic en el día de la cuadrícula y abrir el formulario con la fecha prellenada
+  // Función para manejar el clic en el día de la cuadrícula: Abre el panel de desglose por horas de ese día
   const handleDayClick = (cellDate) => {
-    const year = cellDate.getFullYear()
-    const month = String(cellDate.getMonth() + 1).padStart(2, '0')
-    const day = String(cellDate.getDate()).padStart(2, '0')
-    const defaultTime = '09:00'
-    
-    setForm(prev => ({
-      ...prev,
-      appointment_date: `${year}-${month}-${day}T${defaultTime}`
-    }))
-    setShowForm(true)
+    setDayScheduleViewDate(cellDate)
   }
 
   return (
@@ -2016,7 +2078,7 @@ export function Appointments() {
               onClick={() => {
                 const now = new Date()
                 const defaultDateStr = now.toISOString().slice(0, 16)
-                setForm(p => ({ ...p, appointment_date: defaultDateStr }))
+                setForm(p => ({ ...p, appointment_date: defaultDateStr, color: specialtyColors[p.specialty] || '#464775' }))
                 setShowForm(v => !v)
               }}
             >
@@ -2059,14 +2121,34 @@ export function Appointments() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad</label>
-                <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} value={form.specialty} onChange={e => setForm(p => ({ ...p, specialty: e.target.value }))}>
-                  {specialties.map(s => <option key={s}>{s}</option>)}
+                <select 
+                  style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} 
+                  value={form.specialty} 
+                  onChange={e => {
+                    const spec = e.target.value
+                    setForm(p => ({ ...p, specialty: spec, color: specialtyColors[spec] || p.color }))
+                  }}
+                >
+                  {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Color de la cita (Especialidad / Personalizado)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input 
+                    type="color" 
+                    value={form.color} 
+                    onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
+                    style={{ width: '38px', height: '34px', backgroundColor: 'transparent', border: '1px solid #484644', borderRadius: '4px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '0.8rem', color: '#b3b0ad' }}>{form.color}</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Fecha y hora de inicio *</label>
-                <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} min={new Date().toISOString().slice(0, 16)} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
+                <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -2121,7 +2203,6 @@ export function Appointments() {
 
         {/* CUADRÍCULA DE CALENDARIO ESTILO TEAMS */}
         <div style={{ padding: '1rem', backgroundColor: '#292929' }}>
-          {/* Cabecera de días de la semana */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', marginBottom: '2px', textAlign: 'center' }}>
             {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map(day => (
               <div key={day} style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: '#b3b0ad', backgroundColor: '#201f1f' }}>
@@ -2130,7 +2211,6 @@ export function Appointments() {
             ))}
           </div>
 
-          {/* Celdas del Mes */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', backgroundColor: '#333333' }}>
             {calendarDays.map((cell, index) => {
               const cellDateStr = cell.date.toISOString().slice(0, 10)
@@ -2153,7 +2233,7 @@ export function Appointments() {
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = cell.isCurrentMonth ? '#323130' : '#282726'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = cell.isCurrentMonth ? '#292929' : '#222120'}
-                  title="Haz clic para agregar una cita en este día"
+                  title="Haz clic para ver las horas del día y solapamientos"
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ 
@@ -2170,17 +2250,22 @@ export function Appointments() {
                     }}>
                       {cell.date.getDate()}
                     </span>
+                    {dayAppointments.length > 0 && (
+                      <span style={{ fontSize: '0.65rem', backgroundColor: '#3b3a39', color: '#b3b0ad', padding: '0 4px', borderRadius: '4px' }}>
+                        {dayAppointments.length}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Listado de eventos / citas dentro de la celda con estilo Teams (tarjetas moradas/azules) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto', maxHeight: '80px' }}>
                     {dayAppointments.map(item => {
                       const timeStr = item.appointment_date ? item.appointment_date.slice(11, 16) : ''
+                      const itemColor = item.color || specialtyColors[item.specialty] || '#464775'
                       return (
                         <div
                           key={item.id}
                           onClick={(e) => {
-                            e.stopPropagation() // Evita que se abra el formulario al hacer clic en una cita existente
+                            e.stopPropagation()
                             setSelectedAppointment(item)
                             setEditingAppointment(false)
                             setEditForm({
@@ -2188,12 +2273,13 @@ export function Appointments() {
                               specialty: item.specialty || '',
                               appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '',
                               end_time: item.end_time || '',
-                              notes: item.notes || ''
+                              notes: item.notes || '',
+                              color: itemColor
                             })
                           }}
                           style={{
-                            backgroundColor: '#464775',
-                            borderLeft: '3px solid #b1b0e8',
+                            backgroundColor: itemColor,
+                            borderLeft: '3px solid #ffffff',
                             borderRadius: '3px',
                             padding: '0.2rem 0.4rem',
                             fontSize: '0.7rem',
@@ -2219,26 +2305,137 @@ export function Appointments() {
 
       </div>
 
+      {/* MODAL DE VISTA POR HORA DEL DÍA (SCHEDULE / CONFLICT CHECKER) */}
+      {dayScheduleViewDate && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.75)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
+          <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '650px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
+            
+            <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>
+                  Agenda del día: {dayScheduleViewDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </h3>
+                <p style={{ fontSize: '0.75rem', color: '#b3b0ad', margin: '0.2rem 0 0 0' }}>Revise los bloques horarios y posibles solapamientos.</p>
+              </div>
+              <button onClick={() => setDayScheduleViewDate(null)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', fontSize: '1.1rem', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <div style={{ padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+              {/* Generamos las horas de la jornada de 8:00 a 18:00 */}
+              {Array.from({ length: 11 }, (_, i) => i + 8).map(hour => {
+                const hourStr = String(hour).padStart(2, '0') + ':00'
+                const dayStr = dayScheduleViewDate.toISOString().slice(0, 10)
+                
+                // Buscar citas que coincidan con esta hora o la crucen
+                const matchedAppointments = filteredAppointments.filter(item => {
+                  if (!item.appointment_date || !item.appointment_date.startsWith(dayStr)) return false
+                  const itemHour = item.appointment_date.slice(11, 13)
+                  return parseInt(itemHour, 10) === hour
+                })
+
+                const hasConflict = matchedAppointments.length > 1
+
+                return (
+                  <div key={hour} style={{ display: 'flex', borderBottom: '1px solid #333333', paddingBottom: '0.5rem', alignItems: 'flex-start', gap: '1rem' }}>
+                    <span style={{ fontSize: '0.8rem', color: hasConflict ? '#f89999' : '#b3b0ad', width: '50px', fontWeight: hasConflict ? 700 : 400, paddingTop: '0.2rem' }}>
+                      {hourStr}
+                    </span>
+
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      {matchedAppointments.length === 0 ? (
+                        <div 
+                          onClick={() => {
+                            setDayScheduleViewDate(null)
+                            const dateHourStr = `${dayStr}T${String(hour).padStart(2, '0')}:00`
+                            setForm(p => ({ ...p, appointment_date: dateHourStr, color: specialtyColors[p.specialty] || '#464775' }))
+                            setShowForm(true)
+                          }}
+                          style={{ fontSize: '0.75rem', color: '#666564', border: '1px dashed #444', borderRadius: '4px', padding: '0.3rem 0.5rem', cursor: 'pointer' }}
+                        >
+                          Disponible (Hacer clic para agendar a las {hourStr})
+                        </div>
+                      ) : (
+                        <>
+                          {hasConflict && (
+                            <div style={{ backgroundColor: '#5a1d1d', color: '#f89999', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                              ⚠️ ¡Conflicto de horario! Hay {matchedAppointments.length} citas solapadas en esta franja.
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            {matchedAppointments.map(app => {
+                              const appColor = app.color || specialtyColors[app.specialty] || '#464775'
+                              return (
+                                <div 
+                                  key={app.id}
+                                  onClick={() => {
+                                    setDayScheduleViewDate(null)
+                                    setSelectedAppointment(app)
+                                    setEditingAppointment(false)
+                                    setEditForm({
+                                      doctor_name: app.doctor_name || '',
+                                      specialty: app.specialty || '',
+                                      appointment_date: app.appointment_date ? app.appointment_date.slice(0, 16) : '',
+                                      end_time: app.end_time || '',
+                                      notes: app.notes || '',
+                                      color: appColor
+                                    })
+                                  }}
+                                  style={{ backgroundColor: appColor, borderLeft: '4px solid #ffffff', padding: '0.4rem 0.75rem', borderRadius: '4px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                >
+                                  <div>
+                                    <strong style={{ fontSize: '0.8rem', color: '#ffffff', marginRight: '0.5rem' }}>{app.appointment_date.slice(11, 16)}</strong>
+                                    <span style={{ fontSize: '0.8rem', color: '#ffffff' }}>{app.doctor_name}</span>
+                                    <span style={{ fontSize: '0.75rem', color: '#ddd', marginLeft: '0.5rem' }}>({app.specialty})</span>
+                                  </div>
+                                  <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(0,0,0,0.2)', padding: '0.1rem 0.4rem', borderRadius: '3px', color: '#fff' }}>Paciente #{app.patient_id}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div style={{ backgroundColor: '#201f1f', padding: '0.75rem 1.25rem', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid #333333' }}>
+              <button 
+                onClick={() => {
+                  const dayStr = dayScheduleViewDate.toISOString().slice(0, 10)
+                  setDayScheduleViewDate(null)
+                  setForm(p => ({ ...p, appointment_date: `${dayStr}T09:00`, color: specialtyColors[p.specialty] || '#464775' }))
+                  setShowForm(true)
+                }}
+                style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+              >
+                + Nueva cita en este día
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* PANEL LATERAL / MODAL DE DETALLE ESTILO TEAMS (MEETING DETAILS) */}
       {selectedAppointment && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
           <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             
-            {/* Cabecera Teams Meeting */}
             <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#6264a7' }}></div>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedAppointment.color || '#6264a7' }}></div>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Detalles de Cita Médica</h3>
               </div>
               <button onClick={() => setSelectedAppointment(null)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', fontSize: '1.1rem', cursor: 'pointer' }}>✕</button>
             </div>
 
-            {/* Contenido del Panel */}
             <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {!editingAppointment ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div style={{ backgroundColor: '#1f1f1f', padding: '0.85rem', borderRadius: '6px', border: '1px solid #333333', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#b1b0e8', textTransform: 'uppercase', fontWeight: 600 }}>{selectedAppointment.specialty}</span>
+                    <span style={{ fontSize: '0.7rem', color: selectedAppointment.color || '#b1b0e8', textTransform: 'uppercase', fontWeight: 600 }}>{selectedAppointment.specialty}</span>
                     <h2 style={{ fontSize: '1.1rem', color: '#ffffff', margin: 0 }}>{selectedAppointment.doctor_name}</h2>
                     <p style={{ fontSize: '0.8rem', color: '#b3b0ad', margin: 0 }}>Paciente ID: #{selectedAppointment.patient_id}</p>
                   </div>
@@ -2291,11 +2488,27 @@ export function Appointments() {
                     <label style={{ fontSize: '0.75rem', color: '#b3b0ad' }}>Especialidad</label>
                     <select 
                       value={editForm.specialty} 
-                      onChange={e => setEditForm({...editForm, specialty: e.target.value})}
+                      onChange={e => {
+                        const spec = e.target.value
+                        setEditForm({...editForm, specialty: spec, color: specialtyColors[spec] || editForm.color})
+                      }}
                       style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', outline: 'none' }}
                     >
-                      {specialties.map(s => <option key={s}>{s}</option>)}
+                      {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
                     </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#b3b0ad' }}>Color personalizado</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <input 
+                        type="color" 
+                        value={editForm.color} 
+                        onChange={e => setEditForm({...editForm, color: e.target.value})}
+                        style={{ width: '34px', height: '30px', backgroundColor: 'transparent', border: '1px solid #484644', borderRadius: '4px', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', color: '#b3b0ad' }}>{editForm.color}</span>
+                    </div>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
