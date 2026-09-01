@@ -2268,53 +2268,57 @@ export function Appointments() {
             </div>
           )}
 
-{/* VISTA SEMANA */}
-        {calendarView === 'week' && (
-          <div style={{ display: 'flex', flexDirection: 'column', overflowX: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', backgroundColor: '#201f1f', borderBottom: '1px solid #333333' }}>
-              <div style={{ padding: '0.5rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'center' }}>Hora</div>
-              {weekDays.map(d => (
-                <div key={d.toISOString()} style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: '#f3f2f1', textAlign: 'center', borderLeft: '1px solid #333333' }}>
-                  {d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
-                </div>
-              ))}
-            </div>
+{/* VISTA SEMANA (24 Horas) */}
+{calendarView === 'week' && (() => {
+  const fullHoursRange = Array.from({ length: 24 }, (_, i) => i)
 
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {hoursRange.map(hour => (
-                <div key={hour} style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', borderBottom: '1px solid #333333', minHeight: '60px' }}>
-                  <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
-                  {weekDays.map(d => {
-                    const weekCellDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-                    
-                    const cellApps = filteredAppointments.filter(item => {
-                      if (!item.appointment_date) return false
-                      const localDateObj = new Date(item.appointment_date)
-                      if (isNaN(localDateObj.getTime())) return false
-                      
-                      const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
-                      if (itemDateStr !== weekCellDateStr) return false
-                      return localDateObj.getHours() === hour
-                    })
-
-                    return (
-                      <div 
-                        key={d.toISOString()}
-                        onClick={() => {
-                          setForm(p => ({ ...p, appointment_date: `${weekCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
-                          setShowForm(true)
-                        }}
-                        style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px', position: 'relative', cursor: 'pointer' }}
-                      >
-                        {cellApps.map(item => renderAppointmentCard(item))}
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', backgroundColor: '#201f1f', borderBottom: '1px solid #333333' }}>
+        <div style={{ padding: '0.5rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'center' }}>Hora</div>
+        {weekDays.map(d => (
+          <div key={d.toISOString()} style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: '#f3f2f1', textAlign: 'center', borderLeft: '1px solid #333333' }}>
+            {d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
           </div>
-        )}
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {fullHoursRange.map(hour => (
+          <div key={hour} style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', borderBottom: '1px solid #333333', minHeight: '60px' }}>
+            <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
+            {weekDays.map(d => {
+              const weekCellDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+              
+              const cellApps = filteredAppointments.filter(item => {
+                if (!item.appointment_date) return false
+                const localDateObj = new Date(item.appointment_date)
+                if (isNaN(localDateObj.getTime())) return false
+                
+                const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
+                if (itemDateStr !== weekCellDateStr) return false
+                return localDateObj.getHours() === hour
+              })
+
+              return (
+                <div 
+                  key={d.toISOString()}
+                  onClick={() => {
+                    setForm(p => ({ ...p, appointment_date: `${weekCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
+                    setShowForm(true)
+                  }}
+                  style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px', position: 'relative', cursor: 'pointer' }}
+                >
+                  {cellApps.map(item => renderAppointmentCard(item))}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+})()}
 
 
 {/* VISTA DÍA (24 Horas) */}
