@@ -32,7 +32,6 @@ import {
 // Shared UX / utilities
 // ============================================================
 
-export { default as Appointments } from './Appointments';
 
 
 const INITIAL_PATIENT = {
