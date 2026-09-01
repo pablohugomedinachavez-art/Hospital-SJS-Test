@@ -200,71 +200,151 @@ function Alerts() {
       })
       if (res.ok) {
         setMessage('')
-        setInfo('Alerta creada')
+        setInfo('Alerta creada exitosamente')
         setShowForm(false)
         load()
+        setTimeout(() => setInfo(''), 4000)
       }
     } catch (err) {
-      setInfo('Error de red')
+      setInfo('Error de red al registrar la alerta')
     }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div className="card">
-        <div className="card-header-row">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+      
+      {/* Feedback Banner */}
+      {info && (
+        <div style={{
+          padding: '0.85rem 1.25rem',
+          background: info.includes('Error') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+          border: `1px solid ${info.includes('Error') ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
+          color: info.includes('Error') ? '#f87171' : '#34d399',
+          borderRadius: '8px',
+          fontSize: '0.9rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          animation: 'fadeIn 0.2s ease-in-out'
+        }}>
+          <span>{info}</span>
+          <button onClick={() => setInfo('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>
+        </div>
+      )}
+
+      {/* Header & Form Card */}
+      <div className="card" style={{ background: 'var(--card-bg, #111827)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <h2>Monitoreo de Alertas</h2>
-            <p style={{ color: 'var(--text-dim)', fontSize: '0.85rem' }}>Pase el cursor por el borde izquierdo para desplegar la barra lateral</p>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: '#f3f4f6', margin: 0 }}>Monitoreo de Alertas</h2>
+            <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.25rem' }}>Gestione y configure notificaciones automatizadas del sistema.</p>
           </div>
           {!showForm && (
-            <button type="button" className="button" onClick={() => setShowForm(true)}>+ Crear Alerta</button>
+            <button 
+              type="button" 
+              className="button" 
+              onClick={() => setShowForm(true)}
+              style={{
+                background: '#4f46e5',
+                color: '#ffffff',
+                border: 'none',
+                padding: '0.625rem 1.25rem',
+                borderRadius: '8px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>+</span> Crear Alerta
+            </button>
           )}
         </div>
+
         {showForm && (
-          <form onSubmit={submit} style={{ marginTop: '1rem' }}>
-            <div className="form-grid">
-              <label>
+          <form onSubmit={submit} style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.85rem', color: '#9ca3af', fontWeight: 500 }}>
                 Dispositivo
-                <select value={deviceId} onChange={e => setDeviceId(e.target.value)}>
+                <select 
+                  value={deviceId} 
+                  onChange={e => setDeviceId(e.target.value)}
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                >
                   <option value="">Seleccionar dispositivo</option>
                   {devices.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}
                 </select>
               </label>
-              <label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.85rem', color: '#9ca3af', fontWeight: 500 }}>
                 Tipo de alerta
-                <input value={alertType} onChange={e => setAlertType(e.target.value)} placeholder="device_offline" />
+                <input 
+                  value={alertType} 
+                  onChange={e => setAlertType(e.target.value)} 
+                  placeholder="device_offline" 
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                />
               </label>
-              <label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.85rem', color: '#9ca3af', fontWeight: 500 }}>
                 Severidad
-                <select value={severity} onChange={e => setSeverity(e.target.value)}>
+                <select 
+                  value={severity} 
+                  onChange={e => setSeverity(e.target.value)}
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                >
                   <option value="low">Baja</option>
                   <option value="medium">Media</option>
                   <option value="high">Alta</option>
                 </select>
               </label>
-              <label style={{ gridColumn: '1 / -1' }}>
+
+              <label style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.85rem', color: '#9ca3af', fontWeight: 500 }}>
                 Mensaje
-                <input value={message} onChange={e => setMessage(e.target.value)} placeholder="Detalle de la alerta" />
+                <input 
+                  value={message} 
+                  onChange={e => setMessage(e.target.value)} 
+                  placeholder="Detalle de la alerta o descripción del evento" 
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                />
               </label>
             </div>
-            <div className="button-row">
-              <button type="submit">Guardar</button>
-              <button type="button" className="button secondary" onClick={() => setShowForm(false)}>Cancelar</button>
+
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+              <button 
+                type="submit"
+                style={{ background: '#4f46e5', color: '#ffffff', border: 'none', padding: '0.625rem 1.25rem', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                Guardar Alerta
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setShowForm(false)}
+                style={{ background: 'transparent', color: '#9ca3af', border: '1px solid #374151', padding: '0.625rem 1.25rem', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
             </div>
           </form>
         )}
       </div>
 
+      {/* List Component Section */}
       <CollectionList
         title="Alertas recientes"
         items={alerts}
         render={alert => (
-          <div key={alert.id} className="item-card">
-            <span className={`badge ${alert.severity}`}>{alert.severity}</span>
-            <h3>{alert.alert_type}</h3>
-            <p>{alert.message}</p>
-            <span className="meta">{new Date(alert.created_at).toLocaleString()}</span>
+          <div key={alert.id} className="item-card" style={{ background: 'var(--card-bg, #111827)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f3f4f6', margin: 0 }}>{alert.alert_type}</h3>
+              <span className={`badge ${alert.severity}`} style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '9999px', textTransform: 'uppercase', fontWeight: 600, background: alert.severity === 'high' ? 'rgba(239, 68, 68, 0.2)' : alert.severity === 'medium' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)', color: alert.severity === 'high' ? '#f87171' : alert.severity === 'medium' ? '#fbbf24' : '#60a5fa' }}>
+                {alert.severity}
+              </span>
+            </div>
+            <p style={{ color: '#9ca3af', fontSize: '0.9rem', margin: 0 }}>{alert.message}</p>
+            <span className="meta" style={{ color: '#6b7280', fontSize: '0.75rem' }}>{new Date(alert.created_at).toLocaleString()}</span>
           </div>
         )}
       />
