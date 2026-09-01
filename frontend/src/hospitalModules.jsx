@@ -32,8 +32,7 @@ import {
 // Shared UX / utilities
 // ============================================================
 
-export { default as appointments } from './appointments'; // or wherever your Appointments component is defined
-
+export { default as Appointments } from './Appointments'
 const INITIAL_PATIENT = {
   document_type: 'dni',
   document_number: '',
