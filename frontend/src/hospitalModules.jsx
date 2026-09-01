@@ -1785,7 +1785,7 @@ export function DeviceActions() {
 
 
 // ============================================================
-// Appointments - Microsoft Teams Calendar Style (Updated)
+// Appointments - Microsoft Teams Calendar Style (Enhanced)
 // ============================================================
 
 export function Appointments() {
@@ -1796,7 +1796,7 @@ export function Appointments() {
   const [saving, setSaving] = useState(false)
   const [toast, notify, clearToast] = useToast()
 
-  // Vista de Calendario Teams (month, week, day) y fecha actual seleccionada
+  // Vista de Calendario Teams y fecha actual seleccionada
   const [calendarView, setCalendarView] = useState('month')
   const [currentDate, setCurrentDate] = useState(new Date())
 
@@ -1805,13 +1805,13 @@ export function Appointments() {
   const [filterDoctor, setFilterDoctor] = useState('')
   const [filterSpecialty, setFilterSpecialty] = useState('')
 
-  // Estado para modal / vista de detalle estilo Teams
+  // Estado para modal de detalles/edición
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [editingAppointment, setEditingAppointment] = useState(false)
   const [editForm, setEditForm] = useState({ doctor_name: '', specialty: '', appointment_date: '', end_time: '', notes: '', color: '#464775' })
   const [actionLoading, setActionLoading] = useState(false)
 
-  // Formulario con color personalizable por especialidad / selector de color
+  // Formulario de nueva cita con color dinámico por especialidad
   const [form, setForm] = useState({ 
     patient_id: '', 
     doctor_name: 'Dra. Mendoza', 
@@ -1822,7 +1822,7 @@ export function Appointments() {
     color: '#464775'
   })
 
-  // Vista de horas del día seleccionado (para chequear solapamientos / conflictos)
+  // Vista de desglose por horas de un día específico (estilo Time Grid / Day View para ver solapamientos)
   const [dayScheduleViewDate, setDayScheduleViewDate] = useState(null)
 
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 250)
@@ -1849,20 +1849,16 @@ export function Appointments() {
   useEffect(() => { loadAppointments(); searchPatients('') }, [loadAppointments, searchPatients])
   useEffect(() => { if (showForm) searchPatients(debouncedPatientSearch) }, [debouncedPatientSearch, showForm, searchPatients])
 
-  // Lógica para detectar solapamiento de horarios (Overlap Detection)
+  // Verificador de solapamientos (Overlap Detection)
   const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
     if (!newDateStr) return false
     const newStart = new Date(newDateStr).getTime()
-    // Asumimos 30 minutos por defecto si no hay end_time
-    let newEnd = 0
+    let newEnd = newStart + 30 * 60000
     if (newEndTimeStr) {
-      const [sh, sm] = newDateStr.slice(11, 16).split(':').map(Number)
       const [eh, em] = newEndTimeStr.split(':').map(Number)
       const startDateObj = new Date(newDateStr)
       startDateObj.setHours(eh, em, 0, 0)
       newEnd = startDateObj.getTime()
-    } else {
-      newEnd = newStart + 30 * 60000
     }
 
     return appointments.some(app => {
@@ -1878,7 +1874,6 @@ export function Appointments() {
         appEnd = endDateObj.getTime()
       }
 
-      // Verificamos si las franjas horarias se cruzan en el mismo día
       const sameDay = new Date(newDateStr).toDateString() === new Date(app.appointment_date).toDateString()
       if (!sameDay) return false
 
@@ -1889,9 +1884,8 @@ export function Appointments() {
   const submit = async event => {
     event.preventDefault()
     
-    // Validar solapamiento antes de enviar
     if (checkOverlap(form.appointment_date, form.end_time)) {
-      if (!window.confir("¡Atención! Este horario se solapa con otra cita existente. ¿Deseas guardarla de todas formas?")) {
+      if (!window.confirm("⚠️ Este horario se solapa con otra cita existente. ¿Deseas guardarla de todas formas?")) {
         return
       }
     }
@@ -1916,7 +1910,7 @@ export function Appointments() {
     if (!selectedAppointment) return
 
     if (checkOverlap(editForm.appointment_date, editForm.end_time, selectedAppointment.id)) {
-      if (!window.confirm("¡Atención! Este horario actualizado se solapa con otra cita. ¿Continuar?")) {
+      if (!window.confirm("⚠️ Este horario actualizado se solapa con otra cita. ¿Continuar?")) {
         return
       }
     }
@@ -1972,7 +1966,6 @@ export function Appointments() {
     })
   }, [appointments, filterSearch, filterDoctor, filterSpecialty])
 
-  // Lógica de navegación de fechas para el calendario estilo Teams
   const handlePrevPeriod = () => {
     const newDate = new Date(currentDate)
     if (calendarView === 'month') newDate.setMonth(newDate.getMonth() - 1)
@@ -1992,7 +1985,7 @@ export function Appointments() {
   const uniqueDoctors = useMemo(() => [...new Set(appointments.map(a => a.doctor_name).filter(Boolean))], [appointments])
   const uniqueSpecialties = useMemo(() => [...new Set(appointments.map(a => a.specialty).filter(Boolean))], [appointments])
 
-  // Generador de días del mes actual para la cuadrícula estilo Teams
+  // Generador de días del mes
   const calendarDays = useMemo(() => {
     const year = currentDate.getFullYear()
     const month = currentDate.getMonth()
@@ -2019,18 +2012,13 @@ export function Appointments() {
 
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-  // Función para manejar el clic en el día de la cuadrícula: Abre el panel de desglose por horas de ese día
-  const handleDayClick = (cellDate) => {
-    setDayScheduleViewDate(cellDate)
-  }
-
   return (
     <div style={{ padding: '1.5rem', backgroundColor: '#1f1f1f', color: '#f3f2f1', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: '"Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif' }}>
 
       {/* CONTENEDOR PRINCIPAL ESTILO MICROSOFT TEAMS */}
       <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
 
-        {/* BARRA SUPERIOR DE ACCIONES Y NAVEGACIÓN ESTILO TEAMS */}
+        {/* BARRA SUPERIOR DE ACCIONES Y NAVEGACIÓN */}
         <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -2051,7 +2039,6 @@ export function Appointments() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {/* Selector de vistas Teams (Mes / Semana / Día) */}
             <div style={{ backgroundColor: '#11100f', border: '1px solid #484644', borderRadius: '4px', display: 'flex', padding: '2px' }}>
               <button 
                 onClick={() => setCalendarView('month')}
@@ -2089,7 +2076,7 @@ export function Appointments() {
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* FORMULARIO DE NUEVA CITA / REUNIÓN */}
+        {/* FORMULARIO DE NUEVA CITA */}
         {showForm && (
           <form onSubmit={submit} style={{ backgroundColor: '#252423', borderBottom: '1px solid #333333', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2219,21 +2206,19 @@ export function Appointments() {
               return (
                 <div 
                   key={index} 
-                  onClick={() => handleDayClick(cell.date)}
                   style={{ 
                     backgroundColor: cell.isCurrentMonth ? '#292929' : '#222120', 
-                    minHeight: '100px', 
+                    minHeight: '110px', 
                     padding: '0.4rem', 
                     display: 'flex', 
                     flexDirection: 'column', 
                     gap: '0.35rem',
                     overflow: 'hidden',
-                    cursor: 'pointer',
+                    position: 'relative',
                     transition: 'background-color 0.15s ease'
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = cell.isCurrentMonth ? '#323130' : '#282726'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = cell.isCurrentMonth ? '#292929' : '#222120'}
-                  title="Haz clic para ver las horas del día y solapamientos"
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ 
@@ -2250,22 +2235,37 @@ export function Appointments() {
                     }}>
                       {cell.date.getDate()}
                     </span>
-                    {dayAppointments.length > 0 && (
-                      <span style={{ fontSize: '0.65rem', backgroundColor: '#3b3a39', color: '#b3b0ad', padding: '0 4px', borderRadius: '4px' }}>
-                        {dayAppointments.length}
-                      </span>
-                    )}
+
+                    {/* BOTÓN PARA VER LAS ACTIVIDADES DE ESE DÍA (Estilo de la segunda imagen de referencia) */}
+                    <button
+                      onClick={() => setDayScheduleViewDate(cell.date)}
+                      style={{
+                        backgroundColor: 'transparent',
+                        border: '1px solid #484644',
+                        color: '#b3b0ad',
+                        borderRadius: '3px',
+                        padding: '0.1rem 0.3rem',
+                        fontSize: '0.65rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.2rem'
+                      }}
+                      title="Ver actividades de este día en detalle"
+                    >
+                      🕒 Ver día
+                    </button>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto', maxHeight: '80px' }}>
+                  {/* Listado de eventos coloreados en el cuadro del día */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto', maxHeight: '75px' }}>
                     {dayAppointments.map(item => {
                       const timeStr = item.appointment_date ? item.appointment_date.slice(11, 16) : ''
                       const itemColor = item.color || specialtyColors[item.specialty] || '#464775'
                       return (
                         <div
                           key={item.id}
-                          onClick={(e) => {
-                            e.stopPropagation()
+                          onClick={() => {
                             setSelectedAppointment(item)
                             setEditingAppointment(false)
                             setEditForm({
@@ -2305,7 +2305,7 @@ export function Appointments() {
 
       </div>
 
-      {/* MODAL DE VISTA POR HORA DEL DÍA (SCHEDULE / CONFLICT CHECKER) */}
+      {/* PANTALLA DE HORAS DEL DÍA (SCHEDULE VIEW - CONFLICT & OVERLAP CHECKER) */}
       {dayScheduleViewDate && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.75)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
           <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '650px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.5)' }}>
@@ -2313,20 +2313,18 @@ export function Appointments() {
             <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333' }}>
               <div>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>
-                  Agenda del día: {dayScheduleViewDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  Actividades del día: {dayScheduleViewDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </h3>
-                <p style={{ fontSize: '0.75rem', color: '#b3b0ad', margin: '0.2rem 0 0 0' }}>Revise los bloques horarios y posibles solapamientos.</p>
+                <p style={{ fontSize: '0.75rem', color: '#b3b0ad', margin: '0.2rem 0 0 0' }}>Control de franjas horarias y solapamientos.</p>
               </div>
               <button onClick={() => setDayScheduleViewDate(null)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', fontSize: '1.1rem', cursor: 'pointer' }}>✕</button>
             </div>
 
             <div style={{ padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-              {/* Generamos las horas de la jornada de 8:00 a 18:00 */}
               {Array.from({ length: 11 }, (_, i) => i + 8).map(hour => {
                 const hourStr = String(hour).padStart(2, '0') + ':00'
                 const dayStr = dayScheduleViewDate.toISOString().slice(0, 10)
                 
-                // Buscar citas que coincidan con esta hora o la crucen
                 const matchedAppointments = filteredAppointments.filter(item => {
                   if (!item.appointment_date || !item.appointment_date.startsWith(dayStr)) return false
                   const itemHour = item.appointment_date.slice(11, 13)
@@ -2358,7 +2356,7 @@ export function Appointments() {
                         <>
                           {hasConflict && (
                             <div style={{ backgroundColor: '#5a1d1d', color: '#f89999', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
-                              ⚠️ ¡Conflicto de horario! Hay {matchedAppointments.length} citas solapadas en esta franja.
+                              ⚠️ ¡Conflicto de solapamiento! Hay {matchedAppointments.length} citas programadas en esta misma hora.
                             </div>
                           )}
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -2418,7 +2416,7 @@ export function Appointments() {
         </div>
       )}
 
-      {/* PANEL LATERAL / MODAL DE DETALLE ESTILO TEAMS (MEETING DETAILS) */}
+      {/* PANEL DE DETALLE / EDICIÓN DE CITA */}
       {selectedAppointment && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
           <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
