@@ -1785,7 +1785,7 @@ export function DeviceActions() {
 
 
 // ============================================================
-// Appointments
+// Appointments - Microsoft Teams Calendar Style
 // ============================================================
 
 export function Appointments() {
@@ -1795,12 +1795,15 @@ export function Appointments() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, notify, clearToast] = useToast()
-  
+
+  // Vista de Calendario Teams (month, week, day) y fecha actual seleccionada
+  const [calendarView, setCalendarView] = useState('month')
+  const [currentDate, setCurrentDate] = useState(new Date())
+
   // Estado para filtros avanzados
   const [filterSearch, setFilterSearch] = useState('')
   const [filterDoctor, setFilterDoctor] = useState('')
   const [filterSpecialty, setFilterSpecialty] = useState('')
-  const [filterDate, setFilterDate] = useState('')
 
   // Estado para modal / vista de detalle estilo Teams
   const [selectedAppointment, setSelectedAppointment] = useState(null)
@@ -1879,36 +1882,9 @@ export function Appointments() {
     }
   }
 
-  // Clasificación de citas entre próximas y terminadas basándose en la fecha/hora actual
-  const { upcoming, finished } = useMemo(() => {
-    const now = new Date()
-    const up = []
-    const fin = []
-
-    appointments.forEach(item => {
-      const appDate = new Date(item.appointment_date)
-      // Si existe end_time se evalúa contra este, de lo contrario se asume 1 hora de duración
-      let endDate = item.end_time ? new Date(`${item.appointment_date.split('T')[0]}T${item.end_time}`) : new Date(appDate.getTime() + 60 * 60 * 1000)
-      
-      if (isNaN(endDate.getTime())) endDate = new Date(appDate.getTime() + 60 * 60 * 1000)
-
-      if (endDate < now) {
-        fin.push(item)
-      } else {
-        up.push(item)
-      }
-    });
-
-    const sortFn = (a, b) => new Date(a.appointment_date) - new Date(b.appointment_date)
-    return {
-      upcoming: up.sort(sortFn),
-      finished: fin.sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date))
-    }
-  }, [appointments])
-
   // Filtrado avanzado
-  const filterList = (list) => {
-    return list.filter(item => {
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter(item => {
       const matchesSearch = !filterSearch || 
         String(item.doctor_name || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
         String(item.specialty || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
@@ -1917,122 +1893,197 @@ export function Appointments() {
 
       const matchesDoctor = !filterDoctor || item.doctor_name === filterDoctor
       const matchesSpecialty = !filterSpecialty || item.specialty === filterSpecialty
-      const matchesDate = !filterDate || (item.appointment_date && item.appointment_date.startsWith(filterDate))
 
-      return matchesSearch && matchesDoctor && matchesSpecialty && matchesDate
+      return matchesSearch && matchesDoctor && matchesSpecialty
     })
+  }, [appointments, filterSearch, filterDoctor, filterSpecialty])
+
+  // Lógica de navegación de fechas para el calendario estilo Teams
+  const handlePrevPeriod = () => {
+    const newDate = new Date(currentDate)
+    if (calendarView === 'month') newDate.setMonth(newDate.getMonth() - 1)
+    else if (calendarView === 'week') newDate.setDate(newDate.getDate() - 7)
+    else newDate.setDate(newDate.getDate() - 1)
+    setCurrentDate(newDate)
   }
 
-  const filteredUpcoming = useMemo(() => filterList(upcoming), [upcoming, filterSearch, filterDoctor, filterSpecialty, filterDate])
-  const filteredFinished = useMemo(() => filterList(finished), [finished, filterSearch, filterDoctor, filterSpecialty, filterDate])
+  const handleNextPeriod = () => {
+    const newDate = new Date(currentDate)
+    if (calendarView === 'month') newDate.setMonth(newDate.getMonth() + 1)
+    else if (calendarView === 'week') newDate.setDate(newDate.getDate() + 7)
+    else newDate.setDate(newDate.getDate() + 1)
+    setCurrentDate(newDate)
+  }
 
-  // Lista de doctores y especialidades únicos para los selectores de filtro
   const uniqueDoctors = useMemo(() => [...new Set(appointments.map(a => a.doctor_name).filter(Boolean))], [appointments])
   const uniqueSpecialties = useMemo(() => [...new Set(appointments.map(a => a.specialty).filter(Boolean))], [appointments])
 
+  // Generador de días del mes actual para la cuadrícula estilo Teams
+  const calendarDays = useMemo(() => {
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const firstDayIndex = new Date(year, month, 1).getDay()
+    const totalDays = new Date(year, month + 1, 0).getDate()
+    
+    const days = []
+    // Días del mes anterior para rellenar
+    const prevMonthDays = new Date(year, month, 0).getDate()
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1, prevMonthDays - i)
+      days.push({ date: d, isCurrentMonth: false })
+    }
+    // Días del mes actual
+    for (let i = 1; i <= totalDays; i++) {
+      const d = new Date(year, month, i)
+      days.push({ date: d, isCurrentMonth: true })
+    }
+    // Días del siguiente mes para completar la cuadrícula (hasta 35 o 42 celdas)
+    const remainingCells = days.length % 7 === 0 ? 0 : 7 - (days.length % 7)
+    for (let i = 1; i <= remainingCells; i++) {
+      const d = new Date(year, month + 1, i)
+      days.push({ date: d, isCurrentMonth: false })
+    }
+    return days
+  }, [currentDate])
+
+  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: '1.5rem', backgroundColor: '#1f1f1f', color: '#f3f2f1', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: '"Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif' }}>
 
-      {/* MARCO GENERAL ESTILO DOCUMENTO */}
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+      {/* CONTENEDOR PRINCIPAL ESTILO MICROSOFT TEAMS */}
+      <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
 
-        {/* CABECERA Y ACCIONES */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              Citas médicas
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              Agenda, organiza y revisa las próximas atenciones con vista interactiva tipo calendario.
-            </p>
+        {/* BARRA SUPERIOR DE ACCIONES Y NAVEGACIÓN ESTILO TEAMS */}
+        <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button 
+                onClick={() => setCurrentDate(new Date())}
+                style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.75rem', fontSize: '0.85rem', cursor: 'pointer' }}
+              >
+                Hoy
+              </button>
+              <div style={{ display: 'flex', border: '1px solid #484644', borderRadius: '4px', overflow: 'hidden' }}>
+                <button onClick={handlePrevPeriod} style={{ backgroundColor: 'transparent', border: 'none', color: '#f3f2f1', padding: '0.35rem 0.6rem', cursor: 'pointer' }}>〈</button>
+                <button onClick={handleNextPeriod} style={{ backgroundColor: 'transparent', border: 'none', color: '#f3f2f1', padding: '0.35rem 0.6rem', cursor: 'pointer', borderLeft: '1px solid #484644' }}>〉</button>
+              </div>
+            </div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h2>
           </div>
 
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {/* Selector de vistas Teams (Mes / Semana / Día) */}
+            <div style={{ backgroundColor: '#11100f', border: '1px solid #484644', borderRadius: '4px', display: 'flex', padding: '2px' }}>
+              <button 
+                onClick={() => setCalendarView('month')}
+                style={{ backgroundColor: calendarView === 'month' ? '#484644' : 'transparent', border: 'none', color: '#f3f2f1', padding: '0.3rem 0.75rem', borderRadius: '3px', fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Mes
+              </button>
+              <button 
+                onClick={() => setCalendarView('week')}
+                style={{ backgroundColor: calendarView === 'week' ? '#484644' : 'transparent', border: 'none', color: '#f3f2f1', padding: '0.3rem 0.75rem', borderRadius: '3px', fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Semana
+              </button>
+              <button 
+                onClick={() => setCalendarView('day')}
+                style={{ backgroundColor: calendarView === 'day' ? '#484644' : 'transparent', border: 'none', color: '#f3f2f1', padding: '0.3rem 0.75rem', borderRadius: '3px', fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Día
+              </button>
+            </div>
+
             <button
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+              style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
               onClick={() => setShowForm(v => !v)}
             >
-              {showForm ? 'Cancelar' : '＋ Nueva cita'}
+              {showForm ? 'Cancelar' : 'New event'}
             </button>
           </div>
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* FORMULARIO DE NUEVA CITA */}
+        {/* FORMULARIO DE NUEVA CITA / REUNIÓN */}
         {showForm && (
-          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Programar cita</h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Completa los datos y guarda la atención.</p>
+          <form onSubmit={submit} style={{ backgroundColor: '#252423', borderBottom: '1px solid #333333', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Programar nueva cita médica</h3>
+                <p style={{ fontSize: '0.75rem', color: '#b3b0ad', marginTop: '0.2rem', marginBottom: 0 }}>Rellene los detalles para agendar la atención en el calendario.</p>
+              </div>
+              <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer', fontSize: '1rem' }}>✕</button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Buscar paciente *</label>
-                <SearchField value={patientSearch} onChange={setPatientSearch} placeholder="Nombre o DNI…" />
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Buscar paciente *</label>
+                <SearchField value={patientSearch} onChange={setPatientSearch} placeholder="Nombre o DNI del paciente…" />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Paciente seleccionado *</label>
-                <select required style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Paciente seleccionado *</label>
+                <select required style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
                   <option value="">Seleccionar paciente</option>
                   {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.dni || p.document_number || '—'}</option>)}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Médico tratante</label>
-                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Médico tratante</label>
+                <input style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Especialidad</label>
-                <select style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.specialty} onChange={e => setForm(p => ({ ...p, specialty: e.target.value }))}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad</label>
+                <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} value={form.specialty} onChange={e => setForm(p => ({ ...p, specialty: e.target.value }))}>
                   {specialties.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Fecha y hora de inicio *</label>
-                <input required type="datetime-local" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} min={new Date().toISOString().slice(0, 16)} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Fecha y hora de inicio *</label>
+                <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} min={new Date().toISOString().slice(0, 16)} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Hora de fin</label>
-                <input type="time" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} />
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Hora de fin</label>
+                <input type="time" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none' }} value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Notas</label>
-                <textarea rows={3} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Preparación, examen previo, observaciones…" />
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Notas adicionales</label>
+                <textarea rows={2} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem', outline: 'none', resize: 'vertical' }} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} placeholder="Detalles de la consulta..." />
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-              <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setShowForm(false)}>Cancelar</button>
-              <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Confirmar cita'}</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button type="button" style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 1rem', fontSize: '0.85rem', cursor: 'pointer' }} onClick={() => setShowForm(false)}>Descartar</button>
+              <button type="submit" style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
             </div>
           </form>
         )}
 
-        {/* BARRA DE FILTROS Y BUSCADOR AVANZADO */}
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.4)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem 1.25rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: '220px' }}>
+        {/* BARRA DE FILTROS RÁPIDOS */}
+        <div style={{ backgroundColor: '#201f1f', padding: '0.75rem 1.5rem', borderBottom: '1px solid #333333', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
             <input 
               type="text" 
-              placeholder="Buscar en citas (médico, notas, paciente)..." 
+              placeholder="Filtrar eventos..." 
               value={filterSearch} 
               onChange={e => setFilterSearch(e.target.value)} 
-              style={{ width: '100%', backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.45rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+              style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.75rem', fontSize: '0.8rem', outline: 'none' }}
             />
           </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <select 
               value={filterDoctor} 
               onChange={e => setFilterDoctor(e.target.value)}
-              style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.45rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
+              style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.5rem', fontSize: '0.8rem', outline: 'none' }}
             >
               <option value="">Todos los médicos</option>
               {uniqueDoctors.map(doc => <option key={doc} value={doc}>{doc}</option>)}
@@ -2041,293 +2092,220 @@ export function Appointments() {
             <select 
               value={filterSpecialty} 
               onChange={e => setFilterSpecialty(e.target.value)}
-              style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.45rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
+              style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.5rem', fontSize: '0.8rem', outline: 'none' }}
             >
               <option value="">Todas las especialidades</option>
               {uniqueSpecialties.map(spec => <option key={spec} value={spec}>{spec}</option>)}
             </select>
-
-            <input 
-              type="date" 
-              value={filterDate} 
-              onChange={e => setFilterDate(e.target.value)}
-              style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.40rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
-            />
-
-            {(filterSearch || filterDoctor || filterSpecialty || filterDate) && (
-              <button 
-                onClick={() => { setFilterSearch(''); setFilterDoctor(''); setFilterSpecialty(''); setFilterDate(''); }}
-                style={{ backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '10px', padding: '0.45rem 0.75rem', fontSize: '0.85rem', cursor: 'pointer' }}
-              >
-                Limpiar filtros
-              </button>
-            )}
           </div>
         </div>
 
-        {/* LISTADO DE PRÓXIMAS CITAS */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Próximas citas</h3>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{filteredUpcoming.length} citas agendadas programadas. (Haz clic para ver detalles y gestionar)</p>
+        {/* CUADRÍCULA DE CALENDARIO ESTILO TEAMS */}
+        <div style={{ padding: '1rem', backgroundColor: '#292929' }}>
+          {/* Cabecera de días de la semana */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', marginBottom: '2px', textAlign: 'center' }}>
+            {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map(day => (
+              <div key={day} style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: '#b3b0ad', backgroundColor: '#201f1f' }}>
+                {day}
+              </div>
+            ))}
           </div>
 
-          {filteredUpcoming.length === 0 ? (
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
-              <EmptyState icon="◷" title="No hay citas próximas" description="Crea una nueva cita o ajusta los filtros de búsqueda." />
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
-              {filteredUpcoming.map(item => (
-                <article
-                  key={item.id}
-                  onClick={() => {
-                    setSelectedAppointment(item)
-                    setEditingAppointment(false)
-                    setEditForm({
-                      doctor_name: item.doctor_name || '',
-                      specialty: item.specialty || '',
-                      appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '',
-                      end_time: item.end_time || '',
-                      notes: item.notes || ''
-                    })
-                  }}
-                  style={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid #1e293b',
-                    borderRadius: '16px',
-                    padding: '1.25rem',
-                    display: 'flex',
-                    gap: '1rem',
-                    alignItems: 'flex-start',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                    transition: 'all 0.25s ease-in-out',
-                    cursor: 'pointer'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-4px)'
-                    e.currentTarget.style.borderColor = '#3b82f6'
-                    e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = 'translateY(0px)'
-                    e.currentTarget.style.borderColor = '#1e293b'
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+          {/* Celdas del Mes */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', backgroundColor: '#333333' }}>
+            {calendarDays.map((cell, index) => {
+              const cellDateStr = cell.date.toISOString().slice(0, 10)
+              const dayAppointments = filteredAppointments.filter(item => item.appointment_date && item.appointment_date.startsWith(cellDateStr))
+
+              return (
+                <div 
+                  key={index} 
+                  style={{ 
+                    backgroundColor: cell.isCurrentMonth ? '#292929' : '#222120', 
+                    minHeight: '100px', 
+                    padding: '0.4rem', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '0.35rem',
+                    overflow: 'hidden'
                   }}
                 >
-                  <div className="appointment-date" style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>{formatDate(item.appointment_date, { weekday: 'short' })}</span>
-                    <strong style={{ fontSize: '0.95rem', color: '#f8fafc' }}>{formatDate(item.appointment_date, { day: '2-digit', month: 'short' })}</strong>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ 
+                      fontSize: '0.75rem', 
+                      fontWeight: cell.date.toDateString() === new Date().toDateString() ? 700 : 400,
+                      color: cell.date.toDateString() === new Date().toDateString() ? '#ffffff' : (cell.isCurrentMonth ? '#f3f2f1' : '#666564'),
+                      backgroundColor: cell.date.toDateString() === new Date().toDateString() ? '#6264a7' : 'transparent',
+                      borderRadius: '50%',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {cell.date.getDate()}
+                    </span>
                   </div>
 
-                  <div className="appointment-content" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.specialty}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0' }}>{item.doctor_name}</h3>
-                      </div>
-                      <span className="badge badge-success">Programada</span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Paciente ID #{item.patient_id}</p>
-                      {item.end_time && <span style={{ fontSize: '0.75rem', color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '0.1rem 0.4rem', borderRadius: '6px' }}>Fin: {item.end_time}</span>}
-                    </div>
-
-                    <p style={{ fontSize: '0.825rem', color: '#cbd5e1', margin: '0.25rem 0 0 0', backgroundColor: '#090d16', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #1e293b' }}>
-                      {item.notes || 'Sin notas adicionales.'}
-                    </p>
+                  {/* Listado de eventos / citas dentro de la celda con estilo Teams (tarjetas moradas/azules) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto', maxHeight: '80px' }}>
+                    {dayAppointments.map(item => {
+                      const timeStr = item.appointment_date ? item.appointment_date.slice(11, 16) : ''
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            setSelectedAppointment(item)
+                            setEditingAppointment(false)
+                            setEditForm({
+                              doctor_name: item.doctor_name || '',
+                              specialty: item.specialty || '',
+                              appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '',
+                              end_time: item.end_time || '',
+                              notes: item.notes || ''
+                            })
+                          }}
+                          style={{
+                            backgroundColor: '#464775',
+                            borderLeft: '3px solid #b1b0e8',
+                            borderRadius: '3px',
+                            padding: '0.2rem 0.4rem',
+                            fontSize: '0.7rem',
+                            cursor: 'pointer',
+                            color: '#ffffff',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={`${timeStr} - ${item.doctor_name} (${item.specialty})`}
+                        >
+                          <strong style={{ marginRight: '0.3rem' }}>{timeStr}</strong>
+                          <span>{item.doctor_name}</span>
+                        </div>
+                      )
+                    })}
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* LISTADO DE CITAS TERMINADAS */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-          <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#94a3b8', margin: 0 }}>Citas terminadas / Historial</h3>
-            <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem', marginBottom: 0 }}>{filteredFinished.length} atenciones pasadas completadas.</p>
+                </div>
+              )
+            })}
           </div>
-
-          {filteredFinished.length === 0 ? (
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.4)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem' }}>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, textAlign: 'center' }}>No hay citas terminadas registradas.</p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
-              {filteredFinished.map(item => (
-                <article
-                  key={item.id}
-                  style={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.3)',
-                    border: '1px solid #1e293b',
-                    borderRadius: '16px',
-                    padding: '1.25rem',
-                    display: 'flex',
-                    gap: '1rem',
-                    alignItems: 'flex-start',
-                    opacity: 0.8
-                  }}
-                >
-                  <div className="appointment-date" style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>{formatDate(item.appointment_date, { weekday: 'short' })}</span>
-                    <strong style={{ fontSize: '0.95rem', color: '#94a3b8' }}>{formatDate(item.appointment_date, { day: '2-digit', month: 'short' })}</strong>
-                  </div>
-
-                  <div className="appointment-content" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.specialty}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#cbd5e1', margin: '0.1rem 0 0 0' }}>{item.doctor_name}</h3>
-                      </div>
-                      <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(100, 116, 139, 0.2)', color: '#94a3b8', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Terminada</span>
-                    </div>
-
-                    <p style={{ fontSize: '0.8rem', color: '#64748b', margin: 0 }}>Paciente ID #{item.patient_id}</p>
-                    <p style={{ fontSize: '0.825rem', color: '#94a3b8', margin: '0.25rem 0 0 0', backgroundColor: '#090d16', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid #1e293b' }}>
-                      {item.notes || 'Sin notas adicionales.'}
-                    </p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
         </div>
 
       </div>
 
-      {/* MODAL DETALLE / HORARIO TIPO TEAMS */}
+      {/* PANEL LATERAL / MODAL DE DETALLE ESTILO TEAMS (MEETING DETAILS) */}
       {selectedAppointment && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifycontent: 'center', backgroundColor: 'rgba(0,0,0,0.8)', padding: '1rem', backdropFilter: 'blur(4px)' }}>
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '20px', width: '100%', maxWidth: '550px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
+          <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             
-            {/* Cabecera del Panel Teams */}
-            <div style={{ backgroundColor: '#1e293b', padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#3b82f6' }}></div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Gestión de Reunión / Cita</h3>
+            {/* Cabecera Teams Meeting */}
+            <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#6264a7' }}></div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Detalles de Cita Médica</h3>
               </div>
-              <button 
-                onClick={() => setSelectedAppointment(null)}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
+              <button onClick={() => setSelectedAppointment(null)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', fontSize: '1.1rem', cursor: 'pointer' }}>✕</button>
             </div>
 
-            {/* Contenido / Formulario */}
-            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Contenido del Panel */}
+            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {!editingAppointment ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#38bdf8', textTransform: 'uppercase', fontWeight: 600 }}>{selectedAppointment.specialty}</span>
-                    <h2 style={{ fontSize: '1.25rem', color: '#f8fafc', margin: 0 }}>{selectedAppointment.doctor_name}</h2>
-                    <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>Paciente ID: #{selectedAppointment.patient_id}</p>
+                  <div style={{ backgroundColor: '#1f1f1f', padding: '0.85rem', borderRadius: '6px', border: '1px solid #333333', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <span style={{ fontSize: '0.7rem', color: '#b1b0e8', textTransform: 'uppercase', fontWeight: 600 }}>{selectedAppointment.specialty}</span>
+                    <h2 style={{ fontSize: '1.1rem', color: '#ffffff', margin: 0 }}>{selectedAppointment.doctor_name}</h2>
+                    <p style={{ fontSize: '0.8rem', color: '#b3b0ad', margin: 0 }}>Paciente ID: #{selectedAppointment.patient_id}</p>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div style={{ backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                      <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>Fecha y Hora de Inicio</span>
-                      <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>{selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</strong>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div style={{ backgroundColor: '#1f1f1f', padding: '0.75rem', borderRadius: '6px', border: '1px solid #333333' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#b3b0ad', display: 'block' }}>Inicio</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#ffffff' }}>{selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</strong>
                     </div>
-                    <div style={{ backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                      <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block' }}>Hora de Fin Programada</span>
-                      <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>{selectedAppointment.end_time || 'No especificada'}</strong>
+                    <div style={{ backgroundColor: '#1f1f1f', padding: '0.75rem', borderRadius: '6px', border: '1px solid #333333' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#b3b0ad', display: 'block' }}>Fin</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#ffffff' }}>{selectedAppointment.end_time || 'No especificada'}</strong>
                     </div>
                   </div>
 
-                  <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'block', marginBottom: '0.25rem' }}>Notas de la sesión</span>
-                    <p style={{ fontSize: '0.85rem', color: '#cbd5e1', margin: 0 }}>{selectedAppointment.notes || 'Sin notas adicionales.'}</p>
+                  <div style={{ backgroundColor: '#1f1f1f', padding: '0.75rem', borderRadius: '6px', border: '1px solid #333333' }}>
+                    <span style={{ fontSize: '0.7rem', color: '#b3b0ad', display: 'block', marginBottom: '0.2rem' }}>Notas</span>
+                    <p style={{ fontSize: '0.8rem', color: '#f3f2f1', margin: 0 }}>{selectedAppointment.notes || 'Sin notas adicionales.'}</p>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
                     <button 
                       onClick={() => handleCancelAppointment(selectedAppointment.id)}
                       disabled={actionLoading}
-                      style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', borderRadius: '10px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer' }}
+                      style={{ backgroundColor: 'transparent', border: '1px solid #a80000', color: '#f89999', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer' }}
                     >
                       Cancelar Cita
                     </button>
                     <button 
                       onClick={() => setEditingAppointment(true)}
-                      style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+                      style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
                     >
-                      Editar Horario / Datos
+                      Editar
                     </button>
                   </div>
                 </div>
               ) : (
-                <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Médico a cargo</label>
+                <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#b3b0ad' }}>Médico</label>
                     <input 
                       type="text" 
                       value={editForm.doctor_name} 
                       onChange={e => setEditForm({...editForm, doctor_name: e.target.value})}
-                      style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
+                      style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', outline: 'none' }}
                     />
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Especialidad</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#b3b0ad' }}>Especialidad</label>
                     <select 
                       value={editForm.specialty} 
                       onChange={e => setEditForm({...editForm, specialty: e.target.value})}
-                      style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
+                      style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', outline: 'none' }}
                     >
                       {specialties.map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Fecha y hora de inicio</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontSize: '0.75rem', color: '#b3b0ad' }}>Inicio</label>
                       <input 
                         type="datetime-local" 
                         value={editForm.appointment_date} 
                         onChange={e => setEditForm({...editForm, appointment_date: e.target.value})}
-                        style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
+                        style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', outline: 'none' }}
                       />
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Hora de fin</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <label style={{ fontSize: '0.75rem', color: '#b3b0ad' }}>Fin (Hora)</label>
                       <input 
                         type="time" 
                         value={editForm.end_time} 
                         onChange={e => setEditForm({...editForm, end_time: e.target.value})}
-                        style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
+                        style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', outline: 'none' }}
                       />
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Notas</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontSize: '0.75rem', color: '#b3b0ad' }}>Notas</label>
                     <textarea 
-                      rows={3} 
+                      rows={2} 
                       value={editForm.notes} 
                       onChange={e => setEditForm({...editForm, notes: e.target.value})}
-                      style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.85rem', outline: 'none', resize: 'vertical' }}
+                      style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem', fontSize: '0.8rem', outline: 'none', resize: 'vertical' }}
                     />
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                    <button 
-                      type="button" 
-                      onClick={() => setEditingAppointment(false)}
-                      style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.5rem 1rem', fontSize: '0.85rem', cursor: 'pointer' }}
-                    >
-                      Atrás
-                    </button>
-                    <button 
-                      type="submit" 
-                      disabled={actionLoading}
-                      style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', opacity: actionLoading ? 0.5 : 1 }}
-                    >
-                      {actionLoading ? 'Guardando...' : 'Guardar Cambios'}
-                    </button>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 0.8rem', fontSize: '0.8rem', cursor: 'pointer' }}>Atrás</button>
+                    <button type="submit" disabled={actionLoading} style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>{actionLoading ? 'Guardando...' : 'Actualizar'}</button>
                   </div>
                 </form>
               )}
