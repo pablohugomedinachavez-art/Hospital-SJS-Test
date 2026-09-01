@@ -32,8 +32,7 @@ import {
 // Shared UX / utilities
 // ============================================================
 
-export { default as Appointments } from './Appointments'
-const INITIAL_PATIENT = {
+export { default as Appointments } from './appointments';const INITIAL_PATIENT = {
   document_type: 'dni',
   document_number: '',
   full_name: '',
