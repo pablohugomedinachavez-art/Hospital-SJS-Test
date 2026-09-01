@@ -1555,7 +1555,7 @@ def devices():
     if not name:
         return jsonify({'message': 'name is required'}), 400
 
-    # Convertir cadenas vacías o valores inválidos a None (NULL en PostgreSQL)
+    # Convertir cadenas vacías o valores inválidos a None (NULL en PostgreSQL) para location_id
     location_id = data.get('location_id')
     if location_id in ['', 'null', None]:
         location_id = None
@@ -1565,15 +1565,6 @@ def devices():
         except (ValueError, TypeError):
             location_id = None
 
-    patient_id = data.get('patient_id')
-    if patient_id in ['', 'null', None]:
-        patient_id = None
-    else:
-        try:
-            patient_id = int(patient_id)
-        except (ValueError, TypeError):
-            patient_id = None
-
     type_ = data.get('type', 'pc')
     status_ = data.get('status', 'active')
     ip_address = data.get('ip_address') or get_client_ip()
@@ -1582,14 +1573,14 @@ def devices():
     # Usar un objeto datetime nativo de Python para la columna de la BD
     created_at = datetime.datetime.now(datetime.timezone.utc)
 
-    # 3. Inserción segura en PostgreSQL
+    # 3. Inserción segura en PostgreSQL (sin patient_id)
     try:
         new_row = db_query(
             '''
-            INSERT INTO devices (tenant_id, location_id, patient_id, name, type, status, ip_address, user_agent, created_at) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            INSERT INTO devices (tenant_id, location_id, name, type, status, ip_address, user_agent, created_at) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             ''',
-            (tenant_id, location_id, patient_id, name, type_, status_, ip_address, user_agent, created_at), 
+            (tenant_id, location_id, name, type_, status_, ip_address, user_agent, created_at), 
             commit=True, 
             fetchone=True
         )
@@ -1599,7 +1590,7 @@ def devices():
 
         device_id = new_row['id']
 
-        # 4. Auditoría aislada (si falla la auditoría, la creación del dispositivo no se rompe)
+        # 4. Auditoría aislada
         try:
             record_audit('create', 'device', device_id, f'Created device {name}', tenant_id, claims.get('user_id') or claims.get('id'))
         except Exception as audit_err:
@@ -1609,8 +1600,9 @@ def devices():
 
     except Exception as e:
         print(f"[ERROR DB /api/devices POST]: {str(e)}")
-        # Devuelve el mensaje exacto del error en el JSON para identificar la causa en las DevTools
         return jsonify({'message': 'Error interno al registrar dispositivo', 'error': str(e)}), 500
+
+    
 @app.route('/api/device_actions', methods=['GET', 'POST'])
 @token_required
 def device_actions():
