@@ -229,7 +229,8 @@ def token_required(f):
         if parts[0].lower() != 'bearer' or len(parts) != 2:
             return jsonify({'message': 'Invalid authorization header'}), 401
         try:
-            data = jwt.decode(parts[1], current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            # CAMBIO CRÍTICO: Usar app.config en lugar de current_app para garantizar la misma clave exacta
+            data = jwt.decode(parts[1], app.config['SECRET_KEY'], algorithms=['HS256'])
             request.claims = data
         except jwt.ExpiredSignatureError:
             return jsonify({'message': 'Token expired'}), 401
@@ -237,6 +238,7 @@ def token_required(f):
             return jsonify({'message': 'Invalid token'}), 401
         return f(*args, **kwargs)
     return decorated
+
 
 def get_client_ip():
     x_forwarded = request.headers.get('X-Forwarded-For')
