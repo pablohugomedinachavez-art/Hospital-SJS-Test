@@ -2317,11 +2317,13 @@ export function Appointments() {
         )}
 
 
-        {/* VISTA DÍA */}
+{/* VISTA DÍA (24 Horas) */}
 {calendarView === 'day' && (() => {
   const dayCellDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
+  
+  // Genera el arreglo completo de 0 a 23 horas si no está definido globalmente
+  const fullHoursRange = Array.from({ length: 24 }, (_, i) => i)
 
-  // 1. Filtramos todas las citas que corresponden a este día en general
   const dayAppointments = filteredAppointments.filter(item => {
     if (!item.appointment_date) return false
     const localDateObj = new Date(item.appointment_date)
@@ -2334,8 +2336,7 @@ export function Appointments() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {hoursRange.map(hour => {
-          // 2. Extraemos solo las citas que coinciden con esta hora específica
+        {fullHoursRange.map(hour => {
           const cellApps = dayAppointments.filter(item => {
             const localDateObj = new Date(item.appointment_date)
             return localDateObj.getHours() === hour
