@@ -2316,44 +2316,53 @@ export function Appointments() {
           </div>
         )}
 
-        {/* VISTA DÍA */}
-        {calendarView === 'day' && (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {hoursRange.map(hour => {
-                const dayCellDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
-                
-                const cellApps = filteredAppointments.filter(item => {
-                  if (!item.appointment_date) return false
-                  const localDateObj = new Date(item.appointment_date)
-                  if (isNaN(localDateObj.getTime())) return false
-                  
-                  const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
-                  if (itemDateStr !== dayCellDateStr) return false
-                  return localDateObj.getHours() === hour
-                })
 
-                return (
-                  <div 
-                    key={hour}
-                    onClick={() => {
-                      setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
-                      setShowForm(true)
-                    }}
-                    style={{ display: 'flex', borderBottom: '1px solid #333333', minHeight: '65px', alignItems: 'stretch', cursor: 'pointer' }}
-                  >
-                    <div style={{ width: '70px', padding: '0.5rem', fontSize: '0.8rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '1rem', borderRight: '1px solid #333333' }}>
-                      {`${String(hour).padStart(2, '0')}:00`}
-                    </div>
-                    <div style={{ flex: 1, padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }} onClick={e => e.stopPropagation()}>
-                      {cellApps.map(item => renderAppointmentCard(item))}
-                    </div>
-                  </div>
-                )
-              })}
+        {/* VISTA DÍA */}
+{calendarView === 'day' && (() => {
+  const dayCellDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
+
+  // 1. Filtramos todas las citas que corresponden a este día en general
+  const dayAppointments = filteredAppointments.filter(item => {
+    if (!item.appointment_date) return false
+    const localDateObj = new Date(item.appointment_date)
+    if (isNaN(localDateObj.getTime())) return false
+    
+    const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
+    return itemDateStr === dayCellDateStr
+  })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {hoursRange.map(hour => {
+          // 2. Extraemos solo las citas que coinciden con esta hora específica
+          const cellApps = dayAppointments.filter(item => {
+            const localDateObj = new Date(item.appointment_date)
+            return localDateObj.getHours() === hour
+          })
+
+          return (
+            <div 
+              key={hour}
+              onClick={() => {
+                setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
+                setShowForm(true)
+              }}
+              style={{ display: 'flex', borderBottom: '1px solid #333333', minHeight: '65px', alignItems: 'stretch', cursor: 'pointer' }}
+            >
+              <div style={{ width: '70px', padding: '0.5rem', fontSize: '0.8rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '1rem', borderRight: '1px solid #333333' }}>
+                {`${String(hour).padStart(2, '0')}:00`}
+              </div>
+              <div style={{ flex: 1, padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }} onClick={e => e.stopPropagation()}>
+                {cellApps.map(item => renderAppointmentCard(item))}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })}
+      </div>
+    </div>
+  )
+})()}
 
       </div>
     </div>
