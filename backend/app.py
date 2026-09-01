@@ -63,7 +63,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("Faltan SUPABASE_URL o SUPABASE_KEY para inicializar el cliente de Supabase")
 
 # 3. Inicialización de Flask y SQLAlchemy
-app = Flask(__name__)
+
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = SUPABASE_DB_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
