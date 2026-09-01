@@ -2237,8 +2237,18 @@ export function Appointments() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', backgroundColor: '#333333' }}>
                 {calendarDays.map((cell, index) => {
                   const cellDateStr = cell.date.toISOString().slice(0, 10)
-                  const dayAppointments = filteredAppointments.filter(item => item.appointment_date && item.appointment_date.slice(0, 10) === cellDateStr)
+                  const dayAppointments = filteredAppointments.filter(item => {
+                    if (!item.appointment_date) return false
+                    // Convierte la fecha UTC de la base de datos a la fecha local del cliente
+                    const localDateObj = new Date(item.appointment_date)
+                    if (isNaN(localDateObj.getTime())) return false
+                    
+                    const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
+                    return itemDateStr === cellDateStr
+                  })                  // Dentro de la vista de Mes
+                  const cellDateStr = `${cell.date.getFullYear()}-${String(cell.date.getMonth() + 1).padStart(2, '0')}-${String(cell.date.getDate()).padStart(2, '0')}`
 
+                  
                   return (
                     <div 
                       key={index}
