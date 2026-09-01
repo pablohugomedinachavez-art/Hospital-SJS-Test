@@ -10,20 +10,20 @@ import {
   XAxis,
   YAxis,
 
-  
+
 } from 'recharts'
 import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
-import { 
-  User, 
-  Mail, 
-  Shield, 
-  MapPin, 
-  Key, 
-  ArrowLeft, 
-  Plus, 
-  Edit3, 
-  Trash2, 
+import {
+  User,
+  Mail,
+  Shield,
+  MapPin,
+  Key,
+  ArrowLeft,
+  Plus,
+  Edit3,
+  Trash2,
   AlertTriangle,
   Stethoscope,
   UserCheck
@@ -827,7 +827,7 @@ export function Patients() {
         console.log("Objeto documento completo:", doc); // Revisa esto en la consola (F12)
         setPreviewDocument(doc);
       }}
-    {/* MODAL DE PREVISIÓN A PANTALLA COMPLETA */}
+      {/* MODAL DE PREVISIÓN A PANTALLA COMPLETA */}
       {previewDocument && (
         <div style={{
           position: 'fixed',
@@ -863,7 +863,7 @@ export function Patients() {
                 </h3>
                 <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Registrado el {formatDate(previewDocument.created_at)}</span>
               </div>
-              <button 
+              <button
                 onClick={() => setPreviewDocument(null)}
                 style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
@@ -873,12 +873,12 @@ export function Patients() {
 
             {/* Cuerpo principal dividido en dos columnas: Visor PDF + Detalles */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', flex: 1, overflow: 'hidden' }}>
-              
+
               {/* Columna Izquierda: Visor del PDF */}
               <div style={{ backgroundColor: '#090d16', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '100%' }}>
                 {previewDocument.file_url || previewDocument.url ? (
-                  <iframe 
-                    src={previewDocument.file_url || previewDocument.url} 
+                  <iframe
+                    src={previewDocument.file_url || previewDocument.url}
                     title="Vista previa del PDF"
                     style={{ width: '100%', height: '100%', border: 'none' }}
                   />
@@ -1494,15 +1494,15 @@ export function Devices() {
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [clientInfo, setClientInfo] = useState({ 
-    ip: 'No disponible', 
-    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '' 
+  const [clientInfo, setClientInfo] = useState({
+    ip: 'No disponible',
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
   });
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' });
-  
+
   const { user } = useAuth();
   const [toast, notify, clearToast] = useToast();
 
@@ -1510,7 +1510,7 @@ export function Devices() {
     setLoading(true);
     try {
       const [devRes, locRes] = await Promise.all([
-        apiFetch('/devices'), 
+        apiFetch('/devices'),
         apiFetch('/locations')
       ]);
 
@@ -1596,8 +1596,8 @@ export function Devices() {
               Inventario operativo y contexto de trazabilidad del cliente.
             </p>
           </div>
-          <button 
-            onClick={() => setShowForm(!showForm)} 
+          <button
+            onClick={() => setShowForm(!showForm)}
             style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}
           >
             {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
@@ -1612,17 +1612,17 @@ export function Devices() {
 
         {showForm && (
           <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
-            <input 
-              type="text" 
-              placeholder="Nombre del dispositivo" 
-              value={formData.name} 
-              onChange={e => setFormData({ ...formData, name: e.target.value })} 
-              required 
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }} 
+            <input
+              type="text"
+              placeholder="Nombre del dispositivo"
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              required
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
             />
-            <select 
-              value={formData.type} 
-              onChange={e => setFormData({ ...formData, type: e.target.value })} 
+            <select
+              value={formData.type}
+              onChange={e => setFormData({ ...formData, type: e.target.value })}
               style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
             >
               <option value="pc">PC de Escritorio</option>
@@ -1632,16 +1632,16 @@ export function Devices() {
               <option value="server">Servidor</option>
               <option value="other">Otro</option>
             </select>
-            <select 
-              value={formData.location_id} 
-              onChange={e => setFormData({ ...formData, location_id: e.target.value })} 
+            <select
+              value={formData.location_id}
+              onChange={e => setFormData({ ...formData, location_id: e.target.value })}
               style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
             >
               <option value="">Seleccionar ubicación</option>
               {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem' }}
             >
               Guardar Dispositivo
@@ -1654,9 +1654,9 @@ export function Devices() {
             <div style={{ flex: 1, minWidth: '240px' }}>
               <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo o IP…" loading={loading} />
             </div>
-            <select 
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} 
-              value={status} 
+            <select
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+              value={status}
               onChange={e => setStatus(e.target.value)}
             >
               <option value="all">Todos los estados</option>
@@ -1711,12 +1711,12 @@ export function DeviceActions() {
     try {
       const params = new URLSearchParams({ page, per_page: perPage });
       const res = await apiFetch(`/device_actions?${params.toString()}`);
-      
+
       if (!res.ok) throw new Error('No se pudo cargar la bitácora');
-      
+
       const data = await res.json();
       const list = Array.isArray(data) ? data : data.items || [];
-      
+
       setItems(list);
       setTotal(data.total || list.length);
     } catch (error) {
@@ -1812,18 +1812,18 @@ export function Appointments() {
   // Modal de detalles/edición
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [editingAppointment, setEditingAppointment] = useState(false)
-  const [editForm, setEditForm] = useState({ 
-    doctor_name: '', specialty: '', appointment_date: '', end_time: '', notes: '', color: '#464775', priority: 'Media' 
+  const [editForm, setEditForm] = useState({
+    doctor_name: '', specialty: '', appointment_date: '', end_time: '', notes: '', color: '#464775', priority: 'Media'
   })
   const [actionLoading, setActionLoading] = useState(false)
 
   // Formulario de nueva cita
-  const [form, setForm] = useState({ 
-    patient_id: '', 
-    doctor_name: 'Dra. Mendoza', 
-    specialty: 'Cardiología', 
-    appointment_date: '', 
-    end_time: '', 
+  const [form, setForm] = useState({
+    patient_id: '',
+    doctor_name: 'Dra. Mendoza',
+    specialty: 'Cardiología',
+    appointment_date: '',
+    end_time: '',
     notes: '',
     color: '#464775',
     priority: 'Media'
@@ -1957,7 +1957,7 @@ export function Appointments() {
 
   const filteredAppointments = useMemo(() => {
     return appointments.filter(item => {
-      const matchesSearch = !filterSearch || 
+      const matchesSearch = !filterSearch ||
         String(item.doctor_name || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
         String(item.specialty || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
         String(item.patient_id || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
@@ -1995,7 +1995,7 @@ export function Appointments() {
     const month = currentDate.getMonth()
     const firstDayIndex = new Date(year, month, 1).getDay()
     const totalDays = new Date(year, month + 1, 0).getDate()
-    
+
     const days = []
     const prevMonthDays = new Date(year, month, 0).getDate()
     for (let i = firstDayIndex - 1; i >= 0; i--) {
@@ -2016,7 +2016,7 @@ export function Appointments() {
     const day = start.getDay()
     const diff = start.getDate() - day
     const sunday = new Date(start.setDate(diff))
-    
+
     const days = []
     for (let i = 0; i < 7; i++) {
       const d = new Date(sunday)
@@ -2052,27 +2052,27 @@ export function Appointments() {
           e.stopPropagation()
           setSelectedAppointment(item)
           setEditingAppointment(false)
-          setEditForm({ 
-            doctor_name: item.doctor_name || '', 
-            specialty: item.specialty || '', 
-            appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '', 
-            end_time: item.end_time || '', 
-            notes: item.notes || '', 
-            color: itemColor, 
-            priority: item.priority || 'Media' 
+          setEditForm({
+            doctor_name: item.doctor_name || '',
+            specialty: item.specialty || '',
+            appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '',
+            end_time: item.end_time || '',
+            notes: item.notes || '',
+            color: itemColor,
+            priority: item.priority || 'Media'
           })
         }}
-        style={{ 
-          backgroundColor: itemColor, 
-          borderLeft: `5px solid ${pColor}`, 
-          borderRadius: '4px', 
-          padding: '4px 8px', 
-          fontSize: '0.75rem', 
-          color: '#ffffff', 
+        style={{
+          backgroundColor: itemColor,
+          borderLeft: `5px solid ${pColor}`,
+          borderRadius: '4px',
+          padding: '4px 8px',
+          fontSize: '0.75rem',
+          color: '#ffffff',
           minHeight: calendarView === 'week' ? getAppointmentHeight(item) : '38px',
-          overflow: 'hidden', 
-          cursor: 'pointer', 
-          zIndex: 5, 
+          overflow: 'hidden',
+          cursor: 'pointer',
+          zIndex: 5,
           boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
           margin: '2px 0'
         }}
@@ -2100,11 +2100,11 @@ export function Appointments() {
               </div>
             </div>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>
-              {calendarView === 'week' 
+              {calendarView === 'week'
                 ? `Semana del ${weekDays[0].getDate()} de ${monthNames[weekDays[0].getMonth()]} - ${weekDays[6].getDate()} de ${monthNames[weekDays[6].getMonth()]}, ${weekDays[6].getFullYear()}`
                 : calendarView === 'day'
-                ? currentDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-                : `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+                  ? currentDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                  : `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
               }
             </h2>
           </div>
@@ -2161,9 +2161,9 @@ export function Appointments() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad y Color</label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <select 
-                    style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} 
-                    value={form.specialty} 
+                  <select
+                    style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }}
+                    value={form.specialty}
                     onChange={e => {
                       const spec = e.target.value
                       setForm(p => ({ ...p, specialty: spec, color: specialtyColors[spec] || p.color }))
@@ -2236,24 +2236,22 @@ export function Appointments() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', backgroundColor: '#333333' }}>
                 {calendarDays.map((cell, index) => {
-                  const cellDateStr = cell.date.toISOString().slice(0, 10)
+                  const monthCellDateStr = `${cell.date.getFullYear()}-${String(cell.date.getMonth() + 1).padStart(2, '0')}-${String(cell.date.getDate()).padStart(2, '0')}`
+
                   const dayAppointments = filteredAppointments.filter(item => {
                     if (!item.appointment_date) return false
-                    // Convierte la fecha UTC de la base de datos a la fecha local del cliente
                     const localDateObj = new Date(item.appointment_date)
                     if (isNaN(localDateObj.getTime())) return false
-                    
-                    const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
-                    return itemDateStr === cellDateStr
-                  })                  // Dentro de la vista de Mes
-                  const cellDateStr = `${cell.date.getFullYear()}-${String(cell.date.getMonth() + 1).padStart(2, '0')}-${String(cell.date.getDate()).padStart(2, '0')}`
 
-                  
+                    const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
+                    return itemDateStr === monthCellDateStr
+                  })
+
                   return (
-                    <div 
+                    <div
                       key={index}
                       onClick={() => {
-                        const dateHourStr = `${cellDateStr}T09:00`
+                        const dateHourStr = `${monthCellDateStr}T09:00`
                         setForm(p => ({ ...p, appointment_date: dateHourStr, color: specialtyColors[p.specialty] || '#464775' }))
                         setShowForm(true)
                       }}
@@ -2295,7 +2293,7 @@ export function Appointments() {
                       })
 
                       return (
-                        <div 
+                        <div
                           key={d.toISOString()}
                           onClick={() => {
                             setForm(p => ({ ...p, appointment_date: `${dateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
@@ -2325,7 +2323,7 @@ export function Appointments() {
                   })
 
                   return (
-                    <div 
+                    <div
                       key={hour}
                       onClick={() => {
                         setForm(p => ({ ...p, appointment_date: `${dateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
@@ -2354,7 +2352,7 @@ export function Appointments() {
       {selectedAppointment && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
           <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            
+
             <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedAppointment.color || '#6264a7' }}></div>
@@ -2391,12 +2389,12 @@ export function Appointments() {
                 </div>
               ) : (
                 <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <input type="text" value={editForm.doctor_name} onChange={e => setEditForm({...editForm, doctor_name: e.target.value})} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }} />
+                  <input type="text" value={editForm.doctor_name} onChange={e => setEditForm({ ...editForm, doctor_name: e.target.value })} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }} />
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <select value={editForm.specialty} onChange={e => setEditForm({...editForm, specialty: e.target.value})} style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }}>
+                    <select value={editForm.specialty} onChange={e => setEditForm({ ...editForm, specialty: e.target.value })} style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }}>
                       {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
                     </select>
-                    <select value={editForm.priority} onChange={e => setEditForm({...editForm, priority: e.target.value})} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }}>
+                    <select value={editForm.priority} onChange={e => setEditForm({ ...editForm, priority: e.target.value })} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }}>
                       <option value="Baja">Baja</option>
                       <option value="Media">Media</option>
                       <option value="Alta">Alta</option>
@@ -2404,8 +2402,8 @@ export function Appointments() {
                     </select>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <input type="datetime-local" value={editForm.appointment_date} onChange={e => setEditForm({...editForm, appointment_date: e.target.value})} style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }} />
-                    <input type="time" value={editForm.end_time} onChange={e => setEditForm({...editForm, end_time: e.target.value})} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }} />
+                    <input type="datetime-local" value={editForm.appointment_date} onChange={e => setEditForm({ ...editForm, appointment_date: e.target.value })} style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }} />
+                    <input type="time" value={editForm.end_time} onChange={e => setEditForm({ ...editForm, end_time: e.target.value })} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem' }} />
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
                     <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 0.8rem', cursor: 'pointer' }}>Atrás</button>
@@ -2701,35 +2699,35 @@ export function Documents() {
         <Toast toast={toast} onClose={clearToast} />
 
         {/* LISTADO DE TEMPLATES CON OPCIÓN DE DUPLICAR Y ELIMINAR */}
-  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-    <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles en Base de Datos (Templates)</h3>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-      {templates.map(tpl => (
-        <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
-            <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
-              onClick={() => duplicateTemplate(tpl)}
-              title="Copiar / Duplicar Plantilla"
-              style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
-            >
-              📋
-            </button>
-            <button
-              onClick={() => deleteTemplate(tpl.id)}
-              title="Eliminar Plantilla"
-              style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
-            >
-              🗑️
-            </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles en Base de Datos (Templates)</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            {templates.map(tpl => (
+              <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
+                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    onClick={() => duplicateTemplate(tpl)}
+                    title="Copiar / Duplicar Plantilla"
+                    style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
+                  >
+                    📋
+                  </button>
+                  <button
+                    onClick={() => deleteTemplate(tpl.id)}
+                    title="Eliminar Plantilla"
+                    style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      ))}
-    </div>
-  </div>
 
         {/* ========================================== */}
         {/* DISEÑADOR ESTILO EXCEL (FILAS Y CELDAS LIBRES) */}
@@ -2984,20 +2982,20 @@ export function Dashboard() {
     }
   }
 
- // 3. Exportar a Excel (XLSX) profesional consumiendo el endpoint del Dashboard
+  // 3. Exportar a Excel (XLSX) profesional consumiendo el endpoint del Dashboard
   const exportExcel = async () => {
     try {
       // Recuperar el token del localStorage (o de donde lo guardes al iniciar sesión)
       const currentToken = localStorage.getItem('token') || '';
 
       const res = await apiFetch('/dashboard/export/excel', {
-        headers: { 
-          'Authorization': `Bearer ${currentToken}` 
+        headers: {
+          'Authorization': `Bearer ${currentToken}`
         }
       });
-      
+
       if (!res.ok) throw new Error('Error al generar el archivo Excel en el servidor');
-      
+
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -3013,7 +3011,7 @@ export function Dashboard() {
     }
   };
 
-  
+
   // MÉTODO PROFESIONAL PARA PDF: Inyecta estilos temporales de paginación y diseño corporativo
   const exportPDF = () => {
     try {
@@ -3235,12 +3233,12 @@ export function Users() {
 
   const handleOpenEdit = (user) => {
     setEditingUser(user)
-    setFormData({ 
-      username: user.username || '', 
-      email: user.email || '', 
-      role: user.role || 'admin', 
-      location_id: user.location_id || '', 
-      password: '' 
+    setFormData({
+      username: user.username || '',
+      email: user.email || '',
+      role: user.role || 'admin',
+      location_id: user.location_id || '',
+      password: ''
     })
     setViewMode('form')
   }
@@ -3251,7 +3249,7 @@ export function Users() {
     try {
       const endpoint = editingUser ? `/users/${editingUser.id}` : '/users'
       const method = editingUser ? 'PUT' : 'POST'
-      
+
       const res = await apiFetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -3290,7 +3288,7 @@ export function Users() {
     return (
       <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }} className="animate-fadeIn">
         <Toast toast={toast} onClose={clearToast} />
-        
+
         <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem', maxWidth: '56rem', margin: '0 auto' }}>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
@@ -3326,7 +3324,7 @@ export function Users() {
 
             <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
                     <User style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
@@ -3337,7 +3335,7 @@ export function Users() {
                     required
                     style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={formData.username}
-                    onChange={e => setFormData({...formData, username: e.target.value})}
+                    onChange={e => setFormData({ ...formData, username: e.target.value })}
                     placeholder="ej. jperez"
                   />
                 </div>
@@ -3352,7 +3350,7 @@ export function Users() {
                     required
                     style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
                     placeholder="correo@institucion.com"
                   />
                 </div>
@@ -3366,7 +3364,7 @@ export function Users() {
                     required
                     style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', cursor: 'pointer' }}
                     value={formData.role}
-                    onChange={e => setFormData({...formData, role: e.target.value})}
+                    onChange={e => setFormData({ ...formData, role: e.target.value })}
                   >
                     <option value="admin">Admin</option>
                     <option value="doctor">Doctor</option>
@@ -3383,7 +3381,7 @@ export function Users() {
                   <select
                     style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', cursor: 'pointer' }}
                     value={formData.location_id}
-                    onChange={e => setFormData({...formData, location_id: e.target.value})}
+                    onChange={e => setFormData({ ...formData, location_id: e.target.value })}
                   >
                     <option value="">Sin asignación</option>
                     {locations.map(l => (
@@ -3404,7 +3402,7 @@ export function Users() {
                   {...(!editingUser ? { required: true } : {})}
                   style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                   value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
                   placeholder={editingUser ? "Dejar en blanco para mantener la actual" : "••••••••"}
                 />
                 <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>
@@ -3441,14 +3439,14 @@ export function Users() {
   return (
     <div className="page-shell animate-fadeIn">
       <Toast toast={toast} onClose={clearToast} />
-      
+
       <div className="card collection-card">
         <div className="collection-header">
           <div>
             <h2 className="text-xl font-bold text-white tracking-tight">Directorio de Usuarios</h2>
             <p className="text-sm text-slate-400 mt-0.5">{filtered.length} cuentas registradas en el sistema.</p>
           </div>
-          <button 
+          <button
             type="button"
             onClick={handleOpenCreate}
             className="btn btn-primary flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all duration-200 hover:scale-105 active:scale-95"
@@ -3460,11 +3458,11 @@ export function Users() {
 
         <div className="collection-toolbar pt-2">
           <div className="collection-search" style={{ flex: '1' }}>
-            <input 
+            <input
               type="search"
-              value={search} 
-              onChange={e => setSearch(e.target.value)} 
-              placeholder="Buscar por usuario, correo o rol..." 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por usuario, correo o rol..."
               className="form-control transition-all focus:ring-2 focus:ring-indigo-500/40"
             />
           </div>
@@ -3532,7 +3530,7 @@ export function Users() {
                         </td>
                         <td className="text-right">
                           <div className="flex items-center justify-end gap-4">
-                            <button 
+                            <button
                               type="button"
                               onClick={() => handleOpenEdit(u)}
                               className="btn btn-secondary px-3.5 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-all duration-200 hover:scale-105 hover:bg-slate-800 active:scale-95"
@@ -3541,7 +3539,7 @@ export function Users() {
                               <Edit3 className="w-3.5 h-3.5 text-slate-300" />
                               <span>Editar</span>
                             </button>
-                            <button 
+                            <button
                               type="button"
                               onClick={() => setDeleteModalUser(u)}
                               className="btn px-3.5 py-1.5 text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
@@ -3575,7 +3573,7 @@ export function Users() {
               </p>
             </div>
             <div className="flex items-center justify-center gap-4 pt-4 border-t border-slate-800">
-              <button 
+              <button
                 type="button"
                 onClick={() => setDeleteModalUser(null)}
                 className="btn btn-secondary flex-1 py-3 transition-all duration-200 hover:bg-slate-800 active:scale-95"
@@ -3583,7 +3581,7 @@ export function Users() {
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 type="button"
                 onClick={confirmDelete}
                 disabled={deleting}
