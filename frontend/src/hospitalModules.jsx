@@ -33,7 +33,6 @@ import {
 // ============================================================
 
 
-
 const INITIAL_PATIENT = {
   document_type: 'dni',
   document_number: '',
