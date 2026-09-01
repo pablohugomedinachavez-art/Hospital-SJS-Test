@@ -1534,7 +1534,6 @@ def get_sessions():
     )
     return jsonify(rows or [])
 
-
 @app.route('/api/devices', methods=['GET', 'POST'])
 @token_required
 def devices():
@@ -1545,41 +1544,52 @@ def devices():
         rows = db_query('SELECT * FROM devices WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
         return jsonify(rows or [])
 
-    if not has_permission(claims.get('role'), 'manage_devices'):
+    role = claims.get('role')
+    if role not in ['admin', 'it_support']:
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
     name = data.get('name')
-    location_id = data.get('location_id')
-    patient_id = data.get('patient_id')
-    type_ = data.get('type', 'pc')
-    
-    ip_address = data.get('ip_address') or get_client_ip()
-    user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
-    # Cambiar esto:
-    # if not has_permission(claims.get('role'), 'manage_devices'):
-    #     return jsonify({'message': 'Permission denied'}), 403
-
-    # Por una validación basada en el rol (ejemplo: admin o soporte)
-    role = claims.get('role')
-    if role not in ['admin', 'it_support']: # Añade los roles permitidos
-        return jsonify({'message': 'Permission denied'}), 403
     if not name:
         return jsonify({'message': 'name is required'}), 400
 
-    new_row = db_query(
-        '''
-        INSERT INTO devices (tenant_id, location_id, patient_id, name, type, status, ip_address, user_agent, created_at) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-        ''',
-        (tenant_id, location_id, patient_id, name, type_, data.get('status', 'active'), ip_address, user_agent, now_utc()), 
-        commit=True, 
-        fetchone=True
-    )
+    # Sanitizar claves foráneas: convertir cadenas vacías en None (NULL en la BD)
+    location_id = data.get('location_id')
+    if location_id == '' or location_id is None:
+        location_id = None
 
-    record_audit('create', 'device', new_row['id'], f'Created device {name}', tenant_id, claims.get('id'))
-    return jsonify({'message': 'Device created', 'id': new_row['id']}), 201
+    patient_id = data.get('patient_id')
+    if patient_id == '' or patient_id is None:
+        patient_id = None
 
+    type_ = data.get('type', 'pc')
+    ip_address = data.get('ip_address') or get_client_ip()
+    user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
+
+    try:
+        new_row = db_query(
+            '''
+            INSERT INTO devices (tenant_id, location_id, patient_id, name, type, status, ip_address, user_agent, created_at) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            ''',
+            (tenant_id, location_id, patient_id, name, type_, data.get('status', 'active'), ip_address, user_agent, now_utc()), 
+            commit=True, 
+            fetchone=True
+        )
+
+        if not new_row or 'id' not in new_row:
+            return jsonify({'message': 'Failed to insert device'}), 500
+
+        try:
+            record_audit('create', 'device', new_row['id'], f'Created device {name}', tenant_id, claims.get('id'))
+        except Exception as audit_err:
+            print(f"[WARN] Auditoría fallida: {audit_err}")
+
+        return jsonify({'message': 'Device created', 'id': new_row['id']}), 201
+
+    except Exception as e:
+        print(f"[ERROR DB] {str(e)}")
+        return jsonify({'message': 'Database error', 'error': str(e)}), 500
 
 @app.route('/api/device_actions', methods=['GET', 'POST'])
 @token_required
