@@ -1948,6 +1948,20 @@ export function Appointments() {
 
   const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
+  // Función para manejar el clic en el día de la cuadrícula y abrir el formulario con la fecha prellenada
+  const handleDayClick = (cellDate) => {
+    const year = cellDate.getFullYear()
+    const month = String(cellDate.getMonth() + 1).padStart(2, '0')
+    const day = String(cellDate.getDate()).padStart(2, '0')
+    const defaultTime = '09:00'
+    
+    setForm(prev => ({
+      ...prev,
+      appointment_date: `${year}-${month}-${day}T${defaultTime}`
+    }))
+    setShowForm(true)
+  }
+
   return (
     <div style={{ padding: '1.5rem', backgroundColor: '#1f1f1f', color: '#f3f2f1', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: '"Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif' }}>
 
@@ -1999,7 +2013,12 @@ export function Appointments() {
 
             <button
               style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-              onClick={() => setShowForm(v => !v)}
+              onClick={() => {
+                const now = new Date()
+                const defaultDateStr = now.toISOString().slice(0, 16)
+                setForm(p => ({ ...p, appointment_date: defaultDateStr }))
+                setShowForm(v => !v)
+              }}
             >
               {showForm ? 'Cancelar' : 'New event'}
             </button>
@@ -2120,6 +2139,7 @@ export function Appointments() {
               return (
                 <div 
                   key={index} 
+                  onClick={() => handleDayClick(cell.date)}
                   style={{ 
                     backgroundColor: cell.isCurrentMonth ? '#292929' : '#222120', 
                     minHeight: '100px', 
@@ -2127,8 +2147,13 @@ export function Appointments() {
                     display: 'flex', 
                     flexDirection: 'column', 
                     gap: '0.35rem',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.15s ease'
                   }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = cell.isCurrentMonth ? '#323130' : '#282726'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = cell.isCurrentMonth ? '#292929' : '#222120'}
+                  title="Haz clic para agregar una cita en este día"
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ 
@@ -2154,7 +2179,8 @@ export function Appointments() {
                       return (
                         <div
                           key={item.id}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation() // Evita que se abra el formulario al hacer clic en una cita existente
                             setSelectedAppointment(item)
                             setEditingAppointment(false)
                             setEditForm({
