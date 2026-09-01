@@ -1787,6 +1787,10 @@ export function DeviceActions() {
 // Appointments - Con Niveles de Prioridad
 // ============================================================
 
+// ============================================================
+// Appointments - Multi-View Calendar (Month, Week, Day) con Prioridades
+// ============================================================
+
 export function Appointments() {
   const [appointments, setAppointments] = useState([])
   const [patients, setPatients] = useState([])
@@ -1795,14 +1799,17 @@ export function Appointments() {
   const [saving, setSaving] = useState(false)
   const [toast, notify, clearToast] = useToast()
 
+  // Vistas de calendario: 'month' | 'week' | 'day'
   const [calendarView, setCalendarView] = useState('month')
   const [currentDate, setCurrentDate] = useState(new Date())
 
+  // Filtros avanzados
   const [filterSearch, setFilterSearch] = useState('')
   const [filterDoctor, setFilterDoctor] = useState('')
   const [filterSpecialty, setFilterSpecialty] = useState('')
-  const [filterPriority, setFilterPriority] = useState('') // Nuevo filtro por prioridad
+  const [filterPriority, setFilterPriority] = useState('')
 
+  // Modal de detalles/edición
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [editingAppointment, setEditingAppointment] = useState(false)
   const [editForm, setEditForm] = useState({ 
@@ -1810,6 +1817,7 @@ export function Appointments() {
   })
   const [actionLoading, setActionLoading] = useState(false)
 
+  // Formulario de nueva cita
   const [form, setForm] = useState({ 
     patient_id: '', 
     doctor_name: 'Dra. Mendoza', 
@@ -1818,7 +1826,7 @@ export function Appointments() {
     end_time: '', 
     notes: '',
     color: '#464775',
-    priority: 'Media' // Campo inicial de prioridad
+    priority: 'Media'
   })
 
   const debouncedPatientSearch = useDebouncedValue(patientSearch, 250)
@@ -1831,7 +1839,6 @@ export function Appointments() {
     'General': '#005a9e'
   }
 
-  // Colores o indicadores según la prioridad
   const priorityBadgeColors = {
     'Baja': '#237b4b',
     'Media': '#005a9e',
@@ -1852,6 +1859,7 @@ export function Appointments() {
   useEffect(() => { loadAppointments(); searchPatients('') }, [loadAppointments, searchPatients])
   useEffect(() => { if (showForm) searchPatients(debouncedPatientSearch) }, [debouncedPatientSearch, showForm, searchPatients])
 
+  // Verificador de solapamientos
   const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
     if (!newDateStr) return false
     const newStart = new Date(newDateStr).getTime()
@@ -2031,6 +2039,52 @@ export function Appointments() {
     return `${Math.max(heightPx, 35)}px`
   }
 
+  // Renderizador común de tarjeta de cita
+  const renderAppointmentCard = (item) => {
+    const itemColor = item.color || specialtyColors[item.specialty] || '#464775'
+    const pColor = priorityBadgeColors[item.priority] || '#005a9e'
+    const timeStr = item.appointment_date ? item.appointment_date.slice(11, 16) : ''
+
+    return (
+      <div
+        key={item.id}
+        onClick={(e) => {
+          e.stopPropagation()
+          setSelectedAppointment(item)
+          setEditingAppointment(false)
+          setEditForm({ 
+            doctor_name: item.doctor_name || '', 
+            specialty: item.specialty || '', 
+            appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '', 
+            end_time: item.end_time || '', 
+            notes: item.notes || '', 
+            color: itemColor, 
+            priority: item.priority || 'Media' 
+          })
+        }}
+        style={{ 
+          backgroundColor: itemColor, 
+          borderLeft: `5px solid ${pColor}`, 
+          borderRadius: '4px', 
+          padding: '4px 8px', 
+          fontSize: '0.75rem', 
+          color: '#ffffff', 
+          minHeight: calendarView === 'week' ? getAppointmentHeight(item) : '38px',
+          overflow: 'hidden', 
+          cursor: 'pointer', 
+          zIndex: 5, 
+          boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+          margin: '2px 0'
+        }}
+      >
+        <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {timeStr} - {item.doctor_name}
+        </strong>
+        <span style={{ fontSize: '0.7rem', opacity: 0.9 }}>{item.specialty} [{item.priority}]</span>
+      </div>
+    )
+  }
+
   return (
     <div style={{ padding: '1.5rem', backgroundColor: '#1f1f1f', color: '#f3f2f1', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: '"Segoe UI", sans-serif' }}>
       <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
@@ -2077,7 +2131,7 @@ export function Appointments() {
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* FORMULARIO NUEVA CITA CON PRIORIDAD */}
+        {/* FORMULARIO NUEVA CITA */}
         {showForm && (
           <form onSubmit={submit} style={{ backgroundColor: '#252423', borderBottom: '1px solid #333333', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2121,7 +2175,6 @@ export function Appointments() {
                 </div>
               </div>
 
-              {/* Selector de Prioridad */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Prioridad</label>
                 <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
@@ -2150,7 +2203,7 @@ export function Appointments() {
           </form>
         )}
 
-        {/* FILTROS CON PRIORIDAD */}
+        {/* FILTROS */}
         <div style={{ backgroundColor: '#201f1f', padding: '0.75rem 1.5rem', borderBottom: '1px solid #333333', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
           <input type="text" placeholder="Filtrar eventos..." value={filterSearch} onChange={e => setFilterSearch(e.target.value)} style={{ flex: 1, minWidth: '200px', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} />
           <select value={filterDoctor} onChange={e => setFilterDoctor(e.target.value)} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}>
@@ -2170,7 +2223,7 @@ export function Appointments() {
           </select>
         </div>
 
-        {/* VISTAS DEL CALENDARIO */}
+        {/* CONTENIDO DE VISTAS */}
         <div style={{ padding: '1rem', backgroundColor: '#292929' }}>
 
           {/* VISTA MES */}
@@ -2184,11 +2237,8 @@ export function Appointments() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', backgroundColor: '#333333' }}>
                 {calendarDays.map((cell, index) => {
                   const cellDateStr = cell.date.toISOString().slice(0, 10)
-                  const dayAppointments = filteredAppointments.filter(item => {
-                        if (!item.appointment_date) return false
-                        // Compara la fecha ignorando zona horaria o formato de hora exacto
-                        return item.appointment_date.slice(0, 10) === cellDateStr
-                        })
+                  const dayAppointments = filteredAppointments.filter(item => item.appointment_date && item.appointment_date.slice(0, 10) === cellDateStr)
+
                   return (
                     <div 
                       key={index}
@@ -2201,24 +2251,7 @@ export function Appointments() {
                     >
                       <span style={{ fontSize: '0.75rem', color: cell.isCurrentMonth ? '#f3f2f1' : '#666564' }}>{cell.date.getDate()}</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-                        {dayAppointments.map(item => {
-                          const timeStr = item.appointment_date ? item.appointment_date.slice(11, 16) : ''
-                          const itemColor = item.color || specialtyColors[item.specialty] || '#464775'
-                          const pColor = priorityBadgeColors[item.priority] || '#005a9e'
-                          return (
-                            <div
-                              key={item.id}
-                              onClick={() => {
-                                setSelectedAppointment(item)
-                                setEditingAppointment(false)
-                                setEditForm({ doctor_name: item.doctor_name || '', specialty: item.specialty || '', appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '', end_time: item.end_time || '', notes: item.notes || '', color: itemColor, priority: item.priority || 'Media' })
-                              }}
-                              style={{ backgroundColor: itemColor, borderLeft: `4px solid ${pColor}`, borderRadius: '3px', padding: '0.2rem 0.4rem', fontSize: '0.7rem', cursor: 'pointer', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                            >
-                              <strong>{timeStr}</strong> {item.doctor_name}
-                            </div>
-                          )
-                        })}
+                        {dayAppointments.map(item => renderAppointmentCard(item))}
                       </div>
                     </div>
                   )
@@ -2260,26 +2293,7 @@ export function Appointments() {
                           }}
                           style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px', position: 'relative', cursor: 'pointer' }}
                         >
-                          {cellApps.map(item => {
-                            const itemColor = item.color || specialtyColors[item.specialty] || '#464775'
-                            const pColor = priorityBadgeColors[item.priority] || '#005a9e'
-                            const heightStyle = getAppointmentHeight(item)
-                            return (
-                              <div
-                                key={item.id}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSelectedAppointment(item)
-                                  setEditingAppointment(false)
-                                  setEditForm({ doctor_name: item.doctor_name || '', specialty: item.specialty || '', appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '', end_time: item.end_time || '', notes: item.notes || '', color: itemColor, priority: item.priority || 'Media' })
-                                }}
-                                style={{ backgroundColor: itemColor, borderLeft: `5px solid ${pColor}`, borderRadius: '4px', padding: '4px 6px', fontSize: '0.75rem', color: '#ffffff', height: heightStyle, overflow: 'hidden', cursor: 'pointer', zIndex: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}
-                              >
-                                <strong style={{ display: 'block' }}>{item.appointment_date.slice(11, 16)} - {item.doctor_name}</strong>
-                                <span style={{ fontSize: '0.7rem', opacity: 0.9 }}>{item.specialty} [{item.priority}]</span>
-                              </div>
-                            )
-                          })}
+                          {cellApps.map(item => renderAppointmentCard(item))}
                         </div>
                       )
                     })}
@@ -2313,31 +2327,7 @@ export function Appointments() {
                         {`${String(hour).padStart(2, '0')}:00`}
                       </div>
                       <div style={{ flex: 1, padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }} onClick={e => e.stopPropagation()}>
-                        {cellApps.map(item => {
-                          const itemColor = item.color || specialtyColors[item.specialty] || '#464775'
-                          const pColor = priorityBadgeColors[item.priority] || '#005a9e'
-                          return (
-                            <div 
-                              key={item.id}
-                              onClick={() => {
-                                setSelectedAppointment(item)
-                                setEditingAppointment(false)
-                                setEditForm({ doctor_name: item.doctor_name || '', specialty: item.specialty || '', appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '', end_time: item.end_time || '', notes: item.notes || '', color: itemColor, priority: item.priority || 'Media' })
-                              }}
-                              style={{ backgroundColor: itemColor, borderLeft: `5px solid ${pColor}`, padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}
-                            >
-                              <div>
-                                <strong style={{ fontSize: '0.85rem', color: '#ffffff', marginRight: '0.75rem' }}>{item.appointment_date.slice(11, 16)} - {item.end_time || 'Fin desc.'}</strong>
-                                <span style={{ fontSize: '0.85rem', color: '#ffffff' }}>{item.doctor_name}</span>
-                                <span style={{ fontSize: '0.75rem', color: '#ddd', marginLeft: '0.75rem' }}>({item.specialty})</span>
-                              </div>
-                              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.7rem', backgroundColor: pColor, padding: '0.15rem 0.4rem', borderRadius: '3px', color: '#fff', fontWeight: 600 }}>{item.priority}</span>
-                                <span style={{ fontSize: '0.75rem', backgroundColor: 'rgba(0,0,0,0.25)', padding: '0.2rem 0.5rem', borderRadius: '4px', color: '#fff' }}>Paciente #{item.patient_id}</span>
-                              </div>
-                            </div>
-                          )
-                        })}
+                        {cellApps.map(item => renderAppointmentCard(item))}
                       </div>
                     </div>
                   )
@@ -2350,7 +2340,7 @@ export function Appointments() {
 
       </div>
 
-      {/* POPUP DE EDICIÓN CON PRIORIDAD */}
+      {/* POPUP DE EDICIÓN / DETALLE */}
       {selectedAppointment && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
           <div style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
