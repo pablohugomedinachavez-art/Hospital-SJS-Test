@@ -1538,59 +1538,79 @@ def get_sessions():
 @token_required
 def devices():
     claims = request.claims
-    tenant_id = claims['tenant_id']
+    tenant_id = claims.get('tenant_id')
 
     if request.method == 'GET':
         rows = db_query('SELECT * FROM devices WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
         return jsonify(rows or [])
 
+    # 1. Validar Roles
     role = claims.get('role')
     if role not in ['admin', 'it_support']:
         return jsonify({'message': 'Permission denied'}), 403
 
+    # 2. Sanitizar payload entrante
     data = request.get_json() or {}
     name = data.get('name')
     if not name:
         return jsonify({'message': 'name is required'}), 400
 
-    # Sanitizar claves foráneas: convertir cadenas vacías en None (NULL en la BD)
+    # Convertir cadenas vacías o valores inválidos a None (NULL en PostgreSQL)
     location_id = data.get('location_id')
-    if location_id == '' or location_id is None:
+    if location_id in ['', 'null', None]:
         location_id = None
+    else:
+        try:
+            location_id = int(location_id)
+        except (ValueError, TypeError):
+            location_id = None
 
     patient_id = data.get('patient_id')
-    if patient_id == '' or patient_id is None:
+    if patient_id in ['', 'null', None]:
         patient_id = None
+    else:
+        try:
+            patient_id = int(patient_id)
+        except (ValueError, TypeError):
+            patient_id = None
 
     type_ = data.get('type', 'pc')
+    status_ = data.get('status', 'active')
     ip_address = data.get('ip_address') or get_client_ip()
     user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
 
+    # Usar un objeto datetime nativo de Python para la columna de la BD
+    created_at = datetime.datetime.now(datetime.timezone.utc)
+
+    # 3. Inserción segura en PostgreSQL
     try:
         new_row = db_query(
             '''
             INSERT INTO devices (tenant_id, location_id, patient_id, name, type, status, ip_address, user_agent, created_at) 
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
             ''',
-            (tenant_id, location_id, patient_id, name, type_, data.get('status', 'active'), ip_address, user_agent, now_utc()), 
+            (tenant_id, location_id, patient_id, name, type_, status_, ip_address, user_agent, created_at), 
             commit=True, 
             fetchone=True
         )
 
         if not new_row or 'id' not in new_row:
-            return jsonify({'message': 'Failed to insert device'}), 500
+            return jsonify({'message': 'No se pudo recuperar el ID del dispositivo creado'}), 500
 
+        device_id = new_row['id']
+
+        # 4. Auditoría aislada (si falla la auditoría, la creación del dispositivo no se rompe)
         try:
-            record_audit('create', 'device', new_row['id'], f'Created device {name}', tenant_id, claims.get('id'))
+            record_audit('create', 'device', device_id, f'Created device {name}', tenant_id, claims.get('user_id') or claims.get('id'))
         except Exception as audit_err:
-            print(f"[WARN] Auditoría fallida: {audit_err}")
+            print(f"[WARN Auditoria] Error al guardar log: {audit_err}")
 
-        return jsonify({'message': 'Device created', 'id': new_row['id']}), 201
+        return jsonify({'message': 'Device created', 'id': device_id}), 201
 
     except Exception as e:
-        print(f"[ERROR DB] {str(e)}")
-        return jsonify({'message': 'Database error', 'error': str(e)}), 500
-
+        print(f"[ERROR DB /api/devices POST]: {str(e)}")
+        # Devuelve el mensaje exacto del error en el JSON para identificar la causa en las DevTools
+        return jsonify({'message': 'Error interno al registrar dispositivo', 'error': str(e)}), 500
 @app.route('/api/device_actions', methods=['GET', 'POST'])
 @token_required
 def device_actions():
