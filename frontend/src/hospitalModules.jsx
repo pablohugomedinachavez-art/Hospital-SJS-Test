@@ -2184,8 +2184,11 @@ export function Appointments() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', backgroundColor: '#333333' }}>
                 {calendarDays.map((cell, index) => {
                   const cellDateStr = cell.date.toISOString().slice(0, 10)
-                  const dayAppointments = filteredAppointments.filter(item => item.appointment_date && item.appointment_date.startsWith(cellDateStr))
-
+                  const dayAppointments = filteredAppointments.filter(item => {
+                        if (!item.appointment_date) return false
+                        // Compara la fecha ignorando zona horaria o formato de hora exacto
+                        return item.appointment_date.slice(0, 10) === cellDateStr
+                        })
                   return (
                     <div 
                       key={index}
