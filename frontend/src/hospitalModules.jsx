@@ -12,9 +12,11 @@ import {
 } from 'recharts'
 import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
-import {User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
+import {
+  User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
+  X, Save
 } from 'lucide-react';
 
 
