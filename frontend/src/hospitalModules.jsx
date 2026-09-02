@@ -16,8 +16,7 @@ import {
   User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
-  X, Save, Eye, ExternalLink, Download, FileText, ExternalLink, X, AlertTriangle, Download, 
-  Search, Filter
+  X, Save, Eye, ExternalLink, Download, Search, Filter
 } from 'lucide-react';
 
 
@@ -2921,7 +2920,7 @@ export function Documents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [saving, setSaving] = useState(false);
-  const [previewDoc, setPreviewDoc] = useState(null); // Estado para el Modal de Previsualización
+  const [previewDoc, setPreviewDoc] = useState(null);
   const [toast, notify, clearToast] = useToast();
   const { user, token } = useAuth();
 
@@ -2936,7 +2935,6 @@ export function Documents() {
 
   const [form, setForm] = useState({ patient_id: '', document_type: 'ingreso', template_id: '', description: '', dynamicValues: {} });
 
-  // Cargar documentos generales
   const loadDocuments = useCallback(async () => {
     try {
       const res = await apiFetch('/documents', {
@@ -2958,7 +2956,7 @@ export function Documents() {
         setTemplates(data || []);
       }
     } catch (error) {
-      notify('Error al cargar plantillas desde la base de datos', 'error');
+      notify('Error al cargar plantillas', 'error');
     }
   }, [notify, token]);
 
@@ -2967,9 +2965,8 @@ export function Documents() {
     loadTemplates();
   }, [loadDocuments, loadTemplates]);
 
-  // Lógica de eliminación de documento registrado
   const handleDeleteDocument = async (docId) => {
-    if (!window.confirm('¿Deseas eliminar este documento del sistema?')) return;
+    if (!window.confirm('¿Deseas eliminar este documento?')) return;
     try {
       const res = await apiFetch(`/documents/${docId}`, {
         method: 'DELETE',
@@ -2979,14 +2976,13 @@ export function Documents() {
         notify('Documento eliminado correctamente', 'success');
         loadDocuments();
       } else {
-        throw new Error('Error al eliminar el documento');
+        throw new Error('Error al eliminar');
       }
     } catch (err) {
       notify(err.message, 'error');
     }
   };
 
-  // Filtrado dinámico por texto y categoría/tipo
   const filteredDocuments = documents.filter(doc => {
     const titleMatch = (doc.file_name || doc.title || '').toLowerCase().includes(searchQuery.toLowerCase());
     const patientMatch = String(doc.patient_id || '').toLowerCase().includes(searchQuery.toLowerCase());
@@ -2995,7 +2991,6 @@ export function Documents() {
     return matchesSearch && matchesType;
   });
 
-  // Funciones de gestión del grid
   const addRow = () => {
     setTemplateRows(prev => [
       ...prev,
@@ -3007,7 +3002,7 @@ export function Documents() {
     setTemplateRows(prev => {
       const copy = prev.map(row => row.map(cell => ({ ...cell })));
       if (copy[rIdx].length >= 5) {
-        notify('Máximo 5 celdas permitidas por fila para mantener el orden visual.', 'error');
+        notify('Máximo 5 celdas permitidas por fila.', 'error');
         return copy;
       }
       copy[rIdx].push({
@@ -3036,7 +3031,7 @@ export function Documents() {
   };
 
   const removeRow = (rIdx) => {
-    if (templateRows.length <= 1) return notify('Debe conservar al menos una fila en la plantilla.', 'error');
+    if (templateRows.length <= 1) return notify('Debe conservar al menos una fila.', 'error');
     setTemplateRows(prev => prev.filter((_, i) => i !== rIdx));
   };
 
@@ -3096,7 +3091,7 @@ export function Documents() {
         body: JSON.stringify(newTemplatePayload)
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al guardar la plantilla');
+      if (!res.ok) throw new Error(data.message || 'Error al guardar');
 
       notify('Plantilla guardada correctamente.', 'success');
       setTemplateName('');
@@ -3114,7 +3109,7 @@ export function Documents() {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Error al eliminar la plantilla');
+      if (!res.ok) throw new Error('Error al eliminar');
       notify('Plantilla eliminada correctamente.', 'success');
       loadTemplates();
     } catch (error) {
@@ -3324,22 +3319,19 @@ export function Documents() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
               <button type="submit" disabled={saving || !form.template_id} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
-                {saving ? 'Guardando en Base de Datos...' : 'Registrar y Generar PDF'}
+                {saving ? 'Guardando...' : 'Registrar y Generar PDF'}
               </button>
             </div>
           </form>
         )}
 
-        {/* ========================================== */}
-        {/* LISTADO Y PREVISUALIZACIÓN DE DOCUMENTOS  */}
-        {/* ========================================== */}
+        {/* LISTADO Y PREVISUALIZACIÓN DE DOCUMENTOS */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Documentos Registrados ({filteredDocuments.length})
             </h3>
 
-            {/* FILTROS DE BÚSQUEDA Y CATEGORÍA */}
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1, maxWidth: '500px' }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <Search size={16} color="#64748b" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -3382,7 +3374,6 @@ export function Documents() {
             </div>
           </div>
 
-          {/* TABLA DE DOCUMENTOS */}
           <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflow: 'hidden' }}>
             {filteredDocuments.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
@@ -3479,15 +3470,16 @@ export function Documents() {
 
       </div>
 
-      {/* MODAL PREVIEW DE DOCUMENTOS */}
-      <DocumentPreviewModal 
-        previewDoc={previewDoc} 
-        setPreviewDoc={setPreviewDoc} 
-      />
+      {/* Renderiza el modal definido previamente en el archivo */}
+      {previewDoc && (
+        <DocumentPreviewModal 
+          previewDoc={previewDoc} 
+          setPreviewDoc={setPreviewDoc} 
+        />
+      )}
     </div>
   );
 }
-
 
 // ============================================================
 // Reports + Dashboard (Con funciones de exportación)
