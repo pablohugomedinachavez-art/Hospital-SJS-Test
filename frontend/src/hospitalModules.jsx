@@ -338,18 +338,21 @@ export function Patients() {
   const [toast, notify, clearToast] = useToast()
   const debouncedQuery = useDebouncedValue(query)
 
-  // PALETA DE COLORES ERGONÓMICA PARA USO EXTENDIDO
+  // TEMA DE COLORES OSCURO / MÓDULOS DE LIMA CON INTERACTIVIDAD MEJORADA
   const theme = {
-    bgApp: '#f4f6f8',           // Fondo principal en gris/azul neutro descansado
-    bgCard: '#ffffff',          // Blanco para tarjetas
-    bgHover: '#f1f5f9',         // Superficie hover suave
-    bgBadge: '#e0f2fe',         // Badge azul claro
-    textBadge: '#0369a1',       // Texto badge
-    border: '#e2e8f0',          // Bordes de bajo contraste
-    textPrimary: '#334155',     // Gris oscuro atenuado (menos agresivo que el negro puro)
-    textMuted: '#64748b',       // Gris secundario
-    accent: '#2563eb',          // Azul institucional primario
-    accentHover: '#1d4ed8'
+    bgApp: '#0f172a',           // Fondo oscuro elegante (Slate 900)
+    bgCard: '#1e293b',          // Fondo de tarjetas (Slate 800)
+    bgHover: '#334155',         // Fondo al hacer hover (Slate 700)
+    bgItem: '#1e293b',          // Filas y contenedor secundario
+    border: '#334155',          // Bordes sutiles
+    textPrimary: '#f8fafc',     // Texto blanco atenuado descansado
+    textMuted: '#94a3b8',       // Texto gris secundario
+    accent: '#3b82f6',          // Azul primario vibrante
+    accentHover: '#2563eb',     // Azul hover
+    badgeBg: '#1e3a8a',         // Badge azul oscuro
+    badgeText: '#93c5fd',       // Texto badge azul suave
+    badgeSuccessBg: '#064e3b',  // Badge verde oscuro
+    badgeSuccessText: '#6ee7b7' // Texto badge verde
   }
 
   const load = useCallback(async (q = '') => {
@@ -502,131 +505,200 @@ export function Patients() {
   }, [patientAppointments, today])
 
   return (
-    <div style={{ padding: '1.75rem', backgroundColor: theme.bgApp, color: theme.textPrimary, minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{
+      padding: '2rem',
+      backgroundColor: theme.bgApp,
+      color: theme.textPrimary,
+      minHeight: '100vh',
+      width: '100%',
+      boxSizing: 'border-box',
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      {/* INYECCIÓN DE ESTILOS CSS PARA ANIMACIONES, HOVERS Y TRANSICIONES SUAVES */}
+      <style>{`
+        .btn-interactive {
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-interactive:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.1);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        }
+        .btn-interactive:active {
+          transform: translateY(0);
+          filter: brightness(0.95);
+        }
+        .card-hover {
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.4);
+          border-color: ${theme.accent} !important;
+        }
+        .row-interactive {
+          transition: all 0.2s ease;
+        }
+        .row-interactive:hover {
+          background-color: ${theme.bgHover} !important;
+          transform: translateX(4px);
+        }
+        .icon-hover-bounce {
+          transition: transform 0.2s ease;
+        }
+        .icon-hover-bounce:hover {
+          transform: scale(1.2) rotate(5deg);
+        }
+        .tab-interactive {
+          transition: all 0.2s ease;
+        }
+        .tab-interactive:hover {
+          color: ${theme.accent} !important;
+        }
+      `}</style>
+
       <Toast toast={toast} onClose={clearToast} />
 
-      {/* HEADER PRINCIPAL DE NAVEGACIÓN */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+      {/* HEADER PRINCIPAL */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.35rem', fontWeight: 600, color: theme.textPrimary, margin: 0 }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: theme.textPrimary, margin: 0, letterSpacing: '-0.02em' }}>
             {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Perfil del paciente' : 'Gestión de pacientes'}
           </h1>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
           {view === 'detail' && (
             <>
               <button 
                 onClick={handlePrint} 
-                style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textMuted, borderRadius: '6px', padding: '0.4rem 0.9rem', fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+                className="btn-interactive"
+                style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textPrimary, borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
               >
-                <Printer size={14} /> Imprimir
+                <Printer size={15} /> Imprimir
               </button>
               <button 
                 onClick={startEditPatient} 
-                style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '6px', padding: '0.4rem 0.9rem', fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+                className="btn-interactive"
+                style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
               >
-                <Edit3 size={14} /> Editar
+                <Edit3 size={15} /> Editar
               </button>
             </>
           )}
 
           {view === 'list' ? (
-            <button onClick={openCreate} style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '6px', padding: '0.45rem 1.1rem', fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-              <Plus size={15} /> Nuevo paciente
+            <button 
+              onClick={openCreate} 
+              className="btn-interactive"
+              style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+            >
+              <Plus size={16} /> Nuevo paciente
             </button>
           ) : (
-            <button onClick={() => { setView('list'); setIsEditingPatient(false); }} style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textMuted, borderRadius: '6px', padding: '0.4rem 0.9rem', fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-              <ArrowLeft size={15} /> Volver
+            <button 
+              onClick={() => { setView('list'); setIsEditingPatient(false); }} 
+              className="btn-interactive"
+              style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textPrimary, borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+            >
+              <ArrowLeft size={16} /> Volver
             </button>
           )}
         </div>
       </div>
 
-      {/* DETALLE DEL PACIENTE EN TONOS SUAVES */}
+      {/* VISTA DETALLE CON ESTILO OSCURO */}
       {view === 'detail' && selectedPatient ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
-            {/* TARJETA DE RESUMEN DE PERFIL */}
-            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '10px', border: `1px solid ${theme.border}`, padding: '1.25rem', gap: '1.25rem' }}>
+            {/* TARJETA SUPERIOR DE PERFIL */}
+            <div className="card-hover" style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
               
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: `1px solid ${theme.border}`, paddingRight: '0.75rem' }}>
-                <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: theme.bgApp, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
-                  <User size={38} color={theme.textMuted} />
+              {/* AVATAR Y DATOS BÁSICOS */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: `1px solid ${theme.border}`, paddingRight: '1rem' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.bgHover, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem', border: `1px solid ${theme.border}` }}>
+                  <User size={44} color={theme.textMuted} />
                 </div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: theme.textPrimary, margin: '0 0 0.2rem 0' }}>{selectedPatient.full_name}</h3>
-                <span style={{ fontSize: '0.75rem', color: theme.accent, fontWeight: 500, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  <Phone size={12} /> {selectedPatient.phone || '—'}
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: theme.textPrimary, margin: '0 0 0.25rem 0' }}>{selectedPatient.full_name}</h3>
+                <span style={{ fontSize: '0.8rem', color: theme.accent, fontWeight: 600, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Phone size={13} /> {selectedPatient.phone || '—'}
                 </span>
-                <span style={{ fontSize: '0.75rem', color: theme.textMuted, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                  <Mail size={12} /> {selectedPatient.email || 'sin correo'}
+                <span style={{ fontSize: '0.75rem', color: theme.textMuted, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Mail size={13} /> {selectedPatient.email || 'sin correo'}
                 </span>
               </div>
 
               {/* INFORMACIÓN GENERAL */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '0.825rem', fontWeight: 600, color: theme.textPrimary, margin: 0 }}>Información General</h4>
-                  <Edit3 size={13} color={theme.textMuted} style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Información General</h4>
+                  <Edit3 size={15} color={theme.textMuted} className="icon-hover-bounce" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
                 </div>
-                <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '110px' }}>F. Nacimiento:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.date_of_birth?.slice(0, 10) || '—'}</strong></div>
-                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '110px' }}>Documento / DNI:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
-                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '110px' }}>Sexo:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.sex || '—'}</strong></div>
+                <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>F. Nacimiento:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.date_of_birth?.slice(0, 10) || '—'}</strong></div>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>Documento / DNI:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>Sexo:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.sex || '—'}</strong></div>
                 </div>
               </div>
 
               {/* ANTECEDENTES */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', borderLeft: `1px solid ${theme.border}`, paddingLeft: '0.85rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: `1px solid ${theme.border}`, paddingLeft: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '0.825rem', fontWeight: 600, color: theme.textPrimary, margin: 0 }}>Antecedentes</h4>
-                  <Edit3 size={13} color={theme.textMuted} style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Antecedentes</h4>
+                  <Edit3 size={15} color={theme.textMuted} className="icon-hover-bounce" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
                 </div>
-                <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '90px' }}>Alergias:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.allergies || 'Ninguna'}</strong></div>
-                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '90px' }}>G. Sanguíneo:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.blood_type || '—'}</strong></div>
-                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '90px' }}>Estado:</span><strong style={{ color: '#059669' }}>{selectedPatient.status || 'Activo'}</strong></div>
+                <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '100px' }}>Alergias:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.allergies || 'Ninguna'}</strong></div>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '100px' }}>G. Sanguíneo:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.blood_type || '—'}</strong></div>
+                  <div>
+                    <span style={{ color: theme.textMuted, display: 'inline-block', width: '100px' }}>Estado:</span>
+                    <span style={{ backgroundColor: theme.badgeSuccessBg, color: theme.badgeSuccessText, padding: '0.15rem 0.5rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700 }}>
+                      {selectedPatient.status || 'active'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
             </div>
 
-            {/* TABLA DE VISITAS CON FILTRADO DE FECHAS */}
-            <div style={{ backgroundColor: theme.bgCard, borderRadius: '10px', border: `1px solid ${theme.border}`, padding: '1.25rem' }}>
+            {/* SECCIÓN DE CITAS CON PESTAÑAS */}
+            <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
               
-              <div style={{ display: 'flex', gap: '1.5rem', borderBottom: `1px solid ${theme.border}`, paddingBottom: '0.6rem', marginBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', gap: '2rem', borderBottom: `1px solid ${theme.border}`, paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
                 <span
                   onClick={() => setActiveTab('future')}
-                  style={{ fontSize: '0.8rem', fontWeight: 600, color: activeTab === 'future' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'future' ? `2px solid ${theme.accent}` : 'none', paddingBottom: '0.6rem', cursor: 'pointer' }}
+                  className="tab-interactive"
+                  style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'future' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'future' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}
                 >
                   Citas futuras ({futureVisits.length})
                 </span>
                 <span
                   onClick={() => setActiveTab('past')}
-                  style={{ fontSize: '0.8rem', fontWeight: 600, color: activeTab === 'past' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'past' ? `2px solid ${theme.accent}` : 'none', paddingBottom: '0.6rem', cursor: 'pointer' }}
+                  className="tab-interactive"
+                  style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'past' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'past' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}
                 >
                   Citas pasadas ({pastVisits.length})
                 </span>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {(activeTab === 'future' ? futureVisits : pastVisits).length === 0 ? (
-                  <p style={{ fontSize: '0.775rem', color: theme.textMuted, textAlign: 'center', padding: '1.25rem 0' }}>
-                    No hay citas registradas en este apartado.
+                  <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1.5rem 0' }}>
+                    No hay citas registradas en esta sección.
                   </p>
                 ) : (
                   (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
-                    <div key={appt.id} style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 90px', backgroundColor: theme.bgApp, borderRadius: '6px', padding: '0.75rem 0.85rem', alignItems: 'center', fontSize: '0.775rem' }}>
-                      <div style={{ fontWeight: 600, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <Calendar size={13} />
+                    <div key={appt.id} className="row-interactive" style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 100px', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
+                      <div style={{ fontWeight: 600, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Calendar size={14} />
                         {new Date(appt.appointment_date).toLocaleDateString()}
                       </div>
-                      <div><span style={{ color: theme.textMuted }}>Especialidad:</span> <span style={{ fontWeight: 500, color: theme.textPrimary }}>{appt.specialty}</span></div>
-                      <div><span style={{ color: theme.textMuted }}>Médico:</span> <span style={{ fontWeight: 500, color: theme.textPrimary }}>{appt.doctor_name}</span></div>
+                      <div><span style={{ color: theme.textMuted }}>Especialidad:</span> <span style={{ fontWeight: 600, color: theme.textPrimary }}>{appt.specialty}</span></div>
+                      <div><span style={{ color: theme.textMuted }}>Médico:</span> <span style={{ fontWeight: 600, color: theme.textPrimary }}>{appt.doctor_name}</span></div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ backgroundColor: appt.status === 'scheduled' ? theme.bgBadge : theme.bgHover, color: appt.status === 'scheduled' ? theme.textBadge : theme.textMuted, padding: '0.2rem 0.5rem', borderRadius: '10px', fontSize: '0.675rem', fontWeight: 600 }}>
+                        <span style={{ backgroundColor: appt.status === 'scheduled' ? theme.badgeBg : theme.bgHover, color: appt.status === 'scheduled' ? theme.badgeText : theme.textMuted, padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600 }}>
                           {appt.status}
                         </span>
                       </div>
@@ -639,71 +711,71 @@ export function Patients() {
 
           </div>
 
-          {/* COLUMNA DERECHA - DOCUMENTOS */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            
-            <div style={{ backgroundColor: theme.bgCard, borderRadius: '10px', border: `1px solid ${theme.border}`, padding: '1.1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                <h4 style={{ fontSize: '0.825rem', fontWeight: 600, color: theme.textPrimary, margin: 0 }}>Documentos</h4>
+          {/* COLUMNA DERECHA: DOCUMENTOS */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Documentos</h4>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {loadingDocs ? (
                   <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>Cargando documentos...</span>
                 ) : patientDocuments.length === 0 ? (
                   <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>Sin documentos adjuntos.</span>
                 ) : (
                   patientDocuments.map((doc, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.45rem 0', borderBottom: `1px solid ${theme.border}` }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <FileText size={15} color={theme.textMuted} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 500, color: theme.textPrimary }}>{doc.file_name || doc.document_type}</span>
+                    <div key={idx} className="row-interactive" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.5rem', borderRadius: '6px', borderBottom: `1px solid ${theme.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FileText size={16} color={theme.textMuted} className="icon-hover-bounce" />
+                        <span style={{ fontSize: '0.775rem', fontWeight: 500, color: theme.textPrimary }}>{doc.file_name || doc.document_type}</span>
                       </div>
-                      <span style={{ fontSize: '0.65rem', color: theme.textMuted }}>{doc.status || 'Adjunto'}</span>
+                      <span style={{ fontSize: '0.65rem', color: doc.status === 'active' ? theme.badgeSuccessText : theme.textMuted, backgroundColor: doc.status === 'active' ? theme.badgeSuccessBg : theme.bgHover, padding: '0.15rem 0.4rem', borderRadius: '8px', fontWeight: 600 }}>
+                        {doc.status || 'uploaded'}
+                      </span>
                     </div>
                   ))
                 )}
               </div>
             </div>
-
           </div>
 
         </div>
       ) : view === 'create' || isEditingPatient ? (
-        /* FORMULARIO DE EDICIÓN O CREACIÓN */
-        <div style={{ backgroundColor: theme.bgCard, borderRadius: '10px', border: `1px solid ${theme.border}`, padding: '1.25rem' }}>
+        /* FORMULARIO */
+        <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h3 style={{ fontSize: '0.95rem', margin: 0, color: theme.textPrimary }}>{isEditingPatient ? 'Editar Paciente' : 'Registrar Paciente'}</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.85rem' }}>
-              <input placeholder="Nombre completo *" required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ padding: '0.45rem', borderRadius: '6px', border: `1px solid ${theme.border}`, fontSize: '0.8rem' }} />
-              <input placeholder="Número de documento *" required value={form.document_number} onChange={e => handleDocumentChange(e.target.value)} style={{ padding: '0.45rem', borderRadius: '6px', border: `1px solid ${theme.border}`, fontSize: '0.8rem' }} />
-              <input type="date" required value={form.date_of_birth} onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))} style={{ padding: '0.45rem', borderRadius: '6px', border: `1px solid ${theme.border}`, fontSize: '0.8rem' }} />
-              <input placeholder="Teléfono" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ padding: '0.45rem', borderRadius: '6px', border: `1px solid ${theme.border}`, fontSize: '0.8rem' }} />
+            <h3 style={{ fontSize: '1rem', margin: 0, color: theme.textPrimary }}>{isEditingPatient ? 'Editar Paciente' : 'Registrar Paciente'}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <input placeholder="Nombre completo *" required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
+              <input placeholder="Número de documento *" required value={form.document_number} onChange={e => handleDocumentChange(e.target.value)} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
+              <input type="date" required value={form.date_of_birth} onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
+              <input placeholder="Teléfono" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
             </div>
-            <button type="submit" disabled={saving} style={{ backgroundColor: theme.accent, color: '#fff', border: 'none', padding: '0.5rem 1.1rem', borderRadius: '6px', cursor: 'pointer', alignSelf: 'flex-end', fontSize: '0.8rem' }}>
+            <button type="submit" disabled={saving} className="btn-interactive" style={{ backgroundColor: theme.accent, color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', cursor: 'pointer', alignSelf: 'flex-end', fontWeight: 600 }}>
               {saving ? 'Guardando...' : 'Guardar Paciente'}
             </button>
           </form>
         </div>
       ) : (
-        /* LISTADO DE PACIENTES */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        /* LISTADO */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <input
             type="text"
             placeholder="Buscar por DNI o nombre..."
             value={query}
             onChange={e => setQuery(e.target.value)}
-            style={{ padding: '0.55rem 0.85rem', borderRadius: '6px', border: `1px solid ${theme.border}`, outline: 'none', width: '100%', boxSizing: 'border-box', fontSize: '0.8rem', backgroundColor: theme.bgCard }}
+            style={{ padding: '0.75rem 1rem', borderRadius: '8px', border: `1px solid ${theme.border}`, outline: 'none', width: '100%', boxSizing: 'border-box', backgroundColor: theme.bgCard, color: theme.textPrimary }}
           />
 
           {loading ? (
-            <p style={{ textAlign: 'center', color: theme.textMuted, fontSize: '0.8rem' }}>Cargando pacientes...</p>
+            <p style={{ textAlign: 'center', color: theme.textMuted }}>Cargando pacientes...</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.85rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
               {patients.map(p => (
-                <div key={p.id} onClick={() => loadPatientDetail(p)} style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: '8px', padding: '0.85rem', cursor: 'pointer' }}>
-                  <h4 style={{ margin: '0 0 0.2rem 0', color: theme.textPrimary, fontSize: '0.9rem' }}>{p.full_name}</h4>
-                  <p style={{ margin: 0, fontSize: '0.725rem', color: theme.textMuted }}>DNI: {p.dni || p.document_number || '—'}</p>
+                <div key={p.id} onClick={() => loadPatientDetail(p)} className="card-hover" style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '1.25rem', cursor: 'pointer' }}>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: theme.textPrimary, fontSize: '0.95rem' }}>{p.full_name}</h4>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: theme.textMuted }}>DNI: {p.dni || p.document_number || '—'}</p>
                 </div>
               ))}
             </div>
@@ -713,6 +785,8 @@ export function Patients() {
     </div>
   )
 }
+
+
 // ============================================================
 // Consultations
 // ============================================================
