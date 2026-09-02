@@ -323,12 +323,6 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
 
 
 
-
-
-// ============================================================
-// Patients
-// ============================================================
-
 // ============================================================
 // Patients Component
 // ============================================================
@@ -341,6 +335,9 @@ export function Patients() {
   const [patientDocuments, setPatientDocuments] = useState([])
   const [patientAppointments, setPatientAppointments] = useState([])
   const [loadingDocs, setLoadingDocs] = useState(false)
+  
+  // Estado para previsualización de documentos
+  const [previewDoc, setPreviewDoc] = useState(null)
   
   // Estado para controlar edición
   const [isEditingPatient, setIsEditingPatient] = useState(false)
@@ -413,7 +410,6 @@ export function Patients() {
     }
   }
 
-  // Manejo unificado de validación de documentos
   const handleDocumentChange = (value, docType = form.document_type) => {
     const cleanValue = docType === 'dni'
       ? value.replace(/\D/g, '')
@@ -444,7 +440,6 @@ export function Patients() {
     setView('create')
   }
 
-  // INICIALIZACIÓN DE EDICIÓN: Extrae y parsea la información del paciente seleccionado
   const startEditPatient = () => {
     if (!selectedPatient) return
     let phoneCountry = '+51'
@@ -478,7 +473,6 @@ export function Patients() {
     setDocumentError('')
   }
 
-  // ENVÍO DE FORMULARIO (Creación / Edición)
   const submit = async (event) => {
     event.preventDefault()
     if (documentError) return notify('Corrige el documento antes de continuar.', 'error')
@@ -531,6 +525,10 @@ export function Patients() {
   const futureVisits = useMemo(() => {
     return patientAppointments.filter(appt => appt.appointment_date && new Date(appt.appointment_date) >= today)
   }, [patientAppointments, today])
+
+  // Helper para determinar extensión/tipo
+  const isImageDoc = (url = '') => /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(url)
+  const isPdfDoc = (url = '') => /\.(pdf)($|\?)/i.test(url)
 
   return (
     <div style={{
@@ -872,7 +870,7 @@ export function Patients() {
 
           </div>
 
-          {/* DOCUMENTOS */}
+          {/* DOCUMENTOS CON PREVISUALIZACIÓN */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div className="card-hover print-full-width" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -886,14 +884,22 @@ export function Patients() {
                   <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>Sin documentos adjuntos.</span>
                 ) : (
                   patientDocuments.map((doc, idx) => (
-                    <div key={idx} className="row-interactive" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.5rem', borderRadius: '6px', borderBottom: `1px solid ${theme.border}` }}>
+                    <div 
+                      key={idx} 
+                      onClick={() => setPreviewDoc(doc)}
+                      className="row-interactive" 
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.5rem', borderRadius: '6px', borderBottom: `1px solid ${theme.border}`, cursor: 'pointer' }}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <FileText size={16} color={theme.textMuted} className="icon-hover-bounce" />
-                        <span style={{ fontSize: '0.775rem', fontWeight: 500, color: theme.textPrimary }}>{doc.file_name || doc.document_type}</span>
+                        <span style={{ fontSize: '0.775rem', fontWeight: 500, color: theme.textPrimary }}>{doc.file_name || doc.document_type || `Documento ${idx + 1}`}</span>
                       </div>
-                      <span style={{ fontSize: '0.65rem', color: doc.status === 'active' ? theme.badgeSuccessText : theme.textMuted, backgroundColor: doc.status === 'active' ? theme.badgeSuccessBg : theme.bgHover, padding: '0.15rem 0.4rem', borderRadius: '8px', fontWeight: 600 }}>
-                        {doc.status || 'uploaded'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Eye size={14} color={theme.accent} />
+                        <span style={{ fontSize: '0.65rem', color: doc.status === 'active' ? theme.badgeSuccessText : theme.textMuted, backgroundColor: doc.status === 'active' ? theme.badgeSuccessBg : theme.bgHover, padding: '0.15rem 0.4rem', borderRadius: '8px', fontWeight: 600 }}>
+                          {doc.status || 'uploaded'}
+                        </span>
+                      </div>
                     </div>
                   ))
                 )}
@@ -927,10 +933,113 @@ export function Patients() {
           )}
         </div>
       )}
+
+      {/* MODAL DE PREVISUALIZACIÓN DE DOCUMENTOS */}
+      {previewDoc && (
+        <div className="no-print" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '1.5rem'
+        }}>
+          <div style={{
+            backgroundColor: theme.bgCard,
+            border: `1px solid ${theme.border}`,
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: '850px',
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+          }}>
+            {/* CABECERA MODAL */}
+            <div style={{
+              display: 'flex',
+              justify: 'space-between',
+              alignItems: 'center',
+              padding: '1rem 1.25rem',
+              borderBottom: `1px solid ${theme.border}`,
+              backgroundColor: theme.bgApp
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FileText size={18} color={theme.accent} />
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: theme.textPrimary }}>
+                  {previewDoc.file_name || previewDoc.document_type || 'Previsualización de Documento'}
+                </h3>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {previewDoc.url && (
+                  <a 
+                    href={previewDoc.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    style={{ color: theme.textMuted, display: 'flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none', fontSize: '0.75rem' }}
+                  >
+                    <ExternalLink size={14} /> Abrir original
+                  </a>
+                )}
+                <button 
+                  onClick={() => setPreviewDoc(null)} 
+                  style={{ backgroundColor: 'transparent', border: 'none', color: theme.textMuted, cursor: 'pointer', padding: '0.2rem', borderRadius: '4px' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* CUERPO DEL VISOR */}
+            <div style={{
+              flex: 1,
+              padding: '1.25rem',
+              overflowY: 'auto',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: theme.bgApp
+            }}>
+              {previewDoc.url ? (
+                isImageDoc(previewDoc.url) ? (
+                  <img 
+                    src={previewDoc.url} 
+                    alt={previewDoc.file_name || 'Documento'} 
+                    style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '8px' }} 
+                  />
+                ) : isPdfDoc(previewDoc.url) ? (
+                  <iframe 
+                    src={previewDoc.url} 
+                    title="Vista Previa PDF" 
+                    style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '8px' }} 
+                  />
+                ) : (
+                  <iframe 
+                    src={previewDoc.url} 
+                    title="Vista Previa Documento" 
+                    style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '8px' }} 
+                  />
+                )
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem', color: theme.textMuted }}>
+                  <AlertTriangle size={36} color={theme.textMuted} style={{ marginBottom: '0.5rem' }} />
+                  <p style={{ margin: 0, fontSize: '0.85rem' }}>El enlace del documento no está disponible para previsualización directa.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
 
 // ============================================================
 // Consultations
