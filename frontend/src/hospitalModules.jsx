@@ -16,7 +16,7 @@ import {
   User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
-  X, Save
+  X, Save, Eye, ExternalLink
 } from 'lucide-react';
 
 
@@ -24,6 +24,9 @@ import {
 // Shared UX / utilities
 // ============================================================
 
+// ============================================================
+// Configuración y Constantes Auxiliares
+// ============================================================
 const INITIAL_PATIENT = {
   document_type: 'dni',
   document_number: '',
@@ -34,7 +37,18 @@ const INITIAL_PATIENT = {
   email: '',
   sex: '',
   blood_type: '',
-  allergies: '',
+  allergies: ''
+}
+
+const PHONE_CONFIGS = {
+  '+51': 'Perú (+51)',
+  '+1': 'EE.UU. / Canadá (+1)',
+  '+34': 'España (+34)',
+  '+52': 'México (+52)',
+  '+57': 'Colombia (+57)',
+  '+56': 'Chile (+56)',
+  '+54': 'Argentina (+54)'
+}
 }
 
 const INITIAL_CONSULTATION = {
@@ -52,13 +66,6 @@ const INITIAL_CONSULTATION = {
   prescription: '',
 }
 
-const PHONE_CONFIGS = {
-  '+51': { country: 'Perú', length: 9 },
-  '+52': { country: 'México', length: 10 },
-  '+54': { country: 'Argentina', length: 10 },
-  '+57': { country: 'Colombia', length: 9 },
-  '+1': { country: 'Estados Unidos', length: 10 },
-}
 
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 const specialties = ['Cardiología', 'Pediatría', 'Medicina General', 'Dermatología', 'Ginecología']
