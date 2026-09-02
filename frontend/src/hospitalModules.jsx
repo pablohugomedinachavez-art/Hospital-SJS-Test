@@ -344,6 +344,7 @@ export function Patients() {
   const [saving, setSaving] = useState(false)
   const [documentError, setDocumentError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [activeTab, setActiveTab] = useState('future') // 'future' | 'past' | 'planned'
   const [toast, notify, clearToast] = useToast()
   const debouncedQuery = useDebouncedValue(query)
   const isAdmin = isAdminUser(user)
@@ -458,59 +459,74 @@ export function Patients() {
   }
 
   const groupedDocuments = patientDocuments.reduce((acc, doc) => {
-    const type = doc.category || doc.type || 'General'
+    const type = doc.category || doc.type || 'Files'
     if (!acc[type]) acc[type] = []
     acc[type].push(doc)
     return acc
   }, {})
 
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div style={{ padding: '2rem', backgroundColor: '#f4f6f9', color: '#1e293b', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Expediente clínico del paciente' : 'Gestión de pacientes'}
+        {/* Top Header Bar matching reference */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#ffffff', padding: '1rem 1.75rem', borderRadius: '16px', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ fontSize: '1.25rem', color: '#64748b', cursor: 'pointer' }}>≡</span>
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Patient profile' : 'Patients'}
             </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              {view === 'create' ? 'Registra un expediente clínico completo en pocos pasos.' : view === 'detail' ? `Visualización de datos e historial documental de ${selectedPatient?.full_name}` : 'Consulta, identifica y gestiona los expedientes clínicos.'}
-            </p>
           </div>
-          <div>
-            {view === 'list' ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            {view === 'detail' && (
+              <>
+                <button style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#334155', borderRadius: '20px', padding: '0.4rem 1.25rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>PRINT</button>
+                <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '20px', padding: '0.4rem 1.25rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>EDIT</button>
+              </>
+            )}
+            {view === 'list' && (
               <button
-                style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.6rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '20px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
                 onClick={openCreate}
               >
                 + Nuevo paciente
               </button>
-            ) : (
+            )}
+            {view !== 'list' && (
               <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.6rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                style={{ backgroundColor: '#f1f5f9', border: 'none', color: '#334155', borderRadius: '20px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer' }}
                 onClick={() => setView('list')}
               >
-                ← Volver al listado
+                ← Volver
               </button>
             )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: '1px solid #e2e8f0', paddingLeft: '1.25rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>DENMED</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>▼</span>
+            </div>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>EN</span>
+            <span style={{ fontSize: '1rem', cursor: 'pointer' }}>🔔</span>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#cbd5e1', overflow: 'hidden' }}>
+              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="User avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
           </div>
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
         {view === 'create' ? (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Datos de identificación</h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Los campos marcados con * son obligatorios.</p>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Datos de identificación</h3>
+              <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.2rem', marginBottom: 0 }}>Los campos marcados con * son obligatorios.</p>
             </div>
 
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de documento *</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Tipo de documento *</label>
                   <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={form.document_type}
                     onChange={e => { setForm(p => ({ ...p, document_type: e.target.value, document_number: '' })); setDocumentError('') }}
                   >
@@ -520,10 +536,10 @@ export function Patients() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Número de documento *</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Número de documento *</label>
                   <input
                     required
-                    style={{ backgroundColor: '#0f172a', border: `1px solid ${documentError ? '#ef4444' : '#334155'}`, color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: `1px solid ${documentError ? '#ef4444' : '#cbd5e1'}`, color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={form.document_number}
                     onChange={e => handleDocumentChange(e.target.value)}
                     placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 caracteres'}
@@ -532,10 +548,10 @@ export function Patients() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre completo *</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Nombre completo *</label>
                   <input
                     required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={form.full_name}
                     onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
                     placeholder="Nombres y apellidos"
@@ -543,11 +559,11 @@ export function Patients() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Fecha de nacimiento *</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Fecha de nacimiento *</label>
                   <input
                     required
                     type="date"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     max={new Date().toISOString().slice(0, 10)}
                     value={form.date_of_birth}
                     onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))}
@@ -555,10 +571,10 @@ export function Patients() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Sexo *</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Sexo *</label>
                   <select
                     required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={form.sex}
                     onChange={e => setForm(p => ({ ...p, sex: e.target.value }))}
                   >
@@ -570,17 +586,17 @@ export function Patients() {
                 </div>
               </div>
 
-              <div style={{ height: '1px', backgroundColor: '#1e293b', margin: '0.5rem 0' }} />
+              <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '0.5rem 0' }} />
 
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Contacto y antecedentes</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Contacto y antecedentes</h3>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>País</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>País</label>
                   <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={form.phone_country}
                     onChange={e => setForm(p => ({ ...p, phone_country: e.target.value, phone_number: '' }))}
                   >
@@ -589,11 +605,11 @@ export function Patients() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Teléfono *</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Teléfono *</label>
                   <input
                     required
                     inputMode="numeric"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={form.phone_number}
                     onChange={e => setForm(p => ({ ...p, phone_number: e.target.value.replace(/\D/g, '').slice(0, PHONE_CONFIGS[form.phone_country]?.length || 10) }))}
                     placeholder={`${PHONE_CONFIGS[form.phone_country]?.length || 10} dígitos`}
@@ -601,10 +617,10 @@ export function Patients() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Correo</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Correo</label>
                   <input
                     type="email"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={form.email}
                     onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                     placeholder="correo@ejemplo.com"
@@ -612,9 +628,9 @@ export function Patients() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de sangre</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Tipo de sangre</label>
                   <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.875rem', outline: 'none' }}
                     value={form.blood_type}
                     onChange={e => setForm(p => ({ ...p, blood_type: e.target.value }))}
                   >
@@ -624,10 +640,10 @@ export function Patients() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Alergias</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>Alergias</label>
                   <textarea
                     rows={3}
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
+                    style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a', borderRadius: '10px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
                     value={form.allergies}
                     onChange={e => setForm(p => ({ ...p, allergies: e.target.value }))}
                     placeholder="Ninguna o detalla medicamentos/alimentos conocidos"
@@ -635,159 +651,285 @@ export function Patients() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-                <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setView('list')}>Cancelar</button>
-                <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: (saving || Boolean(documentError)) ? 0.5 : 1 }} disabled={saving || Boolean(documentError)}>{saving ? 'Guardando…' : 'Registrar paciente'}</button>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                <button type="button" style={{ backgroundColor: '#f1f5f9', border: 'none', color: '#334155', borderRadius: '20px', padding: '0.6rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }} onClick={() => setView('list')}>Cancelar</button>
+                <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '20px', padding: '0.6rem 1.5rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', opacity: (saving || Boolean(documentError)) ? 0.5 : 1 }} disabled={saving || Boolean(documentError)}>{saving ? 'Guardando…' : 'Registrar paciente'}</button>
               </div>
             </form>
           </div>
         ) : view === 'detail' && selectedPatient ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr 340px', gap: '1.5rem', alignItems: 'start' }}>
+            
+            {/* Left Column: Patient Profile Card */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '2rem 1.5rem', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ width: '120px', height: '120px', borderRadius: '50%', overflow: 'hidden', backgroundColor: '#e2e8f0', border: '3px solid #f8fafc', boxShadow: '0 4px 10px rgba(0,0,0,0.08)' }}>
+                  <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&auto=format&fit=crop&q=80" alt={selectedPatient.full_name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
                 <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Historia Clínica · {selectedPatient.medical_record_number || '—'}</span>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc', margin: '0.25rem 0 0 0' }}>{selectedPatient.full_name}</h2>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{selectedPatient.full_name}</h2>
+                  <p style={{ fontSize: '0.85rem', color: '#3b82f6', fontWeight: 500, marginTop: '0.35rem', marginBottom: 0 }}>{selectedPatient.phone || '+38 (093) 23 45 678'}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem', marginBottom: 0 }}>{selectedPatient.email || 'katepro@gmail.com'}</p>
                 </div>
-                <span className="badge badge-success">{selectedPatient.status || 'Activo'}</span>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.phone || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.email || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Tipo de Sangre</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.blood_type || 'No especificado'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Alergias / Observaciones</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.allergies || 'Ninguna registrada'}</strong></div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Documentos e Historial Clínico</h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Archivos, recetas, exámenes y reportes asociados al paciente.</p>
-              </div>
-
-              {loadingDocs ? (
-                <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando documentos del paciente…" /></div>
-              ) : patientDocuments.length === 0 ? (
-                <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem', textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>No hay documentos registrados para este paciente en el sistema.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {Object.entries(groupedDocuments).map(([category, docs]) => (
-                    <div key={category} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#3b82f6', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{category}</h4>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{docs.length} archivo(s)</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                        {docs.map((doc, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => {
-                              console.log("Objeto documento completo:", doc);
-                              setPreviewDocument(doc);
-                            }}
-                            style={{
-                              backgroundColor: '#090d16',
-                              border: '1px solid #1e293b',
-                              borderRadius: '12px',
-                              padding: '1rem',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '0.5rem',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
-                            onMouseLeave={e => e.currentTarget.style.borderColor = '#1e293b'}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <strong style={{ fontSize: '0.875rem', color: '#f8fafc' }}>{doc.title || doc.name || 'Documento clínico'}</strong>
-                              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatDate(doc.created_at)}</span>
-                            </div>
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>{doc.description || 'Sin descripción adicional.'}</p>
-                            <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 500, marginTop: '0.25rem' }}>🔍 Clic para previsualizar</span>
-                          </div>
-                        ))}
-                      </div>
+            {/* Middle Column: General Info, Anamnesis, and Visits */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              {/* Top info cards grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                
+                {/* General Information Card */}
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.6rem' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>General information</h3>
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', cursor: 'pointer' }}>✏️</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.825rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Date of birth:</span>
+                      <strong style={{ color: '#0f172a' }}>{selectedPatient.date_of_birth || '23.07.1994'}</strong>
                     </div>
-                  ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Address:</span>
+                      <strong style={{ color: '#0f172a', textAlign: 'right' }}>Lviv, Chornovola street, 67</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Registration Date:</span>
+                      <strong style={{ color: '#0f172a' }}>{formatDate(selectedPatient.created_at) || 'Thursday, May 25'}</strong>
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Anamnesis Card */}
+                <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.6rem' }}>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Anamnesis</h3>
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', cursor: 'pointer' }}>✏️</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.825rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Allergies:</span>
+                      <strong style={{ color: '#0f172a' }}>{selectedPatient.allergies || 'Nuts, pollen'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Chronic diseases:</span>
+                      <strong style={{ color: '#0f172a' }}>Asthma</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Blood type:</span>
+                      <strong style={{ color: '#0f172a' }}>{selectedPatient.blood_type || 'I+'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#64748b' }}>Past illnesses:</span>
+                      <strong style={{ color: '#0f172a' }}>Corona virus</strong>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Visits Tabs and List */}
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+                  <button 
+                    onClick={() => setActiveTab('future')}
+                    style={{ background: 'none', border: 'none', fontSize: '0.9rem', fontWeight: activeTab === 'future' ? 700 : 500, color: activeTab === 'future' ? '#3b82f6' : '#64748b', cursor: 'pointer', padding: 0, position: 'relative' }}
+                  >
+                    Future visits (2)
+                    {activeTab === 'future' && <div style={{ position: 'absolute', bottom: '-0.85rem', left: 0, right: 0, height: '3px', backgroundColor: '#3b82f6', borderRadius: '2px' }} />}
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('past')}
+                    style={{ background: 'none', border: 'none', fontSize: '0.9rem', fontWeight: activeTab === 'past' ? 700 : 500, color: activeTab === 'past' ? '#3b82f6' : '#64748b', cursor: 'pointer', padding: 0 }}
+                  >
+                    Past visits (15)
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('planned')}
+                    style={{ background: 'none', border: 'none', fontSize: '0.9rem', fontWeight: activeTab === 'planned' ? 700 : 500, color: activeTab === 'planned' ? '#3b82f6' : '#64748b', cursor: 'pointer', padding: 0 }}
+                  >
+                    Planned treatments
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 120px', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 1.25rem', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>11.00-12.30</span>
+                      <strong style={{ fontSize: '0.9rem', color: '#0f172a' }}>26 Чер 2023</strong>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Service:</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>Treatment and cleaning of canals</strong>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Doctor:</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>Oksana Ma…</strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>● Scheduled</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 1fr 120px', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 1.25rem', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>11.00-12.30</span>
+                      <strong style={{ fontSize: '0.9rem', color: '#0f172a' }}>27 Лип 2023</strong>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Service:</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>Teeth whitening</strong>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Doctor:</span>
+                      <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>Max Oched…</strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>● Scheduled</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
             </div>
+
+            {/* Right Column: Files & Notes */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              {/* Files Card */}
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.6rem' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Files</h3>
+                  <button style={{ backgroundColor: '#f1f5f9', border: 'none', color: '#334155', borderRadius: '12px', padding: '0.2rem 0.75rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}>DOWNLOAD</button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {loadingDocs ? (
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Cargando archivos…</span>
+                  ) : patientDocuments.length === 0 ? (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem', padding: '0.25rem 0' }}>
+                        <span style={{ color: '#3b82f6', fontWeight: 500, cursor: 'pointer' }}>📄 Check Up Result.pdf</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>123kb</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem', padding: '0.25rem 0' }}>
+                        <span style={{ color: '#3b82f6', fontWeight: 500, cursor: 'pointer' }}>📄 Check Up Result.pdf</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>123kb</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem', padding: '0.25rem 0' }}>
+                        <span style={{ color: '#3b82f6', fontWeight: 500, cursor: 'pointer' }}>📄 Medical Prescriptions.pdf</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>123kb</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem', padding: '0.25rem 0' }}>
+                        <span style={{ color: '#3b82f6', fontWeight: 500, cursor: 'pointer' }}>📄 Check Up Result.pdf</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>123kb</span>
+                      </div>
+                    </>
+                  ) : (
+                    patientDocuments.map((doc, idx) => (
+                      <div key={idx} onClick={() => setPreviewDocument(doc)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem', padding: '0.25rem 0', cursor: 'pointer' }}>
+                        <span style={{ color: '#3b82f6', fontWeight: 500 }}>📄 {doc.title || doc.name || 'Documento'}</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>123kb</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Notes Card */}
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.25rem 1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.6rem' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Notes</h3>
+                  <button style={{ backgroundColor: '#f1f5f9', border: 'none', color: '#334155', borderRadius: '12px', padding: '0.2rem 0.75rem', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer' }}>DOWNLOAD</button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem', padding: '0.25rem 0' }}>
+                    <span style={{ color: '#3b82f6', fontWeight: 500, cursor: 'pointer' }}>📝 Note 31.06.23.pdf</span>
+                    <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>123kb</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.825rem', padding: '0.25rem 0' }}>
+                    <span style={{ color: '#3b82f6', fontWeight: 500, cursor: 'pointer' }}>📝 Note 23.06.23.pdf</span>
+                    <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>123kb</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
+            <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 12px rgba(0,0,0,0.03)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Buscar pacientes</h3>
-                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Busca por nombre, DNI o correo.</p>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Buscar pacientes</h3>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '0.2rem', marginBottom: 0 }}>Busca por nombre, DNI o correo.</p>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <SearchField value={query} onChange={setQuery} placeholder="Buscar por DNI, nombre o correo…" loading={loading} />
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{patients.length} resultados</span>
+                <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{patients.length} resultados</span>
               </div>
             </div>
 
             {loading ? (
               <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando pacientes…" /></div>
             ) : patients.length === 0 ? (
-              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
+              <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '2rem' }}>
                 <EmptyState title="No hay pacientes para mostrar" description={query ? 'Prueba con otro nombre, documento o correo.' : 'Todavía no existen pacientes registrados.'} />
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem', width: '100%' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
                 {patients.map(patient => (
                   <article
                     key={patient.id}
                     onClick={() => loadPatientDetail(patient)}
                     style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      border: '1px solid #1e293b',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
                       borderRadius: '16px',
                       padding: '1.25rem',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '1rem',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
                       cursor: 'pointer',
-                      transition: 'all 0.25s ease-in-out'
+                      transition: 'all 0.2s ease-in-out'
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.transform = 'translateY(-4px)'
+                      e.currentTarget.style.transform = 'translateY(-3px)'
                       e.currentTarget.style.borderColor = '#3b82f6'
-                      e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
+                      e.currentTarget.style.boxShadow = '0 10px 20px rgba(59, 130, 246, 0.1)'
                     }}
                     onMouseLeave={e => {
                       e.currentTarget.style.transform = 'translateY(0px)'
-                      e.currentTarget.style.borderColor = '#1e293b'
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+                      e.currentTarget.style.borderColor = '#e2e8f0'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>HC · {patient.medical_record_number || '—'}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{patient.full_name}</h3>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>HC · {patient.medical_record_number || '—'}</div>
+                        <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: '0.2rem 0 0 0' }}>{patient.full_name}</h3>
                       </div>
-                      <span className="badge badge-success">{patient.status || 'Activo'}</span>
+                      <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '0.2rem 0.6rem', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 600 }}>{patient.status || 'Activo'}</span>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc' }}>{patient.dni || patient.document_number || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc' }}>{patient.phone || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', wordBreak: 'break-all' }}>{patient.email || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Registro</span><strong style={{ color: '#f8fafc' }}>{formatDate(patient.created_at)}</strong></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', color: '#64748b', backgroundColor: '#f8fafc', padding: '0.75rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#0f172a' }}>{patient.dni || patient.document_number || '—'}</strong></div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#0f172a' }}>{patient.phone || '—'}</strong></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#0f172a', wordBreak: 'break-all' }}>{patient.email || '—'}</strong></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Registro</span><strong style={{ color: '#0f172a' }}>{formatDate(patient.created_at)}</strong></div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ID #{patient.id}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid #e2e8f0' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>ID #{patient.id}</span>
                       {isAdmin && (
                         <button
                           type="button"
-                          style={{ backgroundColor: '#ef4444', border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                          style={{ backgroundColor: '#fee2e2', border: 'none', color: '#dc2626', borderRadius: '8px', padding: '0.3rem 0.6rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
                           onClick={(e) => { e.stopPropagation(); setConfirmDelete(patient); }}
                         >
                           Eliminar
@@ -820,7 +962,7 @@ export function Patients() {
           left: 0,
           width: '100vw',
           height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
@@ -829,34 +971,34 @@ export function Patients() {
           boxSizing: 'border-box'
         }}>
           <div style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #334155',
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
             borderRadius: '20px',
             width: '100%',
             maxWidth: '1200px',
             height: '90vh',
             display: 'flex',
             flexDirection: 'column',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #1e293b' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0' }}>
               <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
                   {previewDocument.title || previewDocument.name || 'Documento clínico'}
                 </h3>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Registrado el {formatDate(previewDocument.created_at)}</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Registrado el {formatDate(previewDocument.created_at)}</span>
               </div>
               <button
                 onClick={() => setPreviewDocument(null)}
-                style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ backgroundColor: '#f1f5f9', border: 'none', color: '#334155', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ✕
               </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', flex: 1, overflow: 'hidden' }}>
-              <div style={{ backgroundColor: '#090d16', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', height: '100%' }}>
                 {previewDocument.file_url || previewDocument.url ? (
                   <iframe
                     src={previewDocument.file_url || previewDocument.url}
@@ -870,22 +1012,22 @@ export function Patients() {
                 )}
               </div>
 
-              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', backgroundColor: 'rgba(15, 23, 42, 0.4)' }}>
+              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', backgroundColor: '#ffffff' }}>
                 <div>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Descripción</h4>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Descripción</h4>
+                  <p style={{ fontSize: '0.875rem', color: '#475569', margin: 0, lineHeight: 1.5 }}>
                     {previewDocument.description || 'Sin descripción adicional proporcionada para este archivo.'}
                   </p>
                 </div>
 
-                <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Nombre del archivo</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0', wordBreak: 'break-all' }}>{previewDocument.name || previewDocument.title || '—'}</p>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Nombre del archivo</span>
+                    <p style={{ fontSize: '0.85rem', color: '#0f172a', margin: '0.15rem 0 0 0', wordBreak: 'break-all' }}>{previewDocument.name || previewDocument.title || '—'}</p>
                   </div>
                   <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Fecha de carga</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0' }}>{formatDate(previewDocument.created_at)}</p>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Fecha de carga</span>
+                    <p style={{ fontSize: '0.85rem', color: '#0f172a', margin: '0.15rem 0 0 0' }}>{formatDate(previewDocument.created_at)}</p>
                   </div>
                 </div>
 
@@ -895,7 +1037,7 @@ export function Patients() {
                       href={previewDocument.file_url || previewDocument.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ backgroundColor: '#1e293b', color: '#f8fafc', textAlign: 'center', padding: '0.65rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', border: '1px solid #334155' }}
+                      style={{ backgroundColor: '#f1f5f9', color: '#334155', textAlign: 'center', padding: '0.65rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none', border: '1px solid #cbd5e1' }}
                     >
                       Abrir en pestaña nueva ↗
                     </a>
@@ -915,6 +1057,8 @@ export function Patients() {
     </div>
   )
 }
+
+
 // ============================================================
 // Consultations
 // ============================================================
