@@ -320,6 +320,9 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
 // Patients
 // ============================================================
 
+// ============================================================
+// Patients Component
+// ============================================================
 export function Patients() {
   const { user } = useAuth()
   const [patients, setPatients] = useState([])
@@ -329,7 +332,10 @@ export function Patients() {
   const [patientDocuments, setPatientDocuments] = useState([])
   const [patientAppointments, setPatientAppointments] = useState([])
   const [loadingDocs, setLoadingDocs] = useState(false)
+  
+  // Estado para controlar edición
   const [isEditingPatient, setIsEditingPatient] = useState(false)
+  
   const [activeTab, setActiveTab] = useState('future') // 'future' | 'past'
   const [form, setForm] = useState(INITIAL_PATIENT)
   const [loading, setLoading] = useState(false)
@@ -338,21 +344,22 @@ export function Patients() {
   const [toast, notify, clearToast] = useToast()
   const debouncedQuery = useDebouncedValue(query)
 
-  // TEMA DE COLORES OSCURO / MÓDULOS DE LIMA CON INTERACTIVIDAD MEJORADA
+  // Tema de colores e interfaz
   const theme = {
-    bgApp: '#0f172a',           // Fondo oscuro elegante (Slate 900)
-    bgCard: '#1e293b',          // Fondo de tarjetas (Slate 800)
-    bgHover: '#334155',         // Fondo al hacer hover (Slate 700)
-    bgItem: '#1e293b',          // Filas y contenedor secundario
-    border: '#334155',          // Bordes sutiles
-    textPrimary: '#f8fafc',     // Texto blanco atenuado descansado
-    textMuted: '#94a3b8',       // Texto gris secundario
-    accent: '#3b82f6',          // Azul primario vibrante
-    accentHover: '#2563eb',     // Azul hover
-    badgeBg: '#1e3a8a',         // Badge azul oscuro
-    badgeText: '#93c5fd',       // Texto badge azul suave
-    badgeSuccessBg: '#064e3b',  // Badge verde oscuro
-    badgeSuccessText: '#6ee7b7' // Texto badge verde
+    bgApp: '#0f172a',
+    bgCard: '#1e293b',
+    bgHover: '#334155',
+    bgItem: '#1e293b',
+    border: '#334155',
+    textPrimary: '#f8fafc',
+    textMuted: '#94a3b8',
+    accent: '#3b82f6',
+    accentHover: '#2563eb',
+    badgeBg: '#1e3a8a',
+    badgeText: '#93c5fd',
+    badgeSuccessBg: '#064e3b',
+    badgeSuccessText: '#6ee7b7',
+    danger: '#ef4444'
   }
 
   const load = useCallback(async (q = '') => {
@@ -397,6 +404,7 @@ export function Patients() {
     }
   }
 
+  // Manejo unificado de validación de documentos
   const handleDocumentChange = (value, docType = form.document_type) => {
     const cleanValue = docType === 'dni'
       ? value.replace(/\D/g, '')
@@ -420,15 +428,19 @@ export function Patients() {
 
   const openCreate = () => {
     setForm(INITIAL_PATIENT)
+    setSelectedPatient(null)
     setDocumentError('')
     clearToast()
+    setIsEditingPatient(false)
     setView('create')
   }
 
+  // INICIALIZACIÓN DE EDICIÓN: Extrae y parsea la información del paciente seleccionado
   const startEditPatient = () => {
     if (!selectedPatient) return
     let phoneCountry = '+51'
     let phoneNumber = selectedPatient.phone || ''
+    
     Object.keys(PHONE_CONFIGS).forEach(code => {
       if (phoneNumber.startsWith(code)) {
         phoneCountry = code
@@ -448,9 +460,16 @@ export function Patients() {
       blood_type: selectedPatient.blood_type || '',
       allergies: selectedPatient.allergies || '',
     })
+    setDocumentError('')
     setIsEditingPatient(true)
   }
 
+  const cancelEdit = () => {
+    setIsEditingPatient(false)
+    setDocumentError('')
+  }
+
+  // ENVÍO DE FORMULARIO (Creación / Edición)
   const submit = async (event) => {
     event.preventDefault()
     if (documentError) return notify('Corrige el documento antes de continuar.', 'error')
@@ -466,11 +485,17 @@ export function Patients() {
         body: JSON.stringify({ ...form, dni: form.document_number, phone }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || `No se pudo guardar`)
+      if (!res.ok) throw new Error(json.message || `No se pudo procesar la solicitud`)
 
       notify(`Paciente ${isEditingPatient ? 'actualizado' : 'registrado'} correctamente.`, 'success')
+      
       if (isEditingPatient) {
-        const updated = { ...selectedPatient, ...form, dni: form.document_number, phone }
+        const updated = { 
+          ...selectedPatient, 
+          ...form, 
+          dni: form.document_number, 
+          phone 
+        }
         setSelectedPatient(updated)
         setIsEditingPatient(false)
       } else {
@@ -491,17 +516,11 @@ export function Patients() {
   const today = useMemo(() => new Date(), [])
 
   const pastVisits = useMemo(() => {
-    return patientAppointments.filter(appt => {
-      if (!appt.appointment_date) return false
-      return new Date(appt.appointment_date) < today
-    })
+    return patientAppointments.filter(appt => appt.appointment_date && new Date(appt.appointment_date) < today)
   }, [patientAppointments, today])
 
   const futureVisits = useMemo(() => {
-    return patientAppointments.filter(appt => {
-      if (!appt.appointment_date) return false
-      return new Date(appt.appointment_date) >= today
-    })
+    return patientAppointments.filter(appt => appt.appointment_date && new Date(appt.appointment_date) >= today)
   }, [patientAppointments, today])
 
   return (
@@ -514,7 +533,6 @@ export function Patients() {
       boxSizing: 'border-box',
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      {/* ESTILOS CSS CON MEDIA QUERY OPTIMIZADA PARA IMPRESIÓN */}
       <style>{`
         .btn-interactive {
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -560,7 +578,6 @@ export function Patients() {
           display: none;
         }
 
-        /* REGLAS EXCLUSIVAS PARA IMPRESIÓN */
         @media print {
           body, div, p, span, h1, h3, h4, strong {
             background-color: #ffffff !important;
@@ -611,16 +628,16 @@ export function Patients() {
 
       <Toast toast={toast} onClose={clearToast} />
 
-      {/* HEADER PRINCIPAL */}
+      {/* HEADER DE ACCIONES Y VISTA */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: theme.textPrimary, margin: 0, letterSpacing: '-0.02em' }}>
-            {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Perfil del paciente' : 'Gestión de pacientes'}
+            {view === 'create' ? 'Nuevo Paciente' : view === 'detail' ? (isEditingPatient ? 'Editar Paciente' : 'Perfil del Paciente') : 'Gestión de Pacientes'}
           </h1>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          {view === 'detail' && (
+          {view === 'detail' && !isEditingPatient && (
             <>
               <button 
                 onClick={handlePrint} 
@@ -659,16 +676,99 @@ export function Patients() {
         </div>
       </div>
 
-      {/* VISTA DETALLE */}
-      {view === 'detail' && selectedPatient ? (
+      {/* VISTA MODO EDICIÓN DIRECTA O CREACIÓN */}
+      {(view === 'create' || isEditingPatient) ? (
+        <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
+          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${theme.border}`, paddingBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: theme.textPrimary }}>
+                {isEditingPatient ? `Actualizar datos de ${selectedPatient?.full_name}` : 'Datos del Nuevo Paciente'}
+              </h3>
+              {isEditingPatient && (
+                <button type="button" onClick={cancelEdit} className="btn-interactive" style={{ backgroundColor: 'transparent', border: 'none', color: theme.textMuted, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <X size={18} /> Cancelar
+                </button>
+              )}
+            </div>
+
+            {/* SECCIÓN 1: DATOS PERSONALES */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Nombre completo *</label>
+                <input required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Tipo de Documento</label>
+                <select value={form.document_type} onChange={e => { setForm(p => ({ ...p, document_type: e.target.value })); handleDocumentChange(form.document_number, e.target.value); }} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }}>
+                  <option value="dni">DNI</option>
+                  <option value="pasaporte">Pasaporte / C.E.</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Número de Documento *</label>
+                <input required value={form.document_number} onChange={e => handleDocumentChange(e.target.value)} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: documentError ? `1px solid ${theme.danger}` : `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+                {documentError && <span style={{ fontSize: '0.7rem', color: theme.danger, marginTop: '0.2rem', display: 'block' }}>{documentError}</span>}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Fecha de Nacimiento *</label>
+                <input type="date" required value={form.date_of_birth} onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            {/* SECCIÓN 2: CONTACTO Y SALUD */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Código País / Teléfono</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <select value={form.phone_country} onChange={e => setForm(p => ({ ...p, phone_country: e.target.value }))} style={{ width: '110px', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }}>
+                    {Object.entries(PHONE_CONFIGS).map(([code]) => <option key={code} value={code}>{code}</option>)}
+                  </select>
+                  <input placeholder="999888777" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Correo Electrónico</label>
+                <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Grupo Sanguíneo</label>
+                <input placeholder="Ej. O+, A-" value={form.blood_type} onChange={e => setForm(p => ({ ...p, blood_type: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Alergias</label>
+                <input placeholder="Ej. Penicilina, NINGUNA" value={form.allergies} onChange={e => setForm(p => ({ ...p, allergies: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+              </div>
+            </div>
+
+            {/* BOTONES DE ACCIÓN FORMULARIO */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+              {isEditingPatient && (
+                <button type="button" onClick={cancelEdit} className="btn-interactive" style={{ backgroundColor: theme.bgHover, color: theme.textPrimary, border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                  Cancelar
+                </button>
+              )}
+              <button type="submit" disabled={saving || Boolean(documentError)} className="btn-interactive" style={{ backgroundColor: theme.accent, color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Save size={16} /> {saving ? 'Guardando...' : (isEditingPatient ? 'Guardar Cambios' : 'Registrar Paciente')}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : view === 'detail' && selectedPatient ? (
+        
+        /* VISTA DETALLE PERFIL */
         <div className="print-full-width" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
-            {/* TARJETA SUPERIOR DE PERFIL */}
+            {/* TARJETA RESUMEN DEL PACIENTE */}
             <div className="card-hover print-full-width" style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
               
-              {/* AVATAR Y DATOS BÁSICOS */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: `1px solid ${theme.border}`, paddingRight: '1rem' }}>
                 <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.bgHover, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem', border: `1px solid ${theme.border}` }}>
                   <User size={44} color={theme.textMuted} />
@@ -715,53 +815,38 @@ export function Patients() {
 
             </div>
 
-            {/* SECCIÓN DE CITAS CON PESTAÑAS (PANTALLA) */}
+            {/* CITAS Y HISTORIAL */}
             <div className="card-hover print-tabs-container" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
-              
               <div style={{ display: 'flex', gap: '2rem', borderBottom: `1px solid ${theme.border}`, paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
-                <span
-                  onClick={() => setActiveTab('future')}
-                  className="tab-interactive"
-                  style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'future' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'future' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}
-                >
+                <span onClick={() => setActiveTab('future')} className="tab-interactive" style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'future' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'future' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}>
                   Citas futuras ({futureVisits.length})
                 </span>
-                <span
-                  onClick={() => setActiveTab('past')}
-                  className="tab-interactive"
-                  style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'past' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'past' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}
-                >
+                <span onClick={() => setActiveTab('past')} className="tab-interactive" style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'past' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'past' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}>
                   Citas pasadas ({pastVisits.length})
                 </span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {(activeTab === 'future' ? futureVisits : pastVisits).length === 0 ? (
-                  <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1.5rem 0' }}>
-                    No hay citas registradas en esta sección.
-                  </p>
+                  <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1.5rem 0' }}>No hay citas registradas.</p>
                 ) : (
                   (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
                     <div key={appt.id} className="row-interactive" style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 100px', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
                       <div style={{ fontWeight: 600, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Calendar size={14} />
-                        {new Date(appt.appointment_date).toLocaleDateString()}
+                        <Calendar size={14} /> {new Date(appt.appointment_date).toLocaleDateString()}
                       </div>
                       <div><span style={{ color: theme.textMuted }}>Especialidad:</span> <span style={{ fontWeight: 600, color: theme.textPrimary }}>{appt.specialty}</span></div>
                       <div><span style={{ color: theme.textMuted }}>Médico:</span> <span style={{ fontWeight: 600, color: theme.textPrimary }}>{appt.doctor_name}</span></div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ backgroundColor: appt.status === 'scheduled' ? theme.badgeBg : theme.bgHover, color: appt.status === 'scheduled' ? theme.badgeText : theme.textMuted, padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600 }}>
-                          {appt.status}
-                        </span>
+                        <span style={{ backgroundColor: appt.status === 'scheduled' ? theme.badgeBg : theme.bgHover, color: appt.status === 'scheduled' ? theme.badgeText : theme.textMuted, padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600 }}>{appt.status}</span>
                       </div>
                     </div>
                   ))
                 )}
               </div>
-
             </div>
 
-            {/* VISTA COMPLETA DE CITAS SOLO PARA IMPRESIÓN */}
+            {/* SECCIÓN SOLO IMPRESIÓN */}
             <div className="print-only-section">
               <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Historial Completo de Citas</h4>
               {patientAppointments.length === 0 ? (
@@ -778,7 +863,7 @@ export function Patients() {
 
           </div>
 
-          {/* COLUMNA DERECHA: DOCUMENTOS */}
+          {/* DOCUMENTOS */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div className="card-hover print-full-width" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -808,24 +893,8 @@ export function Patients() {
           </div>
 
         </div>
-      ) : view === 'create' || isEditingPatient ? (
-        /* FORMULARIO */
-        <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h3 style={{ fontSize: '1rem', margin: 0, color: theme.textPrimary }}>{isEditingPatient ? 'Editar Paciente' : 'Registrar Paciente'}</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              <input placeholder="Nombre completo *" required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
-              <input placeholder="Número de documento *" required value={form.document_number} onChange={e => handleDocumentChange(e.target.value)} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
-              <input type="date" required value={form.date_of_birth} onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
-              <input placeholder="Teléfono" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
-            </div>
-            <button type="submit" disabled={saving} className="btn-interactive" style={{ backgroundColor: theme.accent, color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', cursor: 'pointer', alignSelf: 'flex-end', fontWeight: 600 }}>
-              {saving ? 'Guardando...' : 'Guardar Paciente'}
-            </button>
-          </form>
-        </div>
       ) : (
-        /* LISTADO */
+        /* VISTA LISTA PRINCIPAL */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <input
             type="text"
