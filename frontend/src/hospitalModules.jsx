@@ -29,8 +29,9 @@ import {
   UserCheck,
   Printer,
   Calendar,
+  ArrowLeft,
   Clock
-} from 'lucide-react'
+} from 'lucide-react';
 // ============================================================
 // Shared UX / utilities
 // ============================================================
