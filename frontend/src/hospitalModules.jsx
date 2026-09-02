@@ -49,7 +49,7 @@ const PHONE_CONFIGS = {
   '+56': 'Chile (+56)',
   '+54': 'Argentina (+54)'
 }
-}
+
 
 const INITIAL_CONSULTATION = {
   patient_id: '',
