@@ -16,7 +16,8 @@ import {
   User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
-  X, Save, Eye, ExternalLink, Download
+  X, Save, Eye, ExternalLink, Download, FileText, ExternalLink, X, AlertTriangle, Download, 
+  Search, Filter
 } from 'lucide-react';
 
 
@@ -475,6 +476,161 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
   )
 }
 
+
+// ==========================================
+// COMPONENTE PREVIEW MODAL (Soporte PDF/Imágenes Supabase)
+// ==========================================
+const getDocumentUrl = (doc) => {
+  if (!doc) return '';
+  return doc.file_url || doc.url || doc.path || '';
+};
+
+const isImageUrl = (url) => {
+  if (!url) return false;
+  return /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(url);
+};
+
+const DocumentPreviewModal = ({ previewDoc, setPreviewDoc }) => {
+  if (!previewDoc) return null;
+
+  const docUrl = getDocumentUrl(previewDoc);
+  const isImage = isImageUrl(docUrl);
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+      padding: '1.5rem'
+    }}>
+      <div style={{
+        backgroundColor: '#0f172a',
+        border: '1px solid #334155',
+        borderRadius: '16px',
+        width: '100%',
+        maxWidth: '900px',
+        height: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+      }}>
+        {/* CABECERA MODAL */}
+        <div style={{
+          display: 'flex',
+          justify: 'space-between',
+          alignItems: 'center',
+          padding: '1rem 1.25rem',
+          borderBottom: '1px solid #1e293b',
+          backgroundColor: '#090d16'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FileText size={18} color="#38bdf8" />
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: '#f8fafc' }}>
+              {previewDoc.file_name || previewDoc.title || 'Previsualización de Documento'}
+            </h3>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {docUrl && (
+              <a 
+                href={docUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ 
+                  color: '#38bdf8', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.3rem', 
+                  textDecoration: 'none', 
+                  fontSize: '0.8rem',
+                  fontWeight: 500
+                }}
+              >
+                <ExternalLink size={14} /> Abrir en pestaña nueva
+              </a>
+            )}
+            <button 
+              onClick={() => setPreviewDoc(null)} 
+              style={{ 
+                backgroundColor: 'transparent', 
+                border: 'none', 
+                color: '#94a3b8', 
+                cursor: 'pointer', 
+                padding: '0.2rem' 
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* CONTENIDO DEL PREVIEW */}
+        <div style={{
+          flex: 1,
+          padding: '1rem',
+          overflowY: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#020617'
+        }}>
+          {docUrl ? (
+            isImage ? (
+              <img 
+                src={docUrl} 
+                alt={previewDoc.file_name || 'Documento'} 
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px' }} 
+              />
+            ) : (
+              <object
+                data={docUrl}
+                type="application/pdf"
+                width="100%"
+                height="100%"
+                style={{ borderRadius: '8px', border: 'none' }}
+              >
+                <div style={{ textAlign: 'center', color: '#f8fafc', padding: '2rem' }}>
+                  <AlertTriangle size={40} color="#f59e0b" style={{ marginBottom: '1rem' }} />
+                  <p style={{ margin: '0 0 1rem 0', color: '#94a3b8' }}>Este navegador no soporta la vista previa directa del PDF.</p>
+                  <a 
+                    href={docUrl} 
+                    download
+                    style={{
+                      backgroundColor: '#3b82f6',
+                      color: '#fff',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <Download size={16} /> Descargar Documento
+                  </a>
+                </div>
+              </object>
+            )
+          ) : (
+            <div style={{ textAlign: 'center', color: '#ef4444', padding: '2rem' }}>
+              <AlertTriangle size={36} style={{ marginBottom: '0.5rem' }} />
+              <p style={{ margin: 0, fontSize: '0.85rem' }}>No se encontró un enlace URL válido para este archivo.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 
 // ============================================================
@@ -3206,6 +3362,581 @@ export function Documents() {
         )}
 
       </div>
+    </div>
+  );
+// ==========================================
+// COMPONENTE PRINCIPAL
+// ==========================================
+export function Documents() {
+  const [documents, setDocuments] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [saving, setSaving] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState(null); // Estado para el Modal de Previsualización
+  const [toast, notify, clearToast] = useToast();
+  const { user, token } = useAuth();
+
+  const [templates, setTemplates] = useState([]);
+  const [templateName, setTemplateName] = useState('');
+  const [templateRows, setTemplateRows] = useState([
+    [
+      { id_campo: `f_${Date.now()}_1`, nombre_campo: 'Campo 1', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'dark' },
+      { id_campo: `f_${Date.now()}_2`, nombre_campo: 'Campo 2', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'muted' }
+    ]
+  ]);
+
+  const [form, setForm] = useState({ patient_id: '', document_type: 'ingreso', template_id: '', description: '', dynamicValues: {} });
+
+  // Cargar documentos generales
+  const loadDocuments = useCallback(async () => {
+    try {
+      const res = await apiFetch('/documents', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setDocuments(await res.json() || []);
+    } catch (error) {
+      notify('Error al cargar documentos', 'error');
+    }
+  }, [notify, token]);
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await apiFetch('/templates', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTemplates(data || []);
+      }
+    } catch (error) {
+      notify('Error al cargar plantillas desde la base de datos', 'error');
+    }
+  }, [notify, token]);
+
+  useEffect(() => {
+    loadDocuments();
+    loadTemplates();
+  }, [loadDocuments, loadTemplates]);
+
+  // Lógica de eliminación de documento registrado
+  const handleDeleteDocument = async (docId) => {
+    if (!window.confirm('¿Deseas eliminar este documento del sistema?')) return;
+    try {
+      const res = await apiFetch(`/documents/${docId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        notify('Documento eliminado correctamente', 'success');
+        loadDocuments();
+      } else {
+        throw new Error('Error al eliminar el documento');
+      }
+    } catch (err) {
+      notify(err.message, 'error');
+    }
+  };
+
+  // Filtrado dinámico por texto y categoría/tipo
+  const filteredDocuments = documents.filter(doc => {
+    const titleMatch = (doc.file_name || doc.title || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const patientMatch = String(doc.patient_id || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = titleMatch || patientMatch;
+    const matchesType = filterType === 'all' || (doc.document_type || doc.category) === filterType;
+    return matchesSearch && matchesType;
+  });
+
+  // Funciones de gestión del grid
+  const addRow = () => {
+    setTemplateRows(prev => [
+      ...prev,
+      [{ id_campo: `f_${Date.now()}_1`, nombre_campo: 'Nuevo Campo', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'muted' }]
+    ]);
+  };
+
+  const addCellToRow = (rIdx) => {
+    setTemplateRows(prev => {
+      const copy = prev.map(row => row.map(cell => ({ ...cell })));
+      if (copy[rIdx].length >= 5) {
+        notify('Máximo 5 celdas permitidas por fila para mantener el orden visual.', 'error');
+        return copy;
+      }
+      copy[rIdx].push({
+        id_campo: `f_${Date.now()}_${copy[rIdx].length + 1}`,
+        nombre_campo: `Campo ${copy[rIdx].length + 1}`,
+        tipo_campo: 'texto',
+        validaciones: {},
+        width: '200px',
+        role: 'input',
+        color: 'muted'
+      });
+      return copy;
+    });
+  };
+
+  const removeCell = (rIdx, cIdx) => {
+    setTemplateRows(prev => {
+      const copy = prev.map(row => row.map(cell => ({ ...cell })));
+      if (copy[rIdx].length <= 1) {
+        notify('La fila debe contener al menos 1 celda.', 'error');
+        return copy;
+      }
+      copy[rIdx].splice(cIdx, 1);
+      return copy;
+    });
+  };
+
+  const removeRow = (rIdx) => {
+    if (templateRows.length <= 1) return notify('Debe conservar al menos una fila en la plantilla.', 'error');
+    setTemplateRows(prev => prev.filter((_, i) => i !== rIdx));
+  };
+
+  const updateCellConfig = (rIdx, cIdx, field, val) => {
+    setTemplateRows(prev => {
+      const copy = prev.map(row => row.map(cell => ({ ...cell })));
+      copy[rIdx][cIdx][field] = val;
+      return copy;
+    });
+  };
+
+  const startResizing = (e, rIdx, cIdx) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const currentCell = templateRows[rIdx][cIdx];
+    const currentWidth = parseInt(currentCell.width || '200', 10);
+
+    const onMouseMove = (moveEvent) => {
+      const diffX = moveEvent.clientX - startX;
+      const newWidth = Math.max(100, currentWidth + diffX);
+      setTemplateRows(prev => {
+        const copy = prev.map(row => row.map(cell => ({ ...cell })));
+        copy[rIdx][cIdx].width = `${newWidth}px`;
+        return copy;
+      });
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const duplicateTemplate = (template) => {
+    setTemplateName(`${template.nombre || template.name} (Copia)`);
+    if (template.structure) setTemplateRows(template.structure);
+    setShowTemplateBuilder(true);
+    notify(`Plantilla cargada en el diseñador.`, 'success');
+  };
+
+  const saveTemplate = async (e) => {
+    e.preventDefault();
+    if (!templateName.trim()) return notify('Asigne un nombre a la plantilla.', 'error');
+
+    const newTemplatePayload = { nombre: templateName, version: 1, structure: templateRows };
+
+    try {
+      const res = await apiFetch('/templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newTemplatePayload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al guardar la plantilla');
+
+      notify('Plantilla guardada correctamente.', 'success');
+      setTemplateName('');
+      setShowTemplateBuilder(false);
+      loadTemplates();
+    } catch (error) {
+      notify(error.message, 'error');
+    }
+  };
+
+  const deleteTemplate = async (templateId) => {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar esta plantilla?')) return;
+    try {
+      const res = await apiFetch(`/templates/${templateId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Error al eliminar la plantilla');
+      notify('Plantilla eliminada correctamente.', 'success');
+      loadTemplates();
+    } catch (error) {
+      notify(error.message, 'error');
+    }
+  };
+
+  const submitDocument = async (e) => {
+    e.preventDefault();
+    if (!form.patient_id || !form.template_id) {
+      return notify('Complete el Paciente y seleccione una Plantilla.', 'error');
+    }
+    setSaving(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('patient_id', form.patient_id);
+      formData.append('document_type', form.document_type);
+      formData.append('template_id', form.template_id);
+      formData.append('description', form.description);
+      formData.append('dynamicValues', JSON.stringify(form.dynamicValues));
+
+      const res = await apiFetch('/documents/upload-supabase', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Error al generar el PDF');
+
+      notify('Documento PDF generado y registrado con éxito.', 'success');
+      setShowForm(false);
+      setForm({ patient_id: '', document_type: 'ingreso', template_id: '', description: '', dynamicValues: {} });
+      loadDocuments();
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const activeTemplate = templates.find(t => String(t.id) === String(form.template_id));
+
+  return (
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+
+        {/* CABECERA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>Gestión de Formularios y Documentos</h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem' }}>Control estricto de campos dinámicos, documentos generados y plantillas.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer' }} onClick={() => setShowTemplateBuilder(v => !v)}>
+              {showTemplateBuilder ? 'Cerrar Diseñador' : '⚙️ Diseñador de Plantillas (Grid Libre)'}
+            </button>
+            <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600 }} onClick={() => setShowForm(v => !v)}>
+              {showForm ? 'Cancelar' : '＋ Asignar Formulario a Paciente'}
+            </button>
+          </div>
+        </div>
+
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* LISTADO DE TEMPLATES */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            {templates.map(tpl => (
+              <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
+                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={() => duplicateTemplate(tpl)} title="Copiar / Duplicar" style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>📋</button>
+                  <button onClick={() => deleteTemplate(tpl.id)} title="Eliminar" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>🗑️</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* DISEÑADOR GRID EXCEL */}
+        {showTemplateBuilder && (
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid #3b82f6', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Constructor de Formularios (Grid Estilo Excel)</h3>
+            <input
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 1rem', outline: 'none' }}
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="Nombre del nuevo template (ej. Ficha de Evolución Diaria)"
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem' }}>
+              {templateRows.map((row, rIdx) => (
+                <div key={rIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#090d16', padding: '0.75rem', borderRadius: '12px', border: '1px dashed #334155' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold', minWidth: '50px' }}>Fila {rIdx + 1}</span>
+
+                  {row.map((cell, cIdx) => (
+                    <div
+                      key={cIdx}
+                      style={{
+                        position: 'relative',
+                        width: cell.width,
+                        minWidth: '100px',
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        padding: '0.5rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <input
+                          style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 'bold', width: '100%', outline: 'none' }}
+                          value={cell.nombre_campo}
+                          onChange={e => updateCellConfig(rIdx, cIdx, 'nombre_campo', e.target.value)}
+                          placeholder="Etiqueta"
+                        />
+                        <button onClick={() => removeCell(rIdx, cIdx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem' }}>×</button>
+                      </div>
+
+                      <select style={{ background: '#0f172a', color: '#38bdf8', fontSize: '0.65rem', border: 'none', borderRadius: '4px', padding: '0.1rem' }} value={cell.tipo_campo} onChange={e => updateCellConfig(rIdx, cIdx, 'tipo_campo', e.target.value)}>
+                        <option value="texto">Texto</option>
+                        <option value="número">Número</option>
+                        <option value="fecha">Fecha</option>
+                        <option value="archivo">Archivo</option>
+                      </select>
+
+                      <div
+                        onMouseDown={(e) => startResizing(e, rIdx, cIdx)}
+                        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '6px', cursor: 'col-resize', backgroundColor: 'rgba(56, 189, 248, 0.3)', borderTopRightRadius: '8px', borderBottomRightRadius: '8px' }}
+                      />
+                    </div>
+                  ))}
+
+                  {row.length < 5 && (
+                    <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem' }}>+ Columna</button>
+                  )}
+
+                  <button onClick={() => removeRow(rIdx)} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', marginLeft: 'auto' }}>
+                    Eliminar Fila
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #334155' }}>
+              <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}>＋ Agregar Nueva Fila</button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={() => setShowTemplateBuilder(false)} style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={saveTemplate} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Guardar Plantilla en DB</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FORMULARIO ASIGNACIÓN */}
+        {showForm && (
+          <form onSubmit={submitDocument} style={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Rellenar Formulario Clínico para Paciente</h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+              <input required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))} placeholder="ID Paciente (FK)" />
+
+              <select style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.document_type} onChange={e => setForm(p => ({ ...p, document_type: e.target.value }))}>
+                <option value="ingreso">Ingreso</option>
+                <option value="evolución">Evolución</option>
+                <option value="alta">Alta</option>
+              </select>
+
+              <select required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value, dynamicValues: {} }))}>
+                <option value="">Seleccione Plantilla</option>
+                {templates.map(t => <option key={t.id} value={t.id}>{t.nombre || t.name}</option>)}
+              </select>
+            </div>
+
+            {activeTemplate && activeTemplate.structure && (
+              <div style={{ background: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#38bdf8' }}>Campos: {activeTemplate.nombre || activeTemplate.name}</h4>
+
+                {activeTemplate.structure.map((row, rIdx) => (
+                  <div key={rIdx} style={{ display: 'grid', gridTemplateColumns: `repeat(${row.length}, 1fr)`, gap: '1rem' }}>
+                    {row.map((cell, cIdx) => {
+                      const key = `${rIdx}-${cIdx}`;
+                      return (
+                        <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <label style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{cell.nombre_campo}</label>
+                          <input
+                            type={cell.tipo_campo === 'número' ? 'number' : cell.tipo_campo === 'fecha' ? 'date' : 'text'}
+                            style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem', borderRadius: '6px', outline: 'none' }}
+                            value={form.dynamicValues[key] || ''}
+                            onChange={e => setForm(p => ({ ...p, dynamicValues: { ...p.dynamicValues, [key]: e.target.value } }))}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button type="submit" disabled={saving || !form.template_id} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+                {saving ? 'Guardando en Base de Datos...' : 'Registrar y Generar PDF'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* ========================================== */}
+        {/* LISTADO Y PREVISUALIZACIÓN DE DOCUMENTOS  */}
+        {/* ========================================== */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Documentos Registrados ({filteredDocuments.length})
+            </h3>
+
+            {/* FILTROS DE BÚSQUEDA Y CATEGORÍA */}
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1, maxWidth: '500px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search size={16} color="#64748b" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder="Buscar por archivo o ID Paciente..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #334155',
+                    color: '#f8fafc',
+                    padding: '0.5rem 0.5rem 0.5rem 2.2rem',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <select
+                value={filterType}
+                onChange={e => setFilterType(e.target.value)}
+                style={{
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #334155',
+                  color: '#f8fafc',
+                  padding: '0.5rem',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  outline: 'none'
+                }}
+              >
+                <option value="all">Todos los tipos</option>
+                <option value="ingreso">Ingreso</option>
+                <option value="evolución">Evolución</option>
+                <option value="alta">Alta</option>
+              </select>
+            </div>
+          </div>
+
+          {/* TABLA DE DOCUMENTOS */}
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflow: 'hidden' }}>
+            {filteredDocuments.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                <File size={36} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                <p style={{ margin: 0 }}>No se encontraron documentos registrados.</p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #1e293b', color: '#64748b', backgroundColor: 'rgba(15, 23, 42, 0.6)' }}>
+                    <th style={{ padding: '0.85rem 1rem' }}>Documento</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Paciente ID</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Tipo</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Fecha</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDocuments.map(doc => (
+                    <tr key={doc.id} style={{ borderBottom: '1px solid #1e293b', color: '#cbd5e1' }}>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 500, color: '#f8fafc' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <FileText size={16} color="#38bdf8" />
+                          <span>{doc.file_name || doc.title || 'Documento sin nombre'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <User size={14} color="#64748b" /> {doc.patient_id || 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          textTransform: 'capitalize',
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: '6px',
+                          backgroundColor: doc.document_type === 'ingreso' ? 'rgba(56, 189, 248, 0.1)' : 'rgba(168, 85, 247, 0.1)',
+                          color: doc.document_type === 'ingreso' ? '#38bdf8' : '#c084fc',
+                          border: `1px solid ${doc.document_type === 'ingreso' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`
+                        }}>
+                          {doc.document_type || doc.category || 'General'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', color: '#94a3b8' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <Calendar size={14} color="#64748b" /> 
+                          {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => setPreviewDoc(doc)}
+                            style={{
+                              backgroundColor: '#1e293b',
+                              border: '1px solid #334155',
+                              color: '#38bdf8',
+                              padding: '0.4rem 0.6rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 500
+                            }}
+                          >
+                            <Eye size={14} /> Ver PDF
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            style={{
+                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              color: '#ef4444',
+                              padding: '0.4rem 0.5rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                            title="Eliminar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* MODAL PREVIEW DE DOCUMENTOS */}
+      <DocumentPreviewModal 
+        previewDoc={previewDoc} 
+        setPreviewDoc={setPreviewDoc} 
+      />
     </div>
   );
 }
