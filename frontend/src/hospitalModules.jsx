@@ -14,7 +14,7 @@ import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
 import {User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
-  FileText, Download, Phone, Heart, Activity, File
+  FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
 } from 'lucide-react';
 
 
@@ -471,102 +471,119 @@ export function Patients() {
 
   const handlePrint = () => window.print()
 
-  const todayStr = new Date().toISOString().slice(0, 10)
+  // LÓGICA DE FILTRADO POR FECHA ACTUAL
+  const today = useMemo(() => new Date(), [])
 
   const pastVisits = useMemo(() => {
-    return patientAppointments.filter(appt => appt.appointment_date && appt.appointment_date.slice(0, 10) < todayStr)
-  }, [patientAppointments, todayStr])
+    return patientAppointments.filter(appt => {
+      if (!appt.appointment_date) return false
+      return new Date(appt.appointment_date) < today
+    })
+  }, [patientAppointments, today])
 
   const futureVisits = useMemo(() => {
-    return patientAppointments.filter(appt => appt.appointment_date && appt.appointment_date.slice(0, 10) >= todayStr)
-  }, [patientAppointments, todayStr])
+    return patientAppointments.filter(appt => {
+      if (!appt.appointment_date) return false
+      return new Date(appt.appointment_date) >= today
+    })
+  }, [patientAppointments, today])
 
   return (
-    <div style={{ padding: '2rem', backgroundColor: '#f4f6f9', color: '#1e293b', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: '2rem', backgroundColor: '#f8fafc', color: '#1e293b', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
       <Toast toast={toast} onClose={clearToast} />
 
-      {/* HEADER DE NAVEGACIÓN */}
+      {/* HEADER DE NAVEGACIÓN (SIN MENÚ DE HAMBURGUESA / LENGUAJE / LOGO DENMED) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-            {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Patient profile' : 'Gestión de pacientes'}
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
+            {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Perfil del paciente' : 'Gestión de pacientes'}
           </h1>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           {view === 'detail' && (
             <>
-              <button onClick={handlePrint} style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '20px', padding: '0.4rem 1.2rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
-                PRINT
+              <button 
+                onClick={handlePrint} 
+                style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '8px', padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+              >
+                <Printer size={14} /> Imprimir
               </button>
-              <button onClick={startEditPatient} style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '20px', padding: '0.4rem 1.2rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
-                EDIT
+              <button 
+                onClick={startEditPatient} 
+                style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+              >
+                <Edit3 size={14} /> Editar
               </button>
             </>
           )}
 
           {view === 'list' ? (
-            <button onClick={openCreate} style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '20px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+            <button onClick={openCreate} style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
               <Plus size={16} /> Nuevo paciente
             </button>
           ) : (
-            <button onClick={() => { setView('list'); setIsEditingPatient(false); }} style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '20px', padding: '0.4rem 1.2rem', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+            <button onClick={() => { setView('list'); setIsEditingPatient(false); }} style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '8px', padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
               <ArrowLeft size={16} /> Volver
             </button>
           )}
         </div>
       </div>
 
-      {/* VISTA DETALLE DEL PACIENTE (ESTILO DASHBOARD CLÍNICA) */}
+      {/* VISTA DETALLE DEL PACIENTE */}
       {view === 'detail' && selectedPatient ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
           
           {/* COLUMNA IZQUIERDA (INFORMACIÓN GENERAL Y CITAS) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
-            {/* TARJETA SUPERIOR DE INFORMACIÓN Y AVATAR */}
-            <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.5rem', gap: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            {/* TARJETA SUPERIOR: PERFIL, INFORMACIÓN Y ANTECEDENTES */}
+            <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem', gap: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               
               {/* PERFIL / AVATAR */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: '1px solid #f1f5f9', paddingRight: '1rem' }}>
-                <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: '0.75rem' }}>
-                  <User size={48} color="#94a3b8" />
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: '0.75rem' }}>
+                  <User size={44} color="#64748b" />
                 </div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.25rem 0' }}>{selectedPatient.full_name}</h3>
-                <span style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600, marginBottom: '0.25rem' }}>{selectedPatient.phone || '—'}</span>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{selectedPatient.email || 'sin correo'}</span>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#1e293b', margin: '0 0 0.25rem 0' }}>{selectedPatient.full_name}</h3>
+                <span style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Phone size={12} /> {selectedPatient.phone || '—'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Mail size={12} /> {selectedPatient.email || 'sin correo'}
+                </span>
               </div>
 
-              {/* GENERAL INFORMATION */}
+              {/* INFORMACIÓN GENERAL */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>General information</h4>
-                  <Edit3 size={12} color="#94a3b8" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Información General</h4>
+                  <Edit3 size={14} color="#64748b" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
                 </div>
                 <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Date of birth:</span><strong style={{ color: '#334155' }}>{selectedPatient.date_of_birth?.slice(0, 10) || '—'}</strong></div>
-                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Document / DNI:</span><strong style={{ color: '#334155' }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
-                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Sex:</span><strong style={{ color: '#334155' }}>{selectedPatient.sex || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b', display: 'inline-block', width: '120px' }}>Fecha nacimiento:</span><strong style={{ color: '#334155' }}>{selectedPatient.date_of_birth?.slice(0, 10) || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b', display: 'inline-block', width: '120px' }}>Documento / DNI:</span><strong style={{ color: '#334155' }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b', display: 'inline-block', width: '120px' }}>Sexo:</span><strong style={{ color: '#334155' }}>{selectedPatient.sex || '—'}</strong></div>
                 </div>
               </div>
 
-              {/* ANAMNESIS */}
+              {/* ANTECEDENTES (CAMBIADO DE ANAMNESIS) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: '1px solid #f1f5f9', paddingLeft: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Anamnesis</h4>
-                  <Edit3 size={12} color="#94a3b8" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Antecedentes</h4>
+                  <Edit3 size={14} color="#64748b" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
                 </div>
                 <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Allergies:</span><strong style={{ color: '#334155' }}>{selectedPatient.allergies || 'None'}</strong></div>
-                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Blood type:</span><strong style={{ color: '#334155' }}>{selectedPatient.blood_type || '—'}</strong></div>
-                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Status:</span><strong style={{ color: '#10b981' }}>{selectedPatient.status || 'Active'}</strong></div>
+                  <div><span style={{ color: '#64748b', display: 'inline-block', width: '100px' }}>Alergias:</span><strong style={{ color: '#334155' }}>{selectedPatient.allergies || 'Ninguna'}</strong></div>
+                  <div><span style={{ color: '#64748b', display: 'inline-block', width: '100px' }}>Grupo sanguíneo:</span><strong style={{ color: '#334155' }}>{selectedPatient.blood_type || '—'}</strong></div>
+                  <div><span style={{ color: '#64748b', display: 'inline-block', width: '100px' }}>Estado:</span><strong style={{ color: '#10b981' }}>{selectedPatient.status || 'Activo'}</strong></div>
                 </div>
               </div>
 
             </div>
 
-            {/* TABLA / PESTAÑAS DE VISITAS */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            {/* TABLA / PESTAÑAS DE VISITAS (SIN TRATAMIENTOS PLANIFICADOS) */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               
               {/* NAVEGACIÓN PESTAÑAS */}
               <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
@@ -574,30 +591,33 @@ export function Patients() {
                   onClick={() => setActiveTab('future')}
                   style={{ fontSize: '0.85rem', fontWeight: 600, color: activeTab === 'future' ? '#3b82f6' : '#64748b', borderBottom: activeTab === 'future' ? '2px solid #3b82f6' : 'none', paddingBottom: '0.75rem', cursor: 'pointer' }}
                 >
-                  Future visits ({futureVisits.length})
+                  Citas futuras ({futureVisits.length})
                 </span>
                 <span
                   onClick={() => setActiveTab('past')}
                   style={{ fontSize: '0.85rem', fontWeight: 600, color: activeTab === 'past' ? '#3b82f6' : '#64748b', borderBottom: activeTab === 'past' ? '2px solid #3b82f6' : 'none', paddingBottom: '0.75rem', cursor: 'pointer' }}
                 >
-                  Past visits ({pastVisits.length})
+                  Citas pasadas ({pastVisits.length})
                 </span>
               </div>
 
-              {/* CONTENIDO PESTAÑA */}
+              {/* CONTENIDO DE PESTAÑAS CON LÓGICA TEMPORAL */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {(activeTab === 'future' ? futureVisits : pastVisits).length === 0 ? (
-                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', padding: '1.5rem 0' }}>
-                    No hay visitas para mostrar en esta sección.
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', textAlign: 'center', padding: '1.5rem 0' }}>
+                    No hay citas registradas para esta categoría.
                   </p>
                 ) : (
                   (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
-                    <div key={appt.id} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr 100px', backgroundColor: '#f8fafc', borderRadius: '10px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem' }}>
-                      <div style={{ fontWeight: 600, color: '#3b82f6' }}>{appt.appointment_date?.slice(0, 10)}</div>
-                      <div><span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Especialidad:</span> <span style={{ fontWeight: 500 }}>{appt.specialty}</span></div>
-                      <div><span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Médico:</span> <span style={{ fontWeight: 500 }}>{appt.doctor_name}</span></div>
+                    <div key={appt.id} style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 100px', backgroundColor: '#f8fafc', borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem' }}>
+                      <div style={{ fontWeight: 600, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <Calendar size={14} />
+                        {new Date(appt.appointment_date).toLocaleDateString()}
+                      </div>
+                      <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>Especialidad:</span> <span style={{ fontWeight: 500 }}>{appt.specialty}</span></div>
+                      <div><span style={{ color: '#64748b', fontSize: '0.75rem' }}>Médico:</span> <span style={{ fontWeight: 500 }}>{appt.doctor_name}</span></div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ backgroundColor: appt.status === 'Scheduled' ? '#e0f2fe' : '#f1f5f9', color: appt.status === 'Scheduled' ? '#0284c7' : '#475569', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600 }}>
+                        <span style={{ backgroundColor: appt.status === 'scheduled' ? '#e0f2fe' : '#f1f5f9', color: appt.status === 'scheduled' ? '#0284c7' : '#475569', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600 }}>
                           {appt.status}
                         </span>
                       </div>
@@ -610,50 +630,30 @@ export function Patients() {
 
           </div>
 
-          {/* COLUMNA DERECHA (ARCHIVOS Y NOTAS) */}
+          {/* COLUMNA DERECHA: SECCIÓN FILES ÚNICAMENTE (SE ELIMINÓ NOTAS Y BOTÓN DOWNLOAD) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
-            {/* SECCIÓN FILES */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Files</h4>
-                <button style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#3b82f6', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.6rem', cursor: 'pointer' }}>DOWNLOAD</button>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Documentos</h4>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {loadingDocs ? (
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Cargando archivos...</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Cargando documentos...</span>
                 ) : patientDocuments.length === 0 ? (
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Sin archivos registrados.</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Sin documentos adjuntos.</span>
                 ) : (
                   patientDocuments.map((doc, idx) => (
                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <FileText size={16} color="#64748b" />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#334155' }}>{doc.title || doc.file_name || 'Documento.pdf'}</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#334155' }}>{doc.file_name || doc.document_type}</span>
                       </div>
-                      <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{doc.size || '123kb'}</span>
+                      <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{doc.status || 'Adjunto'}</span>
                     </div>
                   ))
                 )}
-              </div>
-            </div>
-
-            {/* SECCIÓN NOTES */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Notes</h4>
-                <button style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#3b82f6', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.6rem', cursor: 'pointer' }}>DOWNLOAD</button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <File size={16} color="#64748b" />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#334155' }}>Note_31.08.26.pdf</span>
-                  </div>
-                  <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>123kb</span>
-                </div>
               </div>
             </div>
 
@@ -662,9 +662,9 @@ export function Patients() {
         </div>
       ) : view === 'create' || isEditingPatient ? (
         /* FORMULARIO DE PACIENTE */
-        <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.5rem' }}>
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.5rem' }}>
           <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h3 style={{ fontSize: '1rem', margin: 0 }}>{isEditingPatient ? 'Editar Paciente' : 'Registrar Paciente'}</h3>
+            <h3 style={{ fontSize: '1rem', margin: 0, color: '#1e293b' }}>{isEditingPatient ? 'Editar Paciente' : 'Registrar Paciente'}</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
               <input placeholder="Nombre completo *" required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
               <input placeholder="Número de documento *" required value={form.document_number} onChange={e => handleDocumentChange(e.target.value)} style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
@@ -684,7 +684,7 @@ export function Patients() {
             placeholder="Buscar por DNI o nombre..."
             value={query}
             onChange={e => setQuery(e.target.value)}
-            style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            style={{ padding: '0.6rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', width: '100%', boxSizing: 'border-box' }}
           />
 
           {loading ? (
@@ -693,7 +693,7 @@ export function Patients() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
               {patients.map(p => (
                 <div key={p.id} onClick={() => loadPatientDetail(p)} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', cursor: 'pointer' }}>
-                  <h4 style={{ margin: '0 0 0.25rem 0', color: '#0f172a' }}>{p.full_name}</h4>
+                  <h4 style={{ margin: '0 0 0.25rem 0', color: '#1e293b' }}>{p.full_name}</h4>
                   <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>DNI: {p.dni || p.document_number || '—'}</p>
                 </div>
               ))}
@@ -704,7 +704,6 @@ export function Patients() {
     </div>
   )
 }
-
 // ============================================================
 // Consultations
 // ============================================================
