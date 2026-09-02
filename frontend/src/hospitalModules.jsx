@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useState, useEffect, useEffect, useMemo, useRef } from 'react'
 import {
   Bar,
   BarChart,
