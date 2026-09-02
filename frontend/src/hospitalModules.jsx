@@ -372,6 +372,7 @@ export function Patients() {
     setView('detail')
     setLoadingDocs(true)
     try {
+      // Endpoint simulado o real para obtener documentos del paciente agrupados
       const res = await apiFetch(`/patients/${patient.id}/documents`)
       if (res.ok) {
         const docs = await res.json()
@@ -457,6 +458,7 @@ export function Patients() {
     }
   }
 
+  // Agrupar documentos por tipo si existen
   const groupedDocuments = patientDocuments.reduce((acc, doc) => {
     const type = doc.category || doc.type || 'General'
     if (!acc[type]) acc[type] = []
@@ -466,8 +468,11 @@ export function Patients() {
 
   return (
     <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+
+      {/* MARCO GENERAL ESTILO DOCUMENTO */}
       <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-        
+
+        {/* CABECERA Y ACCIONES */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
           <div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
@@ -643,8 +648,10 @@ export function Patients() {
             </form>
           </div>
         ) : view === 'detail' && selectedPatient ? (
+          /* VISTA DE DETALLE / EXPEDIENTE COMPLETO CON DOCUMENTOS POR TIPO */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-            
+
+            {/* Tarjeta de Resumen del Paciente */}
             <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
@@ -663,6 +670,7 @@ export function Patients() {
               </div>
             </div>
 
+            {/* SECCIÓN DE DOCUMENTOS DIVIDIDOS POR TIPOS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Documentos e Historial Clínico</h3>
@@ -688,10 +696,7 @@ export function Patients() {
                         {docs.map((doc, idx) => (
                           <div
                             key={idx}
-                            onClick={() => {
-                              console.log("Objeto documento completo:", doc);
-                              setPreviewDocument(doc);
-                            }}
+                            onClick={() => setPreviewDocument(doc)}
                             style={{
                               backgroundColor: '#090d16',
                               border: '1px solid #1e293b',
@@ -724,7 +729,8 @@ export function Patients() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-            
+
+            {/* SECCIÓN DE BÚSQUEDA */}
             <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Buscar pacientes</h3>
@@ -736,6 +742,7 @@ export function Patients() {
               </div>
             </div>
 
+            {/* LISTADO DE PACIENTES CON EFECTO HOVER ELEVADO */}
             {loading ? (
               <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando pacientes…" /></div>
             ) : patients.length === 0 ? (
@@ -816,7 +823,11 @@ export function Patients() {
         onCancel={() => setConfirmDelete(null)}
         onConfirm={deletePatient}
       />
-
+      onClick={() => {
+        console.log("Objeto documento completo:", doc); // Revisa esto en la consola (F12)
+        setPreviewDocument(doc);
+      }}
+      {/* MODAL DE PREVISIÓN A PANTALLA COMPLETA */}
       {previewDocument && (
         <div style={{
           position: 'fixed',
@@ -844,6 +855,7 @@ export function Patients() {
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
             overflow: 'hidden'
           }}>
+            {/* Cabecera del Modal */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #1e293b' }}>
               <div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
@@ -853,13 +865,70 @@ export function Patients() {
               </div>
               <button
                 onClick={() => setPreviewDocument(null)}
-                style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ✕
               </button>
             </div>
-            <div style={{ padding: '1.5rem', flex: 1, overflowY: 'auto' }}>
-              <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>{previewDocument.description || 'Sin descripción adicional para este documento.'}</p>
+
+            {/* Cuerpo principal dividido en dos columnas: Visor PDF + Detalles */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', flex: 1, overflow: 'hidden' }}>
+
+              {/* Columna Izquierda: Visor del PDF */}
+              <div style={{ backgroundColor: '#090d16', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                {previewDocument.file_url || previewDocument.url ? (
+                  <iframe
+                    src={previewDocument.file_url || previewDocument.url}
+                    title="Vista previa del PDF"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'center', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#64748b', fontSize: '0.875rem' }}>
+                    No hay una ruta de archivo disponible para visualizar.
+                  </div>
+                )}
+              </div>
+
+              {/* Columna Derecha: Información del documento */}
+              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', backgroundColor: 'rgba(15, 23, 42, 0.4)' }}>
+                <div>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Descripción</h4>
+                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
+                    {previewDocument.description || 'Sin descripción adicional proporcionada para este archivo.'}
+                  </p>
+                </div>
+
+                <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Nombre del archivo</span>
+                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0', wordBreak: 'break-all' }}>{previewDocument.name || previewDocument.title || '—'}</p>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Fecha de carga</span>
+                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0' }}>{formatDate(previewDocument.created_at)}</p>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {(previewDocument.file_url || previewDocument.url) && (
+                    <a
+                      href={previewDocument.file_url || previewDocument.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ backgroundColor: '#1e293b', color: '#f8fafc', textAlign: 'center', padding: '0.65rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', border: '1px solid #334155' }}
+                    >
+                      Abrir en pestaña nueva ↗
+                    </a>
+                  )}
+                  <button
+                    onClick={() => setPreviewDocument(null)}
+                    style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.65rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Cerrar ventana
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
