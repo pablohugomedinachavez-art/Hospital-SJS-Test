@@ -476,161 +476,6 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
 }
 
 
-// ==========================================
-// COMPONENTE PREVIEW MODAL (Soporte PDF/Imágenes Supabase)
-// ==========================================
-const getDocumentUrl = (doc) => {
-  if (!doc) return '';
-  return doc.file_url || doc.url || doc.path || '';
-};
-
-const isImageUrl = (url) => {
-  if (!url) return false;
-  return /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(url);
-};
-
-const DocumentPreviewModal = ({ previewDoc, setPreviewDoc }) => {
-  if (!previewDoc) return null;
-
-  const docUrl = getDocumentUrl(previewDoc);
-  const isImage = isImageUrl(docUrl);
-
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000,
-      padding: '1.5rem'
-    }}>
-      <div style={{
-        backgroundColor: '#0f172a',
-        border: '1px solid #334155',
-        borderRadius: '16px',
-        width: '100%',
-        maxWidth: '900px',
-        height: '85vh',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-      }}>
-        {/* CABECERA MODAL */}
-        <div style={{
-          display: 'flex',
-          justify: 'space-between',
-          alignItems: 'center',
-          padding: '1rem 1.25rem',
-          borderBottom: '1px solid #1e293b',
-          backgroundColor: '#090d16'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FileText size={18} color="#38bdf8" />
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: '#f8fafc' }}>
-              {previewDoc.file_name || previewDoc.title || 'Previsualización de Documento'}
-            </h3>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {docUrl && (
-              <a 
-                href={docUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                style={{ 
-                  color: '#38bdf8', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.3rem', 
-                  textDecoration: 'none', 
-                  fontSize: '0.8rem',
-                  fontWeight: 500
-                }}
-              >
-                <ExternalLink size={14} /> Abrir en pestaña nueva
-              </a>
-            )}
-            <button 
-              onClick={() => setPreviewDoc(null)} 
-              style={{ 
-                backgroundColor: 'transparent', 
-                border: 'none', 
-                color: '#94a3b8', 
-                cursor: 'pointer', 
-                padding: '0.2rem' 
-              }}
-            >
-              <X size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* CONTENIDO DEL PREVIEW */}
-        <div style={{
-          flex: 1,
-          padding: '1rem',
-          overflowY: 'auto',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: '#020617'
-        }}>
-          {docUrl ? (
-            isImage ? (
-              <img 
-                src={docUrl} 
-                alt={previewDoc.file_name || 'Documento'} 
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px' }} 
-              />
-            ) : (
-              <object
-                data={docUrl}
-                type="application/pdf"
-                width="100%"
-                height="100%"
-                style={{ borderRadius: '8px', border: 'none' }}
-              >
-                <div style={{ textAlign: 'center', color: '#f8fafc', padding: '2rem' }}>
-                  <AlertTriangle size={40} color="#f59e0b" style={{ marginBottom: '1rem' }} />
-                  <p style={{ margin: '0 0 1rem 0', color: '#94a3b8' }}>Este navegador no soporta la vista previa directa del PDF.</p>
-                  <a 
-                    href={docUrl} 
-                    download
-                    style={{
-                      backgroundColor: '#3b82f6',
-                      color: '#fff',
-                      padding: '0.5rem 1rem',
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem'
-                    }}
-                  >
-                    <Download size={16} /> Descargar Documento
-                  </a>
-                </div>
-              </object>
-            )
-          ) : (
-            <div style={{ textAlign: 'center', color: '#ef4444', padding: '2rem' }}>
-              <AlertTriangle size={36} style={{ marginBottom: '0.5rem' }} />
-              <p style={{ margin: 0, fontSize: '0.85rem' }}>No se encontró un enlace URL válido para este archivo.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 
 // ============================================================
 // Patients Component
@@ -2909,10 +2754,6 @@ export function Appointments() {
   )
 }
 
-
-// ==========================================
-// COMPONENTE PRINCIPAL
-// ==========================================
 export function Documents() {
   const [documents, setDocuments] = useState([]);
   const [showForm, setShowForm] = useState(false);
@@ -3480,6 +3321,7 @@ export function Documents() {
     </div>
   );
 }
+
 
 // ============================================================
 // Reports + Dashboard (Con funciones de exportación)
