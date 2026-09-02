@@ -1,3866 +1,1824 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
-import { apiFetch } from './api'
-import { useAuth } from './AuthContext'
-import {User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
-  AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
-  FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
-} from 'lucide-react';
+import os
+import datetime
+import time
+from datetime import timezone
+from supabase import create_client, Client
+from functools import wraps
+from pathlib import Path
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, send_from_directory, g
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+import jwt
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from werkzeug.security import generate_password_hash, check_password_hash
+import csv
+from io import StringIO
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+import io
+import pandas as pd
+from flask import send_file
+import openpyxl
+from openpyxl.chart import BarChart, Reference
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+
+# 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
-// ============================================================
-// Shared UX / utilities
-// ============================================================
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-const INITIAL_PATIENT = {
-  document_type: 'dni',
-  document_number: '',
-  full_name: '',
-  date_of_birth: '',
-  phone_country: '+51',
-  phone_number: '',
-  email: '',
-  sex: '',
-  blood_type: '',
-  allergies: '',
-}
+CURRENT_DIR = Path(__file__).resolve().parent
+PARENT_DIR = CURRENT_DIR.parent
 
-const INITIAL_CONSULTATION = {
-  patient_id: '',
-  doctor_name: 'Dr. Demo',
-  reason: '',
-  symptoms: '',
-  weight_kg: '',
-  height_cm: '',
-  blood_pressure: '',
-  bmi: '',
-  abdominal_perimeter_cm: '',
-  diagnosis: '',
-  treatment: '',
-  prescription: '',
-}
+env_loaded = False
+for env_path in [CURRENT_DIR / '.env', PARENT_DIR / '.env', Path('.env')]:
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path, override=True)
+        print(f"[OK] Archivo .env cargado exitosamente desde: {env_path}")
+        env_loaded = True
+        break
 
-const PHONE_CONFIGS = {
-  '+51': { country: 'Perú', length: 9 },
-  '+52': { country: 'México', length: 10 },
-  '+54': { country: 'Argentina', length: 10 },
-  '+57': { country: 'Colombia', length: 9 },
-  '+1': { country: 'Estados Unidos', length: 10 },
-}
+if not env_loaded:
+    print("[WARN] No se encontró ningún archivo .env. Asegúrate de configurar las variables de entorno.")
 
-const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
-const specialties = ['Cardiología', 'Pediatría', 'Medicina General', 'Dermatología', 'Ginecología']
+# 2. Obtener y validar variables
+SUPABASE_DB_URL = os.getenv('SUPABASE_DB_URL') or os.getenv('DATABASE_URL')
+SUPABASE_URL = os.getenv('SUPABASE_URL') or os.getenv('VITE_SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY') or os.getenv('VITE_SUPABASE_ANON_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
 
-const cx = (...values) => values.filter(Boolean).join(' ')
+if not SUPABASE_DB_URL:
+    raise ValueError("No se encontró SUPABASE_DB_URL en el archivo .env")
 
-const calculateBMI = (weight, height) => {
-  const w = Number.parseFloat(weight)
-  const h = Number.parseFloat(height) / 100
-  if (!w || !h || h <= 0) return ''
-  return (w / (h * h)).toFixed(2)
-}
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise ValueError("Faltan SUPABASE_URL o SUPABASE_KEY para inicializar el cliente de Supabase")
 
+# 3. Inicialización de Flask y SQLAlchemy
 
-const getBMIState = (bmi) => {
-  const value = Number.parseFloat(bmi)
-  if (!value) return { label: 'Sin calcular', tone: 'neutral' }
-  if (value < 18.5) return { label: 'Bajo peso', tone: 'warning' }
-  if (value < 25) return { label: 'Normal', tone: 'success' }
-  if (value < 30) return { label: 'Sobrepeso', tone: 'warning' }
-  return { label: 'Obesidad', tone: 'danger' }
-}
+app.config['SECRET_KEY'] = SECRET_KEY
+app.config['SQLALCHEMY_DATABASE_URI'] = SUPABASE_DB_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JSON_SORT_KEYS'] = False
 
-const parseBrowser = (ua) => {
-  if (!ua) return 'Desconocido'
-  if (ua.includes('Edg')) return 'Microsoft Edge'
-  if (ua.includes('Chrome')) return 'Google Chrome'
-  if (ua.includes('Firefox')) return 'Mozilla Firefox'
-  if (ua.includes('Safari')) return 'Apple Safari'
-  return 'Navegador Web'
-}
+CORS(app,
+     resources={r"/api/*": {"origins": "*"}},  
+     supports_credentials=True,
+     allow_headers=['Content-Type', 'Authorization'],
+     expose_headers=['Authorization'])
 
-const formatDate = (value, options = { dateStyle: 'medium' }) => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat('es-PE', options).format(date)
-}
+db = SQLAlchemy(app)
+# ==========================================
+# 4. Modelos de Base de Datos (SQLAlchemy)
+# ==========================================
+class Tenant(db.Model):
+    __tablename__ = 'tenants'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
 
-const formatDateTime = (value) =>
-  formatDate(value, { dateStyle: 'medium', timeStyle: 'short' })
-
-const useDebouncedValue = (value, delay = 350) => {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const id = window.setTimeout(() => setDebounced(value), delay)
-    return () => window.clearTimeout(id)
-  }, [value, delay])
-  return debounced
-}
-
-const getUserRole = (user) => user?.role || user?.user_metadata?.role || 'viewer'
-const isAdminUser = (user) => ['admin', 'tenant_admin'].includes(getUserRole(user))
-
-// ============================================================
-// Shared UI components
-// ============================================================
-
-function Toast({ toast, onClose }) {
-  if (!toast?.text) return null
-  return (
-    <div className={cx('toast', `toast-${toast.type || 'info'}`)} role="status">
-      <div className="toast-icon" aria-hidden="true">
-        {toast.type === 'success' ? '✓' : toast.type === 'error' ? '!' : 'i'}
-      </div>
-      <div className="toast-content">
-        <strong>{toast.title || (toast.type === 'error' ? 'Ocurrió un problema' : 'Información')}</strong>
-        <span>{toast.text}</span>
-      </div>
-      <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar notificación">×</button>
-    </div>
-  )
-}
-
-function useToast() {
-  const [toast, setToast] = useState({ text: '', type: 'info' })
-  const timeoutRef = useRef(null)
-
-  const notify = useCallback((text, type = 'info', title = '') => {
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
-    setToast({ text, type, title })
-    timeoutRef.current = window.setTimeout(() => setToast({ text: '', type: 'info' }), 4500)
-  }, [])
-
-  useEffect(() => () => timeoutRef.current && window.clearTimeout(timeoutRef.current), [])
-  return [toast, notify, () => setToast({ text: '', type: 'info' })]
-}
-
-function LoadingState({ label = 'Cargando información...' }) {
-  return (
-    <div className="loading-state" role="status">
-      <span className="spinner" aria-hidden="true" />
-      <span>{label}</span>
-    </div>
-  )
-}
-
-function EmptyState({ icon = '⌕', title = 'No encontramos registros', description = 'Prueba cambiando los filtros o crea un nuevo registro.' }) {
-  return (
-    <div className="empty-state enhanced-empty">
-      <div className="empty-icon" aria-hidden="true">{icon}</div>
-      <h3>{title}</h3>
-      <p>{description}</p>
-    </div>
-  )
-}
-
-function PageShell({ title, subtitle, actions, children, className = '' }) {
-  return (
-    <div className={cx('page-container', 'page-shell', className)}>
-      <div className="page-heading">
-        <div>
-          <div className="eyebrow">Hospital TIC</div>
-          <h1>{title}</h1>
-          {subtitle && <p className="muted page-subtitle">{subtitle}</p>}
-        </div>
-        {actions && <div className="page-heading-actions">{actions}</div>}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function SectionCard({ title, description, icon, actions, children, className = '' }) {
-  return (
-    <section className={cx('card', 'section-card', className)}>
-      {(title || actions) && (
-        <div className="section-heading">
-          <div className="section-heading-main">
-            {icon && <span className="section-icon" aria-hidden="true">{icon}</span>}
-            <div>
-              {title && <h2 className="section-title">{title}</h2>}
-              {description && <p className="muted section-description">{description}</p>}
-            </div>
-          </div>
-          {actions && <div className="section-actions">{actions}</div>}
-        </div>
-      )}
-      {children}
-    </section>
-  )
-}
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String, unique=True, nullable=False)
+    password = db.Column(db.String, nullable=False)
+    role = db.Column(db.String, default='viewer', nullable=False)
+    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
 
 
-// ============================================================
-// Componente StatCard Moderno (Sin Emojis, con Iconos SVG Clínicos)
-// ============================================================
-
-function StatCard({ icon, label, value, hint, tone = 'primary' }) {
-  const toneStyles = {
-    primary: 'border-blue-500/20 bg-blue-500/5 text-blue-400',
-    success: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400',
-    warning: 'border-amber-500/20 bg-amber-500/5 text-amber-400',
-    danger: 'border-rose-500/20 bg-rose-500/5 text-rose-400',
-  }
-
-  return (
-    <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-xl flex items-center gap-4 transition-all duration-200 hover:border-slate-700">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${toneStyles[tone] || toneStyles.primary} shrink-0`}>
-        {icon}
-      </div>
-      <div className="flex flex-col min-w-0">
-        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</span>
-        <strong className="text-2xl font-bold text-slate-100 tracking-tight my-0.5">{value}</strong>
-        {hint && <span className="text-xs text-slate-500">{hint}</span>}
-      </div>
-    </div>
-  )
-}
-
-// ============================================================
-// Iconos Vectoriales para las Tarjetas
-// ============================================================
-const StatIcons = {
-  Patients: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
-  Consultations: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>,
-  Users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
-  Time: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-}
-
-function SearchField({ value, onChange, placeholder, onEnter, loading = false }) {
-  return (
-    <div className="smart-search">
-      <span className="search-icon" aria-hidden="true">⌕</span>
-      <input
-        className="form-control smart-search-input"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={e => {
-          if (e.key === 'Enter') onEnter?.()
-        }}
-        placeholder={placeholder}
-        aria-label={placeholder}
-      />
-      {value && !loading && (
-        <button type="button" className="icon-button search-clear" onClick={() => onChange('')} aria-label="Limpiar búsqueda">×</button>
-      )}
-      {loading && <span className="search-spinner spinner" aria-hidden="true" />}
-    </div>
-  )
-}
-
-function ConfirmDialog({ open, title, message, confirmLabel = 'Confirmar', danger = false, onConfirm, onCancel }) {
-  if (!open) return null
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onCancel}>
-      <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onMouseDown={e => e.stopPropagation()}>
-        <div className={cx('modal-icon', danger && 'danger')}>{danger ? '!' : '?'}</div>
-        <h3 id="confirm-title">{title}</h3>
-        <p className="muted">{message}</p>
-        <div className="button-row modal-actions">
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancelar</button>
-          <button type="button" className={cx('btn', danger ? 'btn-danger' : 'btn-primary')} onClick={onConfirm}>{confirmLabel}</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function InlineAlert({ type = 'info', children }) {
-  if (!children) return null
-  return <div className={cx('alert', `alert-${type}`, 'inline-alert')}>{children}</div>
-}
-
-function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }) {
-  if (!rows?.length) return <EmptyState title={emptyTitle} />
-  return (
-    <div className="table-wrapper polished-table">
-      <table className="data-table">
-        <thead>
-          <tr>{columns.map(column => <th key={column.key}>{column.label}</th>)}</tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={getRowKey?.(row) ?? index}>
-              {columns.map(column => <td key={column.key}>{column.render ? column.render(row) : row[column.key]}</td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function Pagination({ page, perPage, total, onPrev, onNext }) {
-  const totalPages = Math.max(1, Math.ceil(total / perPage))
-  return (
-    <div className="pagination enhanced-pagination">
-      <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={onPrev}>← Anterior</button>
-      <span>Hoja <strong>{page}</strong> de <strong>{totalPages}</strong> · {total} registros</span>
-      <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={onNext}>Siguiente →</button>
-    </div>
-  )
-}
+# Inicializa el cliente de Supabase
+SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
+# Usa el token JWT clásico (eyJ...) en lugar de la llave sb_secret_...
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdnFwcGlxdm1mYW9yeml0dnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODI1MTksImV4cCI6MjA5OTg1ODUxOX0.oDAydesqnzPNrK9-YNQlg5nJxGt4K3aLJHnr4KK6cy4" 
 
 
+# Inicialización correcta y limpia para el servidor Flask
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
+# 5. Funciones auxiliares
+def now_utc():
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 
-// ============================================================
-// Patients
-// ============================================================
+def get_db():
+    """Conecta directamente a PostgreSQL vía psycopg2 utilizando la URL parseada."""
+    if 'db' not in g:
+        g.db = psycopg2.connect(SUPABASE_DB_URL, cursor_factory=RealDictCursor)
+    return g.db
 
-export function Patients() {
-  const { user } = useAuth()
-  const [patients, setPatients] = useState([])
-  const [query, setQuery] = useState('')
-  const [view, setView] = useState('list') // 'list' | 'create' | 'detail' | 'edit'
-  const [selectedPatient, setSelectedPatient] = useState(null)
-  const [previewDocument, setPreviewDocument] = useState(null)
-  const [patientDocuments, setPatientDocuments] = useState([])
-  const [patientAppointments, setPatientAppointments] = useState([])
-  const [loadingDocs, setLoadingDocs] = useState(false)
-  const [loadingAppointments, setLoadingAppointments] = useState(false)
-  const [form, setForm] = useState(INITIAL_PATIENT)
-  const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [documentError, setDocumentError] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(null)
-  const [toast, notify, clearToast] = useToast()
-  const debouncedQuery = useDebouncedValue(query)
-  const isAdmin = isAdminUser(user)
+@app.teardown_appcontext
+def close_db(error=None):
+    db_conn = g.pop('db', None)
+    if db_conn is not None:
+        db_conn.close()
 
-  const load = useCallback(async (q = '') => {
-    setLoading(true)
-    try {
-      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
-      if (!res.ok) throw new Error('No se pudo cargar pacientes')
-      setPatients(await res.json() || [])
-    } catch (error) {
-      console.error(error)
-      notify('No fue posible cargar la lista de pacientes.', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [notify])
+def parse_device_type(user_agent_str):
+    ua = user_agent_str.lower()
+    if 'mobi' in ua or 'android' in ua and 'mobile' in ua or 'iphone' in ua:
+        return 'mobile'
+    elif 'ipad' in ua or 'tablet' in ua:
+        return 'tablet'
+    elif 'macintosh' in ua or 'windows' in ua or 'linux' in ua:
+        # Distinguir portátil de escritorio si es posible, por defecto PC o laptop
+        if 'laptop' in ua or 'book' in ua:
+            return 'laptop'
+        return 'pc'
+    return 'other'
 
-  useEffect(() => { load() }, [load])
-  useEffect(() => {
-    if (view === 'list') load(debouncedQuery)
-  }, [debouncedQuery, view, load])
-
-  const loadPatientDetail = async (patient) => {
-    setSelectedPatient(patient)
-    setView('detail')
-    setLoadingDocs(true)
-    setLoadingAppointments(true)
-
-    // Cargar documentos del paciente
-    try {
-      const res = await apiFetch(`/patients/${patient.id}/documents`)
-      if (res.ok) {
-        const docs = await res.json()
-        setPatientDocuments(docs || [])
-      } else {
-        setPatientDocuments([])
-      }
-    } catch {
-      setPatientDocuments([])
-    } finally {
-      setLoadingDocs(false)
-    }
-
-    // Cargar citas (appointments) del paciente
-    try {
-      const resApp = await apiFetch(`/patients/${patient.id}/appointments`)
-      if (resApp.ok) {
-        const appointments = await resApp.json()
-        setPatientAppointments(appointments || [])
-      } else {
-        setPatientAppointments([])
-      }
-    } catch {
-      setPatientAppointments([])
-    } finally {
-      setLoadingAppointments(false)
-    }
-  }
-
-  const handleDocumentChange = (value, docType = form.document_type) => {
-    const cleanValue = docType === 'dni'
-      ? value.replace(/\D/g, '')
-      : value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
-    const maxLength = docType === 'dni' ? 8 : 12
-    const documentNumber = cleanValue.slice(0, maxLength)
-    setForm(prev => ({ ...prev, document_number: documentNumber }))
-
-    if (!documentNumber) {
-      setDocumentError('')
-      return
-    }
-
-    const exists = patients.some(patient => {
-      if (view === 'edit' && patient.id === selectedPatient?.id) return false
-      const values = [patient.dni, patient.document_number].filter(Boolean).map(String)
-      return values.some(valueItem => valueItem.trim() === documentNumber)
-    })
-    setDocumentError(exists ? `El ${docType.toUpperCase()} ${documentNumber} ya está registrado.` : '')
-  }
-
-  const openCreate = () => {
-    setForm(INITIAL_PATIENT)
-    setDocumentError('')
-    clearToast()
-    setView('create')
-  }
-
-  const openEdit = (patient) => {
-    const target = patient || selectedPatient
-    if (!target) return
-    setSelectedPatient(target)
+def register_client_device(db_connection, tenant_id, user_id, location_id=None):
+    user_agent = request.headers.get('User-Agent', '')
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+    device_type = parse_device_type(user_agent)
+    device_name = f"{device_type.upper()} - {ip_address}"
+    created_at = datetime.now(timezone.utc)
     
-    // Extraer prefijo telefónico y número si están unidos
-    let phoneCountry = '+51'
-    let phoneNumber = target.phone || target.phone_number || ''
-    Object.keys(PHONE_CONFIGS).forEach(code => {
-      if (phoneNumber.startsWith(code)) {
-        phoneCountry = code
-        phoneNumber = phoneNumber.replace(code, '').trim()
-      }
-    })
-
-    setForm({
-      document_type: target.document_type || 'dni',
-      document_number: target.dni || target.document_number || '',
-      full_name: target.full_name || '',
-      date_of_birth: target.date_of_birth ? new Date(target.date_of_birth).toISOString().split('T')[0] : '',
-      phone_country: phoneCountry,
-      phone_number: phoneNumber,
-      email: target.email || '',
-      sex: target.sex || '',
-      blood_type: target.blood_type || '',
-      allergies: target.allergies || '',
-    })
-    setDocumentError('')
-    setView('edit')
-  }
-
-  const submit = async (event) => {
-    event.preventDefault()
-    if (documentError) return notify('Corrige el documento antes de continuar.', 'error')
-
-    setSaving(true)
-    try {
-      const phone = `${form.phone_country}${form.phone_number}`
-      const isEdit = view === 'edit'
-      const endpoint = isEdit ? `/patients/${selectedPatient.id}` : '/patients'
-      const method = isEdit ? 'PUT' : 'POST'
-
-      const res = await apiFetch(endpoint, {
-        method,
-        body: JSON.stringify({ ...form, dni: form.document_number, phone }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || `No se pudo ${isEdit ? 'actualizar' : 'registrar'} al paciente`)
-
-      notify(
-        `Paciente ${isEdit ? 'actualizado' : 'registrado'} correctamente.`,
-        'success',
-        'Operación completada'
-      )
-      
-      if (isEdit) {
-        const updated = { ...selectedPatient, ...form, dni: form.document_number, phone }
-        setSelectedPatient(updated)
-        setView('detail')
-      } else {
-        setForm(INITIAL_PATIENT)
-        setView('list')
-      }
-      setDocumentError('')
-      await load(query)
-    } catch (error) {
-      notify(error.message || 'Error de conexión con el servidor.', 'error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const deletePatient = async () => {
-    if (!confirmDelete) return
-    try {
-      const res = await apiFetch('/patients', {
-        method: 'DELETE',
-        body: JSON.stringify({ patient_id: confirmDelete.id }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo eliminar')
-      notify('Paciente eliminado correctamente.', 'success')
-      setConfirmDelete(null)
-      setView('list')
-      await load(query)
-    } catch (error) {
-      notify(error.message, 'error')
-    }
-  }
-
-  // Agrupar documentos por categoría o tipo
-  const groupedDocuments = patientDocuments.reduce((acc, doc) => {
-    const type = doc.category || doc.type || 'General'
-    if (!acc[type]) acc[type] = []
-    acc[type].push(doc)
-    return acc
-  }, {})
-
-  return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-
-      {/* MARCO GENERAL ESTILO DOCUMENTO */}
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-
-        {/* CABECERA Y ACCIONES */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              {view === 'create' ? 'Nuevo paciente' : view === 'edit' ? `Editar perfil · ${selectedPatient?.full_name}` : view === 'detail' ? 'Expediente clínico del paciente' : 'Gestión de pacientes'}
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              {view === 'create' ? 'Registra un expediente clínico completo en pocos pasos.' : view === 'edit' ? 'Modifica los datos del perfil del paciente y guarda los cambios.' : view === 'detail' ? `Visualización de datos, documentos e historial de citas de ${selectedPatient?.full_name}` : 'Consulta, identifica y gestiona los expedientes clínicos.'}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            {view === 'detail' && (
-              <button
-                style={{ backgroundColor: '#1e293b', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => openEdit(selectedPatient)}
-              >
-                ✏ Editar Perfil
-              </button>
-            )}
-
-            {view === 'list' ? (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={openCreate}
-              >
-                + Nuevo paciente
-              </button>
-            ) : (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => setView('list')}
-              >
-                ← Volver al listado
-              </button>
-            )}
-          </div>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        {/* FORMULARIO DE CREACIÓN / EDICIÓN */}
-        {(view === 'create' || view === 'edit') ? (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-                {view === 'edit' ? 'Editar datos de identificación' : 'Datos de identificación'}
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Los campos marcados con * son obligatorios.</p>
-            </div>
-
-            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de documento *</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.document_type}
-                    onChange={e => { setForm(p => ({ ...p, document_type: e.target.value, document_number: '' })); setDocumentError('') }}
-                  >
-                    <option value="dni">DNI</option>
-                    <option value="ce">Carnet de extranjería</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Número de documento *</label>
-                  <input
-                    required
-                    style={{ backgroundColor: '#0f172a', border: `1px solid ${documentError ? '#ef4444' : '#334155'}`, color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.document_number}
-                    onChange={e => handleDocumentChange(e.target.value)}
-                    placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 caracteres'}
-                  />
-                  {documentError && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{documentError}</span>}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre completo *</label>
-                  <input
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.full_name}
-                    onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
-                    placeholder="Nombres y apellidos"
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Fecha de nacimiento *</label>
-                  <input
-                    required
-                    type="date"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    max={new Date().toISOString().slice(0, 10)}
-                    value={form.date_of_birth}
-                    onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Sexo *</label>
-                  <select
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.sex}
-                    onChange={e => setForm(p => ({ ...p, sex: e.target.value }))}
-                  >
-                    <option value="">Seleccionar</option>
-                    <option value="female">Femenino</option>
-                    <option value="male">Masculino</option>
-                    <option value="other">Otro / Prefiero no decir</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ height: '1px', backgroundColor: '#1e293b', margin: '0.5rem 0' }} />
-
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Contacto y antecedentes</h3>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>País</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.phone_country}
-                    onChange={e => setForm(p => ({ ...p, phone_country: e.target.value, phone_number: '' }))}
-                  >
-                    {Object.entries(PHONE_CONFIGS).map(([code, info]) => <option key={code} value={code}>{code} · {info.country}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Teléfono *</label>
-                  <input
-                    required
-                    inputMode="numeric"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.phone_number}
-                    onChange={e => setForm(p => ({ ...p, phone_number: e.target.value.replace(/\D/g, '').slice(0, PHONE_CONFIGS[form.phone_country]?.length || 10) }))}
-                    placeholder={`${PHONE_CONFIGS[form.phone_country]?.length || 10} dígitos`}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Correo</label>
-                  <input
-                    type="email"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.email}
-                    onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de sangre</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.blood_type}
-                    onChange={e => setForm(p => ({ ...p, blood_type: e.target.value }))}
-                  >
-                    <option value="">Seleccionar</option>
-                    {bloodTypes.map(type => <option key={type}>{type}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Alergias</label>
-                  <textarea
-                    rows={3}
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
-                    value={form.allergies}
-                    onChange={e => setForm(p => ({ ...p, allergies: e.target.value }))}
-                    placeholder="Ninguna o detalla medicamentos/alimentos conocidos"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-                <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setView(selectedPatient ? 'detail' : 'list')}>Cancelar</button>
-                <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: (saving || Boolean(documentError)) ? 0.5 : 1 }} disabled={saving || Boolean(documentError)}>{saving ? 'Guardando…' : view === 'edit' ? 'Guardar Cambios' : 'Registrar paciente'}</button>
-              </div>
-            </form>
-          </div>
-        ) : view === 'detail' && selectedPatient ? (
-          /* VISTA DE DETALLE / EXPEDIENTE COMPLETO */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-
-            {/* Tarjeta de Resumen del Paciente */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Historia Clínica · {selectedPatient.medical_record_number || '—'}</span>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc', margin: '0.25rem 0 0 0' }}>{selectedPatient.full_name}</h2>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <button
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}
-                    onClick={() => openEdit(selectedPatient)}
-                  >
-                    ✏ Editar
-                  </button>
-                  <span className="badge badge-success">{selectedPatient.status || 'Activo'}</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.phone || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.email || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Tipo de Sangre</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.blood_type || 'No especificado'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Alergias / Observaciones</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.allergies || 'Ninguna registrada'}</strong></div>
-              </div>
-            </div>
-
-            {/* SECCIÓN DE DOCUMENTOS DEL PACIENTE */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Documentos e Historial Clínico</h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Archivos, recetas, exámenes y reportes asociados al paciente.</p>
-              </div>
-
-              {loadingDocs ? (
-                <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando documentos del paciente…" /></div>
-              ) : patientDocuments.length === 0 ? (
-                <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem', textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>No hay documentos registrados para este paciente en el sistema.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {Object.entries(groupedDocuments).map(([category, docs]) => (
-                    <div key={category} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#3b82f6', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{category}</h4>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{docs.length} archivo(s)</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                        {docs.map((doc, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => setPreviewDocument(doc)}
-                            style={{
-                              backgroundColor: '#090d16',
-                              border: '1px solid #1e293b',
-                              borderRadius: '12px',
-                              padding: '1rem',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '0.5rem',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
-                            onMouseLeave={e => e.currentTarget.style.borderColor = '#1e293b'}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <strong style={{ fontSize: '0.875rem', color: '#f8fafc' }}>{doc.title || doc.name || 'Documento clínico'}</strong>
-                              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatDate(doc.created_at)}</span>
-                            </div>
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>{doc.description || 'Sin descripción adicional.'}</p>
-                            <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 500, marginTop: '0.25rem' }}>🔍 Clic para previsualizar</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* SECCIÓN DE CITAS / APPOINTMENTS CON ESTILO DE TARJETAS DE CONSULTA */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Citas del Paciente (Appointments)</h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Historial de citas médicas programadas y realizadas.</p>
-              </div>
-
-              {loadingAppointments ? (
-                <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando citas del paciente…" /></div>
-              ) : patientAppointments.length === 0 ? (
-                <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem', textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>No hay citas registradas para este paciente.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
-                  {patientAppointments.map(app => (
-                    <article
-                      key={app.id}
-                      style={{
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: '1px solid #1e293b',
-                        borderRadius: '16px',
-                        padding: '1.25rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '1rem',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                        transition: 'all 0.25s ease-in-out'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.transform = 'translateY(-4px)'
-                        e.currentTarget.style.borderColor = '#3b82f6'
-                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.transform = 'translateY(0px)'
-                        e.currentTarget.style.borderColor = '#1e293b'
-                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formatDateTime(app.appointment_date || app.date || app.created_at)}</div>
-                          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{app.doctor_name || app.specialty || 'Cita Médica'}</h3>
-                        </div>
-                        <span className={`badge badge-${app.status === 'completed' || app.status === 'completada' ? 'success' : app.status === 'cancelled' ? 'danger' : 'info'}`}>
-                          #{app.id} · {app.status || 'Programada'}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.825rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                        <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Motivo:</strong> {app.reason || app.motive || 'Consulta regular'}</p>
-                        <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Especialidad / Área:</strong> {app.specialty || app.location || 'Medicina General'}</p>
-                        <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Médico Tratante:</strong> {app.doctor_name || 'No asignado'}</p>
-                      </div>
-
-                      {(app.weight_kg || app.height_cm || app.bmi) && (
-                        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.25rem' }}>
-                          <span>⚖ {app.weight_kg ?? '—'} kg</span>
-                          <span>↕ {app.height_cm ?? '—'} cm</span>
-                          <span>IMC {app.bmi ?? '—'}</span>
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
-        ) : (
-          /* LISTADO DE PACIENTES */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-
-            {/* SECCIÓN DE BÚSQUEDA */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Buscar pacientes</h3>
-                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Busca por nombre, DNI o correo.</p>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <SearchField value={query} onChange={setQuery} placeholder="Buscar por DNI, nombre o correo…" loading={loading} />
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{patients.length} resultados</span>
-              </div>
-            </div>
-
-            {loading ? (
-              <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando pacientes…" /></div>
-            ) : patients.length === 0 ? (
-              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
-                <EmptyState title="No hay pacientes para mostrar" description={query ? 'Prueba con otro nombre, documento o correo.' : 'Todavía no existen pacientes registrados.'} />
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem', width: '100%' }}>
-                {patients.map(patient => (
-                  <article
-                    key={patient.id}
-                    onClick={() => loadPatientDetail(patient)}
-                    style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      border: '1px solid #1e293b',
-                      borderRadius: '16px',
-                      padding: '1.25rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '1rem',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                      cursor: 'pointer',
-                      transition: 'all 0.25s ease-in-out'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.transform = 'translateY(-4px)'
-                      e.currentTarget.style.borderColor = '#3b82f6'
-                      e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.transform = 'translateY(0px)'
-                      e.currentTarget.style.borderColor = '#1e293b'
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>HC · {patient.medical_record_number || '—'}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{patient.full_name}</h3>
-                      </div>
-                      <span className="badge badge-success">{patient.status || 'Activo'}</span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc' }}>{patient.dni || patient.document_number || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc' }}>{patient.phone || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', wordBreak: 'break-all' }}>{patient.email || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Registro</span><strong style={{ color: '#f8fafc' }}>{formatDate(patient.created_at)}</strong></div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ID #{patient.id}</span>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
-                          type="button"
-                          style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                          onClick={(e) => { e.stopPropagation(); openEdit(patient); }}
-                        >
-                          Editar
-                        </button>
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            style={{ backgroundColor: '#ef4444', border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                            onClick={(e) => { e.stopPropagation(); setConfirmDelete(patient); }}
-                          >
-                            Eliminar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-      </div>
-
-      <ConfirmDialog
-        open={Boolean(confirmDelete)}
-        title="Eliminar paciente"
-        message={confirmDelete ? `Eliminarás el registro de ${confirmDelete.full_name}. Esta acción no se puede deshacer.` : ''}
-        confirmLabel="Sí, eliminar"
-        danger
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={deletePatient}
-      />
-
-      {/* MODAL DE PREVISUALIZACIÓN DE DOCUMENTO A PANTALLA COMPLETA */}
-      {previewDocument && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-          padding: '2rem',
-          boxSizing: 'border-box'
-        }}>
-          <div style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #334155',
-            borderRadius: '20px',
-            width: '100%',
-            maxWidth: '1200px',
-            height: '90vh',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-            overflow: 'hidden'
-          }}>
-            {/* Cabecera del Modal */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #1e293b' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-                  {previewDocument.title || previewDocument.name || 'Documento clínico'}
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Registrado el {formatDate(previewDocument.created_at)}</span>
-              </div>
-              <button
-                onClick={() => setPreviewDocument(null)}
-                style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Cuerpo del Modal: Vista Previa y Detalles */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', flex: 1, overflow: 'hidden' }}>
-
-              {/* Visor de Documentos o Imágenes */}
-              <div style={{ backgroundColor: '#090d16', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                {(previewDocument.file_url || previewDocument.url) ? (
-                  (previewDocument.file_url || previewDocument.url).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                    <img
-                      src={previewDocument.file_url || previewDocument.url}
-                      alt={previewDocument.title || 'Vista previa'}
-                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: '1rem' }}
-                    />
-                  ) : (
-                    <iframe
-                      src={previewDocument.file_url || previewDocument.url}
-                      title="Vista previa del archivo"
-                      style={{ width: '100%', height: '100%', border: 'none' }}
-                    />
-                  )
-                ) : (
-                  <div style={{ color: '#64748b', fontSize: '0.875rem' }}>
-                    No hay una ruta de archivo disponible para visualizar.
-                  </div>
-                )}
-              </div>
-
-              {/* Información y detalles del archivo */}
-              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', backgroundColor: 'rgba(15, 23, 42, 0.4)' }}>
-                <div>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Descripción</h4>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                    {previewDocument.description || 'Sin descripción adicional proporcionada para este archivo.'}
-                  </p>
-                </div>
-
-                <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Nombre del archivo</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0', wordBreak: 'break-all' }}>{previewDocument.name || previewDocument.title || '—'}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Categoría</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0' }}>{previewDocument.category || previewDocument.type || 'General'}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Fecha de carga</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0' }}>{formatDate(previewDocument.created_at)}</p>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {(previewDocument.file_url || previewDocument.url) && (
-                    <a
-                      href={previewDocument.file_url || previewDocument.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ backgroundColor: '#1e293b', color: '#f8fafc', textAlign: 'center', padding: '0.65rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', border: '1px solid #334155' }}
-                    >
-                      Abrir en pestaña nueva ↗
-                    </a>
-                  )}
-                  <button
-                    onClick={() => setPreviewDocument(null)}
-                    style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.65rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Cerrar ventana
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-// ============================================================
-// Consultations
-// ============================================================
-
-export function Consultations() {
-  const [consultations, setConsultations] = useState([])
-  const [patients, setPatients] = useState([])
-  const [query, setQuery] = useState('')
-  const [patientQuery, setPatientQuery] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState(INITIAL_CONSULTATION)
-  const [toast, notify, clearToast] = useToast()
-  const debouncedQuery = useDebouncedValue(query)
-  const debouncedPatientQuery = useDebouncedValue(patientQuery, 250)
-  const loadConsultations = useCallback(async (q = '') => {
-    setLoading(true)
-    try {
-      const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`)
-      if (!res.ok) throw new Error('No se pudo cargar el historial')
-      setConsultations(await res.json() || [])
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally {
-      setLoading(false)
-    }
-  }, [notify])
-
-  const searchPatients = useCallback(async (q = '') => {
-    try {
-      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
-      if (!res.ok) return
-      const data = await res.json() || []
-      setPatients(data)
-      if (data.length === 1) setForm(prev => ({ ...prev, patient_id: data[0].id }))
-    } catch (error) {
-      console.error(error)
-    }
-  }, [])
-
-  useEffect(() => { loadConsultations() }, [loadConsultations])
-  useEffect(() => {
-    if (!showForm) loadConsultations(debouncedQuery)
-  }, [debouncedQuery, showForm, loadConsultations])
-  useEffect(() => {
-    if (showForm) searchPatients(debouncedPatientQuery)
-  }, [debouncedPatientQuery, showForm, searchPatients])
-
-  const updateTriage = (field, value) => {
-    const next = { ...form, [field]: value }
-    if (field === 'weight_kg' || field === 'height_cm') {
-      next.bmi = calculateBMI(field === 'weight_kg' ? value : form.weight_kg, field === 'height_cm' ? value : form.height_cm)
-    }
-    setForm(next)
-  }
-
-  const submit = async event => {
-    event.preventDefault()
-    if (!form.patient_id) return notify('Selecciona un paciente antes de guardar.', 'error')
-    setSubmitting(true)
-    try {
-      const res = await apiFetch('/consultations', { method: 'POST', body: JSON.stringify(form) })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo registrar la consulta')
-      notify('Consulta registrada correctamente.', 'success', 'Atención guardada')
-      setForm(INITIAL_CONSULTATION)
-      setPatientQuery('')
-      setShowForm(false)
-      await loadConsultations(query)
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const selectedPatient = useMemo(() => patients.find(p => String(p.id) === String(form.patient_id)), [patients, form.patient_id])
-  const bmiState = getBMIState(form.bmi)
-
-  return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-
-      {/* MARCO GENERAL ESTILO DOCUMENTO */}
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-
-        {/* CABECERA Y ACCIONES */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              {showForm ? 'Nueva consulta médica' : 'Consultas médicas'}
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              {showForm ? 'Registra atención, triaje, diagnóstico y tratamiento desde una sola vista.' : 'Explora y gestiona el historial de atención.'}
-            </p>
-          </div>
-
-          <div>
-            {!showForm ? (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => { setForm(INITIAL_CONSULTATION); setShowForm(true); }}
-              >
-                + Nueva consulta
-              </button>
-            ) : (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => setShowForm(false)}
-              >
-                ← Volver al historial
-              </button>
-            )}
-          </div>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        {!showForm ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-
-            {/* SECCIÓN DE BÚSQUEDA */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Buscar en el historial</h3>
-                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Filtra por paciente, diagnóstico, motivo o médico.</p>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <SearchField value={query} onChange={setQuery} placeholder="Paciente, diagnóstico, motivo o médico…" loading={loading} />
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{consultations.length} consultas</span>
-              </div>
-            </div>
-
-            {/* LISTADO DE CONSULTAS CON EFECTO HOVER ELEVADO */}
-            {loading ? (
-              <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando consultas…" /></div>
-            ) : consultations.length === 0 ? (
-              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
-                <EmptyState icon="🩺" title="No hay consultas coincidentes" description="Prueba con otros términos de búsqueda." />
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
-                {consultations.map(item => (
-                  <article
-                    key={item.id}
-                    style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      border: '1px solid #1e293b',
-                      borderRadius: '16px',
-                      padding: '1.25rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '1rem',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                      transition: 'all 0.25s ease-in-out'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.transform = 'translateY(-4px)'
-                      e.currentTarget.style.borderColor = '#3b82f6'
-                      e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.transform = 'translateY(0px)'
-                      e.currentTarget.style.borderColor = '#1e293b'
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formatDate(item.created_at)}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{item.patient_name || `Paciente #${item.patient_id}`}</h3>
-                      </div>
-                      <span className="badge badge-info">#{item.id}</span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.825rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Motivo:</strong> {item.reason || 'Consulta general'}</p>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Diagnóstico:</strong> {item.diagnosis || '—'}</p>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Médico:</strong> {item.doctor_name || 'No asignado'}</p>
-                    </div>
-
-                    {(item.weight_kg || item.height_cm || item.bmi) && (
-                      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.25rem' }}>
-                        <span>⚖ {item.weight_kg ?? '—'} kg</span>
-                        <span>↕ {item.height_cm ?? '—'} cm</span>
-                        <span>IMC {item.bmi ?? '—'}</span>
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-
-            {/* PACIENTE Y ATENCIÓN */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Paciente y atención</h3>
-                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Selecciona al paciente y registra el contexto de la atención.</p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Buscar paciente *</label>
-                  <SearchField value={patientQuery} onChange={setPatientQuery} placeholder="Nombre o DNI…" loading={!patients.length && Boolean(patientQuery)} />
-                  {patients.length > 0 && (
-                    <div className="suggestions-panel" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
-                      {patients.slice(0, 6).map(patient => (
-                        <button type="button" key={patient.id} className={cx('suggestion-item', String(patient.id) === String(form.patient_id) && 'selected')} onClick={() => { setForm(p => ({ ...p, patient_id: patient.id })); setPatientQuery(patient.full_name) }} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: String(patient.id) === String(form.patient_id) ? '#1e293b' : 'transparent', border: 'none', color: '#f8fafc', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-                          <span className="avatar-mini" style={{ width: '28px', height: '28px', backgroundColor: '#3b82f6', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem' }}>{patient.full_name?.charAt(0)?.toUpperCase() || 'P'}</span>
-                          <span style={{ display: 'flex', flexDirection: 'column' }}><strong>{patient.full_name}</strong><small style={{ color: '#94a3b8' }}>DNI {patient.dni || patient.document_number || '—'}</small></span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Paciente seleccionado *</label>
-                  <select required style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
-                    <option value="">Seleccionar</option>
-                    {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.dni || p.document_number || 'Sin documento'}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Médico tratante</label>
-                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Motivo</label>
-                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))} placeholder="Ej. chequeo de rutina, dolor de cabeza…" />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Síntomas</label>
-                  <textarea rows={3} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }} value={form.symptoms} onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))} placeholder="Describe los síntomas reportados" />
-                </div>
-              </div>
-              {selectedPatient && <InlineAlert type="success">Paciente seleccionado: <strong>{selectedPatient.full_name}</strong> · HC {selectedPatient.medical_record_number || '—'}</InlineAlert>}
-            </div>
-
-            {/* TRIAJE Y SIGNOS VITALES */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y signos vitales</h3>
-                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>El IMC se calcula automáticamente a partir del peso y la talla.</p>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
-                  <input type="number" min="0" step="0.1" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.weight_kg} onChange={e => updateTriage('weight_kg', e.target.value)} placeholder="70.5" />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
-                  <input type="number" min="0" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.height_cm} onChange={e => updateTriage('height_cm', e.target.value)} placeholder="170" />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>IMC</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%' }} value={form.bmi} readOnly placeholder="0.00" />
-                    <span className={cx('badge', `badge-${bmiState.tone === 'neutral' ? 'info' : bmiState.tone}`)}>{bmiState.label}</span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Presión arterial</label>
-                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.blood_pressure} onChange={e => setForm(p => ({ ...p, blood_pressure: e.target.value }))} placeholder="120/80" />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro abdominal (cm)</label>
-                  <input type="number" min="0" step="0.1" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.abdominal_perimeter_cm} onChange={e => setForm(p => ({ ...p, abdominal_perimeter_cm: e.target.value }))} placeholder="85" />
-                </div>
-              </div>
-            </div>
-
-            {/* DIAGNÓSTICO Y TRATAMIENTO */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y tratamiento</h3>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico</label>
-                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.diagnosis} onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="Escribe el diagnóstico" />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Plan de tratamiento</label>
-                  <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={form.treatment} onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))} placeholder="Indicaciones generales" />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Receta / prescripción</label>
-                  <textarea rows={4} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }} value={form.prescription} onChange={e => setForm(p => ({ ...p, prescription: e.target.value }))} placeholder="Medicamento, dosis y frecuencia…" />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-                <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setShowForm(false)}>Cancelar</button>
-                <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }} disabled={submitting}>{submitting ? 'Guardando…' : 'Guardar consulta'}</button>
-              </div>
-            </div>
-
-          </form>
-        )}
-
-      </div>
-    </div>
-  )
-}
-
-
-
-
-// ============================================================
-// Locations
-// ============================================================
-
-export function Locations() {
-  const [items, setItems] = useState([])
-  const [selectedArea, setSelectedArea] = useState(null)
-  const [detail, setDetail] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [loadingDetail, setLoadingDetail] = useState(false)
-  const [showNewArea, setShowNewArea] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDescription, setNewDescription] = useState('')
-  const [saving, setSaving] = useState(false)
-  const { user } = useAuth()
-  const [toast, notify, clearToast] = useToast()
-  const canEdit = isAdminUser(user)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await apiFetch('/locations')
-      if (!res.ok) throw new Error('No se pudieron cargar las áreas')
-      setItems(await res.json() || [])
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally { setLoading(false) }
-  }, [notify])
-
-  const loadDetail = useCallback(async id => {
-    setLoadingDetail(true)
-    try {
-      const res = await apiFetch(`/locations/${id}`)
-      if (!res.ok) throw new Error('No se pudo cargar el detalle')
-      setDetail(await res.json())
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally { setLoadingDetail(false) }
-  }, [notify])
-
-  useEffect(() => { load() }, [load])
-  useEffect(() => { if (selectedArea) loadDetail(selectedArea) }, [selectedArea, loadDetail])
-
-  const submit = async event => {
-    event.preventDefault()
-    if (!newName.trim()) return notify('Ingresa un nombre para el área.', 'error')
-    setSaving(true)
-    try {
-      const res = await apiFetch('/locations', { method: 'POST', body: JSON.stringify({ name: newName.trim(), description: newDescription.trim() }) })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo crear el área')
-      notify('Área creada correctamente.', 'success')
-      setNewName(''); setNewDescription(''); setShowNewArea(false)
-      await load()
-      if (json.id) setSelectedArea(json.id)
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally { setSaving(false) }
-  }
-
-  return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-
-      {/* MARCO GENERAL ESTILO DOCUMENTO */}
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-
-        {/* CABECERA Y ACCIONES */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              Áreas del hospital
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              Visualiza capacidad operativa, dispositivos y alertas por área.
-            </p>
-          </div>
-
-          <div>
-            {canEdit && (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => setShowNewArea(v => !v)}
-              >
-                {showNewArea ? 'Cancelar' : '＋ Agregar área'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        {/* FORMULARIO DE NUEVA ÁREA */}
-        {showNewArea && (
-          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Nueva área</h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Completa la información para registrar una nueva zona.</p>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre *</label>
-                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej. UCI, Emergencias…" />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Descripción</label>
-                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Descripción breve" />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-              <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setShowNewArea(false)}>Cancelar</button>
-              <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Crear área'}</button>
-            </div>
-          </form>
-        )}
-
-        {/* MAPA OPERATIVO */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Mapa operativo</h3>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{items.length} áreas disponibles.</p>
-          </div>
-
-          {loading ? (
-            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState /></div>
-          ) : items.length === 0 ? (
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
-              <EmptyState icon="◈" title="No hay áreas registradas" description="Crea una nueva área para empezar." />
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
-              {items.map(area => {
-                const isSelected = selectedArea === area.id;
-                return (
-                  <button
-                    key={area.id}
-                    type="button"
-                    onClick={() => setSelectedArea(area.id)}
-                    style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      border: `1px solid ${isSelected ? '#3b82f6' : '#1e293b'}`,
-                      borderRadius: '16px',
-                      padding: '1.25rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '1rem',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      boxShadow: isSelected ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                      transition: 'all 0.25s ease-in-out'
-                    }}
-                    onMouseEnter={e => {
-                      if (!isSelected) {
-                        e.currentTarget.style.transform = 'translateY(-4px)'
-                        e.currentTarget.style.borderColor = '#3b82f6'
-                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!isSelected) {
-                        e.currentTarget.style.transform = 'translateY(0px)'
-                        e.currentTarget.style.borderColor = '#1e293b'
-                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                      }
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Área #{area.id}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0' }}>{area.name}</h3>
-                      </div>
-                      <span className={cx('status-dot', (area.active_alerts ?? 0) > 0 ? 'warning' : 'success')} style={{ width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }} />
-                    </div>
-
-                    <p style={{ fontSize: '0.825rem', color: '#94a3b8', margin: 0 }}>{area.description || 'Sin descripción registrada'}</p>
-
-                    <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#cbd5e1', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', width: '100%' }}>
-                      <span><strong>{area.device_count ?? 0}</strong> dispositivos</span>
-                      <span><strong>{area.active_alerts ?? 0}</strong> alertas</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* DETALLE DE ÁREA SELECCIONADA */}
-        {selectedArea && (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-                  Detalle · {detail?.name || `Área #${selectedArea}`}
-                </h3>
-              </div>
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer' }}
-                onClick={() => { setSelectedArea(null); setDetail(null); }}
-              >
-                Cerrar
-              </button>
-            </div>
-
-            {loadingDetail ? (
-              <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando detalle…" /></div>
-            ) : detail ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                <StatCard icon="👥" label="Usuarios" value={detail.user_count ?? '—'} tone="primary" />
-                <StatCard icon="📟" label="Dispositivos" value={detail.device_count ?? 0} tone="success" />
-                <StatCard icon="⚠" label="Alertas activas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
-              </div>
-            ) : (
-              <EmptyState title="Sin información de detalle" />
-            )}
-          </div>
-        )}
-
-      </div>
-    </div>
-  )
-}
-
-// ============================================================
-// Devices / audit
-// ============================================================
-
-export function Devices() {
-  const [devices, setDevices] = useState([]);
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [clientInfo, setClientInfo] = useState({
-    ip: 'No disponible',
-    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
-  });
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' });
-
-  const { user } = useAuth();
-  const [toast, notify, clearToast] = useToast();
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [devRes, locRes] = await Promise.all([
-        apiFetch('/devices'),
-        apiFetch('/locations')
-      ]);
-
-      if (!devRes.ok || !locRes.ok) {
-        throw new Error('No se pudo cargar el inventario o las ubicaciones.');
-      }
-
-      const devData = await devRes.json();
-      const locData = await locRes.json();
-
-      setDevices(Array.isArray(devData) ? devData : []);
-      setLocations(Array.isArray(locData) ? locData : []);
-    } catch (error) {
-      notify(error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [notify]);
-
-  useEffect(() => {
-    loadData();
-
-    (async () => {
-      try {
-        const res = await fetch('https://api.ipify.org?format=json');
-        if (res.ok) {
-          const data = await res.json();
-          setClientInfo(v => ({ ...v, ip: data.ip || v.ip }));
-        }
-      } catch (error) {
-        console.warn('No se pudo obtener la IP pública:', error);
-      }
-    })();
-  }, [loadData]);
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await apiFetch('/devices', {
-        method: 'POST',
-        body: JSON.stringify({ ...formData, ip_address: clientInfo.ip })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || 'Error al registrar dispositivo');
-      }
-
-      notify('Dispositivo registrado con éxito', 'success');
-      setShowForm(false);
-      setFormData({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' });
-      loadData();
-    } catch (error) {
-      notify(error.message, 'error');
-    }
-  };
-
-  const filteredDevices = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return devices.filter(device => {
-      const matchesQuery = !q || [device.name, device.type, device.ip_address]
-        .filter(Boolean)
-        .some(value => String(value).toLowerCase().includes(q));
-      const matchesStatus = status === 'all' || device.status === status;
-      return matchesQuery && matchesStatus;
-    });
-  }, [devices, search, status]);
-
-  const locationMap = useMemo(() => {
-    return new Map(locations.map(location => [String(location.id), location.name]));
-  }, [locations]);
-
-  return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              Dispositivos y auditoría
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              Inventario operativo y contexto de trazabilidad del cliente.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}
-          >
-            {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
-          </button>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '1rem', fontSize: '0.875rem', color: '#93c5fd' }}>
-          <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · IP {clientInfo.ip}
-        </div>
-
-        {showForm && (
-          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
-            <input
-              type="text"
-              placeholder="Nombre del dispositivo"
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              required
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
-            />
-            <select
-              value={formData.type}
-              onChange={e => setFormData({ ...formData, type: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
-            >
-              <option value="pc">PC de Escritorio</option>
-              <option value="laptop">Laptop</option>
-              <option value="mobile">Móvil</option>
-              <option value="tablet">Tablet</option>
-              <option value="server">Servidor</option>
-              <option value="other">Otro</option>
-            </select>
-            <select
-              value={formData.location_id}
-              onChange={e => setFormData({ ...formData, location_id: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
-            >
-              <option value="">Seleccionar ubicación</option>
-              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
-            <button
-              type="submit"
-              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem' }}
-            >
-              Guardar Dispositivo
-            </button>
-          </form>
-        )}
-
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: '240px' }}>
-              <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo o IP…" loading={loading} />
-            </div>
-            <select
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-            >
-              <option value="all">Todos los estados</option>
-              <option value="available">Disponible</option>
-              <option value="in_use">En uso</option>
-              <option value="maintenance">Mantenimiento</option>
-              <option value="active">Activo</option>
-            </select>
-          </div>
-
-          {loading ? (
-            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando dispositivos…" /></div>
-          ) : filteredDevices.length === 0 ? (
-            <EmptyState icon="📟" title="No hay dispositivos" description="No se encontraron elementos con los filtros seleccionados." />
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-              {filteredDevices.map(row => (
-                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>#{row.id}</span>
-                    <span className="badge">{row.status || '—'}</span>
-                  </div>
-                  <div>
-                    <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{row.name}</strong>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.type || '—'}</div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                    <span>IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></span>
-                    <span>Ubicación: {locationMap.get(String(row.location_id)) || 'Sin asignación'}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-export function DeviceActions() {
-  const [items, setItems] = useState([]);
-  const [page, setPage] = useState(1);
-  const [perPage] = useState(20);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [toast, notify, clearToast] = useToast();
-
-  const loadActions = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ page, per_page: perPage });
-      const res = await apiFetch(`/device_actions?${params.toString()}`);
-
-      if (!res.ok) throw new Error('No se pudo cargar la bitácora');
-
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data.items || [];
-
-      setItems(list);
-      setTotal(data.total || list.length);
-    } catch (error) {
-      notify(error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, perPage, notify]);
-
-  useEffect(() => {
-    loadActions();
-  }, [loadActions]);
-
-  return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              Bitácora de auditoría
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              Eventos de seguridad y trazabilidad registrados por el sistema.
-            </p>
-          </div>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {loading ? (
-            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando registros…" /></div>
-          ) : items.length === 0 ? (
-            <EmptyState icon="◷" title="No hay eventos en esta página" description="No se registran actividades recientes." />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {items.map(row => (
-                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.0rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{row.created_at}</span>
-                    <span className="badge badge-info" style={{ width: 'fit-content' }}>{row.action_type || 'ACCIÓN'}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
-                    <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>{row.username || row.user_id || 'Anónimo'}</strong>
-                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.details || '—'}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#94a3b8', alignItems: 'center' }}>
-                    <span>Rol: <strong style={{ color: '#cbd5e1' }}>{row.user_role || 'Sin rol'}</strong></span>
-                    <span>IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Pagination page={page} perPage={perPage} total={total} onPrev={() => setPage(v => Math.max(1, v - 1))} onNext={() => setPage(v => v + 1)} />
-        </div>
-
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Appointments - Con Niveles de Prioridad
-// ============================================================
-
-// ============================================================
-// Appointments - Multi-View Calendar (Month, Week, Day) con Prioridades
-// ============================================================
-
-export function Appointments() {
-  const [appointments, setAppointments] = useState([])
-  const [patients, setPatients] = useState([])
-  const [patientSearch, setPatientSearch] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [toast, notify, clearToast] = useToast()
-
-  // Vistas de calendario: 'month' | 'week' | 'day'
-  const [calendarView, setCalendarView] = useState('month')
-  const [currentDate, setCurrentDate] = useState(new Date())
-
-  // Filtros avanzados
-  const [filterSearch, setFilterSearch] = useState('')
-  const [filterDoctor, setFilterDoctor] = useState('')
-  const [filterSpecialty, setFilterSpecialty] = useState('')
-  const [filterPriority, setFilterPriority] = useState('')
-
-  // Modal de detalles/edición
-  const [selectedAppointment, setSelectedAppointment] = useState(null)
-  const [editingAppointment, setEditingAppointment] = useState(false)
-  const [editForm, setEditForm] = useState({
-    doctor_name: '', specialty: '', appointment_date: '', end_time: '', notes: '', color: '#464775', priority: 'Media'
-  })
-  const [actionLoading, setActionLoading] = useState(false)
-
-  // Formulario de nueva cita
-  const [form, setForm] = useState({
-    patient_id: '',
-    doctor_name: 'Dra. Mendoza',
-    specialty: 'Cardiología',
-    appointment_date: '',
-    end_time: '',
-    notes: '',
-    color: '#464775',
-    priority: 'Media'
-  })
-
-  const debouncedPatientSearch = useDebouncedValue(patientSearch, 250)
-
-  const specialtyColors = {
-    'Cardiología': '#464775',
-    'Pediatría': '#237b4b',
-    'Neurología': '#881798',
-    'Dermatología': '#b8860b',
-    'General': '#005a9e'
-  }
-
-  const priorityBadgeColors = {
-    'Baja': '#237b4b',
-    'Media': '#005a9e',
-    'Alta': '#b8860b',
-    'Urgente': '#a80000'
-  }
-
-  const loadAppointments = useCallback(async () => {
-    const res = await apiFetch('/appointments')
-    if (res.ok) setAppointments(await res.json() || [])
-  }, [])
-
-  const searchPatients = useCallback(async q => {
-    const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`)
-    if (res.ok) setPatients(await res.json() || [])
-  }, [])
-
-  useEffect(() => { loadAppointments(); searchPatients('') }, [loadAppointments, searchPatients])
-  useEffect(() => { if (showForm) searchPatients(debouncedPatientSearch) }, [debouncedPatientSearch, showForm, searchPatients])
-
-  // Verificador de solapamientos
-  const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
-    if (!newDateStr) return false
-    const newStart = new Date(newDateStr).getTime()
-    let newEnd = newStart + 30 * 60000
-    if (newEndTimeStr) {
-      const [eh, em] = newEndTimeStr.split(':').map(Number)
-      const startDateObj = new Date(newDateStr)
-      startDateObj.setHours(eh, em, 0, 0)
-      newEnd = startDateObj.getTime()
-    }
-
-    return appointments.some(app => {
-      if (excludeId && app.id === excludeId) return false
-      if (!app.appointment_date) return false
-
-      const appStart = new Date(app.appointment_date).getTime()
-      let appEnd = appStart + 30 * 60000
-      if (app.end_time) {
-        const [eh, em] = app.end_time.split(':').map(Number)
-        const endDateObj = new Date(app.appointment_date)
-        endDateObj.setHours(eh, em, 0, 0)
-        appEnd = endDateObj.getTime()
-      }
-
-      const sameDay = new Date(newDateStr).toDateString() === new Date(app.appointment_date).toDateString()
-      if (!sameDay) return false
-
-      return (newStart < appEnd && newEnd > appStart)
-    })
-  }
-
-  const submit = async event => {
-    event.preventDefault()
-    if (checkOverlap(form.appointment_date, form.end_time)) {
-      if (!window.confirm("⚠️ Este horario se solapa con otra cita existente. ¿Deseas guardarla de todas formas?")) return
-    }
-
-    setSaving(true)
-    try {
-      const res = await apiFetch('/appointments', { method: 'POST', body: JSON.stringify(form) })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo programar la cita')
-      notify('Cita agendada correctamente.', 'success', 'Agenda actualizada')
-      setForm({ patient_id: '', doctor_name: 'Dra. Mendoza', specialty: 'Cardiología', appointment_date: '', end_time: '', notes: '', color: '#464775', priority: 'Media' })
-      setPatientSearch('')
-      setShowForm(false)
-      await loadAppointments()
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally { setSaving(false) }
-  }
-
-  const handleUpdateAppointment = async (e) => {
-    e.preventDefault()
-    if (!selectedAppointment) return
-
-    if (checkOverlap(editForm.appointment_date, editForm.end_time, selectedAppointment.id)) {
-      if (!window.confirm("⚠️ Este horario actualizado se solapa con otra cita. ¿Continuar?")) return
-    }
-
-    setActionLoading(true)
-    try {
-      const res = await apiFetch(`/appointments/${selectedAppointment.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(editForm)
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo actualizar la cita')
-      notify('Cita actualizada correctamente.', 'success', 'Agenda actualizada')
-      setSelectedAppointment(null)
-      setEditingAppointment(false)
-      await loadAppointments()
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const handleCancelAppointment = async (id) => {
-    if (!window.confirm('¿Estás seguro de cancelar esta cita?')) return
-    setActionLoading(true)
-    try {
-      const res = await apiFetch(`/appointments/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('No se pudo cancelar la cita')
-      notify('Cita cancelada correctamente.', 'success')
-      setSelectedAppointment(null)
-      await loadAppointments()
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
-  const filteredAppointments = useMemo(() => {
-    return appointments.filter(item => {
-      const matchesSearch = !filterSearch ||
-        String(item.doctor_name || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
-        String(item.specialty || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
-        String(item.patient_id || '').toLowerCase().includes(filterSearch.toLowerCase()) ||
-        String(item.notes || '').toLowerCase().includes(filterSearch.toLowerCase())
-
-      const matchesDoctor = !filterDoctor || item.doctor_name === filterDoctor
-      const matchesSpecialty = !filterSpecialty || item.specialty === filterSpecialty
-      const matchesPriority = !filterPriority || item.priority === filterPriority
-
-      return matchesSearch && matchesDoctor && matchesSpecialty && matchesPriority
-    })
-  }, [appointments, filterSearch, filterDoctor, filterSpecialty, filterPriority])
-
-  const handlePrevPeriod = () => {
-    const newDate = new Date(currentDate)
-    if (calendarView === 'month') newDate.setMonth(newDate.getMonth() - 1)
-    else if (calendarView === 'week') newDate.setDate(newDate.getDate() - 7)
-    else newDate.setDate(newDate.getDate() - 1)
-    setCurrentDate(newDate)
-  }
-
-  const handleNextPeriod = () => {
-    const newDate = new Date(currentDate)
-    if (calendarView === 'month') newDate.setMonth(newDate.getMonth() + 1)
-    else if (calendarView === 'week') newDate.setDate(newDate.getDate() + 7)
-    else newDate.setDate(newDate.getDate() + 1)
-    setCurrentDate(newDate)
-  }
-
-  const uniqueDoctors = useMemo(() => [...new Set(appointments.map(a => a.doctor_name).filter(Boolean))], [appointments])
-  const uniqueSpecialties = useMemo(() => [...new Set(appointments.map(a => a.specialty).filter(Boolean))], [appointments])
-
-  const calendarDays = useMemo(() => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth()
-    const firstDayIndex = new Date(year, month, 1).getDay()
-    const totalDays = new Date(year, month + 1, 0).getDate()
-
-    const days = []
-    const prevMonthDays = new Date(year, month, 0).getDate()
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      days.push({ date: new Date(year, month - 1, prevMonthDays - i), isCurrentMonth: false })
-    }
-    for (let i = 1; i <= totalDays; i++) {
-      days.push({ date: new Date(year, month, i), isCurrentMonth: true })
-    }
-    const remaining = days.length % 7 === 0 ? 0 : 7 - (days.length % 7)
-    for (let i = 1; i <= remaining; i++) {
-      days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false })
-    }
-    return days
-  }, [currentDate])
-
-  const weekDays = useMemo(() => {
-    const start = new Date(currentDate)
-    const day = start.getDay()
-    const diff = start.getDate() - day
-    const sunday = new Date(start.setDate(diff))
-
-    const days = []
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(sunday)
-      d.setDate(sunday.getDate() + i)
-      days.push(d)
-    }
-    return days
-  }, [currentDate])
-
-  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-
-  const getAppointmentHeight = (app) => {
-    if (!app.appointment_date || !app.end_time) return '50px'
-    const [sh, sm] = app.appointment_date.slice(11, 16).split(':').map(Number)
-    const [eh, em] = app.end_time.split(':').map(Number)
-    const diffMins = (eh * 60 + em) - (sh * 60 + sm)
-    if (diffMins <= 0) return '50px'
-    const heightPx = (diffMins / 60) * 60
-    return `${Math.max(heightPx, 35)}px`
-  }
-
-  // Renderizador común de tarjeta de cita con animación integrada
-  const renderAppointmentCard = (item) => {
-    const itemColor = item.color || specialtyColors[item.specialty] || '#464775'
-    const pColor = priorityBadgeColors[item.priority] || '#005a9e'
-    const timeStr = item.appointment_date ? item.appointment_date.slice(11, 16) : ''
-
-    return (
-      <div
-        key={item.id}
-        onClick={(e) => {
-          e.stopPropagation()
-          setSelectedAppointment(item)
-          setEditingAppointment(false)
-          setEditForm({
-            doctor_name: item.doctor_name || '',
-            specialty: item.specialty || '',
-            appointment_date: item.appointment_date ? item.appointment_date.slice(0, 16) : '',
-            end_time: item.end_time || '',
-            notes: item.notes || '',
-            color: itemColor,
-            priority: item.priority || 'Media'
-          })
-        }}
-        className="appointment-card"
-        style={{
-          backgroundColor: itemColor,
-          borderLeft: `5px solid ${pColor}`,
-          borderRadius: '4px',
-          padding: '4px 8px',
-          fontSize: '0.75rem',
-          color: '#ffffff',
-          minHeight: calendarView === 'week' ? getAppointmentHeight(item) : '38px',
-          overflow: 'hidden',
-          cursor: 'pointer',
-          zIndex: 5,
-          boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
-          margin: '2px 0',
-          animation: 'fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
-          transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-        }}
-      >
-        <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {timeStr} - {item.doctor_name}
-        </strong>
-        <span style={{ fontSize: '0.7rem', opacity: 0.9 }}>{item.specialty} [{item.priority}]</span>
-      </div>
+    cursor = db_connection.cursor()
+    
+    # Verificar si el dispositivo ya existe para esta IP y tenant para evitar duplicados
+    cursor.execute(
+        """
+        SELECT id FROM public.devices 
+        WHERE tenant_id = %s AND ip_address = %s AND user_agent = %s
+        """,
+        (tenant_id, ip_address, user_agent)
     )
-  }
+    existing = cursor.fetchone()
+    
+    if existing:
+        device_id = existing[0]
+        # Opcional: actualizar última actividad o estado
+    else:
+        cursor.execute(
+            """
+            INSERT INTO public.devices 
+            (tenant_id, location_id, name, type, status, created_at, ip_address, user_agent)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (tenant_id, location_id, device_name, device_type, 'active', created_at, ip_address, user_agent)
+        )
+        device_id = cursor.fetchone()[0]
+        db_connection.commit()
+        
+    return device_id
 
-  return (
-    <div style={{ padding: '1.5rem', backgroundColor: '#1f1f1f', color: '#f3f2f1', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: '"Segoe UI", sans-serif' }}>
-      
-      {/* Estilos globales para animaciones fluidas */}
-      <style>{`
-        @keyframes fadeInScale {
-          from {
-            opacity: 0;
-            transform: scale(0.96) translateY(4px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
+def db_query(query, params=(), commit=False, fetchone=False, fetchall=False):
+    conn = get_db()
+    with conn.cursor() as cur:
+        try:
+            cur.execute(query, params)
+            result = None
+            if fetchone:
+                row = cur.fetchone()
+                result = dict(row) if row else None
+            elif fetchall:
+                result = [dict(row) for row in cur.fetchall()]
+            
+            if commit:
+                conn.commit()
+            return result
+        except Exception as e:
+            conn.rollback()
+            raise e
+
+
+def get_user_columns():
+    try:
+        rows = db_query(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = 'users'
+            """,
+            fetchall=True
+        ) or []
+        return {row['column_name'] for row in rows}
+    except Exception:
+        return set()
+
+
+def create_token(user):
+    payload = {
+        'sub': user['username'],
+        'user_id': user.get('id'),
+        'tenant_id': user['tenant_id'],
+        'role': user['role'],
+        'permissions': get_role_permissions(user['role']),
+        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
+    }
+    return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return '', 200
+        auth = request.headers.get('Authorization', None)
+        if not auth:
+            return jsonify({'message': 'Missing authorization header'}), 401
+        parts = auth.split()
+        if parts[0].lower() != 'bearer' or len(parts) != 2:
+            return jsonify({'message': 'Invalid authorization header'}), 401
+        try:
+            # CAMBIO CRÍTICO: Usar app.config en lugar de current_app para garantizar la misma clave exacta
+            data = jwt.decode(parts[1], app.config['SECRET_KEY'], algorithms=['HS256'])
+            request.claims = data
+        except jwt.ExpiredSignatureError:
+            return jsonify({'message': 'Token expired'}), 401
+        except Exception:
+            return jsonify({'message': 'Invalid token'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+def get_client_ip():
+    x_forwarded = request.headers.get('X-Forwarded-For')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.remote_addr or '127.0.0.1'
+
+def get_role_permissions(role_name):
+    try:
+        rows = db_query(
+            '''
+            SELECT p.name
+            FROM permissions p
+            JOIN role_permissions rp ON rp.permission_id = p.id
+            JOIN roles r ON r.id = rp.role_id
+            WHERE r.name = %s
+            ''', (role_name,), fetchall=True
+        )
+        return [r['name'] for r in rows] if rows else []
+    except Exception:
+        return []
+
+def get_role_info(role_name):
+    try:
+        row = db_query('SELECT name, display_name FROM roles WHERE name = %s', (role_name,), fetchone=True)
+        if not row:
+            return {'name': role_name, 'permissions': []}
+        return {'name': row['display_name'] or row['name'], 'permissions': get_role_permissions(role_name)}
+    except Exception:
+        return {'name': role_name, 'permissions': []}
+
+def get_all_roles():
+    try:
+        rows = db_query(
+            '''
+            SELECT r.name AS role_name, r.display_name, p.name AS perm_name
+            FROM roles r
+            LEFT JOIN role_permissions rp ON r.id = rp.role_id
+            LEFT JOIN permissions p ON rp.permission_id = p.id
+            ORDER BY r.id
+            ''', fetchall=True
+        )
+        result = {}
+        for r in rows:
+            role_key = r['role_name']
+            if role_key not in result:
+                result[role_key] = {
+                    'name': r['display_name'] or role_key,
+                    'permissions': []
+                }
+            if r['perm_name']:
+                result[role_key]['permissions'].append(r['perm_name'])
+        return result
+    except Exception:
+        return {}
+
+def has_permission(role_name, permission):
+    return permission in get_role_permissions(role_name)
+
+def get_current_user():
+    claims = getattr(request, 'claims', {})
+    return {
+        'id': claims.get('user_id'),
+        'username': claims.get('sub'),
+        'tenant_id': claims.get('tenant_id'),
+        'role': claims.get('role')
+    }
+
+def record_audit(action, entity_type, entity_id, details, tenant_id, user_id=None):
+    try:
+        db_query(
+            '''
+            INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, details, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ''',
+            (tenant_id, user_id, action, entity_type, entity_id, details, now_utc()), commit=True
+        )
+    except Exception as e:
+        print(f"[AUDIT LOG WARNING]: No se pudo registrar auditoría: {str(e)}")
+
+    # Also attempt to record the action tied to the originating session / IP
+    try:
+        ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        user_agent = request.headers.get('User-Agent', '')
+        # Insert into device_actions for tracking by IP/session
+        db_query(
+            '''
+            INSERT INTO device_actions (tenant_id, session_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
+            VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''',
+            (tenant_id, user_id, ip_addr, user_agent, action, entity_type, entity_id, details, now_utc()), commit=True
+        )
+    except Exception as e:
+        print(f"[DEVICE ACTION WARNING]: No se pudo registrar la acción del dispositivo: {str(e)}")
+
+
+# 6. Endpoints de la API
+@app.route('/api/health')
+def health():
+    return jsonify({'status': 'ok', 'database': 'Supabase PostgreSQL', 'demo_data': DEMO_DATA_ENABLED})
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    try:
+        data = request.get_json() or {}
+        username = data.get('username')
+        password = data.get('password')
+        tenant_id = data.get('tenant_id')
+
+        if not username or not password:
+            return jsonify({'message': 'username and password required'}), 400
+
+        if User.query.filter_by(username=username).first():
+            return jsonify({'message': 'user already exists'}), 400
+
+        if not tenant_id:
+            default_tenant = Tenant.query.first()
+            if not default_tenant:
+                default_tenant = Tenant(name="Hospital Central", created_at=datetime.datetime.now(timezone.utc))
+                db.session.add(default_tenant)
+                db.session.flush()
+            tenant_id = default_tenant.id
+
+        hashed_password = generate_password_hash(password)
+
+        new_user = User(
+            username=username,
+            password=hashed_password,
+            role=data.get('role', 'viewer'),
+            tenant_id=tenant_id,
+            created_at=datetime.datetime.now(timezone.utc)
+        )
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        user_dict = {
+            'id': new_user.id,
+            'username': new_user.username,
+            'tenant_id': new_user.tenant_id,
+            'role': new_user.role
         }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+
+        return jsonify({
+            'token': create_token(user_dict),
+            'username': new_user.username,
+            'role': new_user.role,
+            'tenant_id': new_user.tenant_id
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"[REGISTER ERROR]: {str(e)}")
+        return jsonify({'message': f'Internal server error: {str(e)}'}), 500
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    try:
+        data = request.get_json() or {}
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            return jsonify({'message': 'username and password required'}), 400
+
+        # Autenticación mediante SQLAlchemy (evita fallos de conexión manual)
+        user = User.query.filter_by(username=username).first()
+
+        if not user or not check_password_hash(user.password, password):
+            return jsonify({'message': 'invalid credentials'}), 401
+
+        user_dict = {
+            'id': user.id,
+            'username': user.username,
+            'tenant_id': user.tenant_id,
+            'role': user.role
         }
-        .appointment-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 8px rgba(0,0,0,0.6) !important;
-        }
-        .animated-container {
-          animation: fadeIn 0.25s ease-out forwards;
-        }
-      `}</style>
 
-      <div className="animated-container" style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+        token = create_token(user_dict)
 
-        {/* BARRA SUPERIOR */}
-        <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button onClick={() => setCurrentDate(new Date())} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.75rem', fontSize: '0.85rem', cursor: 'pointer', transition: 'background 0.2s' }}>Hoy</button>
-              <div style={{ display: 'flex', border: '1px solid #484644', borderRadius: '4px', overflow: 'hidden' }}>
-                <button onClick={handlePrevPeriod} style={{ backgroundColor: 'transparent', border: 'none', color: '#f3f2f1', padding: '0.35rem 0.6rem', cursor: 'pointer' }}>〈</button>
-                <button onClick={handleNextPeriod} style={{ backgroundColor: 'transparent', border: 'none', color: '#f3f2f1', padding: '0.35rem 0.6rem', cursor: 'pointer', borderLeft: '1px solid #484644' }}>〉</button>
-              </div>
-            </div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>
-              {calendarView === 'week'
-                ? `Semana del ${weekDays[0].getDate()} de ${monthNames[weekDays[0].getMonth()]} - ${weekDays[6].getDate()} de ${monthNames[weekDays[6].getMonth()]}, ${weekDays[6].getFullYear()}`
-                : calendarView === 'day'
-                  ? currentDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-                  : `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`
-              }
-            </h2>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <div style={{ backgroundColor: '#11100f', border: '1px solid #484644', borderRadius: '4px', display: 'flex', padding: '2px' }}>
-              <button onClick={() => setCalendarView('month')} style={{ backgroundColor: calendarView === 'month' ? '#484644' : 'transparent', border: 'none', color: '#f3f2f1', padding: '0.3rem 0.75rem', borderRadius: '3px', fontSize: '0.8rem', cursor: 'pointer', transition: 'background 0.2s' }}>Mes</button>
-              <button onClick={() => setCalendarView('week')} style={{ backgroundColor: calendarView === 'week' ? '#484644' : 'transparent', border: 'none', color: '#f3f2f1', padding: '0.3rem 0.75rem', borderRadius: '3px', fontSize: '0.8rem', cursor: 'pointer', transition: 'background 0.2s' }}>Semana</button>
-              <button onClick={() => setCalendarView('day')} style={{ backgroundColor: calendarView === 'day' ? '#484644' : 'transparent', border: 'none', color: '#f3f2f1', padding: '0.3rem 0.75rem', borderRadius: '3px', fontSize: '0.8rem', cursor: 'pointer', transition: 'background 0.2s' }}>Día</button>
-            </div>
-
-            <button
-              style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', transition: 'opacity 0.2s' }}
-              onClick={() => {
-                const now = new Date()
-                setForm(p => ({ ...p, appointment_date: now.toISOString().slice(0, 16), color: specialtyColors[p.specialty] || '#464775' }))
-                setShowForm(v => !v)
-              }}
-            >
-              {showForm ? 'Cancelar' : 'New event'}
-            </button>
-          </div>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        {/* FORMULARIO NUEVA CITA */}
-        {showForm && (
-          <form onSubmit={submit} className="animated-container" style={{ backgroundColor: '#252423', borderBottom: '1px solid #333333', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Programar nueva cita médica</h3>
-              <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer' }}>✕</button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Buscar paciente *</label>
-                <SearchField value={patientSearch} onChange={setPatientSearch} placeholder="Nombre o DNI..." />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Paciente seleccionado *</label>
-                <select required style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
-                  <option value="">Seleccionar paciente</option>
-                  {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.dni || p.document_number || '—'}</option>)}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Médico tratante</label>
-                <input style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad y Color</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <select
-                    style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }}
-                    value={form.specialty}
-                    onChange={e => {
-                      const spec = e.target.value
-                      setForm(p => ({ ...p, specialty: spec, color: specialtyColors[spec] || p.color }))
-                    }}
-                  >
-                    {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
-                  </select>
-                  <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} style={{ width: '38px', height: '36px', background: 'transparent', border: '1px solid #484644', borderRadius: '4px', cursor: 'pointer' }} />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Prioridad</label>
-                <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
-                  <option value="Baja">Baja</option>
-                  <option value="Media">Media</option>
-                  <option value="Alta">Alta</option>
-                  <option value="Urgente">Urgente</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Inicio *</label>
-                <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Hora de fin</label>
-                <input type="time" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <button type="button" style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }} onClick={() => setShowForm(false)}>Descartar</button>
-              <button type="submit" style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
-            </div>
-          </form>
-        )}
-
-        {/* FILTROS */}
-        <div style={{ backgroundColor: '#201f1f', padding: '0.75rem 1.5rem', borderBottom: '1px solid #333333', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
-          <input type="text" placeholder="Filtrar eventos..." value={filterSearch} onChange={e => setFilterSearch(e.target.value)} style={{ flex: 1, minWidth: '200px', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.75rem', fontSize: '0.8rem' }} />
-          <select value={filterDoctor} onChange={e => setFilterDoctor(e.target.value)} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}>
-            <option value="">Todos los médicos</option>
-            {uniqueDoctors.map(doc => <option key={doc} value={doc}>{doc}</option>)}
-          </select>
-          <select value={filterSpecialty} onChange={e => setFilterSpecialty(e.target.value)} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}>
-            <option value="">Todas las especialidades</option>
-            {uniqueSpecialties.map(spec => <option key={spec} value={spec}>{spec}</option>)}
-          </select>
-          <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.35rem 0.5rem', fontSize: '0.8rem' }}>
-            <option value="">Todas las prioridades</option>
-            <option value="Baja">Baja</option>
-            <option value="Media">Media</option>
-            <option value="Alta">Alta</option>
-            <option value="Urgente">Urgente</option>
-          </select>
-        </div>
-
-        {/* CONTENIDO DE VISTAS */}
-        <div style={{ padding: '1rem', backgroundColor: '#292929' }}>
-
-          {/* VISTA MES */}
-          {calendarView === 'month' && (
-            <div className="animated-container">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', marginBottom: '2px', textAlign: 'center' }}>
-                {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'].map(day => (
-                  <div key={day} style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: '#b3b0ad', backgroundColor: '#201f1f' }}>{day}</div>
-                ))}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '2px', backgroundColor: '#333333' }}>
-                {calendarDays.map((cell, index) => {
-                  const monthCellDateStr = `${cell.date.getFullYear()}-${String(cell.date.getMonth() + 1).padStart(2, '0')}-${String(cell.date.getDate()).padStart(2, '0')}`
-
-                  const dayAppointments = filteredAppointments.filter(item => {
-                    if (!item.appointment_date) return false
-                    const localDateObj = new Date(item.appointment_date)
-                    if (isNaN(localDateObj.getTime())) return false
-
-                    const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
-                    return itemDateStr === monthCellDateStr
-                  })
-
-                  return (
-                    <div
-                      key={index}
-                      onClick={() => {
-                        const dateHourStr = `${monthCellDateStr}T09:00`
-                        setForm(p => ({ ...p, appointment_date: dateHourStr, color: specialtyColors[p.specialty] || '#464775' }))
-                        setShowForm(true)
-                      }}
-                      style={{ backgroundColor: cell.isCurrentMonth ? '#292929' : '#222120', minHeight: '110px', padding: '0.4rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', cursor: 'pointer', transition: 'background 0.2s' }}
-                    >
-                      <span style={{ fontSize: '0.75rem', color: cell.isCurrentMonth ? '#f3f2f1' : '#666564' }}>{cell.date.getDate()}</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-                        {dayAppointments.map(item => renderAppointmentCard(item))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* VISTA SEMANA (24 Horas) */}
-          {calendarView === 'week' && (() => {
-            const fullHoursRange = Array.from({ length: 24 }, (_, i) => i)
-
-            return (
-              <div className="animated-container" style={{ display: 'flex', flexDirection: 'column', overflowX: 'auto' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', backgroundColor: '#201f1f', borderBottom: '1px solid #333333' }}>
-                  <div style={{ padding: '0.5rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'center' }}>Hora</div>
-                  {weekDays.map(d => (
-                    <div key={d.toISOString()} style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: '#f3f2f1', textAlign: 'center', borderLeft: '1px solid #333333' }}>
-                      {d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {fullHoursRange.map(hour => (
-                    <div key={hour} style={{ display: 'grid', gridTemplateColumns: '60px repeat(7, minmax(120px, 1fr))', borderBottom: '1px solid #333333', minHeight: '60px' }}>
-                      <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
-                      {weekDays.map(d => {
-                        const weekCellDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-                        
-                        const cellApps = filteredAppointments.filter(item => {
-                          if (!item.appointment_date) return false
-                          const localDateObj = new Date(item.appointment_date)
-                          if (isNaN(localDateObj.getTime())) return false
-                          
-                          const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
-                          if (itemDateStr !== weekCellDateStr) return false
-                          return localDateObj.getHours() === hour
-                        })
-
-                        return (
-                          <div 
-                            key={d.toISOString()}
-                            onClick={() => {
-                              setForm(p => ({ ...p, appointment_date: `${weekCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
-                              setShowForm(true)
-                            }}
-                            style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px', position: 'relative', cursor: 'pointer' }}
-                          >
-                            {cellApps.map(item => renderAppointmentCard(item))}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
+        # Record session for this login (IP and user-agent)
+        try:
+            ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+            user_agent = request.headers.get('User-Agent', '')
+            session_row = db_query(
+                '''
+                INSERT INTO sessions (tenant_id, user_id, ip_address, user_agent, created_at, last_seen)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+                ''',
+                (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), commit=True, fetchone=True
             )
-          })()}
+            # Optionally include session id in token or logs (not modifying token now)
+        except Exception as e:
+            print(f"[SESSION WARNING]: No se pudo crear el registro de sesión: {str(e)}")
 
-          {/* VISTA DÍA (24 Horas) */}
-          {calendarView === 'day' && (() => {
-            const dayCellDateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`
-            const fullHoursRange = Array.from({ length: 24 }, (_, i) => i)
+        return jsonify({
+            'token': token,
+            'username': user.username,
+            'role': user.role
+        }), 200
 
-            const dayAppointments = filteredAppointments.filter(item => {
-              if (!item.appointment_date) return false
-              const localDateObj = new Date(item.appointment_date)
-              if (isNaN(localDateObj.getTime())) return false
-              
-              const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
-              return itemDateStr === dayCellDateStr
-            })
+    except Exception as e:
+        print(f"[LOGIN ERROR]: {str(e)}")
+        return jsonify({'message': f'Internal server error: {str(e)}'}), 500
 
-            return (
-              <div className="animated-container" style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {fullHoursRange.map(hour => {
-                    const cellApps = dayAppointments.filter(item => {
-                      const localDateObj = new Date(item.appointment_date)
-                      return localDateObj.getHours() === hour
-                    })
+@app.route('/api/auth/verify', methods=['GET'])
+def auth_verify():
+    auth_header = request.headers.get('Authorization', None)
+    token = None
 
-                    return (
-                      <div 
-                        key={hour}
-                        onClick={() => {
-                          setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
-                          setShowForm(true)
-                        }}
-                        style={{ display: 'flex', borderBottom: '1px solid #333333', minHeight: '65px', alignItems: 'stretch', cursor: 'pointer' }}
-                      >
-                        <div style={{ width: '70px', padding: '0.5rem', fontSize: '0.8rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '1rem', borderRight: '1px solid #333333' }}>
-                          {`${String(hour).padStart(2, '0')}:00`}
-                        </div>
-                        <div style={{ flex: 1, padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }} onClick={e => e.stopPropagation()}>
-                          {cellApps.map(item => renderAppointmentCard(item))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })()}
+    if auth_header:
+        parts = auth_header.split()
+        if len(parts) == 2 and parts[0].lower() == 'bearer':
+            token = parts[1]
 
-        </div>
-      </div>
+    if not token:
+        token = request.cookies.get('token')
 
-      {/* POPUP DE EDICIÓN / DETALLE */}
-      {selectedAppointment && (
-        <div className="animated-container" style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
-          <div className="animated-container" style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    if not token:
+        return jsonify({'authenticated': False, 'message': 'Missing authentication token'}), 401
 
-            <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedAppointment.color || '#6264a7' }}></div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Detalles de la cita</h3>
-              </div>
-              <button onClick={() => setSelectedAppointment(null)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer' }}>✕</button>
-            </div>
-
-            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {!editingAppointment ? (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Médico Tratante</span>
-                      <strong>{selectedAppointment.doctor_name}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Especialidad</span>
-                      <strong>{selectedAppointment.specialty}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Fecha y Hora</span>
-                      <strong>{selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Prioridad</span>
-                      <strong>{selectedAppointment.priority}</strong>
-                    </div>
-                  </div>
-                  {selectedAppointment.notes && (
-                    <div style={{ fontSize: '0.85rem' }}>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Notas</span>
-                      <p style={{ margin: '0.25rem 0 0 0', backgroundColor: '#201f1f', padding: '0.5rem', borderRadius: '4px' }}>{selectedAppointment.notes}</p>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                    <button type="button" onClick={() => handleCancelAppointment(selectedAppointment.id)} style={{ backgroundColor: 'transparent', border: '1px solid #a80000', color: '#ff6666', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }} disabled={actionLoading}>Cancelar cita</button>
-                    <button type="button" onClick={() => setEditingAppointment(true)} style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}>Editar</button>
-                  </div>
-                </>
-              ) : (
-                <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Médico tratante</label>
-                    <input style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.doctor_name} onChange={e => setEditForm(p => ({ ...p, doctor_name: e.target.value }))} />
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad</label>
-                    <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.specialty} onChange={e => {
-                      const spec = e.target.value
-                      setEditForm(p => ({ ...p, specialty: spec, color: specialtyColors[spec] || p.color }))
-                    }}>
-                      {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Inicio *</label>
-                      <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.appointment_date} onChange={e => setEditForm(p => ({ ...p, appointment_date: e.target.value }))} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Prioridad</label>
-                      <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.priority} onChange={e => setEditForm(p => ({ ...p, priority: e.target.value }))}>
-                        <option value="Baja">Baja</option>
-                        <option value="Media">Media</option>
-                        <option value="Alta">Alta</option>
-                        <option value="Urgente">Urgente</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Notas</label>
-                    <textarea rows="2" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} />
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-                    <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }}>Volver</button>
-                    <button type="submit" style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }} disabled={actionLoading}>{actionLoading ? 'Guardando…' : 'Guardar cambios'}</button>
-                  </div>
-                </form>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
-
-    </div>
-  )
-}
-
-export function Documents() {
-  const [documents, setDocuments] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [showTemplateBuilder, setShowTemplateBuilder] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [saving, setSaving] = useState(false);
-  const [toast, notify, clearToast] = useToast();
-  const { user, token } = useAuth(); // Asegúrate de extraer el token si tu auth provider lo provee
-
-  // Almacén de Plantillas sincronizado con la base de datos
-  const [templates, setTemplates] = useState([]);
-
-  const [templateName, setTemplateName] = useState('');
-  const [templateRows, setTemplateRows] = useState([
-    [
-      { id_campo: `f_${Date.now()}_1`, nombre_campo: 'Campo 1', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'dark' },
-      { id_campo: `f_${Date.now()}_2`, nombre_campo: 'Campo 2', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'muted' }
-    ]
-  ]);
-
-  // Formulario para registrar la atención
-  const [form, setForm] = useState({ patient_id: '', document_type: 'ingreso', template_id: '', description: '', dynamicValues: {} });
-
-  // Estado para el redimensionamiento dinámico con ratón (Resize)
-  const [resizing, setResizing] = useState(null);
-
-  // Cargar documentos generales
-  const loadDocuments = useCallback(async () => {
-    try {
-      const res = await apiFetch('/documents', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) setDocuments(await res.json() || []);
-    } catch (error) {
-      notify('Error al cargar documentos', 'error');
-    }
-  }, [notify, token]);
-
-  // Cargar plantillas desde el backend de Flask (/api/templates)
-  const loadTemplates = useCallback(async () => {
-    try {
-      const res = await apiFetch('/templates', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTemplates(data || []);
-      }
-    } catch (error) {
-      notify('Error al cargar plantillas desde la base de datos', 'error');
-    }
-  }, [notify, token]);
-
-  useEffect(() => {
-    loadDocuments();
-    loadTemplates();
-  }, [loadDocuments, loadTemplates]);
-
-  // ==========================================
-  // GESTIÓN DE FILAS Y CELDAS (ESTILO EXCEL)
-  // ==========================================
-  const addRow = () => {
-    setTemplateRows(prev => [
-      ...prev,
-      [
-        { id_campo: `f_${Date.now()}_1`, nombre_campo: 'Nuevo Campo', tipo_campo: 'texto', validaciones: {}, width: '220px', role: 'input', color: 'muted' }
-      ]
-    ]);
-  };
-
-  const addCellToRow = (rIdx) => {
-    setTemplateRows(prev => {
-      const copy = prev.map(row => row.map(cell => ({ ...cell })));
-      if (copy[rIdx].length >= 5) {
-        notify('Máximo 5 celdas permitidas por fila para mantener el orden visual.', 'error');
-        return copy;
-      }
-      copy[rIdx].push({
-        id_campo: `f_${Date.now()}_${copy[rIdx].length + 1}`,
-        nombre_campo: `Campo ${copy[rIdx].length + 1}`,
-        tipo_campo: 'texto',
-        validaciones: {},
-        width: '200px',
-        role: 'input',
-        color: 'muted'
-      });
-      return copy;
-    });
-  };
-
-  const removeCell = (rIdx, cIdx) => {
-    setTemplateRows(prev => {
-      const copy = prev.map(row => row.map(cell => ({ ...cell })));
-      if (copy[rIdx].length <= 1) {
-        notify('La fila debe contener al menos 1 celda. Elimine la fila completa si lo desea.', 'error');
-        return copy;
-      }
-      copy[rIdx].splice(cIdx, 1);
-      return copy;
-    });
-  };
-
-  const removeRow = (rIdx) => {
-    if (templateRows.length <= 1) return notify('Debe conservar al menos una fila en la plantilla.', 'error');
-    setTemplateRows(prev => prev.filter((_, i) => i !== rIdx));
-  };
-
-  const updateCellConfig = (rIdx, cIdx, field, val) => {
-    setTemplateRows(prev => {
-      const copy = prev.map(row => row.map(cell => ({ ...cell })));
-      copy[rIdx][cIdx][field] = val;
-      return copy;
-    });
-  };
-
-  // ==========================================
-  // REDIMENSIONAMIENTO DINÁMICO CON RATÓN (DRAG)
-  // ==========================================
-  const startResizing = (e, rIdx, cIdx) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const currentCell = templateRows[rIdx][cIdx];
-    const currentWidth = parseInt(currentCell.width || '200', 10);
-
-    const onMouseMove = (moveEvent) => {
-      const diffX = moveEvent.clientX - startX;
-      const newWidth = Math.max(100, currentWidth + diffX);
-      setTemplateRows(prev => {
-        const copy = prev.map(row => row.map(cell => ({ ...cell })));
-        copy[rIdx][cIdx].width = `${newWidth}px`;
-        return copy;
-      });
-    };
-
-    const onMouseUp = () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  };
-
-  // ==========================================
-  // DUPLICAR PLANTILLAS LOCALMENTE O EN DB
-  // ==========================================
-  const duplicateTemplate = (template) => {
-    setTemplateName(`${template.nombre || template.name} (Copia)`);
-    // Carga la estructura de la plantilla seleccionada en el grid actual para poder editarla y guardarla como nueva
-    if (template.structure) {
-      setTemplateRows(template.structure);
-    }
-    setShowTemplateBuilder(true);
-    notify(`Plantilla cargada en el diseñador para duplicar/editar.`, 'success');
-  };
-
-  // ==========================================
-  // GUARDAR PLANTILLA EN BASE DE DATOS (FLASK/SUPABASE)
-  // ==========================================
-  const saveTemplate = async (e) => {
-    e.preventDefault();
-    if (!templateName.trim()) return notify('Asigne un nombre a la plantilla.', 'error');
-
-    const newTemplatePayload = {
-      nombre: templateName,
-      version: 1,
-      structure: templateRows
-    };
-
-    try {
-      const res = await apiFetch('/templates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(newTemplatePayload)
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al guardar la plantilla');
-
-      notify('Plantilla guardada correctamente en la base de datos.', 'success');
-      setTemplateName('');
-      setShowTemplateBuilder(false);
-      loadTemplates(); // Recarga la lista de plantillas desde la BD
-    } catch (error) {
-      notify(error.message, 'error');
-    }
-  };
-  // ==========================================
-  // ELIMINAR PLANTILLA EN BASE DE DATOS
-  // ==========================================
-  const deleteTemplate = async (templateId) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar esta plantilla?')) return;
-
-    try {
-      const res = await apiFetch(`/templates/${templateId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
+    try:
+        claims = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        user = {
+            'id': claims.get('user_id'),
+            'username': claims.get('sub'),
+            'tenant_id': claims.get('tenant_id'),
+            'role': claims.get('role'),
+            'permissions': claims.get('permissions', [])
         }
-      });
+        return jsonify({'authenticated': True, 'user': user}), 200
+    except jwt.ExpiredSignatureError:
+        return jsonify({'authenticated': False, 'message': 'Token expired'}), 401
+    except Exception:
+        return jsonify({'authenticated': False, 'message': 'Invalid token'}), 401
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al eliminar la plantilla');
+    
 
-      notify('Plantilla eliminada correctamente.', 'success');
-      loadTemplates(); // Recarga la lista desde la BD
-    } catch (error) {
-      notify(error.message, 'error');
-    }
-  };
-  // ==========================================
-  // ENVÍO DE DATOS (Flujo Paciente / Supabase)
-  // ==========================================
-  const submitDocument = async (e) => {
-    e.preventDefault();
-    if (!form.patient_id || !form.template_id) {
-      return notify('Complete el Paciente y seleccione una Plantilla.', 'error');
-    }
-    setSaving(true);
+@app.route('/api/profile')
+@token_required
+def profile():
+    claims = get_current_user()
+    role_info = get_role_info(claims['role'])
 
-    try {
-      const formData = new FormData();
-      formData.append('patient_id', form.patient_id);
-      formData.append('document_type', form.document_type);
-      formData.append('template_id', form.template_id);
-      formData.append('description', form.description);
-      formData.append('dynamicValues', JSON.stringify(form.dynamicValues));
+    # Add counts for common entities
+    tenant_id = claims['tenant_id']
+    patients_count = (db_query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0)
+    consultations_count = (db_query('SELECT COUNT(*) as count FROM consultations WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0)
+    appointments_count = (db_query('SELECT COUNT(*) as count FROM appointments WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0)
+    documents_count = (db_query('SELECT COUNT(*) as count FROM documents WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0)
 
-      const res = await apiFetch('/documents/upload-supabase', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
+    # Fetch user created_at from users table
+    user_row = db_query('SELECT id, username, role, created_at FROM users WHERE id = %s AND tenant_id = %s', (claims.get('id'), tenant_id), fetchone=True) or {}
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al generar el PDF en el servidor');
-
-      notify('Documento PDF generado y registrado con éxito.', 'success');
-      setShowForm(false);
-      setForm({ patient_id: '', document_type: 'ingreso', template_id: '', description: '', dynamicValues: {} });
-      loadDocuments();
-    } catch (error) {
-      notify(error.message, 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-  const activeTemplate = templates.find(t => String(t.id) === String(form.template_id));
-
-  return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-
-        {/* CABECERA */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>Gestión de Formularios y Plantillas</h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem' }}>Control estricto de campos dinámicos, flujos de pacientes y plantillas reutilizables.</p>
-          </div>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer' }} onClick={() => setShowTemplateBuilder(v => !v)}>
-              {showTemplateBuilder ? 'Cerrar Diseñador' : '⚙️ Diseñador de Plantillas (Grid Libre)'}
-            </button>
-            <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600 }} onClick={() => setShowForm(v => !v)}>
-              {showForm ? 'Cancelar' : '＋ Asignar Formulario a Paciente'}
-            </button>
-          </div>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        {/* LISTADO DE TEMPLATES CON OPCIÓN DE DUPLICAR Y ELIMINAR */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles en Base de Datos (Templates)</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-            {templates.map(tpl => (
-              <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
-                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    onClick={() => duplicateTemplate(tpl)}
-                    title="Copiar / Duplicar Plantilla"
-                    style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
-                  >
-                    📋
-                  </button>
-                  <button
-                    onClick={() => deleteTemplate(tpl.id)}
-                    title="Eliminar Plantilla"
-                    style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ========================================== */}
-        {/* DISEÑADOR ESTILO EXCEL (FILAS Y CELDAS LIBRES) */}
-        {/* ========================================== */}
-        {showTemplateBuilder && (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid #3b82f6', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Constructor de Formularios (Grid Estilo Excel)</h3>
-            <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Configure filas independientes (hasta 5 celdas por fila). Arrastre el borde derecho de cada celda para modificar su ancho de manera dinámica.</p>
-
-            <input
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 1rem', outline: 'none' }}
-              value={templateName}
-              onChange={e => setTemplateName(e.target.value)}
-              placeholder="Nombre del nuevo template (ej. Ficha de Evolución Diaria)"
-            />
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem' }}>
-              {templateRows.map((row, rIdx) => (
-                <div key={rIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#090d16', padding: '0.75rem', borderRadius: '12px', border: '1px dashed #334155' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold', minWidth: '50px' }}>Fila {rIdx + 1}</span>
-
-                  {row.map((cell, cIdx) => (
-                    <div
-                      key={cIdx}
-                      style={{
-                        position: 'relative',
-                        width: cell.width,
-                        minWidth: '100px',
-                        backgroundColor: '#1e293b',
-                        border: '1px solid #475569',
-                        borderRadius: '8px',
-                        padding: '0.5rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.35rem',
-                        resize: 'horizontal'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <input
-                          style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 'bold', width: '100%', outline: 'none' }}
-                          value={cell.nombre_campo}
-                          onChange={e => updateCellConfig(rIdx, cIdx, 'nombre_campo', e.target.value)}
-                          placeholder="Etiqueta"
-                        />
-                        <button onClick={() => removeCell(rIdx, cIdx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem' }} title="Eliminar celda">×</button>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '0.25rem' }}>
-                        <select style={{ background: '#0f172a', color: '#38bdf8', fontSize: '0.65rem', border: 'none', borderRadius: '4px', padding: '0.1rem' }} value={cell.tipo_campo} onChange={e => updateCellConfig(rIdx, cIdx, 'tipo_campo', e.target.value)}>
-                          <option value="texto">Texto</option>
-                          <option value="número">Número</option>
-                          <option value="fecha">Fecha</option>
-                          <option value="archivo">Archivo</option>
-                        </select>
-                      </div>
-
-                      <div
-                        onMouseDown={(e) => startResizing(e, rIdx, cIdx)}
-                        title="Arrastre para cambiar ancho"
-                        style={{ position: 'absolute', right: 0, top: 0, bottom: '0', width: '6px', cursor: 'col-resize', backgroundColor: 'rgba(56, 189, 248, 0.3)', borderTopRightRadius: '8px', borderBottomRightRadius: '8px' }}
-                      />
-                    </div>
-                  ))}
-
-                  {row.length < 5 && (
-                    <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem' }} title="Agregar celda en esta fila (Máx 5)">
-                      + Columna
-                    </button>
-                  )}
-
-                  <button onClick={() => removeRow(rIdx)} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', marginLeft: 'auto' }}>
-                    Eliminar Fila
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #334155' }}>
-              <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}>＋ Agregar Nueva Fila</button>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button onClick={() => setShowTemplateBuilder(false)} style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={saveTemplate} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Guardar Plantilla en DB</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================== */}
-        {/* FORMULARIO DE ASIGNACIÓN A PACIENTE */}
-        {/* ========================================== */}
-        {showForm && (
-          <form onSubmit={submitDocument} style={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Rellenar Formulario Clínico para Paciente</h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-              <input required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))} placeholder="ID Paciente (FK)" />
-
-              <select style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.document_type} onChange={e => setForm(p => ({ ...p, document_type: e.target.value }))}>
-                <option value="ingreso">Ingreso</option>
-                <option value="evolución">Evolución</option>
-                <option value="alta">Alta</option>
-              </select>
-
-              <select required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value, dynamicValues: {} }))}>
-                <option value="">Seleccione Plantilla (Template)</option>
-                {templates.map(t => <option key={t.id} value={t.id}>{t.nombre || t.name}</option>)}
-              </select>
-            </div>
-
-            {activeTemplate && activeTemplate.structure && (
-              <div style={{ background: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#38bdf8' }}>Campos del formulario: {activeTemplate.nombre || activeTemplate.name}</h4>
-
-                {activeTemplate.structure.map((row, rIdx) => (
-                  <div key={rIdx} style={{ display: 'grid', gridTemplateColumns: `repeat(${row.length}, 1fr)`, gap: '1rem' }}>
-                    {row.map((cell, cIdx) => {
-                      const key = `${rIdx}-${cIdx}`;
-                      return (
-                        <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          <label style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{cell.nombre_campo} ({cell.tipo_campo})</label>
-                          <input
-                            type={cell.tipo_campo === 'número' ? 'number' : cell.tipo_campo === 'fecha' ? 'date' : 'text'}
-                            style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem', borderRadius: '6px', outline: 'none' }}
-                            value={form.dynamicValues[key] || ''}
-                            onChange={e => setForm(p => ({ ...p, dynamicValues: { ...p.dynamicValues, [key]: e.target.value } }))}
-                            placeholder={`Escribir ${cell.nombre_campo}`}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button type="submit" disabled={saving || !form.template_id} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
-                {saving ? 'Guardando en Base de Datos...' : 'Registrar y Generar PDF'}
-              </button>
-            </div>
-          </form>
-        )}
-
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-// Reports + Dashboard (Con funciones de exportación)
-// ============================================================
-
-export function Reports() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [toast, notify, clearToast] = useToast()
-
-  useEffect(() => {
-    ; (async () => {
-      try {
-        const res = await apiFetch('/reports')
-        if (!res.ok) throw new Error('No se pudo cargar el reporte')
-        setData(await res.json())
-      } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-    })()
-  }, [notify])
-
-  return (
-    <PageShell title="Reportes operativos" subtitle="Indicadores resumidos para supervisar la operación diaria.">
-      <Toast toast={toast} onClose={clearToast} />
-      <SectionCard title="Resumen ejecutivo" icon="▥">
-        {loading ? <LoadingState /> : data ? <div className="stats-grid"><StatCard icon="👥" label="Pacientes" value={data.summary?.patients ?? 0} /><StatCard icon="🩺" label="Consultas" value={data.summary?.consultations ?? 0} tone="success" /><StatCard icon="◷" label="Citas" value={data.summary?.appointments ?? 0} tone="primary" /><StatCard icon="⚠" label="Alertas activas" value={data.summary?.active_alerts ?? 0} tone={data.summary?.active_alerts ? 'danger' : 'success'} /></div> : <EmptyState title="No hay información disponible" />}
-      </SectionCard>
-    </PageShell>
-  )
-}
-
-// ============================================================
-// Dashboard (Con exportación profesional y limpia para PDF)
-// ============================================================
-
-export function Dashboard() {
-  const [reports, setReports] = useState(null)
-  const [series, setSeries] = useState([])
-  const [metrics, setMetrics] = useState(null)
-  const [areas, setAreas] = useState([])
-  const [days, setDays] = useState(30)
-  const [loading, setLoading] = useState(true)
-  const [toast, notify, clearToast] = useToast()
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [reportsRes, seriesRes, metricsRes, areasRes] = await Promise.all([
-        apiFetch('/reports'),
-        apiFetch(`/reports/series?days=${days}`),
-        apiFetch('/metrics'),
-        apiFetch('/dashboard/areas'),
-      ])
-      if (!reportsRes.ok || !seriesRes.ok || !metricsRes.ok || !areasRes.ok) throw new Error('No se pudieron actualizar todos los indicadores')
-      setReports(await reportsRes.json())
-      setSeries(await seriesRes.json() || [])
-      setMetrics(await metricsRes.json())
-      setAreas(await areasRes.json() || [])
-    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-  }, [days, notify])
-
-  useEffect(() => { load() }, [load])
-
-  // ============================================================
-  // FUNCIONES DE EXPORTACIÓN
-  // ============================================================
-
-  // 1. Exportar a JSON (Se mantiene limpio y directo en el cliente)
-  const exportJSON = () => {
-    try {
-      const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() }
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `dashboard_report_${days}d.json`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-      notify('Exportado a JSON exitosamente', 'success')
-    } catch (e) {
-      notify('Error al exportar en JSON', 'error')
-    }
-  }
-
-  // 2. Exportar a CSV mejorado con soporte para tildes (UTF-8 BOM)
-  const exportCSV = () => {
-    try {
-      let csvContent = "\uFEFFDía,Pacientes,Consultas\n"; // \uFEFF asegura que Excel reconozca tildes y caracteres en español
-      series.forEach(row => {
-        csvContent += `"${row.day}","${row.patients}","${row.consultations}"\n`;
-      })
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `tendencia_pacientes_${days}d.csv`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      notify('Exportado a CSV exitosamente', 'success')
-    } catch (e) {
-      notify('Error al exportar en CSV', 'error')
-    }
-  }
-
-  // 3. Exportar a Excel (XLSX) profesional consumiendo el endpoint del Dashboard
-  const exportExcel = async () => {
-    try {
-      // Recuperar el token del localStorage (o de donde lo guardes al iniciar sesión)
-      const currentToken = localStorage.getItem('token') || '';
-
-      const res = await apiFetch('/dashboard/export/excel', {
-        headers: {
-          'Authorization': `Bearer ${currentToken}`
+    return jsonify({
+        'username': claims['username'],
+        'role': claims['role'],
+        'role_name': role_info['name'],
+        'permissions': role_info['permissions'],
+        'tenant_id': claims['tenant_id'],
+        'bio': 'Plataforma de gestión hospitalaria (Supabase).',
+        'created_at': user_row.get('created_at'),
+        'counts': {
+            'patients': patients_count,
+            'consultations': consultations_count,
+            'appointments': appointments_count,
+            'documents': documents_count
         }
-      });
-
-      if (!res.ok) throw new Error('Error al generar el archivo Excel en el servidor');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dashboard_reporte_${Date.now()}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      notify('Archivo Excel (XLSX) del dashboard generado correctamente', 'success');
-    } catch (e) {
-      notify(e.message || 'Error al exportar a Excel', 'error');
-    }
-  };
-
-
-  // MÉTODO PROFESIONAL PARA PDF: Inyecta estilos temporales de paginación y diseño corporativo
-  const exportPDF = () => {
-    try {
-      const styleId = 'pdf-print-styles';
-      let styleElement = document.getElementById(styleId);
-
-      if (!styleElement) {
-        styleElement = document.createElement('style');
-        styleElement.id = styleId;
-        document.head.appendChild(styleElement);
-      }
-
-      // Reglas CSS estrictas para impresión: Evita cortes en cajas, fuerza fondo blanco corporativo y oculta controles interactivos
-      styleElement.innerHTML = `
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          #printable-dashboard, #printable-dashboard * {
-            visibility: visible;
-          }
-          #printable-dashboard {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100% !important;
-            background-color: #ffffff !important;
-            color: #0f172a !important;
-            padding: 1rem !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .print-card {
-            background-color: #f8fafc !important;
-            border: 1px solid #cbd5e1 !important;
-            color: #0f172a !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-            margin-bottom: 1.5rem !important;
-            box-shadow: none !important;
-          }
-        }
-      `;
-
-      window.print();
-      notify('Reporte PDF listo para guardar o imprimir', 'success');
-    } catch (e) {
-      notify('Error al preparar el reporte PDF', 'error');
-    }
-  };
-
-  return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-
-      {/* MARCO GENERAL ESTILO DOCUMENTO (ID añadido para control de impresión limpio) */}
-      <div id="printable-dashboard" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-
-        {/* CABECERA Y FILTROS */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>Dashboard Gerencial</h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>Visión rápida del desempeño clínico y operativo en tiempo real.</p>
-          </div>
-
-          <div className="no-print" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Día(s)</label>
-              <select
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, outline: 'none', cursor: 'pointer' }}
-                value={days}
-                onChange={e => setDays(Number(e.target.value))}
-              >
-                <option value={7}>Últimos 7 días</option>
-                <option value={14}>Últimos 14 días</option>
-                <option value={30}>Últimos 30 días</option>
-              </select>
-            </div>
-
-            {/* BOTONES DE EXPORTACIÓN */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exportar</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportCSV}>CSV</button>
-                <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportExcel}>Excel</button>
-                <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportPDF}>PDF</button>
-                <button title="Exportar a JSON" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportJSON}>JSON</button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'transparent', textTransform: 'uppercase' }}>&nbsp;</label>
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={load}
-                disabled={loading}
-              >
-                <span className={cx(loading && "animate-spin")}>↻</span> Actualizar
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        {loading ? (
-          <div style={{ padding: '4rem 0', textAlign: 'center' }}><LoadingState label="Actualizando indicadores del sistema…" /></div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', width: '100%' }}>
-
-            {/* GRILLA DE KPI */}
-            <div className="print-card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem', width: '100%' }}>
-              <StatCard icon={<StatIcons.Patients />} label="Pacientes" value={reports?.summary?.patients ?? 0} hint="Total registrado" tone="primary" />
-              <StatCard icon={<StatIcons.Consultations />} label="Consultas" value={reports?.summary?.consultations ?? 0} hint={`Últimos ${days} días`} tone="success" />
-              <StatCard icon={<StatIcons.Users />} label="Usuarios activos" value={metrics?.active_users ?? 0} hint="Sesiones recientes" tone="primary" />
-              <StatCard icon={<StatIcons.Time />} label="Sesión promedio" value={`${Math.round(metrics?.avg_session_seconds || 0)}s`} hint="Duración media" tone="warning" />
-              <StatCard icon={<StatIcons.Time />} label="Próxima sesión" value="0s" hint="Predicción" tone="primary" />
-            </div>
-
-            {/* GRILLA INFERIOR DE GRÁFICOS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem', width: '100%', paddingTop: '0.5rem' }}>
-
-              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
-                <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Tendencia de pacientes / consultas</h3>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Evolución diaria de atención</p>
-                </div>
-                <div style={{ paddingTop: '0.5rem' }}>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <LineChart data={series}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 12 }} />
-                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
-                      <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={3} dot={false} name="Pacientes" />
-                      <Line type="monotone" dataKey="consultations" stroke="#10b981" strokeWidth={3} dot={false} name="Consultas" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
-                <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Dispositivos y alertas por área</h3>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Distribución operativa del sistema</p>
-                </div>
-                <div style={{ paddingTop: '0.5rem' }}>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={areas} margin={{ left: 0, right: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={56} />
-                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
-                      <Bar dataKey="device_count" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Dispositivos" />
-                      <Bar dataKey="active_alerts" fill="#ef4444" radius={[6, 6, 0, 0]} name="Alertas activas" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        )}
-
-      </div>
-
-    </div>
-  )
-}
-
-export function Users() {
-  const [users, setUsers] = useState([])
-  const [locations, setLocations] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [search, setSearch] = useState('')
-  const [toast, notify, clearToast] = useToast()
-  const debouncedSearch = useDebouncedValue(search)
-
-  const [viewMode, setViewMode] = useState('list')
-  const [editingUser, setEditingUser] = useState(null)
-  const [formData, setFormData] = useState({ username: '', email: '', role: 'admin', location_id: '', password: '' })
-  const [submitting, setSubmitting] = useState(false)
-
-  const [deleteModalUser, setDeleteModalUser] = useState(null)
-  const [deleting, setDeleting] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [uRes, lRes] = await Promise.all([apiFetch('/users'), apiFetch('/locations')])
-      if (!uRes.ok || !lRes.ok) throw new Error('No se pudo cargar la administración de usuarios')
-      setUsers(await uRes.json() || [])
-      setLocations(await lRes.json() || [])
-    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-  }, [notify])
-
-  useEffect(() => { load() }, [load])
-
-  const filtered = useMemo(() => {
-    const q = debouncedSearch.toLowerCase().trim()
-    return users.filter(user => !q || [user.username, user.email, user.role].filter(Boolean).some(v => String(v).toLowerCase().includes(q)))
-  }, [users, debouncedSearch])
-
-  const locationMap = useMemo(() => new Map(locations.map(l => [String(l.id), l.name])), [locations])
-
-  const roleConfig = {
-    admin: { bg: 'bg-red-500/10 text-red-400 border-red-500/20', Icon: Shield, label: 'Admin' },
-    doctor: { bg: 'bg-blue-500/10 text-blue-400 border-blue-500/20', Icon: Stethoscope, label: 'Doctor' },
-    nurse: { bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', Icon: UserCheck, label: 'Enfermera(o)' },
-    user: { bg: 'bg-slate-800 text-slate-300 border-slate-700', Icon: User, label: 'Usuario' }
-  }
-
-  const handleOpenCreate = () => {
-    setEditingUser(null)
-    setFormData({ username: '', email: '', role: 'admin', location_id: '', password: '' })
-    setViewMode('form')
-  }
-
-  const handleOpenEdit = (user) => {
-    setEditingUser(user)
-    setFormData({
-      username: user.username || '',
-      email: user.email || '',
-      role: user.role || 'admin',
-      location_id: user.location_id || '',
-      password: ''
     })
-    setViewMode('form')
-  }
 
-  const handleSave = async (e) => {
-    e.preventDefault()
-    setSubmitting(true)
-    try {
-      const endpoint = editingUser ? `/users/${editingUser.id}` : '/users'
-      const method = editingUser ? 'PUT' : 'POST'
 
-      const res = await apiFetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
+@app.route('/api/profile/change_password', methods=['POST'])
+@token_required
+def change_own_password():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    data = request.get_json() or {}
+    old_password = data.get('old_password')
+    new_password = data.get('new_password')
+    if not old_password or not new_password:
+        return jsonify({'message': 'old_password and new_password required'}), 400
 
-      if (!res.ok) throw new Error('Error al guardar el usuario')
+    user = db_query('SELECT id, password FROM users WHERE id = %s AND tenant_id = %s', (claims.get('id'), tenant_id), fetchone=True)
+    if not user:
+        return jsonify({'message': 'user not found'}), 404
 
-      notify(editingUser ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente', 'success')
-      setViewMode('list')
-      load()
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally {
-      setSubmitting(false)
-    }
-  }
+    from werkzeug.security import check_password_hash
+    if not check_password_hash(user['password'], old_password):
+        return jsonify({'message': 'old password incorrect'}), 401
 
-  const confirmDelete = async () => {
-    if (!deleteModalUser) return
-    setDeleting(true)
-    try {
-      const res = await apiFetch(`/users/${deleteModalUser.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('No se pudo eliminar el usuario')
-      notify('Usuario eliminado correctamente', 'success')
-      setDeleteModalUser(null)
-      load()
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally {
-      setDeleting(false)
-    }
-  }
+    hashed = generate_password_hash(new_password)
+    db_query('UPDATE users SET password = %s WHERE id = %s AND tenant_id = %s', (hashed, user['id'], tenant_id), commit=True)
+    record_audit('update', 'user', user['id'], 'User changed own password', tenant_id, user['id'])
+    return jsonify({'message': 'Password updated'})
 
-  if (viewMode === 'form') {
-    return (
-      <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }} className="animate-fadeIn">
-        <Toast toast={toast} onClose={clearToast} />
+@app.route('/api/roles')
+@token_required
+def roles():
+    return jsonify(get_all_roles())
 
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem', maxWidth: '56rem', margin: '0 auto' }}>
+@app.route('/api/patients', methods=['GET', 'POST', 'DELETE'])
+@token_required
+def patients():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    
+    if request.method == 'GET':
+        query = request.args.get('q', '').strip()
+        sql = 'SELECT id, full_name, dni, date_of_birth, phone, email, sex, blood_type, allergies, status, medical_record_number, created_at FROM patients WHERE tenant_id = %s'
+        params = [tenant_id]
+        if query:
+            sql += ' AND (LOWER(full_name) LIKE LOWER(%s) OR dni LIKE %s OR email LIKE %s)' 
+            pattern = f'%{query}%'
+            params.extend([pattern, pattern, pattern])
+        sql += ' ORDER BY id DESC'
+        
+        rows = db_query(sql, tuple(params), fetchall=True)
+        return jsonify(rows or [])
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.05em', color: '#818cf8', textTransform: 'uppercase', backgroundColor: 'rgba(99, 102, 241, 0.1)', borderRadius: '9999px', border: '1px solid rgba(99, 102, 241, 0.2)', width: 'fit-content' }}>
-                <Shield style={{ width: '0.875rem', height: '0.875rem' }} />
-                {editingUser ? `ID de Cuenta: #${editingUser.id}` : 'Alta de Cuenta'}
-              </span>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-                {editingUser ? 'Editar Cuenta de Usuario' : 'Registrar Nuevo Usuario'}
-              </h1>
-              <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.15rem', marginBottom: 0 }}>
-                {editingUser ? 'Modifica los parámetros de acceso y privilegios en la plataforma.' : 'Ingresa la información necesaria para dar de alta el perfil.'}
-              </p>
-            </div>
+    if request.method == 'DELETE':
+        if not has_permission(claims.get('role'), 'manage_patients'):
+            return jsonify({'message': 'Permission denied'}), 403
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        if not patient_id:
+            return jsonify({'message': 'patient_id is required'}), 400
 
-            <div>
-              <button
-                type="button"
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => setViewMode('list')}
-              >
-                ← Volver al listado
-              </button>
-            </div>
-          </div>
+        deleted = db_query(
+            'DELETE FROM patients WHERE id = %s AND tenant_id = %s RETURNING id',
+            (patient_id, tenant_id), commit=True, fetchone=True
+        )
+        if not deleted:
+            return jsonify({'message': 'invalid patient'}), 400
 
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Información de la cuenta</h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Los campos marcados con * son obligatorios.</p>
-            </div>
+        record_audit('delete', 'patient', deleted['id'], f'Deleted patient {deleted["id"]}', tenant_id, claims.get('id'))
+        return jsonify({'message': 'Patient deleted'})
 
-            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+    if not has_permission(claims.get('role'), 'manage_patients'):
+        return jsonify({'message': 'Permission denied'}), 403
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
-                    <User style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
-                    Nombre de Usuario *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={formData.username}
-                    onChange={e => setFormData({ ...formData, username: e.target.value })}
-                    placeholder="ej. jperez"
-                  />
-                </div>
+    data = request.get_json() or {}
+    full_name = data.get('full_name')
+    dni = data.get('dni')
+    if not full_name or not dni:
+        return jsonify({'message': 'full_name and dni are required'}), 400
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
-                    <Mail style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
-                    Correo Electrónico *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={formData.email}
-                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="correo@institucion.com"
-                  />
-                </div>
+    existing_patient = db_query('SELECT id FROM patients WHERE tenant_id = %s AND dni = %s', (tenant_id, dni), fetchone=True)
+    if existing_patient:
+        return jsonify({'message': 'Un paciente con ese DNI ya existe'}), 400
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
-                    <Shield style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
-                    Rol Asignado *
-                  </label>
-                  <select
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', cursor: 'pointer' }}
-                    value={formData.role}
-                    onChange={e => setFormData({ ...formData, role: e.target.value })}
-                  >
-                    <option value="admin">Admin</option>
-                    <option value="doctor">Doctor</option>
-                    <option value="nurse">Enfermera(o)</option>
-                    <option value="user">Usuario</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
-                    <MapPin style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
-                    Área / Ubicación
-                  </label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', cursor: 'pointer' }}
-                    value={formData.location_id}
-                    onChange={e => setFormData({ ...formData, location_id: e.target.value })}
-                  >
-                    <option value="">Sin asignación</option>
-                    {locations.map(l => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingTop: '0.5rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>
-                  <Key style={{ width: '1rem', height: '1rem', color: '#818cf8' }} />
-                  {editingUser ? 'Nueva Contraseña (Opcional)' : 'Contraseña de Acceso *'}
-                </label>
-                <input
-                  type="password"
-                  {...(!editingUser ? { required: true } : {})}
-                  style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                  value={formData.password}
-                  onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  placeholder={editingUser ? "Dejar en blanco para mantener la actual" : "••••••••"}
-                />
-                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>
-                  {editingUser ? 'Deja este campo vacío si no requieres actualizar la clave actual.' : 'Se recomienda una clave alfanumérica segura.'}
-                </p>
-              </div>
-
-              <div style={{ height: '1px', backgroundColor: '#1e293b', margin: '0.5rem 0' }} />
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '0.5rem' }}>
-                <button
-                  type="button"
-                  style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}
-                  onClick={() => setViewMode('list')}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: submitting ? 0.5 : 1 }}
-                  disabled={submitting}
-                >
-                  {submitting ? 'Guardando…' : (editingUser ? 'Actualizar Usuario' : 'Crear Usuario')}
-                </button>
-              </div>
-            </form>
-          </div>
-
-        </div>
-      </div>
+    count_row = db_query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s', (tenant_id,), fetchone=True)
+    count_val = count_row['count'] if count_row else 0
+    medical_record_number = data.get('medical_record_number') or f"HC-{tenant_id:02d}-{(count_val + 1):03d}"
+    
+    new_patient = db_query(
+        '''
+        INSERT INTO patients (tenant_id, full_name, dni, date_of_birth, phone, email, sex, blood_type, allergies, status, medical_record_number, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+        ''',
+        (tenant_id, full_name, dni, data.get('date_of_birth'), data.get('phone'), data.get('email'), data.get('sex'), data.get('blood_type'), data.get('allergies'), data.get('status', 'active'), medical_record_number, now_utc()),
+        commit=True, fetchone=True
     )
-  }
+    
+    record_audit('create', 'patient', new_patient['id'], f'Created patient {full_name}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Patient created', 'id': new_patient['id'], 'medical_record_number': medical_record_number})
 
-  return (
-    <div className="page-shell animate-fadeIn">
-      <Toast toast={toast} onClose={clearToast} />
+@app.route('/api/appointments', methods=['GET', 'POST'])
+@app.route('/api/appointments/<int:appointment_id>', methods=['PUT', 'DELETE'])
+@token_required
+def appointments(appointment_id=None):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    
+    # Listar citas
+    if request.method == 'GET':
+        rows = db_query('SELECT * FROM appointments WHERE tenant_id = %s ORDER BY appointment_date ASC', (tenant_id,), fetchall=True)
+        return jsonify(rows or [])
 
-      <div className="card collection-card">
-        <div className="collection-header">
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Directorio de Usuarios</h2>
-            <p className="text-sm text-slate-400 mt-0.5">{filtered.length} cuentas registradas en el sistema.</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="btn btn-primary flex items-center gap-2 shadow-lg shadow-indigo-500/20 transition-all duration-200 hover:scale-105 active:scale-95"
-          >
-            <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
-            <span>Nuevo Usuario</span>
-          </button>
-        </div>
+    # Verificar permisos para modificaciones
+    if not has_permission(claims.get('role'), 'manage_appointments'):
+        return jsonify({'message': 'Permission denied'}), 403
 
-        <div className="collection-toolbar pt-2">
-          <div className="collection-search" style={{ flex: '1' }}>
-            <input
-              type="search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar por usuario, correo o rol..."
-              className="form-control transition-all focus:ring-2 focus:ring-indigo-500/40"
-            />
-          </div>
-        </div>
+    # Crear nueva cita (POST)
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        appointment_date = data.get('appointment_date')
+        specialty = data.get('specialty', 'General')
+        
+        if not patient_id or not appointment_date:
+            return jsonify({'message': 'patient_id and appointment_date are required'}), 400
 
-        {loading ? (
-          <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-            <div className="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-            <span className="text-sm">Cargando registros...</span>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="data-table-container">
-              <thead>
-                <tr>
-                  <th>Usuario</th>
-                  <th>Correo Electrónico</th>
-                  <th>Rol Asignado</th>
-                  <th>Área / Ubicación</th>
-                  <th className="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="text-center py-12 text-slate-500 italic">
-                      No se encontraron usuarios registrados
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map(u => {
-                    const roleKey = String(u.role || 'user').toLowerCase()
-                    const config = roleConfig[roleKey] || roleConfig.user
-                    const RoleIcon = config.Icon
-                    const area = locationMap.get(String(u.location_id))
+        patient = db_query('SELECT id FROM patients WHERE id = %s AND tenant_id = %s', (patient_id, tenant_id), fetchone=True)
+        if not patient:
+            return jsonify({'message': 'invalid patient'}), 400
 
-                    return (
-                      <tr key={u.id} className="transition-all duration-150 hover:bg-slate-800/40 group">
-                        <td>
-                          <div className="flex items-center gap-3 py-2">
-                            <div className="avatar-circle shrink-0 text-white shadow-sm font-semibold transition-transform duration-200 group-hover:scale-110">
-                              {u.username ? u.username.charAt(0).toUpperCase() : 'U'}
-                            </div>
-                            <div className="min-w-0">
-                              <strong className="text-white block truncate max-w-xs">{u.username}</strong>
-                              <span className="text-xs text-slate-400">ID: #{u.id}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="text-slate-300 text-sm truncate block max-w-xs">{u.email || '—'}</span>
-                        </td>
-                        <td>
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-transform duration-200 hover:scale-105 ${config.bg}`}>
-                            <RoleIcon className="w-3.5 h-3.5" />
-                            <span className="capitalize">{config.label}</span>
-                          </span>
-                        </td>
-                        <td>
-                          {area ? (
-                            <span className="text-slate-200 text-sm font-medium">{area}</span>
-                          ) : (
-                            <span className="text-slate-500 text-sm italic">Sin asignación</span>
-                          )}
-                        </td>
-                        <td className="text-right">
-                          <div className="flex items-center justify-end gap-4">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEdit(u)}
-                              className="btn btn-secondary px-3.5 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-all duration-200 hover:scale-105 hover:bg-slate-800 active:scale-95"
-                              title="Editar usuario"
-                            >
-                              <Edit3 className="w-3.5 h-3.5 text-slate-300" />
-                              <span>Editar</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setDeleteModalUser(u)}
-                              className="btn px-3.5 py-1.5 text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95"
-                              title="Eliminar usuario"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                              <span>Eliminar</span>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        new_appointment = db_query(
+            'INSERT INTO appointments (tenant_id, patient_id, doctor_name, specialty, appointment_date, status, notes, created_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id',
+            (tenant_id, patient_id, data.get('doctor_name', 'Dr. Demo'), specialty, appointment_date, data.get('status', 'scheduled'), data.get('notes', ''), now_utc()),
+            commit=True, fetchone=True
+        )
+        
+        record_audit('create', 'appointment', new_appointment['id'], appointment_date, tenant_id, claims.get('id'))
+        return jsonify({'message': 'Appointment created'})
 
-      {deleteModalUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden text-white p-8 space-y-6 transform animate-scaleUp">
-            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto shadow-inner animate-bounce">
-              <AlertTriangle className="w-8 h-8 text-red-400" />
-            </div>
-            <div className="text-center space-y-2">
-              <h3 className="font-bold text-xl text-white">¿Eliminar usuario?</h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Estás a punto de eliminar permanentemente a <span className="text-slate-200 font-semibold">{deleteModalUser.username}</span>. Esta acción no se puede deshacer.
-              </p>
-            </div>
-            <div className="flex items-center justify-center gap-4 pt-4 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setDeleteModalUser(null)}
-                className="btn btn-secondary flex-1 py-3 transition-all duration-200 hover:bg-slate-800 active:scale-95"
-                disabled={deleting}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="btn flex-1 bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/25 disabled:opacity-50 py-3 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
-              >
-                {deleting ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    <span>Eliminando...</span>
-                  </span>
-                ) : (
-                  <span>Sí, eliminar</span>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+    # Validar existencia de la cita para PUT / DELETE
+    if appointment_id:
+        existing = db_query('SELECT id FROM appointments WHERE id = %s AND tenant_id = %s', (appointment_id, tenant_id), fetchone=True)
+        if not existing:
+            return jsonify({'message': 'Appointment not found'}), 404
+
+    # Actualizar cita (PUT)
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        db_query(
+            'UPDATE appointments SET doctor_name = %s, specialty = %s, appointment_date = %s, end_time = %s, notes = %s WHERE id = %s AND tenant_id = %s',
+            (data.get('doctor_name'), data.get('specialty'), data.get('appointment_date'), data.get('end_time'), data.get('notes'), appointment_id, tenant_id),
+            commit=True
+        )
+        record_audit('update', 'appointment', appointment_id, data.get('appointment_date'), tenant_id, claims.get('id'))
+        return jsonify({'message': 'Appointment updated'})
+
+    # Eliminar cita (DELETE)
+    if request.method == 'DELETE':
+        db_query('DELETE FROM appointments WHERE id = %s AND tenant_id = %s', (appointment_id, tenant_id), commit=True)
+        record_audit('delete', 'appointment', appointment_id, None, tenant_id, claims.get('id'))
+        return jsonify({'message': 'Appointment deleted'})
+
+# ==========================================
+# ENDPOINT: CONSULTAS CON FILTROS DE BÚSQUEDA
+# ==========================================
+@app.route('/api/consultations', methods=['GET', 'POST'])
+@token_required
+def consultations_handler():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user_id = claims.get('id')
+
+    # 1. OBTENER CONSULTAS CON FILTROS (GET)
+    if request.method == 'GET':
+        # Capturar parámetros de la URL
+        search_query = request.args.get('q', '').strip()       # Búsqueda general (Nombre, diagnóstico, motivo)
+        doctor = request.args.get('doctor', '').strip()         # Filtro por médico
+        start_date = request.args.get('start_date', '').strip() # Fecha inicio (YYYY-MM-DD)
+        end_date = request.args.get('end_date', '').strip()     # Fecha fin (YYYY-MM-DD)
+
+        # Base del SQL
+        sql = '''
+            SELECT c.id, c.patient_id, p.full_name as patient_name, c.doctor_name, 
+                   c.reason, c.symptoms, c.diagnosis, c.treatment, c.prescription, 
+                   c.triage_id, t.weight_kg, t.height_cm, t.blood_pressure, t.bmi, 
+                   t.abdominal_perimeter_cm, c.created_at
+            FROM consultations c
+            LEFT JOIN patients p ON p.id = c.patient_id
+            LEFT JOIN triages t ON t.id = c.triage_id
+            WHERE c.tenant_id = %s
+        '''
+        params = [tenant_id]
+
+        # Aplicar filtro de búsqueda general por texto
+        if search_query:
+            sql += ''' AND (
+                p.full_name ILIKE %s OR 
+                c.diagnosis ILIKE %s OR 
+                c.reason ILIKE %s OR 
+                c.symptoms ILIKE %s
+            )'''
+            term = f"%{search_query}%"
+            params.extend([term, term, term, term])
+
+        # Aplicar filtro por médico
+        if doctor:
+            sql += ' AND c.doctor_name ILIKE %s'
+            params.append(f"%{doctor}%")
+
+        # Aplicar filtro por rango de fechas
+        if start_date:
+            sql += ' AND c.created_at >= %s'
+            params.append(start_date)
+
+        if end_date:
+            sql += ' AND c.created_at <= %s'
+            params.append(f"{end_date} 23:59:59")
+
+        sql += ' ORDER BY c.id DESC'
+
+        rows = db_query(sql, tuple(params), fetchall=True)
+        return jsonify(rows or []), 200
+
+    # 2. CREAR CONSULTA (POST)
+    # ... (Se mantiene igual a tu código previo)
 
 
-export function Profile() {
-  const { user } = useAuth()
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [toast, notify, clearToast] = useToast()
+# ==========================================
+# ENDPOINT: SUBIR DOCUMENTO Y VINCULAR PACIENTE
+# ==========================================
+@app.route('/api/documents/upload-supabase', methods=['POST', 'OPTIONS'])
+@token_required
+def upload_supabase_document():
+    if request.method == 'OPTIONS':
+        return '', 200
 
-  useEffect(() => {
-    ; (async () => {
-      try {
-        const res = await apiFetch('/profile')
-        if (!res.ok) throw new Error('No se pudo cargar el perfil')
-        setProfile(await res.json())
-      } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-    })()
-  }, [notify])
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
 
-  return <PageShell title="Mi perfil" subtitle="Resumen de identidad y actividad dentro del sistema."><Toast toast={toast} onClose={clearToast} />{loading ? <SectionCard><LoadingState label="Cargando perfil…" /></SectionCard> : profile ? <><SectionCard title="Información de cuenta" icon="◎"><div className="profile-hero"><div className="profile-avatar">{(profile.username || user?.email || 'U').charAt(0).toUpperCase()}</div><div><div className="card-kicker">Usuario</div><h2>{profile.username}</h2><span className="badge badge-info">{profile.role_name || profile.role}</span></div></div><div className="profile-grid"><div><span className="meta-label">Rol</span><strong>{profile.role_name || profile.role}</strong></div><div><span className="meta-label">Tenant</span><strong>#{profile.tenant_id}</strong></div><div><span className="meta-label">Alta</span><strong>{formatDate(profile.created_at)}</strong></div><div><span className="meta-label">Permisos</span><strong>{profile.permissions?.length ?? 0}</strong></div></div></SectionCard><div className="stats-grid"><StatCard icon="👥" label="Pacientes" value={profile.counts?.patients ?? 0} /><StatCard icon="🩺" label="Consultas" value={profile.counts?.consultations ?? 0} tone="success" /><StatCard icon="◷" label="Citas" value={profile.counts?.appointments ?? 0} tone="primary" /><StatCard icon="▤" label="Documentos" value={profile.counts?.documents ?? 0} tone="warning" /></div></> : <SectionCard><EmptyState title="No se pudo cargar el perfil" /></SectionCard>}</PageShell>
-}
+    if not has_permission(claims.get('role'), 'manage_patients'):
+        return jsonify({'message': 'Permission denied'}), 403
 
-export { calculateBMI, parseBrowser }
+    patient_id = request.form.get('patient_id')
+    document_type = request.form.get('document_type', 'evolución')
+    template_id = request.form.get('template_id')
+    description = request.form.get('description', '')
+    dynamic_values_str = request.form.get('dynamicValues', '{}')
+
+    if not patient_id or not template_id:
+        return jsonify({'message': 'patient_id y template_id son obligatorios'}), 400
+
+    try:
+        import json
+        import io
+        from reportlab.lib.pagesizes import A4  # <--- Cambiado a A4
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib import colors
+
+       # 1. Obtener la plantilla de la base de datos
+        template_res = db_query(
+            "SELECT nombre, structure FROM templates_formulario WHERE id = %s",
+            (template_id,),
+            fetchone=True
+        )
+        
+        if not template_res:
+            return jsonify({'message': 'Plantilla no encontrada'}), 404
+
+        template_name = template_res.get('nombre', 'Documento Clínico')
+        structure = template_res.get('structure', [])
+        dynamic_values = json.loads(dynamic_values_str)
+
+        # 2. Generar el PDF en memoria usando A4 y márgenes seguros de 36 pt (0.5 pulgadas)
+        # A4 dimensiones: 595.27 x 841.89 pt. Ancho útil = 595.27 - 72 = 523.27 pt
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+        ancho_util = A4[0] - 72  # ~523.27 puntos disponibles para contenido
+
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # Título
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=colors.HexColor('#0f172a'),
+            spaceAfter=15
+        )
+        story.append(Paragraph(f"<b>{template_name}</b>", title_style))
+        story.append(Paragraph(f"<b>ID de Paciente:</b> {patient_id} | <b>Tipo:</b> {document_type}", styles['Normal']))
+        story.append(Spacer(1, 15))
+
+        # 3. Construcción dinámica de tablas por cada fila del template adaptadas al ancho A4
+        if isinstance(structure, list):
+            for rIdx, row in enumerate(structure):
+                row_cells = []
+                num_cols = len(row) if len(row) > 0 else 1
+                ancho_por_columna = ancho_util / num_cols
+                col_widths = [ancho_por_columna] * num_cols
+
+                for cIdx, cell in enumerate(row):
+                    cell_key = f"{rIdx}-{cIdx}"
+                    val = dynamic_values.get(cell_key, cell.get('nombre_campo', ''))
+                    field_label = cell.get('nombre_campo', 'Campo')
+                    cell_text = f"<b>{field_label}:</b><br/>{val}"
+                    row_cells.append(Paragraph(cell_text, styles['Normal']))
+                
+                if row_cells:
+                    t = Table([row_cells], colWidths=col_widths)
+                    t.setStyle(TableStyle([
+                        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+                        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1e293b')),
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                        ('TOPPADDING', (0, 0), (-1, -1), 8),
+                        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+                        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+                        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1'))
+                    ]))
+                    story.append(t)
+                    story.append(Spacer(1, 6)) # Espaciado limpio entre filas del grid
+
+        doc.build(story)
+        file_bytes = buffer.getvalue()
+        buffer.close()
+
+        # 3. Subir el PDF binario a Supabase Storage
+        filename = f"doc_{patient_id}_{int(time.time())}.pdf"
+        storage_path = f"tenant_{tenant_id}/patient_{patient_id}/{filename}"
+        bucket_name = "documents" # Cambia por el nombre real de tu bucket si es distinto
+        
+        supabase.storage.from_(bucket_name).upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": "application/pdf", "x-upsert": "true"}
+        )
+
+        # 4. Obtener URL pública de forma segura
+        public_url_response = supabase.storage.from_(bucket_name).get_public_url(storage_path)
+        if isinstance(public_url_response, str):
+            file_url = public_url_response
+        elif isinstance(public_url_response, dict):
+            file_url = public_url_response.get('publicUrl') or public_url_response.get('data', {}).get('publicUrl')
+        else:
+            file_url = getattr(public_url_response, 'public_url', str(public_url_response))
+
+        # 5. Insertar el registro en la base de datos (con la variable correctamente definida)
+        new_doc = db_query(
+            '''
+            INSERT INTO documents (
+                tenant_id, patient_id, document_type, file_name, 
+                file_url, description, status, created_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            ''',
+            (
+                int(tenant_id), int(patient_id), document_type, filename, 
+                file_url, description, 'active', now_utc()
+            ),
+            commit=True,
+            fetchone=True
+        )
+
+        if not new_doc or 'id' not in new_doc:
+            raise Exception("No se pudo registrar el documento en la base de datos.")
+
+        record_audit('create', 'document', new_doc['id'], f'Generated PDF template {template_id}', tenant_id, claims.get('id'))
+
+        return jsonify({
+            'message': 'Documento PDF generado y registrado con éxito',
+            'id': new_doc['id'],
+            'file_url': file_url
+        }), 201
+
+    except Exception as e:
+        print(f"--- ERROR AL GENERAR/SUBIR PDF A SUPABASE: {str(e)} ---")
+        return jsonify({'message': f'Error interno: {str(e)}'}), 500
+    
+
+    
+# ==========================================
+# ENDPOINT: OBTENER DOCUMENTOS DE UN PACIENTE
+# ==========================================
+@app.route('/api/patients/<int:patient_id>/documents', methods=['GET'])
+@token_required
+def get_patient_documents(patient_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    try:
+        # Consultar los documentos asociados al paciente y tenant actual
+        docs = db_query(
+            '''
+            SELECT id, document_type as category, file_name as title, file_name, file_url, description, status, created_at
+            FROM documents
+            WHERE tenant_id = %s AND patient_id = %s
+            ORDER BY created_at DESC
+            ''',
+            (tenant_id, patient_id),
+            fetchall=True
+        )
+
+        return jsonify(docs or []), 200
+
+    except Exception as e:
+        print(f"--- ERROR AL OBTENER DOCUMENTOS DEL PACIENTE: {e} ---")
+        return jsonify({'message': f'Error interno: {str(e)}'}), 500
+
+
+# ==========================================
+# ENDPOINTS: PLANTILLAS DE FORMULARIOS (TEMPLATES)
+# ==========================================
+@app.route('/api/templates', methods=['GET', 'POST'])
+@app.route('/api/templates/<int:template_id>', methods=['DELETE'])
+@token_required
+def templates_handler(template_id=None):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    # 1. OBTENER PLANTILLAS (GET)
+    if request.method == 'GET':
+        rows = db_query(
+            '''
+            SELECT id, tenant_id, nombre, version, estado, structure, creado_por, fecha_creacion 
+            FROM templates_formulario 
+            WHERE tenant_id = %s
+            ORDER BY id DESC
+            ''', 
+            (tenant_id,),
+            fetchall=True
+        )
+        return jsonify(rows or []), 200
+
+    # 2. CREAR O GUARDAR PLANTILLA (POST)
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        nombre = data.get('nombre')
+        structure = data.get('structure')
+        version = data.get('version', 1)
+        creado_por = claims.get('username', 'Sistema')
+
+        if not nombre or not structure:
+            return jsonify({'message': 'nombre y structure son obligatorios'}), 400
+
+        try:
+            new_template = db_query(
+                '''
+                INSERT INTO templates_formulario (tenant_id, nombre, version, estado, structure, creado_por, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                ''',
+                (tenant_id, nombre, version, 'activo', psycopg2.extras.Json(structure), creado_por, now_utc()),
+                commit=True,
+                fetchone=True
+            )
+
+            record_audit('create', 'template', new_template['id'], f'Created template {nombre}', tenant_id, claims.get('id'))
+            
+            return jsonify({
+                'message': 'Plantilla guardada con éxito',
+                'id': new_template['id']
+            }), 201
+
+        except Exception as e:
+            print(f"--- ERROR AL GUARDAR PLANTILLA: {e} ---")
+            return jsonify({'message': f'Error interno al guardar la plantilla: {str(e)}'}), 500
+
+    # 3. ELIMINAR PLANTILLA (DELETE)
+    if request.method == 'DELETE' and template_id:
+        existing = db_query('SELECT id FROM templates_formulario WHERE id = %s AND tenant_id = %s', (template_id, tenant_id), fetchone=True)
+        if not existing:
+            return jsonify({'message': 'Plantilla no encontrada'}), 404
+
+        try:
+            db_query('DELETE FROM templates_formulario WHERE id = %s AND tenant_id = %s', (template_id, tenant_id), commit=True)
+            record_audit('delete', 'template', template_id, 'Deleted template', tenant_id, claims.get('id'))
+            return jsonify({'message': 'Plantilla eliminada correctamente'}), 200
+        except Exception as e:
+            print(f"--- ERROR AL ELIMINAR PLANTILLA: {e} ---")
+            return jsonify({'message': f'Error interno al eliminar la plantilla: {str(e)}'}), 500
+
+
+
+@app.route('/api/documents', methods=['GET', 'POST', 'DELETE'])
+@token_required
+def documents():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    # 1. OBTENER DOCUMENTOS (GET)
+    if request.method == 'GET':
+        patient_id = request.args.get('patient_id')
+        sql = '''
+            SELECT d.id, d.tenant_id, d.patient_id, p.full_name as patient_name, 
+                   d.document_type, d.file_name, d.file_url, 
+                   d.description, d.status, d.created_at
+            FROM documents d
+            LEFT JOIN patients p ON p.id = d.patient_id
+            WHERE d.tenant_id = %s
+        '''
+        params = [tenant_id]
+
+        if patient_id:
+            sql += ' AND d.patient_id = %s'
+            params.append(patient_id)
+
+        sql += ' ORDER BY d.id DESC'
+        rows = db_query(sql, tuple(params), fetchall=True)
+        return jsonify(rows or []), 200
+
+    # 2. ELIMINAR DOCUMENTO (DELETE)
+    if request.method == 'DELETE':
+        if not has_permission(claims.get('role'), 'manage_patients'):
+            return jsonify({'message': 'Permission denied'}), 403
+        
+        data = request.get_json() or {}
+        doc_id = data.get('document_id')
+        if not doc_id:
+            return jsonify({'message': 'document_id es requerido'}), 400
+
+        doc_to_delete = db_query(
+            'SELECT id, file_url FROM documents WHERE id = %s AND tenant_id = %s',
+            (doc_id, tenant_id), fetchone=True
+        )
+        if not doc_to_delete:
+            return jsonify({'message': 'Documento no encontrado'}), 404
+
+        deleted = db_query(
+            'DELETE FROM documents WHERE id = %s AND tenant_id = %s RETURNING id',
+            (doc_id, tenant_id), commit=True, fetchone=True
+        )
+
+        file_url = doc_to_delete.get('file_url')
+        if file_url and '/documents/' in file_url:
+            try:
+                storage_path = file_url.split('/documents/')[-1]
+                storage_path = unquote(storage_path)
+                supabase.storage.from_("documents").remove([storage_path])
+            except Exception as st_err:
+                print(f"Error removiendo archivo de Supabase Storage: {st_err}")
+
+        record_audit('delete', 'document', deleted['id'], f'Deleted document {deleted["id"]}', tenant_id, claims.get('id'))
+        return jsonify({'message': 'Documento eliminado'}), 200
+
+    # 3. REGISTRAR Y SUBIR DOCUMENTO (POST)
+    if not has_permission(claims.get('role'), 'manage_patients'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    patient_id = request.form.get('patient_id')
+    document_type = request.form.get('document_type', 'result')
+    description = request.form.get('description', '')
+    file_name = request.form.get('file_name', '')
+    file = request.files.get('file')
+
+    if not patient_id:
+        return jsonify({'message': 'patient_id es obligatorio'}), 400
+
+    if not file:
+        return jsonify({'message': 'El archivo es obligatorio'}), 400
+
+    if not file_name:
+        file_name = file.filename
+
+    try:
+        file_bytes = file.read()
+        file_ext = file.filename.split('.')[-1].lower() if '.' in file.filename else 'pdf'
+        
+        mime_types = {
+            'pdf': 'application/pdf',
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        }
+        
+        mime_type = mime_types.get(file_ext, file.mimetype if file.mimetype != 'text/plain' else 'application/pdf')
+
+        storage_path = f"tenant_{tenant_id}/patient_{patient_id}/{int(time.time())}_{file_name}"
+        if not storage_path.lower().endswith(f".{file_ext}"):
+            storage_path += f".{file_ext}"
+
+        # Subida a Supabase
+        supabase.storage.from_("documents").upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": mime_type, "x-upsert": "true"}
+        )
+
+        # Obtener URL pública
+        public_url_response = supabase.storage.from_("documents").get_public_url(storage_path)
+        
+        if isinstance(public_url_response, str):
+            public_url = public_url_response
+        elif isinstance(public_url_response, dict):
+            public_url = public_url_response.get('publicUrl') or public_url_response.get('data', {}).get('publicUrl')
+        else:
+            public_url = getattr(public_url_response, 'public_url', str(public_url_response))
+
+    except Exception as st_err:
+        print(f"--- ERROR DE SUPABASE STORAGE: {st_err} ---")
+        return jsonify({'message': f'Error al subir el archivo al almacenamiento: {str(st_err)}'}), 500
+
+    # Inserción con las 8 columnas exactas en la base de datos
+    try:
+        new_doc = db_query(
+            '''
+            INSERT INTO documents (
+                tenant_id, patient_id, document_type, file_name, 
+                file_url, description, status, created_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            ''',
+            (
+                int(tenant_id), int(patient_id), document_type, file_name, 
+                public_url, description, 'active', now_utc()
+            ),
+            commit=True,
+            fetchone=True
+        )
+
+        record_audit('create', 'document', new_doc['id'], f'Uploaded document {file_name}', tenant_id, claims.get('id'))
+        
+        return jsonify({
+            'message': 'Documento registrado con éxito',
+            'id': new_doc['id'],
+            'file_url': public_url
+        }), 201
+
+    except Exception as db_err:
+        print(f"--- ERROR DE BASE DE DATOS: {db_err} ---")
+        return jsonify({'message': f'Error al registrar en la base de datos: {str(db_err)}'}), 500
+    
+# ==========================================
+# ENDPOINT OPCIONAL: TRIAJE INDEPENDIENTE
+# ==========================================
+@app.route('/api/triage', methods=['GET', 'POST'])
+@token_required
+def triage_handler():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        rows = db_query('SELECT * FROM triages WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
+        return jsonify(rows or []), 200
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        weight_kg = data.get('weight_kg')
+        height_cm = data.get('height_cm')
+        blood_pressure = data.get('blood_pressure')
+
+        if not patient_id or not weight_kg or not height_cm or not blood_pressure:
+            return jsonify({'message': 'patient_id, weight_kg, height_cm y blood_pressure son obligatorios'}), 400
+
+        bmi = data.get('bmi')
+        if not bmi and float(height_cm) > 0:
+            h_m = float(height_cm) / 100.0
+            bmi = round(float(weight_kg) / (h_m * h_m), 2)
+
+        new_triage = db_query(
+            '''
+            INSERT INTO triages (tenant_id, patient_id, weight_kg, height_cm, blood_pressure, bmi, abdominal_perimeter_cm, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            ''',
+            (tenant_id, patient_id, weight_kg, height_cm, blood_pressure, bmi, data.get('abdominal_perimeter_cm'), now_utc()),
+            commit=True, fetchone=True
+        )
+
+        return jsonify({'message': 'Triaje registrado', 'id': new_triage['id']}), 201
+    
+@app.route('/api/locations', methods=['GET', 'POST'])
+@token_required
+def locations():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        rows = db_query(
+            '''
+            SELECT l.id, l.name, l.description, l.created_at,
+                COUNT(DISTINCT d.id) AS device_count,
+                COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
+                COUNT(a.id) AS total_alerts
+            FROM locations l
+            LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
+            LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
+            WHERE l.tenant_id = %s
+            GROUP BY l.id
+            ORDER BY l.id DESC
+            ''',
+            (tenant_id, tenant_id, tenant_id), fetchall=True
+        )
+        return jsonify(rows or [])
+
+    if not has_permission(claims.get('role'), 'manage_locations'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    name = data.get('name')
+    description = data.get('description', '')
+    if not name:
+        return jsonify({'message': 'name is required'}), 400
+
+    new_row = db_query(
+        'INSERT INTO locations (tenant_id, name, description, created_at) VALUES (%s, %s, %s, %s) RETURNING id',
+        (tenant_id, name, description, now_utc()), commit=True, fetchone=True
+    )
+    record_audit('create', 'location', new_row['id'], f'Created location {name}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Location created', 'id': new_row['id']})
+
+
+@app.route('/api/locations/<int:location_id>', methods=['GET', 'PUT'])
+@token_required
+def location_detail(location_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        row = db_query(
+            '''
+            SELECT l.id, l.name, l.description, l.created_at,
+                COUNT(DISTINCT d.id) AS device_count,
+                COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
+                COUNT(a.id) AS total_alerts
+            FROM locations l
+            LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
+            LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
+            WHERE l.tenant_id = %s AND l.id = %s
+            GROUP BY l.id
+            ''',
+            (tenant_id, tenant_id, tenant_id, location_id), fetchone=True
+        )
+        if not row:
+            return jsonify({'message': 'Location not found'}), 404
+
+        row['user_count'] = 0
+        row['hospital_position'] = ''
+        return jsonify(row)
+
+    if not has_permission(claims.get('role'), 'manage_locations'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    name = data.get('name')
+    description = data.get('description', '')
+    if not name:
+        return jsonify({'message': 'name is required'}), 400
+
+    db_query(
+        'UPDATE locations SET name = %s, description = %s WHERE id = %s AND tenant_id = %s',
+        (name, description, location_id, tenant_id), commit=True
+    )
+    record_audit('update', 'location', location_id, f'Updated location {name}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Location updated'})
+
+
+
+@app.route('/api/dashboard')
+@token_required
+def dashboard():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    
+    counts = {
+        'locations': (db_query('SELECT COUNT(*) as count FROM locations WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+        'devices': (db_query('SELECT COUNT(*) as count FROM devices WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+        'alerts': (db_query('SELECT COUNT(*) as count FROM alerts WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+        'patients': (db_query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+    }
+    return jsonify(counts)
+
+
+@app.route('/api/dashboard/areas')
+@token_required
+def dashboard_areas():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    try:
+        rows = db_query(
+            '''
+            SELECT l.id, l.name,
+                COUNT(DISTINCT d.id) AS device_count,
+                COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
+                COUNT(a.id) AS total_alerts
+            FROM locations l
+            LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
+            LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
+            WHERE l.tenant_id = %s
+            GROUP BY l.id, l.name
+            ORDER BY l.name
+            ''',
+            (tenant_id, tenant_id, tenant_id), fetchall=True
+        )
+        return jsonify(rows or [])
+    except Exception as e:
+        print(f"[DASHBOARD AREAS ERROR]: {e}")
+        return jsonify({'message': 'Error generating dashboard areas'}), 500
+
+
+@app.route('/api/reports')
+@token_required
+def reports():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    try:
+        summary = {
+            'patients': (db_query('SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            'consultations': (db_query('SELECT COUNT(*) as count FROM consultations WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            'appointments': (db_query('SELECT COUNT(*) as count FROM appointments WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            'documents': (db_query('SELECT COUNT(*) as count FROM documents WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            'active_alerts': (db_query('SELECT COUNT(*) as count FROM alerts WHERE tenant_id = %s AND is_resolved = 0', (tenant_id,), fetchone=True) or {}).get('count', 0),
+        }
+
+        recent_consultations = db_query('SELECT id, patient_id, reason, diagnosis, created_at FROM consultations WHERE tenant_id = %s ORDER BY created_at DESC LIMIT 10', (tenant_id,), fetchall=True) or []
+
+        return jsonify({'summary': summary, 'recent_consultations': recent_consultations})
+    except Exception as e:
+        print(f"[REPORTS ERROR]: {e}")
+        return jsonify({'message': 'Error generating reports'}), 500
+
+
+@app.route('/api/reports/series')
+@token_required
+def reports_series():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    days = int(request.args.get('days', 30))
+    try:
+        sql = '''
+        SELECT DATE(created_at) as day, COUNT(*) as patients
+        FROM patients WHERE tenant_id = %s AND created_at >= now() - interval '%s days'
+        GROUP BY day ORDER BY day ASC
+        ''' % ('%s', days)
+        pts = db_query(sql, (tenant_id,), fetchall=True) or []
+
+        sql2 = '''
+        SELECT DATE(created_at) as day, COUNT(*) as consultations
+        FROM consultations WHERE tenant_id = %s AND created_at >= now() - interval '%s days'
+        GROUP BY day ORDER BY day ASC
+        ''' % ('%s', days)
+        cons = db_query(sql2, (tenant_id,), fetchall=True) or []
+
+        day_map = {row['day']: {'day': row['day'], 'patients': 0, 'consultations': 0} for row in pts}
+        for row in cons:
+            if row['day'] in day_map:
+                day_map[row['day']]['consultations'] = row['consultations']
+            else:
+                day_map[row['day']] = {'day': row['day'], 'patients': 0, 'consultations': row['consultations']}
+
+        merged = [day_map[day] for day in sorted(day_map)]
+        for item in merged:
+            item['patients'] = next((r['patients'] for r in pts if r['day'] == item['day']), 0)
+
+        return jsonify(merged)
+    except Exception as e:
+        print(f"[SERIES ERROR]: {e}")
+        return jsonify({'message': 'Error generating series'}), 500
+
+
+@app.route('/api/metrics')
+@token_required
+def metrics():
+    """Return key metrics and a simple session duration prediction."""
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    try:
+        # Active users: distinct user_id in sessions last 24h
+        # CÓDIGO CORREGIDO
+        active_users = (db_query("SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id ="" %s AND last_seen >= NOW() - INTERVAL '1 day'",(tenant_id,),fetchone=True,)or {}).get("count", 0)
+        # Average session duration (seconds) across sessions with last_seen
+        avg_row = db_query("SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", (tenant_id,), fetchone=True) or {'avg_seconds': None}
+        avg_seconds = avg_row.get('avg_seconds') or 0
+
+        # Simple time-series prediction: get daily avg durations for last 7 days and perform linear trend
+        series = db_query("SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", (tenant_id,), fetchall=True) or []
+        # Build arrays for regression
+        xs = []
+        ys = []
+        for i, row in enumerate(series):
+            xs.append(i)
+            ys.append(row.get('avg_seconds') or 0)
+
+        pred = None
+        if len(xs) >= 2:
+            # Simple linear regression y = a + b*x
+            n = len(xs)
+            sum_x = sum(xs)
+            sum_y = sum(ys)
+            sum_xx = sum(x*x for x in xs)
+            sum_xy = sum(x*y for x,y in zip(xs,ys))
+            denom = (n*sum_xx - sum_x*sum_x)
+            if denom != 0:
+                b = (n*sum_xy - sum_x*sum_y) / denom
+                a = (sum_y - b*sum_x) / n
+                next_x = n
+                pred = max(0, a + b*next_x)
+
+        # return metrics
+        return jsonify({
+            'active_users': active_users,
+            'avg_session_seconds': avg_seconds,
+            'session_duration_prediction_seconds': pred,
+            'series': series
+        })
+    except Exception as e:
+        print(f"[METRICS ERROR]: {e}")
+        return jsonify({'message': 'Error generating metrics'}), 500
+
+
+@app.route('/api/users', methods=['GET'])
+@token_required
+def list_users():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    users = db_query(
+        '''
+        SELECT u.id, u.username, u.role, u.tenant_id, u.created_at
+        FROM users u
+        WHERE u.tenant_id = %s
+        ORDER BY u.id DESC
+        ''',
+        (tenant_id,), fetchall=True
+    )
+    return jsonify(users or [])
+
+
+@app.route('/api/users/<int:user_id>', methods=['PUT'])
+@token_required
+def update_user(user_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    role = data.get('role')
+    location_id = data.get('location_id')
+    active = data.get('active')
+
+    # Only update allowed fields.
+    # location_id is optional and may not exist in the current database schema.
+    updates = []
+    params = []
+    if role:
+        updates.append('role = %s')
+        params.append(role)
+    if location_id is not None and 'location_id' in get_user_columns():
+        updates.append('location_id = %s')
+        params.append(location_id)
+    if active is not None:
+        if not active:
+            updates.append("role = %s")
+            params.append('disabled')
+
+    if not updates:
+        return jsonify({'message': 'No fields to update'}), 400
+
+    params.extend([user_id, tenant_id])
+    sql = f"UPDATE users SET {', '.join(updates)} WHERE id = %s AND tenant_id = %s"
+    db_query(sql, tuple(params), commit=True)
+    field_names = ', '.join([u.split('=')[0].strip() for u in updates])
+    record_audit('update', 'user', user_id, f'Updated user fields: {field_names}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'User updated'})
+
+
+@app.route('/api/users/<int:user_id>/reset_password', methods=['POST'])
+@token_required
+def reset_user_password(user_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    data = request.get_json() or {}
+    new_password = data.get('new_password')
+    if not new_password:
+        return jsonify({'message': 'new_password required'}), 400
+
+    hashed_pw = generate_password_hash(new_password)
+    db_query('UPDATE users SET password = %s WHERE id = %s AND tenant_id = %s', (hashed_pw, user_id, tenant_id), commit=True)
+    record_audit('update', 'user', user_id, 'Password reset by admin', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Password reset'})
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@token_required
+def delete_user(user_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    # Opcional: evitar que el usuario se elimine a sí mismo
+    if claims.get('id') == user_id:
+        return jsonify({'message': 'No puedes eliminar tu propia cuenta'}), 400
+
+    # Ejecutar la eliminación asegurando el aislamiento por tenant_id
+    db_query('DELETE FROM users WHERE id = %s AND tenant_id = %s', (user_id, tenant_id), commit=True)
+    
+    record_audit('delete', 'user', user_id, f'Deleted user id {user_id}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'User deleted successfully'})
+
+@app.route('/api/sessions', methods=['GET'])
+@token_required
+def get_sessions():
+    claims = request.claims
+    tenant_id = claims['tenant_id']
+    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    rows = db_query(
+        '''SELECT s.id, s.user_id, u.username, s.ip_address, s.user_agent, s.created_at, s.last_seen 
+           FROM sessions s LEFT JOIN users u ON u.id = s.user_id 
+           WHERE s.tenant_id = %s ORDER BY s.created_at DESC''', 
+        (tenant_id,), fetchall=True
+    )
+    return jsonify(rows or [])
+
+@app.route('/api/devices', methods=['GET', 'POST'])
+@token_required
+def devices():
+    claims = request.claims
+    tenant_id = claims.get('tenant_id')
+
+    if request.method == 'GET':
+        rows = db_query('SELECT * FROM devices WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
+        return jsonify(rows or [])
+
+    # 1. Validar Roles
+    role = claims.get('role')
+    if role not in ['admin', 'it_support']:
+        return jsonify({'message': 'Permission denied'}), 403
+
+    # 2. Sanitizar payload entrante
+    data = request.get_json() or {}
+    name = data.get('name')
+    if not name:
+        return jsonify({'message': 'name is required'}), 400
+
+    # Convertir cadenas vacías o valores inválidos a None (NULL en PostgreSQL) para location_id
+    location_id = data.get('location_id')
+    if location_id in ['', 'null', None]:
+        location_id = None
+    else:
+        try:
+            location_id = int(location_id)
+        except (ValueError, TypeError):
+            location_id = None
+
+    type_ = data.get('type', 'pc')
+    status_ = data.get('status', 'active')
+    ip_address = data.get('ip_address') or get_client_ip()
+    user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
+
+    # Usar un objeto datetime nativo de Python para la columna de la BD
+    created_at = datetime.datetime.now(datetime.timezone.utc)
+
+    # 3. Inserción segura en PostgreSQL (sin patient_id)
+    try:
+        new_row = db_query(
+            '''
+            INSERT INTO devices (tenant_id, location_id, name, type, status, ip_address, user_agent, created_at) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            ''',
+            (tenant_id, location_id, name, type_, status_, ip_address, user_agent, created_at), 
+            commit=True, 
+            fetchone=True
+        )
+
+        if not new_row or 'id' not in new_row:
+            return jsonify({'message': 'No se pudo recuperar el ID del dispositivo creado'}), 500
+
+        device_id = new_row['id']
+
+        # 4. Auditoría aislada
+        try:
+            record_audit('create', 'device', device_id, f'Created device {name}', tenant_id, claims.get('user_id') or claims.get('id'))
+        except Exception as audit_err:
+            print(f"[WARN Auditoria] Error al guardar log: {audit_err}")
+
+        return jsonify({'message': 'Device created', 'id': device_id}), 201
+
+    except Exception as e:
+        print(f"[ERROR DB /api/devices POST]: {str(e)}")
+        return jsonify({'message': 'Error interno al registrar dispositivo', 'error': str(e)}), 500
+
+    
+@app.route('/api/device_actions', methods=['GET', 'POST'])
+@token_required
+def device_actions():
+    claims = request.claims
+    tenant_id = claims['tenant_id']
+    user_id = claims.get('id')
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        action_type = data.get('action_type')
+        entity_type = data.get('entity_type')
+        entity_id = data.get('entity_id')
+        details = data.get('details', '')
+
+        if not action_type or not entity_type:
+            return jsonify({'message': 'action_type and entity_type are required'}), 400
+
+        ip_addr = data.get('ip_address') or get_client_ip()
+        user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
+
+        try:
+            new_action = db_query(
+                '''
+                INSERT INTO device_actions 
+                (tenant_id, session_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
+                VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                ''',
+                (tenant_id, user_id, ip_addr, user_agent, action_type, entity_type, entity_id, details, now_utc()),
+                commit=True,
+                fetchone=True
+            )
+            return jsonify({'message': 'Device action logged', 'id': new_action['id']}), 201
+        except Exception as e:
+            return jsonify({'message': f'Error logging action: {str(e)}'}), 500
+
+    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+        per_page = max(1, min(100, int(request.args.get('per_page', 25))))
+    except ValueError:
+        page, per_page = 1, 25
+
+    where_sql, params = _build_device_actions_query(tenant_id)
+
+    count_sql = f'''
+        SELECT COUNT(*) as total 
+        FROM device_actions da 
+        LEFT JOIN users u ON u.id = da.user_id 
+        WHERE {where_sql}
+    '''
+    total_row = db_query(count_sql, tuple(params), fetchone=True) or {'total': 0}
+    total = total_row.get('total', 0)
+
+    offset = (page - 1) * per_page
+    query_sql = f'''
+        SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, da.ip_address, 
+               da.user_agent, da.action_type, da.entity_type, da.entity_id, 
+               da.details, da.created_at
+        FROM device_actions da
+        LEFT JOIN users u ON u.id = da.user_id
+        WHERE {where_sql}
+        ORDER BY da.created_at DESC
+        LIMIT %s OFFSET %s
+    '''
+    
+    query_params = list(params) + [per_page, offset]
+    rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
+
+    return jsonify({
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'items': rows
+    })
+
+
+@app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
+@token_required
+def incidents_handler():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        rows = db_query('SELECT i.id, i.incident_type, i.description, i.status, i.created_at, i.updated_at, u.username FROM incidents i LEFT JOIN users u ON u.id = i.user_id WHERE i.tenant_id = %s ORDER BY i.created_at DESC', (tenant_id,), fetchall=True)
+        return jsonify(rows or [])
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        inc_type = data.get('incident_type')
+        desc = data.get('description')
+        user_id = claims.get('id')
+        if not inc_type:
+            return jsonify({'message': 'incident_type required'}), 400
+        new_row = db_query('INSERT INTO incidents (tenant_id, user_id, incident_type, description, status, created_at) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id', (tenant_id, user_id, inc_type, desc, 'open', now_utc()), commit=True, fetchone=True)
+        record_audit('create', 'incident', new_row['id'], f'Incident {inc_type}', tenant_id, user_id)
+        return jsonify({'message': 'Incident created', 'id': new_row['id']})
+
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        inc_id = data.get('id')
+        status = data.get('status')
+        if not inc_id or not status:
+            return jsonify({'message': 'id and status required'}), 400
+        db_query('UPDATE incidents SET status = %s, updated_at = %s WHERE id = %s AND tenant_id = %s', (status, now_utc(), inc_id, tenant_id), commit=True)
+        record_audit('update', 'incident', inc_id, f'Status set to {status}', tenant_id, claims.get('id'))
+        return jsonify({'message': 'Incident updated'})
+
+@app.route('/')
+def index():
+    dist_dir = os.path.join(FRONTEND_DIR, 'dist')
+    if os.path.isdir(dist_dir):
+        return send_from_directory(dist_dir, 'index.html')
+    return send_from_directory(FRONTEND_DIR, 'index.html')
+
+@app.route('/<path:path>')
+def static_proxy(path):
+    if path.startswith('api/'):
+        return jsonify({'message': 'Endpoint not found'}), 404
+
+    dist_dir = os.path.join(FRONTEND_DIR, 'dist')
+    if os.path.isdir(dist_dir):
+        candidate = os.path.join(dist_dir, path)
+        if os.path.exists(candidate):
+            return send_from_directory(dist_dir, path)
+        return send_from_directory(dist_dir, 'index.html')
+
+    candidate = os.path.join(FRONTEND_DIR, path)
+    if os.path.exists(candidate):
+        return send_from_directory(FRONTEND_DIR, path)
+    return send_from_directory(FRONTEND_DIR, 'index.html')
+
+
+
+@app.route('/api/dashboard/export/excel', methods=['GET'])
+@token_required
+def export_dashboard_excel():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    # 1. Obtener métricas independientes reales del dashboard
+    total_patients = db_query("SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    total_consultations = db_query("SELECT COUNT(*) as count FROM documents WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    
+    # Asumiendo que tienes una tabla o conteo separado para sesiones (ajusta la tabla si difiere)
+    try:
+        total_sessions = db_query("SELECT COUNT(*) as count FROM sessions WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    except Exception:
+        total_sessions = 0 # Valor por defecto si la tabla de sesiones tiene otro nombre
+
+    active_users = db_query("SELECT COUNT(*) as count FROM users WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+
+    # 2. Obtener la tendencia diaria diferenciando consultas y sesiones si aplica
+    series_sql = '''
+        SELECT DATE(created_at) as dia, COUNT(DISTINCT patient_id) as pacientes, COUNT(*) as consultas
+        FROM documents
+        WHERE tenant_id = %s
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at) ASC
+    '''
+    series_rows = db_query(series_sql, (tenant_id,), fetchall=True)
+
+    # 3. Crear libro de Excel con openpyxl e incrustar gráficos
+    wb = openpyxl.Workbook()
+    
+    # --- PESTAÑA 1: Resumen General ---
+    ws_summary = wb.active
+    ws_summary.title = "Resumen General"
+    ws_summary.append(["Métrica del Sistema", "Valor Total"])
+    ws_summary.append(["Total Pacientes Registrados", total_patients])
+    ws_summary.append(["Total Consultas Médicas", total_consultations])
+    ws_summary.append(["Total Sesiones Registradas", total_sessions])
+    ws_summary.append(["Usuarios Activos", active_users])
+
+    # --- PESTAÑA 2: Tendencia Diaria con Gráfico de Barras ---
+    ws_trend = wb.create_sheet(title="Tendencia Diaria")
+    ws_trend.append(["Día", "Pacientes", "Consultas"])
+
+    if series_rows:
+        for row in series_rows:
+            dia_str = pd.to_datetime(row['dia']).strftime('%Y-%m-%d')
+            ws_trend.append([dia_str, row['pacientes'], row['consultas']])
+
+        # Crear un gráfico de barras profesional incorporado en la hoja
+        chart = BarChart()
+        chart.type = "col"
+        chart.style = 10
+        chart.title = "Evolución Diaria de Pacientes y Consultas"
+        chart.y_axis.title = "Cantidad"
+        chart.x_axis.title = "Día"
+
+        # Referencias de datos (asumiendo cabecera en fila 1 y datos hasta len)
+        data_ref = Reference(ws_trend, min_col=2, min_row=1, max_col=3, max_row=len(series_rows) + 1)
+        cats_ref = Reference(ws_trend, min_col=1, min_row=2, max_row=len(series_rows) + 1)
+        
+        chart.add_data(data_ref, titles_from_data=True)
+        chart.set_categories(cats_ref)
+        
+        # Insertar gráfico en la celda E2
+        ws_trend.add_chart(chart, "E2")
+
+    # Guardar en memoria y retornar
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'dashboard_analitico_{int(time.time())}.xlsx'
+    )
+    
+
+if __name__ == '__main__':
+    app.run(host='127.0.0.1', port=5000, debug=True)
+
