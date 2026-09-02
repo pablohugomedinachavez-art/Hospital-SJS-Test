@@ -26,7 +26,10 @@ import {
   Trash2,
   AlertTriangle,
   Stethoscope,
-  UserCheck
+  UserCheck,
+  Printer,
+  Calendar,
+  Clock
 } from 'lucide-react'
 // ============================================================
 // Shared UX / utilities
@@ -324,11 +327,6 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
 
 
 
-
-
-// ============================================================
-// Patients
-// ============================================================
 
 
 // ============================================================
@@ -858,10 +856,7 @@ export function Patients() {
                               <strong style={{ fontSize: '0.875rem', color: '#f8fafc' }}>{doc.title || doc.name || doc.file_name || 'Documento clínico'}</strong>
                               <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatDate(doc.created_at)}</span>
                             </div>
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>{doc.description || 'Sin descripción adicional.'}</p>
-                            <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 500, marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              Ver detalle <ChevronRight size={12} />
-                            </span>
+                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>{doc.description || 'Sin descripción'}</p>
                           </div>
                         ))}
                       </div>
@@ -873,84 +868,28 @@ export function Patients() {
 
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
+          /* VISTA LISTA DE PACIENTES */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <input
+              type="text"
+              placeholder="Buscar paciente por DNI, nombre..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            />
 
-            {/* SECCIÓN DE BÚSQUEDA */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Buscar pacientes</h3>
-                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Busca por nombre, DNI o correo.</p>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <SearchField value={query} onChange={setQuery} placeholder="Buscar por DNI, nombre o correo…" loading={loading} />
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{patients.length} resultados</span>
-              </div>
-            </div>
-
-            {/* LISTADO DE PACIENTES */}
             {loading ? (
-              <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando pacientes…" /></div>
+              <LoadingState label="Cargando pacientes..." />
             ) : patients.length === 0 ? (
-              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
-                <EmptyState title="No hay pacientes para mostrar" description={query ? 'Prueba con otro nombre, documento o correo.' : 'Todavía no existen pacientes registrados.'} />
-              </div>
+              <p style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem 0' }}>No se encontraron pacientes registrados.</p>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem', width: '100%' }}>
-                {patients.map(patient => (
-                  <article
-                    key={patient.id}
-                    onClick={() => loadPatientDetail(patient)}
-                    style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      border: '1px solid #1e293b',
-                      borderRadius: '16px',
-                      padding: '1.25rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '1rem',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                      cursor: 'pointer',
-                      transition: 'all 0.25s ease-in-out'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.transform = 'translateY(-4px)'
-                      e.currentTarget.style.borderColor = '#3b82f6'
-                      e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.transform = 'translateY(0px)'
-                      e.currentTarget.style.borderColor = '#1e293b'
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>HC · {patient.medical_record_number || '—'}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{patient.full_name}</h3>
-                      </div>
-                      <span className="badge badge-success">{patient.status || 'Activo'}</span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc' }}>{patient.dni || patient.document_number || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc' }}>{patient.phone || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', wordBreak: 'break-all' }}>{patient.email || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Registro</span><strong style={{ color: '#f8fafc' }}>{formatDate(patient.created_at)}</strong></div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ID #{patient.id}</span>
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          style={{ backgroundColor: '#ef4444', border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(patient); }}
-                        >
-                          <Trash2 size={12} /> Eliminar
-                        </button>
-                      )}
-                    </div>
-                  </article>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                {patients.map(p => (
+                  <div key={p.id} onClick={() => loadPatientDetail(p)} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', cursor: 'pointer' }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', color: '#f8fafc', fontSize: '1rem' }}>{p.full_name}</h4>
+                    <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem' }}>DNI/Doc: {p.dni || p.document_number || '—'}</p>
+                    <p style={{ margin: '0.2rem 0 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Teléfono: {p.phone || '—'}</p>
+                  </div>
                 ))}
               </div>
             )}
@@ -958,122 +897,9 @@ export function Patients() {
         )}
 
       </div>
-
-      <ConfirmDialog
-        open={Boolean(confirmDelete)}
-        title="Eliminar paciente"
-        message={confirmDelete ? `Eliminarás el registro de ${confirmDelete.full_name}. Esta acción no se puede deshacer.` : ''}
-        confirmLabel="Sí, eliminar"
-        danger
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={deletePatient}
-      />
-
-      {/* MODAL DE PREVISIÓN */}
-      {previewDocument && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-          padding: '2rem',
-          boxSizing: 'border-box'
-        }}>
-          <div style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #334155',
-            borderRadius: '20px',
-            width: '100%',
-            maxWidth: '1200px',
-            height: '90vh',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-            overflow: 'hidden'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #1e293b' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-                  {previewDocument.title || previewDocument.name || previewDocument.file_name || 'Documento clínico'}
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Registrado el {formatDate(previewDocument.created_at)}</span>
-              </div>
-              <button
-                onClick={() => setPreviewDocument(null)}
-                style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', flex: 1, overflow: 'hidden' }}>
-              <div style={{ backgroundColor: '#090d16', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                {previewDocument.file_url || previewDocument.url ? (
-                  <iframe
-                    src={previewDocument.file_url || previewDocument.url}
-                    title="Vista previa del PDF"
-                    style={{ width: '100%', height: '100%', border: 'none' }}
-                  />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#64748b', fontSize: '0.875rem' }}>
-                    <FileText size={48} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                    No hay una ruta de archivo disponible para visualizar.
-                  </div>
-                )}
-              </div>
-
-              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', backgroundColor: 'rgba(15, 23, 42, 0.4)' }}>
-                <div>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Descripción</h4>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                    {previewDocument.description || 'Sin descripción adicional proporcionada para este archivo.'}
-                  </p>
-                </div>
-
-                <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Nombre del archivo</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0', wordBreak: 'break-all' }}>{previewDocument.file_name || previewDocument.name || previewDocument.title || '—'}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Fecha de carga</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0' }}>{formatDate(previewDocument.created_at)}</p>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {(previewDocument.file_url || previewDocument.url) && (
-                    <a
-                      href={previewDocument.file_url || previewDocument.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ backgroundColor: '#1e293b', color: '#f8fafc', textAlign: 'center', padding: '0.65rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', border: '1px solid #334155' }}
-                    >
-                      Abrir en pestaña nueva ↗
-                    </a>
-                  )}
-                  <button
-                    onClick={() => setPreviewDocument(null)}
-                    style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.65rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Cerrar ventana
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
-
 
 // ============================================================
 // Consultations
