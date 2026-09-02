@@ -9,8 +9,6 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-
-
 } from 'recharts'
 import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
@@ -29,9 +27,10 @@ import {
   UserCheck,
   Printer,
   Calendar,
-  ArrowLeft,
   Clock
 } from 'lucide-react';
+
+
 // ============================================================
 // Shared UX / utilities
 // ============================================================
