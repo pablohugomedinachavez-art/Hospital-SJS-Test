@@ -514,7 +514,7 @@ export function Patients() {
       boxSizing: 'border-box',
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
-      {/* INYECCIÓN DE ESTILOS CSS PARA ANIMACIONES, HOVERS Y TRANSICIONES SUAVES */}
+      {/* ESTILOS CSS CON MEDIA QUERY OPTIMIZADA PARA IMPRESIÓN */}
       <style>{`
         .btn-interactive {
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -554,6 +554,58 @@ export function Patients() {
         }
         .tab-interactive:hover {
           color: ${theme.accent} !important;
+        }
+
+        .print-only-section {
+          display: none;
+        }
+
+        /* REGLAS EXCLUSIVAS PARA IMPRESIÓN */
+        @media print {
+          body, div, p, span, h1, h3, h4, strong {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            box-shadow: none !important;
+            text-shadow: none !important;
+          }
+
+          .btn-interactive, 
+          button, 
+          .no-print {
+            display: none !important;
+          }
+
+          .card-hover {
+            border: 1px solid #ccc !important;
+            border-radius: 4px !important;
+            margin-bottom: 1rem !important;
+            transform: none !important;
+          }
+
+          .print-full-width {
+            display: block !important;
+            grid-template-columns: none !important;
+            width: 100% !important;
+          }
+
+          .print-tabs-container {
+            display: none !important;
+          }
+
+          .print-only-section {
+            display: block !important;
+            margin-top: 1.5rem;
+          }
+
+          .row-interactive {
+            border: 1px solid #eee !important;
+            background-color: #fff !important;
+            transform: none !important;
+          }
+
+          @page {
+            margin: 1.5cm;
+          }
         }
       `}</style>
 
@@ -607,14 +659,14 @@ export function Patients() {
         </div>
       </div>
 
-      {/* VISTA DETALLE CON ESTILO OSCURO */}
+      {/* VISTA DETALLE */}
       {view === 'detail' && selectedPatient ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
+        <div className="print-full-width" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* TARJETA SUPERIOR DE PERFIL */}
-            <div className="card-hover" style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
+            <div className="card-hover print-full-width" style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
               
               {/* AVATAR Y DATOS BÁSICOS */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: `1px solid ${theme.border}`, paddingRight: '1rem' }}>
@@ -634,7 +686,7 @@ export function Patients() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Información General</h4>
-                  <Edit3 size={15} color={theme.textMuted} className="icon-hover-bounce" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                  <Edit3 size={15} color={theme.textMuted} className="icon-hover-bounce no-print" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
                 </div>
                 <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>F. Nacimiento:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.date_of_birth?.slice(0, 10) || '—'}</strong></div>
@@ -647,7 +699,7 @@ export function Patients() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: `1px solid ${theme.border}`, paddingLeft: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Antecedentes</h4>
-                  <Edit3 size={15} color={theme.textMuted} className="icon-hover-bounce" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                  <Edit3 size={15} color={theme.textMuted} className="icon-hover-bounce no-print" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
                 </div>
                 <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '100px' }}>Alergias:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.allergies || 'Ninguna'}</strong></div>
@@ -663,8 +715,8 @@ export function Patients() {
 
             </div>
 
-            {/* SECCIÓN DE CITAS CON PESTAÑAS */}
-            <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
+            {/* SECCIÓN DE CITAS CON PESTAÑAS (PANTALLA) */}
+            <div className="card-hover print-tabs-container" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
               
               <div style={{ display: 'flex', gap: '2rem', borderBottom: `1px solid ${theme.border}`, paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
                 <span
@@ -709,11 +761,26 @@ export function Patients() {
 
             </div>
 
+            {/* VISTA COMPLETA DE CITAS SOLO PARA IMPRESIÓN */}
+            <div className="print-only-section">
+              <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Historial Completo de Citas</h4>
+              {patientAppointments.length === 0 ? (
+                <p style={{ fontSize: '0.8rem', color: '#666' }}>Sin citas registradas.</p>
+              ) : (
+                patientAppointments.map((appt) => (
+                  <div key={appt.id} style={{ borderBottom: '1px solid #ddd', padding: '0.5rem 0', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between' }}>
+                    <span><strong>{new Date(appt.appointment_date).toLocaleDateString()}</strong> - {appt.specialty} ({appt.doctor_name})</span>
+                    <span>Estado: {appt.status}</span>
+                  </div>
+                ))
+              )}
+            </div>
+
           </div>
 
           {/* COLUMNA DERECHA: DOCUMENTOS */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.25rem' }}>
+            <div className="card-hover print-full-width" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Documentos</h4>
               </div>
@@ -785,7 +852,6 @@ export function Patients() {
     </div>
   )
 }
-
 
 
 // ============================================================
