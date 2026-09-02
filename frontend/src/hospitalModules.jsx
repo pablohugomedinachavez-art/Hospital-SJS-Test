@@ -320,10 +320,6 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
 // Patients
 // ============================================================
 
-// ============================================================
-// Patients
-// ============================================================
-
 export function Patients() {
   const { user } = useAuth()
   const [patients, setPatients] = useState([])
@@ -947,7 +943,7 @@ export function Patients() {
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
                           type="button"
-                          style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'cursor' }}
+                          style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
                           onClick={(e) => { e.stopPropagation(); openEdit(patient); }}
                         >
                           Editar
