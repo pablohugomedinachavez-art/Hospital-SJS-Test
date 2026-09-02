@@ -12,22 +12,9 @@ import {
 } from 'recharts'
 import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
-import {
-  User,
-  Mail,
-  Shield,
-  MapPin,
-  Key,
-  ArrowLeft,
-  Plus,
-  Edit3,
-  Trash2,
-  AlertTriangle,
-  Stethoscope,
-  UserCheck,
-  Printer,
-  Calendar,
-  Clock
+import {User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
+  AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
+  FileText, Download, Phone, Heart, Activity, File
 } from 'lucide-react';
 
 
@@ -339,19 +326,17 @@ export function Patients() {
   const [query, setQuery] = useState('')
   const [view, setView] = useState('list') // 'list' | 'create' | 'detail'
   const [selectedPatient, setSelectedPatient] = useState(null)
-  const [previewDocument, setPreviewDocument] = useState(null)
   const [patientDocuments, setPatientDocuments] = useState([])
   const [patientAppointments, setPatientAppointments] = useState([])
   const [loadingDocs, setLoadingDocs] = useState(false)
   const [isEditingPatient, setIsEditingPatient] = useState(false)
+  const [activeTab, setActiveTab] = useState('future') // 'future' | 'past'
   const [form, setForm] = useState(INITIAL_PATIENT)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [documentError, setDocumentError] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(null)
   const [toast, notify, clearToast] = useToast()
   const debouncedQuery = useDebouncedValue(query)
-  const isAdmin = isAdminUser(user)
 
   const load = useCallback(async (q = '') => {
     setLoading(true)
@@ -360,7 +345,6 @@ export function Patients() {
       if (!res.ok) throw new Error('No se pudo cargar pacientes')
       setPatients(await res.json() || [])
     } catch (error) {
-      console.error(error)
       notify('No fue posible cargar la lista de pacientes.', 'error')
     } finally {
       setLoading(false)
@@ -383,19 +367,11 @@ export function Patients() {
         apiFetch(`/appointments?patient_id=${patient.id}`)
       ])
 
-      if (docsRes.ok) {
-        const docs = await docsRes.json()
-        setPatientDocuments(docs || [])
-      } else {
-        setPatientDocuments([])
-      }
+      if (docsRes.ok) setPatientDocuments(await docsRes.json() || [])
+      else setPatientDocuments([])
 
-      if (apptsRes.ok) {
-        const appts = await apptsRes.json()
-        setPatientAppointments(appts || [])
-      } else {
-        setPatientAppointments([])
-      }
+      if (apptsRes.ok) setPatientAppointments(await apptsRes.json() || [])
+      else setPatientAppointments([])
     } catch {
       setPatientDocuments([])
       setPatientAppointments([])
@@ -473,7 +449,7 @@ export function Patients() {
         body: JSON.stringify({ ...form, dni: form.document_number, phone }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || `No se pudo ${isEditingPatient ? 'actualizar' : 'registrar'} al paciente`)
+      if (!res.ok) throw new Error(json.message || `No se pudo guardar`)
 
       notify(`Paciente ${isEditingPatient ? 'actualizado' : 'registrado'} correctamente.`, 'success')
       if (isEditingPatient) {
@@ -487,416 +463,244 @@ export function Patients() {
       }
       await load(query)
     } catch (error) {
-      notify(error.message || 'Error de conexión con el servidor.', 'error')
+      notify(error.message || 'Error de conexión.', 'error')
     } finally {
       setSaving(false)
     }
   }
 
-  const deletePatient = async () => {
-    if (!confirmDelete) return
-    try {
-      const res = await apiFetch('/patients', {
-        method: 'DELETE',
-        body: JSON.stringify({ patient_id: confirmDelete.id }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo eliminar')
-      notify('Paciente eliminado correctamente.', 'success')
-      setConfirmDelete(null)
-      setView('list')
-      await load(query)
-    } catch (error) {
-      notify(error.message, 'error')
-    }
-  }
+  const handlePrint = () => window.print()
 
-  const handlePrint = () => {
-    window.print()
-  }
-
-  // Separación de citas por fecha
-  const now = new Date()
-  const todayStr = now.toISOString().slice(0, 10)
+  const todayStr = new Date().toISOString().slice(0, 10)
 
   const pastVisits = useMemo(() => {
-    return patientAppointments.filter(appt => {
-      if (!appt.appointment_date) return false
-      const apptDateStr = new Date(appt.appointment_date).toISOString().slice(0, 10)
-      return apptDateStr < todayStr
-    })
+    return patientAppointments.filter(appt => appt.appointment_date && appt.appointment_date.slice(0, 10) < todayStr)
   }, [patientAppointments, todayStr])
 
   const futureVisits = useMemo(() => {
-    return patientAppointments.filter(appt => {
-      if (!appt.appointment_date) return false
-      const apptDateStr = new Date(appt.appointment_date).toISOString().slice(0, 10)
-      return apptDateStr >= todayStr
-    })
+    return patientAppointments.filter(appt => appt.appointment_date && appt.appointment_date.slice(0, 10) >= todayStr)
   }, [patientAppointments, todayStr])
 
-  const groupedDocuments = patientDocuments.reduce((acc, doc) => {
-    const type = doc.category || doc.type || 'General'
-    if (!acc[type]) acc[type] = []
-    acc[type].push(doc)
-    return acc
-  }, {})
-
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div style={{ padding: '2rem', backgroundColor: '#f4f6f9', color: '#1e293b', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <Toast toast={toast} onClose={clearToast} />
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Expediente clínico del paciente' : 'Gestión de pacientes'}
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              {view === 'create' ? 'Registra un expediente clínico completo en pocos pasos.' : view === 'detail' ? `Visualización de datos e historial documental de ${selectedPatient?.full_name}` : 'Consulta, identifica y gestiona los expedientes clínicos.'}
-            </p>
-          </div>
-
-          <div>
-            {view === 'list' ? (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={openCreate}
-              >
-                <Plus size={16} /> Nuevo paciente
-              </button>
-            ) : (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => { setView('list'); setIsEditingPatient(false); }}
-              >
-                <ArrowLeft size={16} /> Volver al listado
-              </button>
-            )}
-          </div>
+      {/* HEADER DE NAVEGACIÓN */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+            {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Patient profile' : 'Gestión de pacientes'}
+          </h1>
         </div>
 
-        <Toast toast={toast} onClose={clearToast} />
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {view === 'detail' && (
+            <>
+              <button onClick={handlePrint} style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '20px', padding: '0.4rem 1.2rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                PRINT
+              </button>
+              <button onClick={startEditPatient} style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '20px', padding: '0.4rem 1.2rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                EDIT
+              </button>
+            </>
+          )}
 
-        {view === 'create' || isEditingPatient ? (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-                {isEditingPatient ? 'Editar información del paciente' : 'Datos de identificación'}
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Los campos marcados con * son obligatorios.</p>
-            </div>
+          {view === 'list' ? (
+            <button onClick={openCreate} style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '20px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+              <Plus size={16} /> Nuevo paciente
+            </button>
+          ) : (
+            <button onClick={() => { setView('list'); setIsEditingPatient(false); }} style={{ backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#475569', borderRadius: '20px', padding: '0.4rem 1.2rem', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+              <ArrowLeft size={16} /> Volver
+            </button>
+          )}
+        </div>
+      </div>
 
-            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de documento *</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.document_type}
-                    onChange={e => { setForm(p => ({ ...p, document_type: e.target.value, document_number: '' })); setDocumentError('') }}
-                  >
-                    <option value="dni">DNI</option>
-                    <option value="ce">Carnet de extranjería</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Número de documento *</label>
-                  <input
-                    required
-                    style={{ backgroundColor: '#0f172a', border: `1px solid ${documentError ? '#ef4444' : '#334155'}`, color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.document_number}
-                    onChange={e => handleDocumentChange(e.target.value)}
-                    placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 caracteres'}
-                  />
-                  {documentError && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{documentError}</span>}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre completo *</label>
-                  <input
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.full_name}
-                    onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
-                    placeholder="Nombres y apellidos"
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Fecha de nacimiento *</label>
-                  <input
-                    required
-                    type="date"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    max={new Date().toISOString().slice(0, 10)}
-                    value={form.date_of_birth}
-                    onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Sexo *</label>
-                  <select
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.sex}
-                    onChange={e => setForm(p => ({ ...p, sex: e.target.value }))}
-                  >
-                    <option value="">Seleccionar</option>
-                    <option value="female">Femenino</option>
-                    <option value="male">Masculino</option>
-                    <option value="other">Otro / Prefiero no decir</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ height: '1px', backgroundColor: '#1e293b', margin: '0.5rem 0' }} />
-
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Contacto y antecedentes</h3>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>País</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.phone_country}
-                    onChange={e => setForm(p => ({ ...p, phone_country: e.target.value, phone_number: '' }))}
-                  >
-                    {Object.entries(PHONE_CONFIGS).map(([code, info]) => <option key={code} value={code}>{code} · {info.country}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Teléfono *</label>
-                  <input
-                    required
-                    inputMode="numeric"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.phone_number}
-                    onChange={e => setForm(p => ({ ...p, phone_number: e.target.value.replace(/\D/g, '').slice(0, PHONE_CONFIGS[form.phone_country]?.length || 10) }))}
-                    placeholder={`${PHONE_CONFIGS[form.phone_country]?.length || 10} dígitos`}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Correo</label>
-                  <input
-                    type="email"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.email}
-                    onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de sangre</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.blood_type}
-                    onChange={e => setForm(p => ({ ...p, blood_type: e.target.value }))}
-                  >
-                    <option value="">Seleccionar</option>
-                    {bloodTypes.map(type => <option key={type}>{type}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Antecedentes / Alergias</label>
-                  <textarea
-                    rows={3}
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
-                    value={form.allergies}
-                    onChange={e => setForm(p => ({ ...p, allergies: e.target.value }))}
-                    placeholder="Ninguna o detalla medicamentos/alimentos conocidos y antecedentes médicos"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-                <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => isEditingPatient ? setIsEditingPatient(false) : setView('list')}>Cancelar</button>
-                <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: (saving || Boolean(documentError)) ? 0.5 : 1 }} disabled={saving || Boolean(documentError)}>{saving ? 'Guardando…' : isEditingPatient ? 'Actualizar paciente' : 'Registrar paciente'}</button>
-              </div>
-            </form>
-          </div>
-        ) : view === 'detail' && selectedPatient ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-
-            {/* Tarjeta de Resumen del Paciente */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Historia Clínica · {selectedPatient.medical_record_number || '—'}</span>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc', margin: '0.25rem 0 0 0' }}>{selectedPatient.full_name}</h2>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <button
-                    onClick={startEditPatient}
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.4rem 0.85rem', fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
-                  >
-                    <Edit3 size={14} /> Editar
-                  </button>
-                  <button
-                    onClick={handlePrint}
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.4rem 0.85rem', fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
-                  >
-                    <Printer size={14} /> Imprimir
-                  </button>
-                  <span className="badge badge-success">{selectedPatient.status || 'Activo'}</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.phone || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.email || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Tipo de Sangre</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.blood_type || 'No especificado'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Antecedentes</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.allergies || 'Sin antecedentes registrados'}</strong></div>
-              </div>
-            </div>
-
-            {/* SECCIÓN DE PRÓXIMAS Y ANTERIORES VISITAS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+      {/* VISTA DETALLE DEL PACIENTE (ESTILO DASHBOARD CLÍNICA) */}
+      {view === 'detail' && selectedPatient ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
+          
+          {/* COLUMNA IZQUIERDA (INFORMACIÓN GENERAL Y CITAS) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* TARJETA SUPERIOR DE INFORMACIÓN Y AVATAR */}
+            <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.5rem', gap: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
               
-              {/* Próximas Visitas */}
-              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Calendar size={18} className="text-blue-400" />
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Próximas visitas</h3>
+              {/* PERFIL / AVATAR */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: '1px solid #f1f5f9', paddingRight: '1rem' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: '0.75rem' }}>
+                  <User size={48} color="#94a3b8" />
                 </div>
-                {futureVisits.length === 0 ? (
-                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>No hay visitas programadas después de hoy.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {futureVisits.map((appt) => (
-                      <div key={appt.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#3b82f6', fontWeight: 600 }}>
-                          <span>{formatDate(appt.appointment_date)}</span>
-                          <span>{appt.status}</span>
-                        </div>
-                        <span style={{ fontSize: '0.85rem', color: '#f8fafc', fontWeight: 500 }}>{appt.specialty} — {appt.doctor_name}</span>
-                        {appt.notes && <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{appt.notes}</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', margin: '0 0 0.25rem 0' }}>{selectedPatient.full_name}</h3>
+                <span style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600, marginBottom: '0.25rem' }}>{selectedPatient.phone || '—'}</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{selectedPatient.email || 'sin correo'}</span>
               </div>
 
-              {/* Visitas Anteriores */}
-              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Clock size={18} className="text-slate-400" />
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Visitas anteriores</h3>
+              {/* GENERAL INFORMATION */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>General information</h4>
+                  <Edit3 size={12} color="#94a3b8" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
                 </div>
-                {pastVisits.length === 0 ? (
-                  <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>No hay visitas registradas antes de hoy.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {pastVisits.map((appt) => (
-                      <div key={appt.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>
-                          <span>{formatDate(appt.appointment_date)}</span>
-                          <span>{appt.status}</span>
-                        </div>
-                        <span style={{ fontSize: '0.85rem', color: '#f8fafc', fontWeight: 500 }}>{appt.specialty} — {appt.doctor_name}</span>
-                        {appt.notes && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{appt.notes}</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Date of birth:</span><strong style={{ color: '#334155' }}>{selectedPatient.date_of_birth?.slice(0, 10) || '—'}</strong></div>
+                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Document / DNI:</span><strong style={{ color: '#334155' }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
+                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Sex:</span><strong style={{ color: '#334155' }}>{selectedPatient.sex || '—'}</strong></div>
+                </div>
+              </div>
+
+              {/* ANAMNESIS */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: '1px solid #f1f5f9', paddingLeft: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Anamnesis</h4>
+                  <Edit3 size={12} color="#94a3b8" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                </div>
+                <div style={{ fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Allergies:</span><strong style={{ color: '#334155' }}>{selectedPatient.allergies || 'None'}</strong></div>
+                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Blood type:</span><strong style={{ color: '#334155' }}>{selectedPatient.blood_type || '—'}</strong></div>
+                  <div><span style={{ color: '#94a3b8', display: 'inline-block', width: '100px' }}>Status:</span><strong style={{ color: '#10b981' }}>{selectedPatient.status || 'Active'}</strong></div>
+                </div>
               </div>
 
             </div>
 
-            {/* SECCIÓN DE ARCHIVOS */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Archivos e Historial Clínico</h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Documentos, recetas, exámenes y reportes asociados al paciente.</p>
+            {/* TABLA / PESTAÑAS DE VISITAS */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.5rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              
+              {/* NAVEGACIÓN PESTAÑAS */}
+              <div style={{ display: 'flex', gap: '2rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                <span
+                  onClick={() => setActiveTab('future')}
+                  style={{ fontSize: '0.85rem', fontWeight: 600, color: activeTab === 'future' ? '#3b82f6' : '#64748b', borderBottom: activeTab === 'future' ? '2px solid #3b82f6' : 'none', paddingBottom: '0.75rem', cursor: 'pointer' }}
+                >
+                  Future visits ({futureVisits.length})
+                </span>
+                <span
+                  onClick={() => setActiveTab('past')}
+                  style={{ fontSize: '0.85rem', fontWeight: 600, color: activeTab === 'past' ? '#3b82f6' : '#64748b', borderBottom: activeTab === 'past' ? '2px solid #3b82f6' : 'none', paddingBottom: '0.75rem', cursor: 'pointer' }}
+                >
+                  Past visits ({pastVisits.length})
+                </span>
               </div>
 
-              {loadingDocs ? (
-                <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando documentos del paciente…" /></div>
-              ) : patientDocuments.length === 0 ? (
-                <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem', textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>No hay documentos registrados para este paciente en el sistema.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {Object.entries(groupedDocuments).map(([category, docs]) => (
-                    <div key={category} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#3b82f6', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{category}</h4>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{docs.length} archivo(s)</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                        {docs.map((doc, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => setPreviewDocument(doc)}
-                            style={{
-                              backgroundColor: '#090d16',
-                              border: '1px solid #1e293b',
-                              borderRadius: '12px',
-                              padding: '1rem',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '0.5rem',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
-                            onMouseLeave={e => e.currentTarget.style.borderColor = '#1e293b'}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <strong style={{ fontSize: '0.875rem', color: '#f8fafc' }}>{doc.title || doc.name || doc.file_name || 'Documento clínico'}</strong>
-                              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatDate(doc.created_at)}</span>
-                            </div>
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>{doc.description || 'Sin descripción'}</p>
-                          </div>
-                        ))}
+              {/* CONTENIDO PESTAÑA */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {(activeTab === 'future' ? futureVisits : pastVisits).length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center', padding: '1.5rem 0' }}>
+                    No hay visitas para mostrar en esta sección.
+                  </p>
+                ) : (
+                  (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
+                    <div key={appt.id} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr 100px', backgroundColor: '#f8fafc', borderRadius: '10px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem' }}>
+                      <div style={{ fontWeight: 600, color: '#3b82f6' }}>{appt.appointment_date?.slice(0, 10)}</div>
+                      <div><span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Especialidad:</span> <span style={{ fontWeight: 500 }}>{appt.specialty}</span></div>
+                      <div><span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Médico:</span> <span style={{ fontWeight: 500 }}>{appt.doctor_name}</span></div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ backgroundColor: appt.status === 'Scheduled' ? '#e0f2fe' : '#f1f5f9', color: appt.status === 'Scheduled' ? '#0284c7' : '#475569', padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600 }}>
+                          {appt.status}
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
+
             </div>
 
           </div>
-        ) : (
-          /* VISTA LISTA DE PACIENTES */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <input
-              type="text"
-              placeholder="Buscar paciente por DNI, nombre..."
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            />
 
-            {loading ? (
-              <LoadingState label="Cargando pacientes..." />
-            ) : patients.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem 0' }}>No se encontraron pacientes registrados.</p>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-                {patients.map(p => (
-                  <div key={p.id} onClick={() => loadPatientDetail(p)} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', cursor: 'pointer' }}>
-                    <h4 style={{ margin: '0 0 0.5rem 0', color: '#f8fafc', fontSize: '1rem' }}>{p.full_name}</h4>
-                    <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.8rem' }}>DNI/Doc: {p.dni || p.document_number || '—'}</p>
-                    <p style={{ margin: '0.2rem 0 0 0', color: '#94a3b8', fontSize: '0.8rem' }}>Teléfono: {p.phone || '—'}</p>
-                  </div>
-                ))}
+          {/* COLUMNA DERECHA (ARCHIVOS Y NOTAS) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* SECCIÓN FILES */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Files</h4>
+                <button style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#3b82f6', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.6rem', cursor: 'pointer' }}>DOWNLOAD</button>
               </div>
-            )}
-          </div>
-        )}
 
-      </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {loadingDocs ? (
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Cargando archivos...</span>
+                ) : patientDocuments.length === 0 ? (
+                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Sin archivos registrados.</span>
+                ) : (
+                  patientDocuments.map((doc, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FileText size={16} color="#64748b" />
+                        <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#334155' }}>{doc.title || doc.file_name || 'Documento.pdf'}</span>
+                      </div>
+                      <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{doc.size || '123kb'}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* SECCIÓN NOTES */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Notes</h4>
+                <button style={{ border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#3b82f6', borderRadius: '12px', fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.6rem', cursor: 'pointer' }}>DOWNLOAD</button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <File size={16} color="#64748b" />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#334155' }}>Note_31.08.26.pdf</span>
+                  </div>
+                  <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>123kb</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      ) : view === 'create' || isEditingPatient ? (
+        /* FORMULARIO DE PACIENTE */
+        <div style={{ backgroundColor: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.5rem' }}>
+          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h3 style={{ fontSize: '1rem', margin: 0 }}>{isEditingPatient ? 'Editar Paciente' : 'Registrar Paciente'}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <input placeholder="Nombre completo *" required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+              <input placeholder="Número de documento *" required value={form.document_number} onChange={e => handleDocumentChange(e.target.value)} style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+              <input type="date" required value={form.date_of_birth} onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))} style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+              <input placeholder="Teléfono" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+            </div>
+            <button type="submit" disabled={saving} style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', cursor: 'pointer', alignSelf: 'flex-end' }}>
+              {saving ? 'Guardando...' : 'Guardar Paciente'}
+            </button>
+          </form>
+        </div>
+      ) : (
+        /* LISTADO DE PACIENTES */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <input
+            type="text"
+            placeholder="Buscar por DNI o nombre..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+          />
+
+          {loading ? (
+            <p style={{ textAlign: 'center', color: '#64748b' }}>Cargando pacientes...</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              {patients.map(p => (
+                <div key={p.id} onClick={() => loadPatientDetail(p)} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', cursor: 'pointer' }}>
+                  <h4 style={{ margin: '0 0 0.25rem 0', color: '#0f172a' }}>{p.full_name}</h4>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>DNI: {p.dni || p.document_number || '—'}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
