@@ -320,6 +320,10 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
 // Patients
 // ============================================================
 
+// ============================================================
+// Patients
+// ============================================================
+
 export function Patients() {
   const { user } = useAuth()
   const [patients, setPatients] = useState([])
@@ -1099,6 +1103,7 @@ export function Patients() {
     </div>
   )
 }
+
 
 
 // ============================================================
