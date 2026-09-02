@@ -12,11 +12,11 @@ import {
 } from 'recharts'
 import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
-import {User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
+import {
+  User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
-} from 'lucide-react';
-
+} from 'lucide-react'
 
 // ============================================================
 // Shared UX / utilities
@@ -70,7 +70,6 @@ const calculateBMI = (weight, height) => {
   return (w / (h * h)).toFixed(2)
 }
 
-
 const getBMIState = (bmi) => {
   const value = Number.parseFloat(bmi)
   if (!value) return { label: 'Sin calcular', tone: 'neutral' }
@@ -116,15 +115,16 @@ const isAdminUser = (user) => ['admin', 'tenant_admin'].includes(getUserRole(use
 // ============================================================
 
 function Toast({ toast, onClose }) {
-  if (!toast?.text) return null
+  if (!toast?.text && !toast?.message) return null
+  const isError = toast.type === 'error'
   return (
     <div className={cx('toast', `toast-${toast.type || 'info'}`)} role="status">
       <div className="toast-icon" aria-hidden="true">
-        {toast.type === 'success' ? '✓' : toast.type === 'error' ? '!' : 'i'}
+        {toast.type === 'success' ? '✓' : isError ? '!' : 'i'}
       </div>
       <div className="toast-content">
-        <strong>{toast.title || (toast.type === 'error' ? 'Ocurrió un problema' : 'Información')}</strong>
-        <span>{toast.text}</span>
+        <strong>{toast.title || (isError ? 'Ocurrió un problema' : 'Información')}</strong>
+        <span>{toast.text || toast.message}</span>
       </div>
       <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar notificación">×</button>
     </div>
@@ -200,9 +200,8 @@ function SectionCard({ title, description, icon, actions, children, className = 
   )
 }
 
-
 // ============================================================
-// Componente StatCard Moderno (Sin Emojis, con Iconos SVG Clínicos)
+// Componente StatCard Moderno
 // ============================================================
 
 function StatCard({ icon, label, value, hint, tone = 'primary' }) {
@@ -311,120 +310,6 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
     </div>
   )
 }
-// --- FUNCIONES UTILITARIAS ---
-function formatDate(dateStr) {
-  if (!dateStr) return '—'
-  try {
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  } catch {
-    return dateStr
-  }
-}
-
-function formatDateTime(dateStr) {
-  if (!dateStr) return '—'
-  try {
-    return new Date(dateStr).toLocaleString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch {
-    return dateStr
-  }
-}
-
-// --- COMPONENTES AUXILIARES CON ESTILOS INLINE ---
-function Toast({ toast, onClose }) {
-  if (!toast) return null
-  const isError = toast.type === 'error'
-  return (
-    <div style={{
-      padding: '0.85rem 1.25rem',
-      borderRadius: '12px',
-      marginBottom: '1rem',
-      fontSize: '0.875rem',
-      display: 'flex',
-      justify: 'space-between',
-      alignItems: 'center',
-      backgroundColor: isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-      border: `1px solid ${isError ? '#ef4444' : '#10b981'}`,
-      color: isError ? '#fca5a5' : '#6ee7b7',
-    }}>
-      <div>
-        {toast.title && <strong>{toast.title}: </strong>}
-        {toast.message}
-      </div>
-      <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontWeight: 'bold', marginLeft: '1rem' }}>✕</button>
-    </div>
-  )
-}
-
-function SearchField({ value, onChange, placeholder, loading }) {
-  return (
-    <div style={{ position: 'relative', width: '100%' }}>
-      <input
-        style={{
-          width: '100%',
-          boxSizing: 'border-box',
-          backgroundColor: '#0f172a',
-          border: '1px solid #334155',
-          color: '#f8fafc',
-          borderRadius: '12px',
-          padding: '0.65rem 1rem 0.65rem 2.5rem',
-          fontSize: '0.875rem',
-          outline: 'none',
-        }}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
-      <span style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: '0.9rem' }}>
-        {loading ? '⌛' : '🔍'}
-      </span>
-    </div>
-  )
-}
-
-function LoadingState({ label = 'Cargando...' }) {
-  return (
-    <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
-      <p style={{ margin: 0 }}>⏳ {label}</p>
-    </div>
-  )
-}
-
-function EmptyState({ title, description }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-      <h4 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0 0 0.5rem 0' }}>{title}</h4>
-      <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>{description}</p>
-    </div>
-  )
-}
-
-function ConfirmDialog({ open, title, message, confirmLabel, danger, onCancel, onConfirm }) {
-  if (!open) return null
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-      <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>{title}</h3>
-        <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>{message}</p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-          <button onClick={onCancel} style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.5rem 1rem', fontSize: '0.85rem', cursor: 'pointer' }}>Cancelar</button>
-          <button onClick={onConfirm} style={{ backgroundColor: danger ? '#ef4444' : '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.5rem 1rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>{confirmLabel}</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 
 
 
