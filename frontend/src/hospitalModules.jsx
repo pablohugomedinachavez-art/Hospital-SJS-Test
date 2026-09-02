@@ -324,21 +324,36 @@ export function Patients() {
   const { user } = useAuth()
   const [patients, setPatients] = useState([])
   const [query, setQuery] = useState('')
-  const [view, setView] = useState('list') // 'list' | 'create' | 'detail' | 'edit'
+  const [view, setView] = useState('list') // 'list' | 'create' | 'detail'
   const [selectedPatient, setSelectedPatient] = useState(null)
-  const [previewDocument, setPreviewDocument] = useState(null)
   const [patientDocuments, setPatientDocuments] = useState([])
   const [patientAppointments, setPatientAppointments] = useState([])
   const [loadingDocs, setLoadingDocs] = useState(false)
-  const [loadingAppointments, setLoadingAppointments] = useState(false)
+  const [isEditingPatient, setIsEditingPatient] = useState(false)
+  const [activeTab, setActiveTab] = useState('future') // 'future' | 'past'
   const [form, setForm] = useState(INITIAL_PATIENT)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [documentError, setDocumentError] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState(null)
   const [toast, notify, clearToast] = useToast()
   const debouncedQuery = useDebouncedValue(query)
-  const isAdmin = isAdminUser(user)
+
+  // TEMA DE COLORES OSCURO / MÓDULOS DE LIMA CON INTERACTIVIDAD MEJORADA
+  const theme = {
+    bgApp: '#0f172a',           // Fondo oscuro elegante (Slate 900)
+    bgCard: '#1e293b',          // Fondo de tarjetas (Slate 800)
+    bgHover: '#334155',         // Fondo al hacer hover (Slate 700)
+    bgItem: '#1e293b',          // Filas y contenedor secundario
+    border: '#334155',          // Bordes sutiles
+    textPrimary: '#f8fafc',     // Texto blanco atenuado descansado
+    textMuted: '#94a3b8',       // Texto gris secundario
+    accent: '#3b82f6',          // Azul primario vibrante
+    accentHover: '#2563eb',     // Azul hover
+    badgeBg: '#1e3a8a',         // Badge azul oscuro
+    badgeText: '#93c5fd',       // Texto badge azul suave
+    badgeSuccessBg: '#064e3b',  // Badge verde oscuro
+    badgeSuccessText: '#6ee7b7' // Texto badge verde
+  }
 
   const load = useCallback(async (q = '') => {
     setLoading(true)
@@ -347,7 +362,6 @@ export function Patients() {
       if (!res.ok) throw new Error('No se pudo cargar pacientes')
       setPatients(await res.json() || [])
     } catch (error) {
-      console.error(error)
       notify('No fue posible cargar la lista de pacientes.', 'error')
     } finally {
       setLoading(false)
@@ -362,37 +376,24 @@ export function Patients() {
   const loadPatientDetail = async (patient) => {
     setSelectedPatient(patient)
     setView('detail')
+    setIsEditingPatient(false)
     setLoadingDocs(true)
-    setLoadingAppointments(true)
-
-    // Cargar documentos del paciente
     try {
-      const res = await apiFetch(`/patients/${patient.id}/documents`)
-      if (res.ok) {
-        const docs = await res.json()
-        setPatientDocuments(docs || [])
-      } else {
-        setPatientDocuments([])
-      }
+      const [docsRes, apptsRes] = await Promise.all([
+        apiFetch(`/patients/${patient.id}/documents`),
+        apiFetch(`/appointments?patient_id=${patient.id}`)
+      ])
+
+      if (docsRes.ok) setPatientDocuments(await docsRes.json() || [])
+      else setPatientDocuments([])
+
+      if (apptsRes.ok) setPatientAppointments(await apptsRes.json() || [])
+      else setPatientAppointments([])
     } catch {
       setPatientDocuments([])
-    } finally {
-      setLoadingDocs(false)
-    }
-
-    // Cargar citas (appointments) del paciente
-    try {
-      const resApp = await apiFetch(`/patients/${patient.id}/appointments`)
-      if (resApp.ok) {
-        const appointments = await resApp.json()
-        setPatientAppointments(appointments || [])
-      } else {
-        setPatientAppointments([])
-      }
-    } catch {
       setPatientAppointments([])
     } finally {
-      setLoadingAppointments(false)
+      setLoadingDocs(false)
     }
   }
 
@@ -410,7 +411,7 @@ export function Patients() {
     }
 
     const exists = patients.some(patient => {
-      if (view === 'edit' && patient.id === selectedPatient?.id) return false
+      if (selectedPatient && patient.id === selectedPatient.id) return false
       const values = [patient.dni, patient.document_number].filter(Boolean).map(String)
       return values.some(valueItem => valueItem.trim() === documentNumber)
     })
@@ -424,35 +425,30 @@ export function Patients() {
     setView('create')
   }
 
-  const openEdit = (patient) => {
-    const target = patient || selectedPatient
-    if (!target) return
-    setSelectedPatient(target)
-    
-    // Extraer prefijo telefónico y número si están unidos
+  const startEditPatient = () => {
+    if (!selectedPatient) return
     let phoneCountry = '+51'
-    let phoneNumber = target.phone || target.phone_number || ''
+    let phoneNumber = selectedPatient.phone || ''
     Object.keys(PHONE_CONFIGS).forEach(code => {
       if (phoneNumber.startsWith(code)) {
         phoneCountry = code
-        phoneNumber = phoneNumber.replace(code, '').trim()
+        phoneNumber = phoneNumber.slice(code.length)
       }
     })
 
     setForm({
-      document_type: target.document_type || 'dni',
-      document_number: target.dni || target.document_number || '',
-      full_name: target.full_name || '',
-      date_of_birth: target.date_of_birth ? new Date(target.date_of_birth).toISOString().split('T')[0] : '',
+      document_type: selectedPatient.document_type || 'dni',
+      document_number: selectedPatient.dni || selectedPatient.document_number || '',
+      full_name: selectedPatient.full_name || '',
+      date_of_birth: selectedPatient.date_of_birth ? selectedPatient.date_of_birth.slice(0, 10) : '',
       phone_country: phoneCountry,
       phone_number: phoneNumber,
-      email: target.email || '',
-      sex: target.sex || '',
-      blood_type: target.blood_type || '',
-      allergies: target.allergies || '',
+      email: selectedPatient.email || '',
+      sex: selectedPatient.sex || '',
+      blood_type: selectedPatient.blood_type || '',
+      allergies: selectedPatient.allergies || '',
     })
-    setDocumentError('')
-    setView('edit')
+    setIsEditingPatient(true)
   }
 
   const submit = async (event) => {
@@ -462,638 +458,328 @@ export function Patients() {
     setSaving(true)
     try {
       const phone = `${form.phone_country}${form.phone_number}`
-      const isEdit = view === 'edit'
-      const endpoint = isEdit ? `/patients/${selectedPatient.id}` : '/patients'
-      const method = isEdit ? 'PUT' : 'POST'
+      const url = isEditingPatient ? `/patients/${selectedPatient.id}` : '/patients'
+      const method = isEditingPatient ? 'PUT' : 'POST'
 
-      const res = await apiFetch(endpoint, {
+      const res = await apiFetch(url, {
         method,
         body: JSON.stringify({ ...form, dni: form.document_number, phone }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || `No se pudo ${isEdit ? 'actualizar' : 'registrar'} al paciente`)
+      if (!res.ok) throw new Error(json.message || `No se pudo guardar`)
 
-      notify(
-        `Paciente ${isEdit ? 'actualizado' : 'registrado'} correctamente.`,
-        'success',
-        'Operación completada'
-      )
-      
-      if (isEdit) {
+      notify(`Paciente ${isEditingPatient ? 'actualizado' : 'registrado'} correctamente.`, 'success')
+      if (isEditingPatient) {
         const updated = { ...selectedPatient, ...form, dni: form.document_number, phone }
         setSelectedPatient(updated)
-        setView('detail')
+        setIsEditingPatient(false)
       } else {
         setForm(INITIAL_PATIENT)
+        setDocumentError('')
         setView('list')
       }
-      setDocumentError('')
       await load(query)
     } catch (error) {
-      notify(error.message || 'Error de conexión con el servidor.', 'error')
+      notify(error.message || 'Error de conexión.', 'error')
     } finally {
       setSaving(false)
     }
   }
 
-  const deletePatient = async () => {
-    if (!confirmDelete) return
-    try {
-      const res = await apiFetch('/patients', {
-        method: 'DELETE',
-        body: JSON.stringify({ patient_id: confirmDelete.id }),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo eliminar')
-      notify('Paciente eliminado correctamente.', 'success')
-      setConfirmDelete(null)
-      setView('list')
-      await load(query)
-    } catch (error) {
-      notify(error.message, 'error')
-    }
-  }
+  const handlePrint = () => window.print()
 
-  // Agrupar documentos por categoría o tipo
-  const groupedDocuments = patientDocuments.reduce((acc, doc) => {
-    const type = doc.category || doc.type || 'General'
-    if (!acc[type]) acc[type] = []
-    acc[type].push(doc)
-    return acc
-  }, {})
+  const today = useMemo(() => new Date(), [])
+
+  const pastVisits = useMemo(() => {
+    return patientAppointments.filter(appt => {
+      if (!appt.appointment_date) return false
+      return new Date(appt.appointment_date) < today
+    })
+  }, [patientAppointments, today])
+
+  const futureVisits = useMemo(() => {
+    return patientAppointments.filter(appt => {
+      if (!appt.appointment_date) return false
+      return new Date(appt.appointment_date) >= today
+    })
+  }, [patientAppointments, today])
 
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{
+      padding: '2rem',
+      backgroundColor: theme.bgApp,
+      color: theme.textPrimary,
+      minHeight: '100vh',
+      width: '100%',
+      boxSizing: 'border-box',
+      fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+    }}>
+      {/* INYECCIÓN DE ESTILOS CSS PARA ANIMACIONES, HOVERS Y TRANSICIONES SUAVES */}
+      <style>{`
+        .btn-interactive {
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-interactive:hover {
+          transform: translateY(-2px);
+          filter: brightness(1.1);
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+        }
+        .btn-interactive:active {
+          transform: translateY(0);
+          filter: brightness(0.95);
+        }
+        .card-hover {
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.4);
+          border-color: ${theme.accent} !important;
+        }
+        .row-interactive {
+          transition: all 0.2s ease;
+        }
+        .row-interactive:hover {
+          background-color: ${theme.bgHover} !important;
+          transform: translateX(4px);
+        }
+        .icon-hover-bounce {
+          transition: transform 0.2s ease;
+        }
+        .icon-hover-bounce:hover {
+          transform: scale(1.2) rotate(5deg);
+        }
+        .tab-interactive {
+          transition: all 0.2s ease;
+        }
+        .tab-interactive:hover {
+          color: ${theme.accent} !important;
+        }
+      `}</style>
 
-      {/* MARCO GENERAL ESTILO DOCUMENTO */}
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+      <Toast toast={toast} onClose={clearToast} />
 
-        {/* CABECERA Y ACCIONES */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              {view === 'create' ? 'Nuevo paciente' : view === 'edit' ? `Editar perfil · ${selectedPatient?.full_name}` : view === 'detail' ? 'Expediente clínico del paciente' : 'Gestión de pacientes'}
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              {view === 'create' ? 'Registra un expediente clínico completo en pocos pasos.' : view === 'edit' ? 'Modifica los datos del perfil del paciente y guarda los cambios.' : view === 'detail' ? `Visualización de datos, documentos e historial de citas de ${selectedPatient?.full_name}` : 'Consulta, identifica y gestiona los expedientes clínicos.'}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            {view === 'detail' && (
-              <button
-                style={{ backgroundColor: '#1e293b', border: '1px solid #3b82f6', color: '#3b82f6', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => openEdit(selectedPatient)}
-              >
-                ✏ Editar Perfil
-              </button>
-            )}
-
-            {view === 'list' ? (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={openCreate}
-              >
-                + Nuevo paciente
-              </button>
-            ) : (
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={() => setView('list')}
-              >
-                ← Volver al listado
-              </button>
-            )}
-          </div>
+      {/* HEADER PRINCIPAL */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: theme.textPrimary, margin: 0, letterSpacing: '-0.02em' }}>
+            {view === 'create' ? 'Nuevo paciente' : view === 'detail' ? 'Perfil del paciente' : 'Gestión de pacientes'}
+          </h1>
         </div>
 
-        <Toast toast={toast} onClose={clearToast} />
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          {view === 'detail' && (
+            <>
+              <button 
+                onClick={handlePrint} 
+                className="btn-interactive"
+                style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textPrimary, borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+              >
+                <Printer size={15} /> Imprimir
+              </button>
+              <button 
+                onClick={startEditPatient} 
+                className="btn-interactive"
+                style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+              >
+                <Edit3 size={15} /> Editar
+              </button>
+            </>
+          )}
 
-        {/* FORMULARIO DE CREACIÓN / EDICIÓN */}
-        {(view === 'create' || view === 'edit') ? (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-                {view === 'edit' ? 'Editar datos de identificación' : 'Datos de identificación'}
-              </h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Los campos marcados con * son obligatorios.</p>
-            </div>
-
-            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de documento *</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.document_type}
-                    onChange={e => { setForm(p => ({ ...p, document_type: e.target.value, document_number: '' })); setDocumentError('') }}
-                  >
-                    <option value="dni">DNI</option>
-                    <option value="ce">Carnet de extranjería</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Número de documento *</label>
-                  <input
-                    required
-                    style={{ backgroundColor: '#0f172a', border: `1px solid ${documentError ? '#ef4444' : '#334155'}`, color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.document_number}
-                    onChange={e => handleDocumentChange(e.target.value)}
-                    placeholder={form.document_type === 'dni' ? '8 dígitos' : 'Hasta 12 caracteres'}
-                  />
-                  {documentError && <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>{documentError}</span>}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre completo *</label>
-                  <input
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.full_name}
-                    onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
-                    placeholder="Nombres y apellidos"
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Fecha de nacimiento *</label>
-                  <input
-                    required
-                    type="date"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    max={new Date().toISOString().slice(0, 10)}
-                    value={form.date_of_birth}
-                    onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Sexo *</label>
-                  <select
-                    required
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.sex}
-                    onChange={e => setForm(p => ({ ...p, sex: e.target.value }))}
-                  >
-                    <option value="">Seleccionar</option>
-                    <option value="female">Femenino</option>
-                    <option value="male">Masculino</option>
-                    <option value="other">Otro / Prefiero no decir</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ height: '1px', backgroundColor: '#1e293b', margin: '0.5rem 0' }} />
-
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Contacto y antecedentes</h3>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>País</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.phone_country}
-                    onChange={e => setForm(p => ({ ...p, phone_country: e.target.value, phone_number: '' }))}
-                  >
-                    {Object.entries(PHONE_CONFIGS).map(([code, info]) => <option key={code} value={code}>{code} · {info.country}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Teléfono *</label>
-                  <input
-                    required
-                    inputMode="numeric"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.phone_number}
-                    onChange={e => setForm(p => ({ ...p, phone_number: e.target.value.replace(/\D/g, '').slice(0, PHONE_CONFIGS[form.phone_country]?.length || 10) }))}
-                    placeholder={`${PHONE_CONFIGS[form.phone_country]?.length || 10} dígitos`}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Correo</label>
-                  <input
-                    type="email"
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.email}
-                    onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Tipo de sangre</label>
-                  <select
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.blood_type}
-                    onChange={e => setForm(p => ({ ...p, blood_type: e.target.value }))}
-                  >
-                    <option value="">Seleccionar</option>
-                    {bloodTypes.map(type => <option key={type}>{type}</option>)}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Alergias</label>
-                  <textarea
-                    rows={3}
-                    style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
-                    value={form.allergies}
-                    onChange={e => setForm(p => ({ ...p, allergies: e.target.value }))}
-                    placeholder="Ninguna o detalla medicamentos/alimentos conocidos"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-                <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setView(selectedPatient ? 'detail' : 'list')}>Cancelar</button>
-                <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: (saving || Boolean(documentError)) ? 0.5 : 1 }} disabled={saving || Boolean(documentError)}>{saving ? 'Guardando…' : view === 'edit' ? 'Guardar Cambios' : 'Registrar paciente'}</button>
-              </div>
-            </form>
-          </div>
-        ) : view === 'detail' && selectedPatient ? (
-          /* VISTA DE DETALLE / EXPEDIENTE COMPLETO */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-
-            {/* Tarjeta de Resumen del Paciente */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Historia Clínica · {selectedPatient.medical_record_number || '—'}</span>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc', margin: '0.25rem 0 0 0' }}>{selectedPatient.full_name}</h2>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <button
-                    style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer' }}
-                    onClick={() => openEdit(selectedPatient)}
-                  >
-                    ✏ Editar
-                  </button>
-                  <span className="badge badge-success">{selectedPatient.status || 'Activo'}</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.phone || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.email || '—'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Tipo de Sangre</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.blood_type || 'No especificado'}</strong></div>
-                <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.7rem', color: '#94a3b8', textTransform: 'uppercase' }}>Alergias / Observaciones</span><strong style={{ color: '#f8fafc', fontSize: '0.9rem' }}>{selectedPatient.allergies || 'Ninguna registrada'}</strong></div>
-              </div>
-            </div>
-
-            {/* SECCIÓN DE DOCUMENTOS DEL PACIENTE */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Documentos e Historial Clínico</h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Archivos, recetas, exámenes y reportes asociados al paciente.</p>
-              </div>
-
-              {loadingDocs ? (
-                <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando documentos del paciente…" /></div>
-              ) : patientDocuments.length === 0 ? (
-                <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem', textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>No hay documentos registrados para este paciente en el sistema.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {Object.entries(groupedDocuments).map(([category, docs]) => (
-                    <div key={category} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#3b82f6', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{category}</h4>
-                        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{docs.length} archivo(s)</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                        {docs.map((doc, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => setPreviewDocument(doc)}
-                            style={{
-                              backgroundColor: '#090d16',
-                              border: '1px solid #1e293b',
-                              borderRadius: '12px',
-                              padding: '1rem',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '0.5rem',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
-                            onMouseLeave={e => e.currentTarget.style.borderColor = '#1e293b'}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                              <strong style={{ fontSize: '0.875rem', color: '#f8fafc' }}>{doc.title || doc.name || 'Documento clínico'}</strong>
-                              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{formatDate(doc.created_at)}</span>
-                            </div>
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>{doc.description || 'Sin descripción adicional.'}</p>
-                            <span style={{ fontSize: '0.7rem', color: '#3b82f6', fontWeight: 500, marginTop: '0.25rem' }}>🔍 Clic para previsualizar</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* SECCIÓN DE CITAS / APPOINTMENTS CON ESTILO DE TARJETAS DE CONSULTA */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Citas del Paciente (Appointments)</h3>
-                <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Historial de citas médicas programadas y realizadas.</p>
-              </div>
-
-              {loadingAppointments ? (
-                <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando citas del paciente…" /></div>
-              ) : patientAppointments.length === 0 ? (
-                <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem', textAlign: 'center' }}>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0 }}>No hay citas registradas para este paciente.</p>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
-                  {patientAppointments.map(app => (
-                    <article
-                      key={app.id}
-                      style={{
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        border: '1px solid #1e293b',
-                        borderRadius: '16px',
-                        padding: '1.25rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '1rem',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                        transition: 'all 0.25s ease-in-out'
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.transform = 'translateY(-4px)'
-                        e.currentTarget.style.borderColor = '#3b82f6'
-                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.transform = 'translateY(0px)'
-                        e.currentTarget.style.borderColor = '#1e293b'
-                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{formatDateTime(app.appointment_date || app.date || app.created_at)}</div>
-                          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{app.doctor_name || app.specialty || 'Cita Médica'}</h3>
-                        </div>
-                        <span className={`badge badge-${app.status === 'completed' || app.status === 'completada' ? 'success' : app.status === 'cancelled' ? 'danger' : 'info'}`}>
-                          #{app.id} · {app.status || 'Programada'}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.825rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                        <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Motivo:</strong> {app.reason || app.motive || 'Consulta regular'}</p>
-                        <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Especialidad / Área:</strong> {app.specialty || app.location || 'Medicina General'}</p>
-                        <p style={{ margin: 0 }}><strong style={{ color: '#f8fafc' }}>Médico Tratante:</strong> {app.doctor_name || 'No asignado'}</p>
-                      </div>
-
-                      {(app.weight_kg || app.height_cm || app.bmi) && (
-                        <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.25rem' }}>
-                          <span>⚖ {app.weight_kg ?? '—'} kg</span>
-                          <span>↕ {app.height_cm ?? '—'} cm</span>
-                          <span>IMC {app.bmi ?? '—'}</span>
-                        </div>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
-        ) : (
-          /* LISTADO DE PACIENTES */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-
-            {/* SECCIÓN DE BÚSQUEDA */}
-            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Buscar pacientes</h3>
-                <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Busca por nombre, DNI o correo.</p>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <SearchField value={query} onChange={setQuery} placeholder="Buscar por DNI, nombre o correo…" loading={loading} />
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{patients.length} resultados</span>
-              </div>
-            </div>
-
-            {loading ? (
-              <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando pacientes…" /></div>
-            ) : patients.length === 0 ? (
-              <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
-                <EmptyState title="No hay pacientes para mostrar" description={query ? 'Prueba con otro nombre, documento o correo.' : 'Todavía no existen pacientes registrados.'} />
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem', width: '100%' }}>
-                {patients.map(patient => (
-                  <article
-                    key={patient.id}
-                    onClick={() => loadPatientDetail(patient)}
-                    style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      border: '1px solid #1e293b',
-                      borderRadius: '16px',
-                      padding: '1.25rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '1rem',
-                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                      cursor: 'pointer',
-                      transition: 'all 0.25s ease-in-out'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.transform = 'translateY(-4px)'
-                      e.currentTarget.style.borderColor = '#3b82f6'
-                      e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.transform = 'translateY(0px)'
-                      e.currentTarget.style.borderColor = '#1e293b'
-                      e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>HC · {patient.medical_record_number || '—'}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>{patient.full_name}</h3>
-                      </div>
-                      <span className="badge badge-success">{patient.status || 'Activo'}</span>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', color: '#94a3b8', backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Documento</span><strong style={{ color: '#f8fafc' }}>{patient.dni || patient.document_number || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Teléfono</span><strong style={{ color: '#f8fafc' }}>{patient.phone || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Correo</span><strong style={{ color: '#f8fafc', wordBreak: 'break-all' }}>{patient.email || '—'}</strong></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gridColumn: '1 / -1' }}><span style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>Registro</span><strong style={{ color: '#f8fafc' }}>{formatDate(patient.created_at)}</strong></div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ID #{patient.id}</span>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
-                          type="button"
-                          style={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                          onClick={(e) => { e.stopPropagation(); openEdit(patient); }}
-                        >
-                          Editar
-                        </button>
-                        {isAdmin && (
-                          <button
-                            type="button"
-                            style={{ backgroundColor: '#ef4444', border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                            onClick={(e) => { e.stopPropagation(); setConfirmDelete(patient); }}
-                          >
-                            Eliminar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
+          {view === 'list' ? (
+            <button 
+              onClick={openCreate} 
+              className="btn-interactive"
+              style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+            >
+              <Plus size={16} /> Nuevo paciente
+            </button>
+          ) : (
+            <button 
+              onClick={() => { setView('list'); setIsEditingPatient(false); }} 
+              className="btn-interactive"
+              style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textPrimary, borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+            >
+              <ArrowLeft size={16} /> Volver
+            </button>
+          )}
+        </div>
       </div>
 
-      <ConfirmDialog
-        open={Boolean(confirmDelete)}
-        title="Eliminar paciente"
-        message={confirmDelete ? `Eliminarás el registro de ${confirmDelete.full_name}. Esta acción no se puede deshacer.` : ''}
-        confirmLabel="Sí, eliminar"
-        danger
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={deletePatient}
-      />
-
-      {/* MODAL DE PREVISUALIZACIÓN DE DOCUMENTO A PANTALLA COMPLETA */}
-      {previewDocument && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 9999,
-          padding: '2rem',
-          boxSizing: 'border-box'
-        }}>
-          <div style={{
-            backgroundColor: '#0f172a',
-            border: '1px solid #334155',
-            borderRadius: '20px',
-            width: '100%',
-            maxWidth: '1200px',
-            height: '90vh',
-            display: 'flex',
-            flexDirection: 'column',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-            overflow: 'hidden'
-          }}>
-            {/* Cabecera del Modal */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.5rem', borderBottom: '1px solid #1e293b' }}>
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-                  {previewDocument.title || previewDocument.name || 'Documento clínico'}
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Registrado el {formatDate(previewDocument.created_at)}</span>
+      {/* VISTA DETALLE CON ESTILO OSCURO */}
+      {view === 'detail' && selectedPatient ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            {/* TARJETA SUPERIOR DE PERFIL */}
+            <div className="card-hover" style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
+              
+              {/* AVATAR Y DATOS BÁSICOS */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: `1px solid ${theme.border}`, paddingRight: '1rem' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.bgHover, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem', border: `1px solid ${theme.border}` }}>
+                  <User size={44} color={theme.textMuted} />
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: theme.textPrimary, margin: '0 0 0.25rem 0' }}>{selectedPatient.full_name}</h3>
+                <span style={{ fontSize: '0.8rem', color: theme.accent, fontWeight: 600, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Phone size={13} /> {selectedPatient.phone || '—'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: theme.textMuted, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Mail size={13} /> {selectedPatient.email || 'sin correo'}
+                </span>
               </div>
-              <button
-                onClick={() => setPreviewDocument(null)}
-                style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', width: '32px', height: '32px', borderRadius: '50%', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              >
-                ✕
-              </button>
+
+              {/* INFORMACIÓN GENERAL */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Información General</h4>
+                  <Edit3 size={15} color={theme.textMuted} className="icon-hover-bounce" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                </div>
+                <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>F. Nacimiento:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.date_of_birth?.slice(0, 10) || '—'}</strong></div>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>Documento / DNI:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>Sexo:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.sex || '—'}</strong></div>
+                </div>
+              </div>
+
+              {/* ANTECEDENTES */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderLeft: `1px solid ${theme.border}`, paddingLeft: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Antecedentes</h4>
+                  <Edit3 size={15} color={theme.textMuted} className="icon-hover-bounce" style={{ cursor: 'pointer' }} onClick={startEditPatient} />
+                </div>
+                <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '100px' }}>Alergias:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.allergies || 'Ninguna'}</strong></div>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '100px' }}>G. Sanguíneo:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.blood_type || '—'}</strong></div>
+                  <div>
+                    <span style={{ color: theme.textMuted, display: 'inline-block', width: '100px' }}>Estado:</span>
+                    <span style={{ backgroundColor: theme.badgeSuccessBg, color: theme.badgeSuccessText, padding: '0.15rem 0.5rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700 }}>
+                      {selectedPatient.status || 'active'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-            {/* Cuerpo del Modal: Vista Previa y Detalles */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', flex: 1, overflow: 'hidden' }}>
+            {/* SECCIÓN DE CITAS CON PESTAÑAS */}
+            <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
+              
+              <div style={{ display: 'flex', gap: '2rem', borderBottom: `1px solid ${theme.border}`, paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
+                <span
+                  onClick={() => setActiveTab('future')}
+                  className="tab-interactive"
+                  style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'future' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'future' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}
+                >
+                  Citas futuras ({futureVisits.length})
+                </span>
+                <span
+                  onClick={() => setActiveTab('past')}
+                  className="tab-interactive"
+                  style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'past' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'past' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}
+                >
+                  Citas pasadas ({pastVisits.length})
+                </span>
+              </div>
 
-              {/* Visor de Documentos o Imágenes */}
-              <div style={{ backgroundColor: '#090d16', borderRight: '1px solid #1e293b', display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                {(previewDocument.file_url || previewDocument.url) ? (
-                  (previewDocument.file_url || previewDocument.url).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                    <img
-                      src={previewDocument.file_url || previewDocument.url}
-                      alt={previewDocument.title || 'Vista previa'}
-                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', padding: '1rem' }}
-                    />
-                  ) : (
-                    <iframe
-                      src={previewDocument.file_url || previewDocument.url}
-                      title="Vista previa del archivo"
-                      style={{ width: '100%', height: '100%', border: 'none' }}
-                    />
-                  )
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {(activeTab === 'future' ? futureVisits : pastVisits).length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1.5rem 0' }}>
+                    No hay citas registradas en esta sección.
+                  </p>
                 ) : (
-                  <div style={{ color: '#64748b', fontSize: '0.875rem' }}>
-                    No hay una ruta de archivo disponible para visualizar.
-                  </div>
+                  (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
+                    <div key={appt.id} className="row-interactive" style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 100px', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
+                      <div style={{ fontWeight: 600, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Calendar size={14} />
+                        {new Date(appt.appointment_date).toLocaleDateString()}
+                      </div>
+                      <div><span style={{ color: theme.textMuted }}>Especialidad:</span> <span style={{ fontWeight: 600, color: theme.textPrimary }}>{appt.specialty}</span></div>
+                      <div><span style={{ color: theme.textMuted }}>Médico:</span> <span style={{ fontWeight: 600, color: theme.textPrimary }}>{appt.doctor_name}</span></div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ backgroundColor: appt.status === 'scheduled' ? theme.badgeBg : theme.bgHover, color: appt.status === 'scheduled' ? theme.badgeText : theme.textMuted, padding: '0.2rem 0.6rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600 }}>
+                          {appt.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
 
-              {/* Información y detalles del archivo */}
-              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', backgroundColor: 'rgba(15, 23, 42, 0.4)' }}>
-                <div>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.5rem 0' }}>Descripción</h4>
-                  <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                    {previewDocument.description || 'Sin descripción adicional proporcionada para este archivo.'}
-                  </p>
-                </div>
+            </div>
 
-                <div style={{ backgroundColor: '#090d16', padding: '1rem', borderRadius: '12px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Nombre del archivo</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0', wordBreak: 'break-all' }}>{previewDocument.name || previewDocument.title || '—'}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Categoría</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0' }}>{previewDocument.category || previewDocument.type || 'General'}</p>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase' }}>Fecha de carga</span>
-                    <p style={{ fontSize: '0.85rem', color: '#f8fafc', margin: '0.15rem 0 0 0' }}>{formatDate(previewDocument.created_at)}</p>
-                  </div>
-                </div>
+          </div>
 
-                <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {(previewDocument.file_url || previewDocument.url) && (
-                    <a
-                      href={previewDocument.file_url || previewDocument.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ backgroundColor: '#1e293b', color: '#f8fafc', textAlign: 'center', padding: '0.65rem', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none', border: '1px solid #334155' }}
-                    >
-                      Abrir en pestaña nueva ↗
-                    </a>
-                  )}
-                  <button
-                    onClick={() => setPreviewDocument(null)}
-                    style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.65rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Cerrar ventana
-                  </button>
-                </div>
+          {/* COLUMNA DERECHA: DOCUMENTOS */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Documentos</h4>
               </div>
 
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {loadingDocs ? (
+                  <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>Cargando documentos...</span>
+                ) : patientDocuments.length === 0 ? (
+                  <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>Sin documentos adjuntos.</span>
+                ) : (
+                  patientDocuments.map((doc, idx) => (
+                    <div key={idx} className="row-interactive" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.5rem', borderRadius: '6px', borderBottom: `1px solid ${theme.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FileText size={16} color={theme.textMuted} className="icon-hover-bounce" />
+                        <span style={{ fontSize: '0.775rem', fontWeight: 500, color: theme.textPrimary }}>{doc.file_name || doc.document_type}</span>
+                      </div>
+                      <span style={{ fontSize: '0.65rem', color: doc.status === 'active' ? theme.badgeSuccessText : theme.textMuted, backgroundColor: doc.status === 'active' ? theme.badgeSuccessBg : theme.bgHover, padding: '0.15rem 0.4rem', borderRadius: '8px', fontWeight: 600 }}>
+                        {doc.status || 'uploaded'}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
+
+        </div>
+      ) : view === 'create' || isEditingPatient ? (
+        /* FORMULARIO */
+        <div className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
+          <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h3 style={{ fontSize: '1rem', margin: 0, color: theme.textPrimary }}>{isEditingPatient ? 'Editar Paciente' : 'Registrar Paciente'}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <input placeholder="Nombre completo *" required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
+              <input placeholder="Número de documento *" required value={form.document_number} onChange={e => handleDocumentChange(e.target.value)} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
+              <input type="date" required value={form.date_of_birth} onChange={e => setForm(p => ({ ...p, date_of_birth: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
+              <input placeholder="Teléfono" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }} />
+            </div>
+            <button type="submit" disabled={saving} className="btn-interactive" style={{ backgroundColor: theme.accent, color: '#fff', border: 'none', padding: '0.65rem 1.25rem', borderRadius: '8px', cursor: 'pointer', alignSelf: 'flex-end', fontWeight: 600 }}>
+              {saving ? 'Guardando...' : 'Guardar Paciente'}
+            </button>
+          </form>
+        </div>
+      ) : (
+        /* LISTADO */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <input
+            type="text"
+            placeholder="Buscar por DNI o nombre..."
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            style={{ padding: '0.75rem 1rem', borderRadius: '8px', border: `1px solid ${theme.border}`, outline: 'none', width: '100%', boxSizing: 'border-box', backgroundColor: theme.bgCard, color: theme.textPrimary }}
+          />
+
+          {loading ? (
+            <p style={{ textAlign: 'center', color: theme.textMuted }}>Cargando pacientes...</p>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+              {patients.map(p => (
+                <div key={p.id} onClick={() => loadPatientDetail(p)} className="card-hover" style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '1.25rem', cursor: 'pointer' }}>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: theme.textPrimary, fontSize: '0.95rem' }}>{p.full_name}</h4>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: theme.textMuted }}>DNI: {p.dni || p.document_number || '—'}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
