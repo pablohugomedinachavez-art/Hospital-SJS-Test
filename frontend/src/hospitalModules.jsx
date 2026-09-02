@@ -313,10 +313,10 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
 
 
 
+
 // ============================================================
 // Patients
 // ============================================================
-
 
 export function Patients() {
   // Hooks locales si no vienen de context
@@ -1055,7 +1055,6 @@ export function Patients() {
     </div>
   )
 }
-
 
 // ============================================================
 // Consultations

@@ -605,6 +605,7 @@ def patients():
     record_audit('create', 'patient', new_patient['id'], f'Created patient {full_name}', tenant_id, claims.get('id'))
     return jsonify({'message': 'Patient created', 'id': new_patient['id'], 'medical_record_number': medical_record_number})
 
+
 @app.route('/api/appointments', methods=['GET', 'POST'])
 @app.route('/api/appointments/<int:appointment_id>', methods=['PUT', 'DELETE'])
 @token_required
@@ -917,6 +918,37 @@ def get_patient_documents(patient_id):
         print(f"--- ERROR AL OBTENER DOCUMENTOS DEL PACIENTE: {e} ---")
         return jsonify({'message': f'Error interno: {str(e)}'}), 500
 
+
+@app.route('/api/patients/<int:patient_id>/appointments', methods=['GET'])
+@token_required
+def get_patient_appointments(patient_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    # Verify patient exists and belongs to the current tenant
+    patient = db_query(
+        'SELECT id FROM patients WHERE id = %s AND tenant_id = %s',
+        (patient_id, tenant_id),
+        fetchone=True
+    )
+    if not patient:
+        return jsonify({'message': 'Patient not found'}), 404
+
+    # Fetch appointments for the specified patient
+    appointments = db_query(
+        '''
+        SELECT id, patient_id, doctor_name, reason, symptoms, weight_kg, height_cm, 
+               blood_pressure, bmi, abdominal_perimeter_cm, diagnosis, treatment, 
+               prescription, created_at
+        FROM appointments 
+        WHERE patient_id = %s AND tenant_id = %s 
+        ORDER BY created_at DESC
+        ''',
+        (patient_id, tenant_id),
+        fetchall=True
+    )
+
+    return jsonify(appointments or [])
 
 # ==========================================
 # ENDPOINTS: PLANTILLAS DE FORMULARIOS (TEMPLATES)
