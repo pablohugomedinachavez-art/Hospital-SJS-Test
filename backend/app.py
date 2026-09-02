@@ -892,6 +892,7 @@ def upload_supabase_document():
 # ==========================================
 # ENDPOINT: OBTENER DOCUMENTOS DE UN PACIENTE
 # ==========================================
+# En app.py -> /api/patients/<patient_id>/documents
 @app.route('/api/patients/<int:patient_id>/documents', methods=['GET'])
 @token_required
 def get_patient_documents(patient_id):
@@ -899,10 +900,10 @@ def get_patient_documents(patient_id):
     tenant_id = claims['tenant_id']
 
     try:
-        # Consultar los documentos asociados al paciente y tenant actual
         docs = db_query(
             '''
-            SELECT id, document_type as category, file_name as title, file_name, file_url, description, status, created_at
+            SELECT id, document_type as category, file_name as title, 
+                   file_name, file_url, file_url as url, description, status, created_at
             FROM documents
             WHERE tenant_id = %s AND patient_id = %s
             ORDER BY created_at DESC
@@ -910,11 +911,8 @@ def get_patient_documents(patient_id):
             (tenant_id, patient_id),
             fetchall=True
         )
-
         return jsonify(docs or []), 200
-
     except Exception as e:
-        print(f"--- ERROR AL OBTENER DOCUMENTOS DEL PACIENTE: {e} ---")
         return jsonify({'message': f'Error interno: {str(e)}'}), 500
 
 

@@ -16,7 +16,7 @@ import {
   User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
-  X, Save, Eye, ExternalLink
+  X, Save, Eye, ExternalLink, Download
 } from 'lucide-react';
 
 
@@ -65,7 +65,161 @@ const INITIAL_CONSULTATION = {
   treatment: '',
   prescription: '',
 }
+// Helper para extraer la URL sin importar la propiedad devuelta por la API
+const getDocumentUrl = (doc) => {
+  if (!doc) return '';
+  return doc.file_url || doc.url || doc.path || '';
+};
 
+// Helper para verificar el tipo de archivo según extensión o tipo
+const isImageUrl = (url) => {
+  if (!url) return false;
+  return /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(url);
+};
+
+export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
+  if (!previewDoc) return null;
+
+  const docUrl = getDocumentUrl(previewDoc);
+  const isImage = isImageUrl(docUrl);
+
+  return (
+    <div className="no-print" style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.75)',
+      backdropFilter: 'blur(4px)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+      padding: '1.5rem'
+    }}>
+      <div style={{
+        backgroundColor: theme?.bgCard || '#ffffff',
+        border: `1px solid ${theme?.border || '#e2e8f0'}`,
+        borderRadius: '12px',
+        width: '100%',
+        maxWidth: '900px',
+        height: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
+      }}>
+        {/* CABECERA DEL MODAL */}
+        <div style={{
+          display: 'flex',
+          justify: 'space-between',
+          alignItems: 'center',
+          padding: '1rem 1.25rem',
+          borderBottom: `1px solid ${theme?.border || '#e2e8f0'}`,
+          backgroundColor: theme?.bgApp || '#f8fafc'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FileText size={18} color={theme?.accent || '#0284c7'} />
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: theme?.textPrimary || '#0f172a' }}>
+              {previewDoc.file_name || previewDoc.title || 'Previsualización de Documento'}
+            </h3>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {docUrl && (
+              <a 
+                href={docUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                style={{ 
+                  color: theme?.accent || '#0284c7', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.3rem', 
+                  textDecoration: 'none', 
+                  fontSize: '0.8rem',
+                  fontWeight: 500
+                }}
+              >
+                <ExternalLink size={14} /> Abrir en pestaña nueva
+              </a>
+            )}
+            <button 
+              onClick={() => setPreviewDoc(null)} 
+              style={{ 
+                backgroundColor: 'transparent', 
+                border: 'none', 
+                color: theme?.textMuted || '#64748b', 
+                cursor: 'pointer', 
+                padding: '0.2rem', 
+                borderRadius: '4px' 
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* CUERPO DEL VISOR */}
+        <div style={{
+          flex: 1,
+          padding: '1rem',
+          overflowY: 'auto',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#525659' // Fondo gris oscuro ideal para PDFs e imágenes
+        }}>
+          {docUrl ? (
+            isImage ? (
+              <img 
+                src={docUrl} 
+                alt={previewDoc.file_name || 'Documento'} 
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} 
+              />
+            ) : (
+              <object
+                data={docUrl}
+                type="application/pdf"
+                width="100%"
+                height="100%"
+                style={{ borderRadius: '4px', border: 'none' }}
+              >
+                {/* Fallback si el navegador no puede renderizar el objeto PDF */}
+                <div style={{ textAlign: 'center', color: '#ffffff', padding: '2rem' }}>
+                  <AlertTriangle size={40} style={{ marginBottom: '1rem' }} />
+                  <p style={{ margin: '0 0 1rem 0' }}>Este navegador no soporta la vista previa directa del PDF.</p>
+                  <a 
+                    href={docUrl} 
+                    download
+                    style={{
+                      backgroundColor: '#0284c7',
+                      color: '#fff',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '6px',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <Download size={16} /> Descargar Documento
+                  </a>
+                </div>
+              </object>
+            )
+          ) : (
+            <div style={{ textAlign: 'center', color: '#ffffff', padding: '2rem' }}>
+              <AlertTriangle size={36} style={{ marginBottom: '0.5rem' }} />
+              <p style={{ margin: 0, fontSize: '0.85rem' }}>No se encontró un enlace URL válido para este archivo.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 const specialties = ['Cardiología', 'Pediatría', 'Medicina General', 'Dermatología', 'Ginecología']
