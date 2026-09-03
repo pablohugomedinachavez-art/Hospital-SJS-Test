@@ -29,7 +29,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-
+from urllib.parse import unquote
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
@@ -988,6 +988,39 @@ def templates_handler(template_id=None):
             print(f"--- ERROR AL ELIMINAR PLANTILLA: {e} ---")
             return jsonify({'message': f'Error interno al eliminar la plantilla: {str(e)}'}), 500
 
+
+@app.route('/api/documents/<int:doc_id>', methods=['DELETE'])
+@token_required
+def delete_document(doc_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if not has_permission(claims.get('role'), 'manage_patients'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    doc_to_delete = db_query(
+        'SELECT id, file_url FROM documents WHERE id = %s AND tenant_id = %s',
+        (doc_id, tenant_id), fetchone=True
+    )
+    if not doc_to_delete:
+        return jsonify({'message': 'Documento no encontrado'}), 404
+
+    deleted = db_query(
+        'DELETE FROM documents WHERE id = %s AND tenant_id = %s RETURNING id',
+        (doc_id, tenant_id), commit=True, fetchone=True
+    )
+
+    file_url = doc_to_delete.get('file_url')
+    if file_url and '/documents/' in file_url:
+        try:
+            storage_path = file_url.split('/documents/')[-1]
+            storage_path = unquote(storage_path)
+            supabase.storage.from_("documents").remove([storage_path])
+        except Exception as st_err:
+            print(f"Error removiendo archivo de Supabase Storage: {st_err}")
+
+    record_audit('delete', 'document', deleted['id'], f'Deleted document {deleted["id"]}', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Documento eliminado'}), 200
 
 
 @app.route('/api/documents', methods=['GET', 'POST', 'DELETE'])
