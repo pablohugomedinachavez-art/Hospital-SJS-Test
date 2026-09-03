@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import './styles.css'
-import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile, NewModuleName } from './hospitalModules'
+import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
-import NewModule from './NewModule'
+
 const Icons = {
   Dashboard: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
   Clinical: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
@@ -40,17 +40,6 @@ function Sidebar({ currentRoute }) {
         { label: 'Consultas', path: '/consultations' },
         { label: 'Citas', path: '/appointments' },
         { label: 'Documentos', path: '/documents' }
-      ]
-    },
-    {
-  key: 'operations', 
-  title: 'Gestión operativa', 
-  icon: <Icons.Operations />,
-  items: [
-    { label: 'Ubicaciones', path: '/locations' },
-    { label: 'Dispositivos', path: '/devices' },
-    { label: 'Alertas', path: '/alerts' },
-    { label: 'Nuevo Módulo', path: '/new-module' } // <-- Add item here
       ]
     },
     {
@@ -404,19 +393,24 @@ function AppContent() {
       case '/alerts': return <Alerts />
       default:
         return (
-          <div className="app-layout">
+          <div className="card">
+            <h2>Panel Principal</h2>
+            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+              Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
+            </p>
+          </div>
+        )
+    }
+  }
+
+  return (
+    <div className="app-layout">
       <Sidebar currentRoute={route} />
       <main className="main-content">
         <AppHeader />
         {renderRoute()}
       </main>
     </div>
-        )
-    }
-  }
-
-  return (
-    
   )
 }
 
