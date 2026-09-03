@@ -1902,6 +1902,13 @@ export function Devices() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' });
 
+  // Audit actions state integrated into Devices component
+  const [actions, setActions] = useState([]);
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(20);
+  const [totalActions, setTotalActions] = useState(0);
+  const [loadingActions, setLoadingActions] = useState(false);
+
   const { user } = useAuth();
   const [toast, notify, clearToast] = useToast();
 
@@ -1929,6 +1936,26 @@ export function Devices() {
     }
   }, [notify]);
 
+  const loadActions = useCallback(async () => {
+    setLoadingActions(true);
+    try {
+      const params = new URLSearchParams({ page, per_page: perPage });
+      const res = await apiFetch(`/device_actions?${params.toString()}`);
+
+      if (!res.ok) throw new Error('No se pudo cargar la bitácora');
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.items || [];
+
+      setActions(list);
+      setTotalActions(data.total || list.length);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoadingActions(false);
+    }
+  }, [page, perPage, notify]);
+
   useEffect(() => {
     loadData();
 
@@ -1944,6 +1971,10 @@ export function Devices() {
       }
     })();
   }, [loadData]);
+
+  useEffect(() => {
+    loadActions();
+  }, [loadActions]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -2048,6 +2079,7 @@ export function Devices() {
           </form>
         )}
 
+        {/* LIST OF DEVICES & IPs */}
         <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '240px' }}>
@@ -2090,6 +2122,44 @@ export function Devices() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* LIST OF USERS, IPs, AND USER ACTIONS */}
+        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
+              Acciones de usuarios y trazabilidad IP
+            </h2>
+          </div>
+
+          {loadingActions ? (
+            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando registros…" /></div>
+          ) : actions.length === 0 ? (
+            <EmptyState icon="◷" title="No hay eventos en esta página" description="No se registran actividades recientes." />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {actions.map(row => (
+                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.0rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{row.created_at}</span>
+                    <span className="badge badge-info" style={{ width: 'fit-content' }}>{row.action_type || 'ACCIÓN'}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
+                    <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>{row.username || row.user_id || 'Anónimo'}</strong>
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.details || '—'}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#94a3b8', alignItems: 'center' }}>
+                    <span>Rol: <strong style={{ color: '#cbd5e1' }}>{row.user_role || 'Sin rol'}</strong></span>
+                    <span>IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Pagination page={page} perPage={perPage} total={totalActions} onPrev={() => setPage(v => Math.max(1, v - 1))} onNext={() => setPage(v => v + 1)} />
         </div>
 
       </div>
@@ -2182,9 +2252,6 @@ export function DeviceActions() {
   );
 }
 
-// ============================================================
-// Appointments - Con Niveles de Prioridad
-// ============================================================
 
 // ============================================================
 // Appointments - Multi-View Calendar (Month, Week, Day) con Prioridades
