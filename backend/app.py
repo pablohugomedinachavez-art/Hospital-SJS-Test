@@ -1637,10 +1637,11 @@ def devices():
 @app.route('/api/device_actions', methods=['GET', 'POST'])
 @token_required
 def device_actions():
-    claims = request.claims
-    tenant_id = claims['tenant_id']
+    claims = getattr(request, 'claims', {})
+    tenant_id = claims.get('tenant_id')
     user_id = claims.get('id')
 
+    # --- MANEJO DE POST ---
     if request.method == 'POST':
         data = request.get_json() or {}
         action_type = data.get('action_type')
@@ -1659,45 +1660,59 @@ def device_actions():
                 '''
                 INSERT INTO device_actions 
                 (tenant_id, session_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
-                VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s::uuid, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 ''',
-                (tenant_id, user_id, ip_addr, user_agent, action_type, entity_type, entity_id, details, now_utc()),
+                (str(tenant_id), user_id, ip_addr, user_agent, action_type, entity_type, entity_id, details, now_utc()),
                 commit=True,
                 fetchone=True
             )
-            return jsonify({'message': 'Device action logged', 'id': new_action['id']}), 201
+            
+            action_id = new_action.get('id') if isinstance(new_action, dict) else new_action[0]
+            return jsonify({'message': 'Device action logged', 'id': action_id}), 201
         except Exception as e:
+            print(f"[ERROR /api/device_actions POST]: {str(e)}")
             return jsonify({'message': f'Error logging action: {str(e)}'}), 500
 
-    # VERIFICACIÓN DE PERMISOS
-    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+    # --- VERIFICACIÓN DE PERMISOS PARA GET ---
+    user_role = claims.get('role')
+    if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
+    # --- PARSEO SEGURO DE PAGINACIÓN ---
     try:
         page = max(1, int(request.args.get('page', 1)))
         per_page = max(1, min(100, int(request.args.get('per_page', 25))))
-    except ValueError:
+    except (ValueError, TypeError):
         page, per_page = 1, 25
 
-    # BLOQUE TRY-EXCEPT PARA CAPTURAR ERRORES SQL Y SERIALIZACIÓN EN GET
+    # --- EJECUCIÓN DE GET ---
     try:
         where_sql, params = _build_device_actions_query(tenant_id)
 
+        # 1. Obtener conteo total
         count_sql = f'''
             SELECT COUNT(*) as total 
             FROM device_actions da 
             LEFT JOIN users u ON u.id::text = da.user_id::text 
             WHERE {where_sql}
         '''
-        total_row = db_query(count_sql, tuple(params), fetchone=True) or {'total': 0}
-        total = total_row.get('total', 0)
+        total_row = db_query(count_sql, tuple(params), fetchone=True)
+        
+        # Mapeo defensivo del total según la estructura retornada por db_query
+        if isinstance(total_row, dict):
+            total = total_row.get('total', 0)
+        elif isinstance(total_row, (list, tuple)) and len(total_row) > 0:
+            total = total_row[0]
+        else:
+            total = 0
 
+        # 2. Consulta paginada
         offset = (page - 1) * per_page
         query_sql = f'''
-            SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, da.ip_address, 
-                   da.user_agent, da.action_type, da.entity_type, da.entity_id, 
-                   da.details, da.created_at
+            SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, 
+                   da.ip_address, da.user_agent, da.action_type, da.entity_type, 
+                   da.entity_id, da.details, da.created_at
             FROM device_actions da
             LEFT JOIN users u ON u.id::text = da.user_id::text
             WHERE {where_sql}
@@ -1708,25 +1723,84 @@ def device_actions():
         query_params = list(params) + [per_page, offset]
         rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
 
-        # SERIALIZACIÓN DE FECHAS A STRING ISO 8601
+        # 3. Serialización
         items = []
         for row in rows:
-            row_dict = dict(row) if not isinstance(row, dict) else row
+            # Convertir a diccionario si retorna un RowProxy o Tuple
+            row_dict = dict(row) if hasattr(row, '_asdict') or isinstance(row, dict) else dict(zip([
+                'id', 'session_id', 'user_id', 'username', 'user_role', 
+                'ip_address', 'user_agent', 'action_type', 'entity_type', 
+                'entity_id', 'details', 'created_at'
+            ], row))
+
             if row_dict.get('created_at') and hasattr(row_dict['created_at'], 'isoformat'):
                 row_dict['created_at'] = row_dict['created_at'].isoformat()
             items.append(row_dict)
 
         return jsonify({
-            'total': total,
+            'total': int(total),
             'page': page,
             'per_page': per_page,
             'items': items
         }), 200
 
     except Exception as e:
+        # Registrar traza completa en logs de Render
+        import traceback
         print(f"[ERROR /api/device_actions GET]: {str(e)}")
+        traceback.print_exc()
         return jsonify({'message': f'Error fetching device actions: {str(e)}'}), 500
 
+
+def _build_device_actions_query(tenant_id):
+    """
+    Construye las cláusulas WHERE y parámetros saneados.
+    """
+    where_conditions = ["da.tenant_id::text = %s"]
+    params = [str(tenant_id)]
+
+    action_type = request.args.get('action_type')
+    if action_type:
+        where_conditions.append("da.action_type = %s")
+        params.append(action_type)
+
+    entity_type = request.args.get('entity_type')
+    if entity_type:
+        where_conditions.append("da.entity_type = %s")
+        params.append(entity_type)
+
+    user_id = request.args.get('user_id')
+    if user_id:
+        where_conditions.append("da.user_id::text = %s")
+        params.append(str(user_id))
+
+    search = request.args.get('search') or request.args.get('q')
+    if search and search.strip():
+        search_term = f"%{search.strip()}%"
+        where_conditions.append(
+            "(u.username ILIKE %s OR da.ip_address ILIKE %s OR da.details ILIKE %s)"
+        )
+        params.extend([search_term, search_term, search_term])
+
+    start_date = request.args.get('start_date')
+    if start_date:
+        where_conditions.append("da.created_at >= %s::timestamp")
+        params.append(start_date)
+
+    end_date = request.args.get('end_date')
+    if end_date:
+        # Si incluye solo fecha YYYY-MM-DD, ajusta para cubrir todo el día
+        if len(end_date) == 10:
+            end_date_str = f"{end_date} 23:59:59"
+        else:
+            end_date_str = end_date
+        where_conditions.append("da.created_at <= %s::timestamp")
+        params.append(end_date_str)
+
+    where_sql = " AND ".join(where_conditions)
+    return where_sql, params
+
+    
 
 @app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
 @token_required
