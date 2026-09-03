@@ -1633,7 +1633,98 @@ def devices():
         print(f"[ERROR DB /api/devices POST]: {str(e)}")
         return jsonify({'message': 'Error interno al registrar dispositivo', 'error': str(e)}), 500
 
-    
+@app.route('/api/audit_logs', methods=['GET'])
+@token_required
+def get_audit_logs():
+    claims = getattr(request, 'claims', {})
+    tenant_id = claims.get('tenant_id')
+    user_role = claims.get('role')
+
+    # Verificación de permisos
+    if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
+        return jsonify({'message': 'Permission denied'}), 403
+
+    # Parseo seguro de paginación
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+        per_page = max(1, min(100, int(request.args.get('per_page', 20))))
+    except (ValueError, TypeError):
+        page, per_page = 1, 20
+
+    try:
+        where_conditions = ["al.tenant_id::text = %s"]
+        params = [str(tenant_id)]
+
+        action_filter = request.args.get('action')
+        if action_filter:
+            where_conditions.append("al.action = %s")
+            params.append(action_filter)
+
+        search = request.args.get('search') or request.args.get('q')
+        if search and search.strip():
+            search_term = f"%{search.strip()}%"
+            where_conditions.append("(u.username ILIKE %s OR al.details ILIKE %s)")
+            params.extend([search_term, search_term])
+
+        where_sql = " AND ".join(where_conditions)
+
+        # 1. Obtener total de registros
+        count_sql = f'''
+            SELECT COUNT(*) as total
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id::text = al.user_id::text
+            WHERE {where_sql}
+        '''
+        total_row = db_query(count_sql, tuple(params), fetchone=True)
+        
+        if isinstance(total_row, dict):
+            total = total_row.get('total', 0)
+        elif isinstance(total_row, (list, tuple)) and len(total_row) > 0:
+            total = total_row[0]
+        else:
+            total = 0
+
+        # 2. Consulta paginada de registros
+        offset = (page - 1) * per_page
+        query_sql = f'''
+            SELECT al.id, al.action, al.entity_type, al.entity_id, 
+                   al.details, al.user_id, u.username, al.created_at
+            FROM audit_logs al
+            LEFT JOIN users u ON u.id::text = al.user_id::text
+            WHERE {where_sql}
+            ORDER BY al.created_at DESC
+            LIMIT %s OFFSET %s
+        '''
+        
+        query_params = list(params) + [per_page, offset]
+        rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
+
+        # 3. Serialización de respuesta
+        items = []
+        for row in rows:
+            row_dict = dict(row) if hasattr(row, '_asdict') or isinstance(row, dict) else dict(zip([
+                'id', 'action', 'entity_type', 'entity_id', 'details', 'user_id', 'username', 'created_at'
+            ], row))
+
+            if row_dict.get('created_at') and hasattr(row_dict['created_at'], 'isoformat'):
+                row_dict['created_at'] = row_dict['created_at'].isoformat()
+            items.append(row_dict)
+
+        return jsonify({
+            'total': int(total),
+            'page': page,
+            'per_page': per_page,
+            'items': items
+        }), 200
+
+    except Exception as e:
+        import traceback
+        print(f"[ERROR /api/audit_logs GET]: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'message': f'Error fetching audit logs: {str(e)}'}), 500
+
+
+            
 @app.route('/api/device_actions', methods=['GET', 'POST'])
 @token_required
 def device_actions():
@@ -1800,7 +1891,7 @@ def _build_device_actions_query(tenant_id):
     where_sql = " AND ".join(where_conditions)
     return where_sql, params
 
-    
+
 
 @app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
 @token_required
