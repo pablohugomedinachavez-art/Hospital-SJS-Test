@@ -1894,20 +1894,18 @@ export function Devices() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [clientInfo, setClientInfo] = useState({
-    ip: 'No disponible',
+    ip: '',
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
   });
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' });
-
-  // Audit actions state integrated into Devices component
-  const [actions, setActions] = useState([]);
-  const [page, setPage] = useState(1);
-  const [perPage] = useState(20);
-  const [totalActions, setTotalActions] = useState(0);
-  const [loadingActions, setLoadingActions] = useState(false);
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    type: 'pc', 
+    location_id: '', 
+    status: 'active' 
+  });
 
   const { user } = useAuth();
   const [toast, notify, clearToast] = useToast();
@@ -1936,26 +1934,6 @@ export function Devices() {
     }
   }, [notify]);
 
-  const loadActions = useCallback(async () => {
-    setLoadingActions(true);
-    try {
-      const params = new URLSearchParams({ page, per_page: perPage });
-      const res = await apiFetch(`/device_actions?${params.toString()}`);
-
-      if (!res.ok) throw new Error('No se pudo cargar la bitácora');
-
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data.items || [];
-
-      setActions(list);
-      setTotalActions(data.total || list.length);
-    } catch (error) {
-      notify(error.message, 'error');
-    } finally {
-      setLoadingActions(false);
-    }
-  }, [page, perPage, notify]);
-
   useEffect(() => {
     loadData();
 
@@ -1972,26 +1950,33 @@ export function Devices() {
     })();
   }, [loadData]);
 
-  useEffect(() => {
-    loadActions();
-  }, [loadActions]);
-
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        name: formData.name,
+        type: formData.type,
+        status: formData.status,
+        location_id: formData.location_id ? parseInt(formData.location_id, 10) : null,
+        ip_address: clientInfo.ip || null,
+        user_agent: clientInfo.userAgent
+      };
+
       const res = await apiFetch('/devices', {
         method: 'POST',
-        body: JSON.stringify({ ...formData, ip_address: clientInfo.ip })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
+      const resData = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || 'Error al registrar dispositivo');
+        throw new Error(resData.message || 'Error al registrar dispositivo');
       }
 
       notify('Dispositivo registrado con éxito', 'success');
       setShowForm(false);
-      setFormData({ name: '', type: 'pc', location_id: '', status: 'active', ip_address: '' });
+      setFormData({ name: '', type: 'pc', location_id: '', status: 'active' });
       loadData();
     } catch (error) {
       notify(error.message, 'error');
@@ -2026,25 +2011,27 @@ export function Devices() {
               Inventario operativo y contexto de trazabilidad del cliente.
             </p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}
-          >
-            {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
-          </button>
+          {['admin', 'it_support'].includes(user?.role) && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}
+            >
+              {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
+            </button>
+          )}
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
         <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '1rem', fontSize: '0.875rem', color: '#93c5fd' }}>
-          <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · IP {clientInfo.ip}
+          <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · IP {clientInfo.ip || 'Detectando...'}
         </div>
 
         {showForm && (
           <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
             <input
               type="text"
-              placeholder="Nombre del dispositivo"
+              placeholder="Nombre del dispositivo *"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               required
@@ -2063,11 +2050,21 @@ export function Devices() {
               <option value="other">Otro</option>
             </select>
             <select
+              value={formData.status}
+              onChange={e => setFormData({ ...formData, status: e.target.value })}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+            >
+              <option value="active">Activo</option>
+              <option value="available">Disponible</option>
+              <option value="in_use">En uso</option>
+              <option value="maintenance">Mantenimiento</option>
+            </select>
+            <select
               value={formData.location_id}
               onChange={e => setFormData({ ...formData, location_id: e.target.value })}
               style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
             >
-              <option value="">Seleccionar ubicación</option>
+              <option value="">Sin ubicación</option>
               {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
             <button
@@ -2079,7 +2076,6 @@ export function Devices() {
           </form>
         )}
 
-        {/* LIST OF DEVICES & IPs */}
         <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: '240px' }}>
@@ -2091,10 +2087,10 @@ export function Devices() {
               onChange={e => setStatus(e.target.value)}
             >
               <option value="all">Todos los estados</option>
+              <option value="active">Activo</option>
               <option value="available">Disponible</option>
               <option value="in_use">En uso</option>
               <option value="maintenance">Mantenimiento</option>
-              <option value="active">Activo</option>
             </select>
           </div>
 
@@ -2124,44 +2120,6 @@ export function Devices() {
           )}
         </div>
 
-        {/* LIST OF USERS, IPs, AND USER ACTIONS */}
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-              Acciones de usuarios y trazabilidad IP
-            </h2>
-          </div>
-
-          {loadingActions ? (
-            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando registros…" /></div>
-          ) : actions.length === 0 ? (
-            <EmptyState icon="◷" title="No hay eventos en esta página" description="No se registran actividades recientes." />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {actions.map(row => (
-                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.0rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{row.created_at}</span>
-                    <span className="badge badge-info" style={{ width: 'fit-content' }}>{row.action_type || 'ACCIÓN'}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
-                    <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>{row.username || row.user_id || 'Anónimo'}</strong>
-                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.details || '—'}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#94a3b8', alignItems: 'center' }}>
-                    <span>Rol: <strong style={{ color: '#cbd5e1' }}>{row.user_role || 'Sin rol'}</strong></span>
-                    <span>IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <Pagination page={page} perPage={perPage} total={totalActions} onPrev={() => setPage(v => Math.max(1, v - 1))} onNext={() => setPage(v => v + 1)} />
-        </div>
-
       </div>
     </div>
   );
@@ -2170,7 +2128,7 @@ export function Devices() {
 export function DeviceActions() {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
-  const [perPage] = useState(20);
+  const [perPage] = useState(25);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [toast, notify, clearToast] = useToast();
@@ -2178,16 +2136,17 @@ export function DeviceActions() {
   const loadActions = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page, per_page: perPage });
+      const params = new URLSearchParams({ page: String(page), per_page: String(perPage) });
       const res = await apiFetch(`/device_actions?${params.toString()}`);
 
-      if (!res.ok) throw new Error('No se pudo cargar la bitácora');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'No se pudo cargar la bitácora');
+      }
 
       const data = await res.json();
-      const list = Array.isArray(data) ? data : data.items || [];
-
-      setItems(list);
-      setTotal(data.total || list.length);
+      setItems(Array.isArray(data.items) ? data.items : []);
+      setTotal(data.total || 0);
     } catch (error) {
       notify(error.message, 'error');
     } finally {
@@ -2227,12 +2186,18 @@ export function DeviceActions() {
                 <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.0rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
                     <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{row.created_at}</span>
-                    <span className="badge badge-info" style={{ width: 'fit-content' }}>{row.action_type || 'ACCIÓN'}</span>
+                    <span className="badge badge-info" style={{ width: 'fit-content' }}>
+                      {row.action_type || 'ACCIÓN'}
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
-                    <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>{row.username || row.user_id || 'Anónimo'}</strong>
-                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.details || '—'}</span>
+                    <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                      {row.username || (row.user_id ? `Usuario #${row.user_id}` : 'Anónimo')}
+                    </strong>
+                    <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                      {row.details || `${row.entity_type || ''} #${row.entity_id || ''}`}
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#94a3b8', alignItems: 'center' }}>
