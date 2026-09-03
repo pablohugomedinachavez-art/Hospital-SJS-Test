@@ -5,6 +5,33 @@ import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
 
+// 1. ROUTE MAP DEFINED AT TOP LEVEL
+const ROUTES_MAP = {
+  '/dashboard': Dashboard,
+  '/patients': Patients,
+  '/consultations': Consultations,
+  '/appointments': Appointments,
+  '/documents': Documents,
+  '/locations': Locations,
+  '/devices': Devices,
+  '/alerts': Alerts,
+  '/device-management': DeviceManagementDashboard,
+  '/DeviceManagementDashboard': DeviceManagementDashboard,
+  '/users': Users,
+  '/reports': Reports,
+  '/profile': Profile,
+}
+
+// 2. DEFAULT PANEL DEFINED AT TOP LEVEL
+const DefaultPanel = () => (
+  <div className="card">
+    <h2>Panel Principal</h2>
+    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+      Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
+    </p>
+  </div>
+)
+
 const Icons = {
   Dashboard: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
   Clinical: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
@@ -109,7 +136,6 @@ function Sidebar({ currentRoute }) {
     </aside>
   )
 }
-
 
 function CollectionList({ title, items = [], render, filters = [] }) {
   const [query, setQuery] = useState('')
@@ -216,8 +242,6 @@ function Alerts() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-      
-      {/* Feedback Banner */}
       {info && (
         <div style={{
           padding: '0.85rem 1.25rem',
@@ -228,16 +252,14 @@ function Alerts() {
           fontSize: '0.9rem',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          animation: 'fadeIn 0.2s ease-in-out'
+          justifyInContent: 'space-between'
         }}>
           <span>{info}</span>
           <button onClick={() => setInfo('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>
         </div>
       )}
 
-      {/* Header & Form Card */}
-      <div className="card" style={{ background: 'var(--card-bg, #111827)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+      <div className="card" style={{ background: 'var(--card-bg, #111827)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: '#f3f4f6', margin: 0 }}>Monitoreo de Alertas</h2>
@@ -256,7 +278,6 @@ function Alerts() {
                 borderRadius: '8px',
                 fontWeight: 500,
                 cursor: 'pointer',
-                transition: 'background 0.2s',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem'
@@ -275,7 +296,7 @@ function Alerts() {
                 <select 
                   value={deviceId} 
                   onChange={e => setDeviceId(e.target.value)}
-                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem' }}
                 >
                   <option value="">Seleccionar dispositivo</option>
                   {devices.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}
@@ -288,7 +309,7 @@ function Alerts() {
                   value={alertType} 
                   onChange={e => setAlertType(e.target.value)} 
                   placeholder="device_offline" 
-                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem' }}
                 />
               </label>
 
@@ -297,7 +318,7 @@ function Alerts() {
                 <select 
                   value={severity} 
                   onChange={e => setSeverity(e.target.value)}
-                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem' }}
                 >
                   <option value="low">Baja</option>
                   <option value="medium">Media</option>
@@ -311,23 +332,16 @@ function Alerts() {
                   value={message} 
                   onChange={e => setMessage(e.target.value)} 
                   placeholder="Detalle de la alerta o descripción del evento" 
-                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem', outline: 'none' }}
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem' }}
                 />
               </label>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
-              <button 
-                type="submit"
-                style={{ background: '#4f46e5', color: '#ffffff', border: 'none', padding: '0.625rem 1.25rem', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}
-              >
+              <button type="submit" style={{ background: '#4f46e5', color: '#ffffff', border: 'none', padding: '0.625rem 1.25rem', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}>
                 Guardar Alerta
               </button>
-              <button 
-                type="button" 
-                onClick={() => setShowForm(false)}
-                style={{ background: 'transparent', color: '#9ca3af', border: '1px solid #374151', padding: '0.625rem 1.25rem', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}
-              >
+              <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', color: '#9ca3af', border: '1px solid #374151', padding: '0.625rem 1.25rem', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}>
                 Cancelar
               </button>
             </div>
@@ -335,7 +349,6 @@ function Alerts() {
         )}
       </div>
 
-      {/* List Component Section */}
       <CollectionList
         title="Alertas recientes"
         items={alerts}
@@ -383,11 +396,9 @@ function AppContent() {
   }, [])
 
   const renderRoute = () => {
-    // Debug fallback if route is missing/invalid
     const targetRoute = route || '/dashboard'
     const ActiveComponent = ROUTES_MAP[targetRoute]
 
-    // Diagnostic check to catch undefined components before React crashes
     if (ROUTES_MAP.hasOwnProperty(targetRoute) && !ActiveComponent) {
       return (
         <div className="card" style={{ padding: '2rem', border: '1px solid #ef4444' }}>
@@ -411,23 +422,6 @@ function AppContent() {
     </div>
   )
 }
-
-
-
-const DefaultPanel = () => (
-  <div className="card">
-    <h2>Panel Principal</h2>
-    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-      Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
-    </p>
-  </div>
-)
-
-const renderRoute = () => {
-  const ActiveComponent = ROUTES_MAP[route]
-  return ActiveComponent ? <ActiveComponent /> : <DefaultPanel />
-}
-
 
 function MainApp() {
   const { user, loading } = useAuth()
