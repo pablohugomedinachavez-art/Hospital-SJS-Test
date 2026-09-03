@@ -2125,6 +2125,384 @@ export function Devices() {
   );
 }
 
+export function DeviceManagementDashboard() {
+  const [activeTab, setActiveTab] = useState('devices'); // 'devices' | 'actions' | 'audit'
+
+  // Common State
+  const [loading, setLoading] = useState(false);
+  const [toast, notify, clearToast] = useToast();
+  const { user } = useAuth();
+
+  // Devices State
+  const [devices, setDevices] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [deviceSearch, setDeviceSearch] = useState('');
+  const [deviceStatus, setDeviceStatus] = useState('all');
+  const [showDeviceForm, setShowDeviceForm] = useState(false);
+  const [deviceForm, setDeviceForm] = useState({ name: '', type: 'pc', location_id: '', status: 'active' });
+
+  // Device Actions State
+  const [actions, setActions] = useState([]);
+  const [actionPage, setActionPage] = useState(1);
+  const [actionTotal, setActionTotal] = useState(0);
+
+  // Audit Logs State
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditTotal, setAuditTotal] = useState(0);
+
+  const perPage = 20;
+
+  // --- Data Fetching ---
+  const loadDevices = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [devRes, locRes] = await Promise.all([
+        apiFetch('/devices'),
+        apiFetch('/locations')
+      ]);
+      if (!devRes.ok || !locRes.ok) throw new Error('Error al cargar dispositivos o ubicaciones');
+      
+      const devData = await devRes.json();
+      const locData = await locRes.json();
+      setDevices(Array.isArray(devData) ? devData : []);
+      setLocations(Array.isArray(locData) ? locData : []);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [notify]);
+
+  const loadActions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(actionPage), per_page: String(perPage) });
+      const res = await apiFetch(`/device_actions?${params.toString()}`);
+      if (!res.ok) throw new Error('Error al cargar acciones de dispositivos');
+      
+      const data = await res.json();
+      setActions(Array.isArray(data.items) ? data.items : []);
+      setActionTotal(data.total || 0);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [actionPage, perPage, notify]);
+
+  const loadAuditLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(auditPage), per_page: String(perPage) });
+      const res = await apiFetch(`/audit_logs?${params.toString()}`);
+      if (!res.ok) throw new Error('Error al cargar logs de auditoría');
+      
+      const data = await res.json();
+      setAuditLogs(Array.isArray(data.items) ? data.items : []);
+      setAuditTotal(data.total || 0);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [auditPage, perPage, notify]);
+
+  useEffect(() => {
+    if (activeTab === 'devices') loadDevices();
+    if (activeTab === 'actions') loadActions();
+    if (activeTab === 'audit') loadAuditLogs();
+  }, [activeTab, loadDevices, loadActions, loadAuditLogs]);
+
+  // --- Handlers ---
+  const handleSaveDevice = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: deviceForm.name,
+        type: deviceForm.type,
+        status: deviceForm.status,
+        location_id: deviceForm.location_id ? parseInt(deviceForm.location_id, 10) : null
+      };
+
+      const res = await apiFetch('/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Error al registrar dispositivo');
+      }
+
+      notify('Dispositivo registrado con éxito', 'success');
+      setShowDeviceForm(false);
+      setDeviceForm({ name: '', type: 'pc', location_id: '', status: 'active' });
+      loadDevices();
+    } catch (error) {
+      notify(error.message, 'error');
+    }
+  };
+
+  const filteredDevices = useMemo(() => {
+    const q = deviceSearch.trim().toLowerCase();
+    return devices.filter(device => {
+      const matchesQuery = !q || [device.name, device.type, device.ip_address].filter(Boolean).some(val => String(val).toLowerCase().includes(q));
+      const matchesStatus = deviceStatus === 'all' || device.status === deviceStatus;
+      return matchesQuery && matchesStatus;
+    });
+  }, [devices, deviceSearch, deviceStatus]);
+
+  const locationMap = useMemo(() => new Map(locations.map(loc => [String(loc.id), loc.name])), [locations]);
+
+  return (
+    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+              Gestión y Auditoría de Dispositivos
+            </h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
+              Administra inventario, rastrea eventos IP y supervisa la bitácora de auditoría.
+            </p>
+          </div>
+
+          {/* Navigation Toggle Buttons */}
+          <div style={{ display: 'flex', backgroundColor: '#0f172a', borderRadius: '12px', padding: '4px', border: '1px solid #1e293b' }}>
+            <button
+              onClick={() => setActiveTab('devices')}
+              style={{
+                padding: '0.6rem 1.2rem',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: activeTab === 'devices' ? '#3b82f6' : 'transparent',
+                color: activeTab === 'devices' ? '#ffffff' : '#94a3b8',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              🖥️ Dispositivos
+            </button>
+            <button
+              onClick={() => setActiveTab('actions')}
+              style={{
+                padding: '0.6rem 1.2rem',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: activeTab === 'actions' ? '#3b82f6' : 'transparent',
+                color: activeTab === 'actions' ? '#ffffff' : '#94a3b8',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              🌐 Acciones & IP
+            </button>
+            <button
+              onClick={() => setActiveTab('audit')}
+              style={{
+                padding: '0.6rem 1.2rem',
+                borderRadius: '8px',
+                border: 'none',
+                backgroundColor: activeTab === 'audit' ? '#3b82f6' : 'transparent',
+                color: activeTab === 'audit' ? '#ffffff' : '#94a3b8',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              📜 Logs de Auditoría
+            </button>
+          </div>
+        </div>
+
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* TAB 1: DEVICES */}
+        {activeTab === 'devices' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '1rem', flex: 1, maxWidth: '600px' }}>
+                <SearchField value={deviceSearch} onChange={setDeviceSearch} placeholder="Buscar dispositivo o IP..." loading={loading} />
+                <select
+                  value={deviceStatus}
+                  onChange={e => setDeviceStatus(e.target.value)}
+                  style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', outline: 'none' }}
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="active">Activo</option>
+                  <option value="available">Disponible</option>
+                  <option value="in_use">En uso</option>
+                  <option value="maintenance">Mantenimiento</option>
+                </select>
+              </div>
+
+              {['admin', 'it_support'].includes(user?.role) && (
+                <button
+                  onClick={() => setShowDeviceForm(!showDeviceForm)}
+                  style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', padding: '0.6rem 1.2rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {showDeviceForm ? 'Cancelar' : '+ Nuevo Dispositivo'}
+                </button>
+              )}
+            </div>
+
+            {showDeviceForm && (
+              <form onSubmit={handleSaveDevice} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
+                <input
+                  type="text"
+                  placeholder="Nombre *"
+                  value={deviceForm.name}
+                  onChange={e => setDeviceForm({ ...deviceForm, name: e.target.value })}
+                  required
+                  style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
+                />
+                <select
+                  value={deviceForm.type}
+                  onChange={e => setDeviceForm({ ...deviceForm, type: e.target.value })}
+                  style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
+                >
+                  <option value="pc">PC de Escritorio</option>
+                  <option value="laptop">Laptop</option>
+                  <option value="mobile">Móvil</option>
+                  <option value="server">Servidor</option>
+                </select>
+                <select
+                  value={deviceForm.status}
+                  onChange={e => setDeviceForm({ ...deviceForm, status: e.target.value })}
+                  style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
+                >
+                  <option value="active">Activo</option>
+                  <option value="available">Disponible</option>
+                  <option value="in_use">En uso</option>
+                  <option value="maintenance">Mantenimiento</option>
+                </select>
+                <select
+                  value={deviceForm.location_id}
+                  onChange={e => setDeviceForm({ ...deviceForm, location_id: e.target.value })}
+                  style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
+                >
+                  <option value="">Sin ubicación</option>
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+                <button type="submit" style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Guardar
+                </button>
+              </form>
+            )}
+
+            {loading ? (
+              <LoadingState label="Cargando dispositivos…" />
+            ) : filteredDevices.length === 0 ? (
+              <EmptyState icon="🖥️" title="No hay dispositivos" description="No se registraron coincidencias." />
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                {filteredDevices.map(device => (
+                  <div key={device.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ID #{device.id}</span>
+                      <span className="badge">{device.status || 'active'}</span>
+                    </div>
+                    <div>
+                      <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{device.name}</strong>
+                      <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{device.type || 'N/A'}</div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
+                      <span>IP: <code style={{ color: '#38bdf8' }}>{device.ip_address || '—'}</code></span>
+                      <span>Ubicación: {locationMap.get(String(device.location_id)) || '—'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: DEVICE ACTIONS (public.device_actions) */}
+        {activeTab === 'actions' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {loading ? (
+              <LoadingState label="Cargando trazabilidad por IP..." />
+            ) : actions.length === 0 ? (
+              <EmptyState icon="🌐" title="Sin eventos IP registrados" description="No hay actividades recientes en device_actions." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {actions.map(act => (
+                  <div key={act.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{act.created_at}</span>
+                      <span className="badge badge-info" style={{ width: 'fit-content' }}>{act.action_type}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
+                      <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                        {act.username || (act.user_id ? `Usuario #${act.user_id}` : 'Anónimo')}
+                      </strong>
+                      <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                        {act.details || `${act.entity_type || 'Entidad'} #${act.entity_id || ''}`}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#94a3b8', alignItems: 'center' }}>
+                      <span>Sesión: <code style={{ color: '#cbd5e1' }}>{act.session_id ? `#${act.session_id}` : '—'}</code></span>
+                      <span>IP: <code style={{ color: '#38bdf8' }}>{act.ip_address || '—'}</code></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+          </div>
+        )}
+
+        {/* TAB 3: AUDIT LOGS (public.audit_logs) */}
+        {activeTab === 'audit' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {loading ? (
+              <LoadingState label="Cargando logs del sistema..." />
+            ) : auditLogs.length === 0 ? (
+              <EmptyState icon="📜" title="Sin registros de auditoría" description="No hay eventos en audit_logs." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {auditLogs.map(log => (
+                  <div key={log.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{log.created_at}</span>
+                      <span className="badge" style={{ width: 'fit-content', backgroundColor: '#334155' }}>{log.action}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
+                      <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                        Entidad: {log.entity_type} {log.entity_id ? `(#${log.entity_id})` : ''}
+                      </strong>
+                      <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{log.details || '—'}</span>
+                    </div>
+
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      Usuario ID: <strong style={{ color: '#cbd5e1' }}>{log.user_id || 'Sistema'}</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+
 export function DeviceActions() {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
