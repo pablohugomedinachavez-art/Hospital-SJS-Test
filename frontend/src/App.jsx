@@ -51,7 +51,7 @@ function Sidebar({ currentRoute }) {
       { label: 'Ubicaciones', path: '/locations' },
       { label: 'Dispositivos', path: '/devices' },
       { label: 'Alertas', path: '/alerts' },
-      { label: 'Nuevo Módulo', path: '/new-module' } // <-- Add item here
+      { label: 'Dispositivos', path: '/DeviceManagementDashboard' } // <-- Add item here
     ]
     },
     { key: 'users', title: 'Usuarios', icon: <Icons.Users />, items: [{ label: 'Usuarios', path: '/users', permission: 'manage_users' }] },
