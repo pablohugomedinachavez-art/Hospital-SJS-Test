@@ -30,9 +30,11 @@ import {
 } from 'lucide-react';
 
 
-// --- Componentes UX Secundarios ---
+// ============================================================
+// --- Componentes UX Secundarios Compartidos ---
+// ============================================================
 
-function LoadingState({ label }) {
+export function LoadingState({ label = 'Cargando información...' }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
       <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -41,20 +43,20 @@ function LoadingState({ label }) {
   );
 }
 
-function EmptyState({ icon: Icon, title, description }) {
+export function EmptyState({ icon: Icon, title = 'Sin datos', description = 'No encontramos registros para mostrar.' }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/30">
       <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 mb-3">
-        <Icon className="w-8 h-8" />
+        {Icon ? <Icon className="w-8 h-8" /> : <span className="text-xl">⌕</span>}
       </div>
       <h3 className="text-base font-semibold text-slate-200">{title}</h3>
-      <p className="text-xs text-slate-500 max-w-sm mt-1">{description}</p>
+      {description && <p className="text-xs text-slate-500 max-w-sm mt-1">{description}</p>}
     </div>
   );
 }
 
-function Pagination({ page, perPage, total, onPrev, onNext }) {
-  const totalPages = Math.ceil(total / perPage) || 1;
+export function Pagination({ page, perPage, total, onPrev, onNext }) {
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
   return (
     <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-400">
       <span>Página {page} de {totalPages} ({total} registros totales)</span>
@@ -77,6 +79,7 @@ function Pagination({ page, perPage, total, onPrev, onNext }) {
     </div>
   );
 }
+
 // ============================================================
 // Configuración y Constantes Auxiliares
 // ============================================================
@@ -103,7 +106,6 @@ const PHONE_CONFIGS = {
   '+54': 'Argentina (+54)'
 }
 
-
 const INITIAL_CONSULTATION = {
   patient_id: '',
   doctor_name: 'Dr. Demo',
@@ -118,12 +120,12 @@ const INITIAL_CONSULTATION = {
   treatment: '',
   prescription: '',
 }
-// Helper para extraer la URL sin importar la propiedad devuelta por la API
+
 const getDocumentUrl = (doc) => {
   if (!doc) return '';
   return doc.file_url || doc.url || doc.path || '';
 };
-// Variantes de animación reutilizables
+
 const fadeInVariants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
@@ -133,7 +135,7 @@ const fadeInVariants = {
 const cardHoverVariants = {
   hover: { scale: 1.015, translateY: -2, transition: { duration: 0.2 } }
 };
-// Helper para verificar el tipo de archivo según extensión o tipo
+
 const isImageUrl = (url) => {
   if (!url) return false;
   return /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(url);
@@ -175,7 +177,7 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
         {/* CABECERA DEL MODAL */}
         <div style={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           padding: '1rem 1.25rem',
           borderBottom: `1px solid ${theme?.border || '#e2e8f0'}`,
@@ -231,7 +233,7 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          backgroundColor: '#525659' // Fondo gris oscuro ideal para PDFs e imágenes
+          backgroundColor: '#525659'
         }}>
           {docUrl ? (
             isImage ? (
@@ -248,7 +250,6 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
                 height="100%"
                 style={{ borderRadius: '4px', border: 'none' }}
               >
-                {/* Fallback si el navegador no puede renderizar el objeto PDF */}
                 <div style={{ textAlign: 'center', color: '#ffffff', padding: '2rem' }}>
                   <AlertTriangle size={40} style={{ marginBottom: '1rem' }} />
                   <p style={{ margin: '0 0 1rem 0' }}>Este navegador no soporta la vista previa directa del PDF.</p>
@@ -294,7 +295,6 @@ const calculateBMI = (weight, height) => {
   if (!w || !h || h <= 0) return ''
   return (w / (h * h)).toFixed(2)
 }
-
 
 const getBMIState = (bmi) => {
   const value = Number.parseFloat(bmi)
@@ -370,10 +370,6 @@ function useToast() {
   return [toast, notify, () => setToast({ text: '', type: 'info' })]
 }
 
-
-
-
-
 function PageShell({ title, subtitle, actions, children, className = '' }) {
   return (
     <div className={cx('page-container', 'page-shell', className)}>
@@ -410,11 +406,6 @@ function SectionCard({ title, description, icon, actions, children, className = 
   )
 }
 
-
-// ============================================================
-// Componente StatCard Moderno (Sin Emojis, con Iconos SVG Clínicos)
-// ============================================================
-
 function StatCard({ icon, label, value, hint, tone = 'primary' }) {
   const toneStyles = {
     primary: 'border-blue-500/20 bg-blue-500/5 text-blue-400',
@@ -437,9 +428,6 @@ function StatCard({ icon, label, value, hint, tone = 'primary' }) {
   )
 }
 
-// ============================================================
-// Iconos Vectoriales para las Tarjetas
-// ============================================================
 const StatIcons = {
   Patients: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
   Consultations: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>,
@@ -510,7 +498,6 @@ function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }) {
     </div>
   )
 }
-
 
 
 
