@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from './api'
 import { useAuth } from './AuthContext'
 import {
@@ -83,6 +84,7 @@ export function Pagination({ page, perPage, total, onPrev, onNext }) {
 // ============================================================
 // Configuración y Constantes Auxiliares
 // ============================================================
+
 const INITIAL_PATIENT = {
   document_type: 'dni',
   document_number: '',
@@ -94,7 +96,7 @@ const INITIAL_PATIENT = {
   sex: '',
   blood_type: '',
   allergies: ''
-}
+};
 
 const PHONE_CONFIGS = {
   '+51': 'Perú (+51)',
@@ -104,7 +106,7 @@ const PHONE_CONFIGS = {
   '+57': 'Colombia (+57)',
   '+56': 'Chile (+56)',
   '+54': 'Argentina (+54)'
-}
+};
 
 const INITIAL_CONSULTATION = {
   patient_id: '',
@@ -119,7 +121,7 @@ const INITIAL_CONSULTATION = {
   diagnosis: '',
   treatment: '',
   prescription: '',
-}
+};
 
 const getDocumentUrl = (doc) => {
   if (!doc) return '';
@@ -284,64 +286,64 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
   );
 };
 
-const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
-const specialties = ['Cardiología', 'Pediatría', 'Medicina General', 'Dermatología', 'Ginecología']
+const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const specialties = ['Cardiología', 'Pediatría', 'Medicina General', 'Dermatología', 'Ginecología'];
 
-const cx = (...values) => values.filter(Boolean).join(' ')
+const cx = (...values) => values.filter(Boolean).join(' ');
 
 const calculateBMI = (weight, height) => {
-  const w = Number.parseFloat(weight)
-  const h = Number.parseFloat(height) / 100
-  if (!w || !h || h <= 0) return ''
-  return (w / (h * h)).toFixed(2)
-}
+  const w = Number.parseFloat(weight);
+  const h = Number.parseFloat(height) / 100;
+  if (!w || !h || h <= 0) return '';
+  return (w / (h * h)).toFixed(2);
+};
 
 const getBMIState = (bmi) => {
-  const value = Number.parseFloat(bmi)
-  if (!value) return { label: 'Sin calcular', tone: 'neutral' }
-  if (value < 18.5) return { label: 'Bajo peso', tone: 'warning' }
-  if (value < 25) return { label: 'Normal', tone: 'success' }
-  if (value < 30) return { label: 'Sobrepeso', tone: 'warning' }
-  return { label: 'Obesidad', tone: 'danger' }
-}
+  const value = Number.parseFloat(bmi);
+  if (!value) return { label: 'Sin calcular', tone: 'neutral' };
+  if (value < 18.5) return { label: 'Bajo peso', tone: 'warning' };
+  if (value < 25) return { label: 'Normal', tone: 'success' };
+  if (value < 30) return { label: 'Sobrepeso', tone: 'warning' };
+  return { label: 'Obesidad', tone: 'danger' };
+};
 
 const parseBrowser = (ua) => {
-  if (!ua) return 'Desconocido'
-  if (ua.includes('Edg')) return 'Microsoft Edge'
-  if (ua.includes('Chrome')) return 'Google Chrome'
-  if (ua.includes('Firefox')) return 'Mozilla Firefox'
-  if (ua.includes('Safari')) return 'Apple Safari'
-  return 'Navegador Web'
-}
+  if (!ua) return 'Desconocido';
+  if (ua.includes('Edg')) return 'Microsoft Edge';
+  if (ua.includes('Chrome')) return 'Google Chrome';
+  if (ua.includes('Firefox')) return 'Mozilla Firefox';
+  if (ua.includes('Safari')) return 'Apple Safari';
+  return 'Navegador Web';
+};
 
 const formatDate = (value, options = { dateStyle: 'medium' }) => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return new Intl.DateTimeFormat('es-PE', options).format(date)
-}
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('es-PE', options).format(date);
+};
 
 const formatDateTime = (value) =>
-  formatDate(value, { dateStyle: 'medium', timeStyle: 'short' })
+  formatDate(value, { dateStyle: 'medium', timeStyle: 'short' });
 
 const useDebouncedValue = (value, delay = 350) => {
-  const [debounced, setDebounced] = useState(value)
+  const [debounced, setDebounced] = useState(value);
   useEffect(() => {
-    const id = window.setTimeout(() => setDebounced(value), delay)
-    return () => window.clearTimeout(id)
-  }, [value, delay])
-  return debounced
-}
+    const id = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(id);
+  }, [value, delay]);
+  return debounced;
+};
 
-const getUserRole = (user) => user?.role || user?.user_metadata?.role || 'viewer'
-const isAdminUser = (user) => ['admin', 'tenant_admin'].includes(getUserRole(user))
+const getUserRole = (user) => user?.role || user?.user_metadata?.role || 'viewer';
+const isAdminUser = (user) => ['admin', 'tenant_admin'].includes(getUserRole(user));
 
 // ============================================================
-// Shared UI components
+// Shared UI components & Hooks
 // ============================================================
 
-function Toast({ toast, onClose }) {
-  if (!toast?.text) return null
+export function Toast({ toast, onClose }) {
+  if (!toast?.text) return null;
   return (
     <div className={cx('toast', `toast-${toast.type || 'info'}`)} role="status">
       <div className="toast-icon" aria-hidden="true">
@@ -353,24 +355,24 @@ function Toast({ toast, onClose }) {
       </div>
       <button className="icon-button" type="button" onClick={onClose} aria-label="Cerrar notificación">×</button>
     </div>
-  )
+  );
 }
 
-function useToast() {
-  const [toast, setToast] = useState({ text: '', type: 'info' })
-  const timeoutRef = useRef(null)
+export function useToast() {
+  const [toast, setToast] = useState({ text: '', type: 'info' });
+  const timeoutRef = useRef(null);
 
   const notify = useCallback((text, type = 'info', title = '') => {
-    if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
-    setToast({ text, type, title })
-    timeoutRef.current = window.setTimeout(() => setToast({ text: '', type: 'info' }), 4500)
-  }, [])
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
+    setToast({ text, type, title });
+    timeoutRef.current = window.setTimeout(() => setToast({ text: '', type: 'info' }), 4500);
+  }, []);
 
-  useEffect(() => () => timeoutRef.current && window.clearTimeout(timeoutRef.current), [])
-  return [toast, notify, () => setToast({ text: '', type: 'info' })]
+  useEffect(() => () => timeoutRef.current && window.clearTimeout(timeoutRef.current), []);
+  return [toast, notify, () => setToast({ text: '', type: 'info' })];
 }
 
-function PageShell({ title, subtitle, actions, children, className = '' }) {
+export function PageShell({ title, subtitle, actions, children, className = '' }) {
   return (
     <div className={cx('page-container', 'page-shell', className)}>
       <div className="page-heading">
@@ -383,10 +385,10 @@ function PageShell({ title, subtitle, actions, children, className = '' }) {
       </div>
       {children}
     </div>
-  )
+  );
 }
 
-function SectionCard({ title, description, icon, actions, children, className = '' }) {
+export function SectionCard({ title, description, icon, actions, children, className = '' }) {
   return (
     <section className={cx('card', 'section-card', className)}>
       {(title || actions) && (
@@ -403,16 +405,16 @@ function SectionCard({ title, description, icon, actions, children, className = 
       )}
       {children}
     </section>
-  )
+  );
 }
 
-function StatCard({ icon, label, value, hint, tone = 'primary' }) {
+export function StatCard({ icon, label, value, hint, tone = 'primary' }) {
   const toneStyles = {
     primary: 'border-blue-500/20 bg-blue-500/5 text-blue-400',
     success: 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400',
     warning: 'border-amber-500/20 bg-amber-500/5 text-amber-400',
     danger: 'border-rose-500/20 bg-rose-500/5 text-rose-400',
-  }
+  };
 
   return (
     <div className="bg-[#0f172a] border border-[#1e293b] rounded-xl p-5 shadow-xl flex items-center gap-4 transition-all duration-200 hover:border-slate-700">
@@ -425,17 +427,17 @@ function StatCard({ icon, label, value, hint, tone = 'primary' }) {
         {hint && <span className="text-xs text-slate-500">{hint}</span>}
       </div>
     </div>
-  )
+  );
 }
 
-const StatIcons = {
+export const StatIcons = {
   Patients: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
   Consultations: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>,
   Users: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
   Time: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-}
+};
 
-function SearchField({ value, onChange, placeholder, onEnter, loading = false }) {
+export function SearchField({ value, onChange, placeholder, onEnter, loading = false }) {
   return (
     <div className="smart-search">
       <span className="search-icon" aria-hidden="true">⌕</span>
@@ -444,7 +446,7 @@ function SearchField({ value, onChange, placeholder, onEnter, loading = false })
         value={value}
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => {
-          if (e.key === 'Enter') onEnter?.()
+          if (e.key === 'Enter') onEnter?.();
         }}
         placeholder={placeholder}
         aria-label={placeholder}
@@ -454,11 +456,11 @@ function SearchField({ value, onChange, placeholder, onEnter, loading = false })
       )}
       {loading && <span className="search-spinner spinner" aria-hidden="true" />}
     </div>
-  )
+  );
 }
 
-function ConfirmDialog({ open, title, message, confirmLabel = 'Confirmar', danger = false, onConfirm, onCancel }) {
-  if (!open) return null
+export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirmar', danger = false, onConfirm, onCancel }) {
+  if (!open) return null;
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onCancel}>
       <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onMouseDown={e => e.stopPropagation()}>
@@ -471,16 +473,16 @@ function ConfirmDialog({ open, title, message, confirmLabel = 'Confirmar', dange
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-function InlineAlert({ type = 'info', children }) {
-  if (!children) return null
-  return <div className={cx('alert', `alert-${type}`, 'inline-alert')}>{children}</div>
+export function InlineAlert({ type = 'info', children }) {
+  if (!children) return null;
+  return <div className={cx('alert', `alert-${type}`, 'inline-alert')}>{children}</div>;
 }
 
-function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }) {
-  if (!rows?.length) return <EmptyState title={emptyTitle} />
+export function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }) {
+  if (!rows?.length) return <EmptyState title={emptyTitle} />;
   return (
     <div className="table-wrapper polished-table">
       <table className="data-table">
@@ -496,9 +498,538 @@ function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }) {
         </tbody>
       </table>
     </div>
-  )
+  );
 }
 
+// Stubs para compatibilidad de Hooks y API si no existen globalmente
+const useAuth = () => ({ user: { role: 'admin' } });
+const apiFetch = async (endpoint, options) => {
+  return fetch(endpoint, options);
+};
+
+// ============================================================
+// --- COMPONENTE PRINCIPAL: Dashboard de Dispositivos ---
+// ============================================================
+
+export function DeviceManagementDashboard() {
+  const [activeTab, setActiveTab] = useState('devices'); // 'devices' | 'actions' | 'audit'
+
+  // Common State
+  const [loading, setLoading] = useState(false);
+  const [toast, notify, clearToast] = useToast();
+  const { user } = useAuth();
+
+  // Devices State
+  const [devices, setDevices] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [deviceSearch, setDeviceSearch] = useState('');
+  const [deviceStatus, setDeviceStatus] = useState('all');
+  const [showDeviceForm, setShowDeviceForm] = useState(false);
+  const [deviceForm, setDeviceForm] = useState({ name: '', type: 'pc', location_id: '', status: 'active' });
+
+  // Device Actions State
+  const [actions, setActions] = useState([]);
+  const [actionPage, setActionPage] = useState(1);
+  const [actionTotal, setActionTotal] = useState(0);
+
+  // Audit Logs State
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditTotal, setAuditTotal] = useState(0);
+
+  const perPage = 20;
+
+  // --- Data Fetching ---
+  const loadDevices = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [devRes, locRes] = await Promise.all([
+        apiFetch('/devices'),
+        apiFetch('/locations')
+      ]);
+      if (!devRes.ok || !locRes.ok) throw new Error('Error al cargar dispositivos o ubicaciones');
+      
+      const devData = await devRes.json();
+      const locData = await locRes.json();
+      setDevices(Array.isArray(devData) ? devData : []);
+      setLocations(Array.isArray(locData) ? locData : []);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [notify]);
+
+  const loadActions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(actionPage), per_page: String(perPage) });
+      const res = await apiFetch(`/device_actions?${params.toString()}`);
+      if (!res.ok) throw new Error('Error al cargar acciones de dispositivos');
+      
+      const data = await res.json();
+      setActions(Array.isArray(data.items) ? data.items : []);
+      setActionTotal(data.total || 0);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [actionPage, perPage, notify]);
+
+  const loadAuditLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(auditPage), per_page: String(perPage) });
+      const res = await apiFetch(`/audit_logs?${params.toString()}`);
+      if (!res.ok) throw new Error('Error al cargar logs de auditoría');
+      
+      const data = await res.json();
+      setAuditLogs(Array.isArray(data.items) ? data.items : []);
+      setAuditTotal(data.total || 0);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [auditPage, perPage, notify]);
+
+  useEffect(() => {
+    if (activeTab === 'devices') loadDevices();
+    if (activeTab === 'actions') loadActions();
+    if (activeTab === 'audit') loadAuditLogs();
+  }, [activeTab, loadDevices, loadActions, loadAuditLogs]);
+
+  // --- Handlers ---
+  const handleSaveDevice = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: deviceForm.name,
+        type: deviceForm.type,
+        status: deviceForm.status,
+        location_id: deviceForm.location_id ? parseInt(deviceForm.location_id, 10) : null
+      };
+
+      const res = await apiFetch('/devices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || 'Error al registrar dispositivo');
+      }
+
+      notify('Dispositivo registrado con éxito', 'success');
+      setShowDeviceForm(false);
+      setDeviceForm({ name: '', type: 'pc', location_id: '', status: 'active' });
+      loadDevices();
+    } catch (error) {
+      notify(error.message, 'error');
+    }
+  };
+
+  const filteredDevices = useMemo(() => {
+    const q = deviceSearch.trim().toLowerCase();
+    return devices.filter(device => {
+      const matchesQuery = !q || [device.name, device.type, device.ip_address].filter(Boolean).some(val => String(val).toLowerCase().includes(q));
+      const matchesStatus = deviceStatus === 'all' || device.status === deviceStatus;
+      return matchesQuery && matchesStatus;
+    });
+  }, [devices, deviceSearch, deviceStatus]);
+
+  const locationMap = useMemo(() => new Map(locations.map(loc => [String(loc.id), loc.name])), [locations]);
+
+  // Helpers de renderizado de UI
+  const getDeviceIcon = (type) => {
+    switch (type) {
+      case 'laptop': return <Laptop className="w-5 h-5 text-indigo-400" />;
+      case 'mobile': return <Smartphone className="w-5 h-5 text-emerald-400" />;
+      case 'server': return <Server className="w-5 h-5 text-purple-400" />;
+      default: return <Monitor className="w-5 h-5 text-blue-400" />;
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      available: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      in_use: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+      maintenance: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+    };
+    const label = {
+      active: 'Activo',
+      available: 'Disponible',
+      in_use: 'En uso',
+      maintenance: 'Mantenimiento'
+    }[status] || status || 'Activo';
+
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status] || styles.active}`}>
+        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+        {label}
+      </span>
+    );
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-[#070b14] text-slate-100 p-4 sm:p-6 lg:p-8 font-sans antialiased">
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* --- Header & Tabs Bar --- */}
+        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 shadow-2xl space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
+                  <Monitor className="w-6 h-6" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight text-white">
+                  Gestión y Auditoría de Dispositivos
+                </h1>
+              </div>
+              <p className="text-sm text-slate-400 mt-1 pl-12">
+                Administra el inventario de TI, monitorea eventos por IP y supervisa la bitácora del sistema.
+              </p>
+            </div>
+
+            {/* Pestañas con animación de deslizamiento (Framer Motion layoutId) */}
+            <div className="flex p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl">
+              {[
+                { id: 'devices', label: 'Dispositivos', icon: Monitor },
+                { id: 'actions', label: 'Acciones IP', icon: Activity },
+                { id: 'audit', label: 'Auditoría', icon: FileText }
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors z-10 ${
+                      isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTabGlow"
+                        className="absolute inset-0 bg-blue-600 rounded-lg shadow-lg shadow-blue-600/30 -z-10"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <Toast toast={toast} onClose={clearToast} />
+
+          {/* --- TAB CONTENT AREA --- */}
+          <AnimatePresence mode="wait">
+
+            {/* TAB 1: DEVICES */}
+            {activeTab === 'devices' && (
+              <motion.div
+                key="tab-devices"
+                variants={fadeInVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="space-y-6"
+              >
+                {/* Actions & Filters */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                  <div className="flex flex-1 items-center gap-3 max-w-xl">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={deviceSearch}
+                        onChange={(e) => setDeviceSearch(e.target.value)}
+                        placeholder="Buscar dispositivo por nombre, tipo o IP..."
+                        className="w-full bg-slate-950/60 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                      />
+                    </div>
+                    <div className="relative">
+                      <select
+                        value={deviceStatus}
+                        onChange={(e) => setDeviceStatus(e.target.value)}
+                        className="appearance-none bg-slate-950/60 border border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                      >
+                        <option value="all">Todos los estados</option>
+                        <option value="active">Activo</option>
+                        <option value="available">Disponible</option>
+                        <option value="in_use">En uso</option>
+                        <option value="maintenance">Mantenimiento</option>
+                      </select>
+                      <Filter className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {['admin', 'it_support'].includes(user?.role) && (
+                    <button
+                      onClick={() => setShowDeviceForm(!showDeviceForm)}
+                      className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg active:scale-95 ${
+                        showDeviceForm
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                      }`}
+                    >
+                      {showDeviceForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                      <span>{showDeviceForm ? 'Cancelar' : 'Nuevo Dispositivo'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Animated Collapsible Form */}
+                <AnimatePresence>
+                  {showDeviceForm && (
+                    <motion.form
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      onSubmit={handleSaveDevice}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 bg-slate-950/80 p-5 rounded-2xl border border-slate-800/80 shadow-inner">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Nombre *</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. PC-URGENCIAS-01"
+                            value={deviceForm.name}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, name: e.target.value })}
+                            required
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Tipo</label>
+                          <select
+                            value={deviceForm.type}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, type: e.target.value })}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
+                          >
+                            <option value="pc">PC de Escritorio</option>
+                            <option value="laptop">Laptop</option>
+                            <option value="mobile">Móvil</option>
+                            <option value="server">Servidor</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Estado</label>
+                          <select
+                            value={deviceForm.status}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, status: e.target.value })}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
+                          >
+                            <option value="active">Activo</option>
+                            <option value="available">Disponible</option>
+                            <option value="in_use">En uso</option>
+                            <option value="maintenance">Mantenimiento</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Ubicación</label>
+                          <select
+                            value={deviceForm.location_id}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, location_id: e.target.value })}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
+                          >
+                            <option value="">Sin ubicación</option>
+                            {locations.map((l) => (
+                              <option key={l.id} value={l.id}>{l.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="submit"
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-all shadow-md shadow-blue-600/20 active:scale-95"
+                          >
+                            Guardar Dispositivo
+                          </button>
+                        </div>
+                      </div>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
+
+                {/* Grid View of Devices */}
+                {loading ? (
+                  <LoadingState label="Cargando catálogo de dispositivos..." />
+                ) : filteredDevices.length === 0 ? (
+                  <EmptyState icon={Monitor} title="No hay dispositivos" description="No se encontraron registros acordes con los filtros especificados." />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredDevices.map((device) => (
+                      <motion.div
+                        key={device.id}
+                        variants={cardHoverVariants}
+                        whileHover="hover"
+                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between gap-4 transition-all shadow-lg"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="p-2 bg-slate-900 rounded-xl border border-slate-800">
+                              {getDeviceIcon(device.type)}
+                            </div>
+                            {getStatusBadge(device.status)}
+                          </div>
+
+                          <div>
+                            <h3 className="font-semibold text-slate-100 text-base line-clamp-1">{device.name}</h3>
+                            <p className="text-xs text-slate-400 capitalize mt-0.5">{device.type || 'Tipo No Especificado'}</p>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                          <div className="flex items-center gap-1.5 font-mono text-slate-300">
+                            <Wifi className="w-3.5 h-3.5 text-sky-400" />
+                            <span>{device.ip_address || '—'}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-slate-400 max-w-[120px] truncate">
+                            <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span className="truncate">{locationMap.get(String(device.location_id)) || 'Sin asignación'}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* TAB 2: DEVICE ACTIONS */}
+            {activeTab === 'actions' && (
+              <motion.div
+                key="tab-actions"
+                variants={fadeInVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="space-y-4"
+              >
+                {loading ? (
+                  <LoadingState label="Cargando trazabilidad IP..." />
+                ) : actions.length === 0 ? (
+                  <EmptyState icon={Activity} title="Sin eventos IP registrados" description="No hay logs recientes de interacción de dispositivos." />
+                ) : (
+                  <div className="space-y-2.5">
+                    {actions.map((act) => (
+                      <motion.div
+                        key={act.id}
+                        variants={cardHoverVariants}
+                        whileHover="hover"
+                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-md"
+                      >
+                        <div className="flex items-start md:items-center gap-4">
+                          <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400 shrink-0">
+                            <Activity className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-white">
+                                {act.username || (act.user_id ? `Usuario #${act.user_id}` : 'Anónimo')}
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-sky-300 border border-slate-700">
+                                {act.action_type}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">
+                              {act.details || `${act.entity_type || 'Entidad'} #${act.entity_id || ''}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs text-slate-400 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800/80 shrink-0">
+                          <div className="flex items-center gap-1 font-mono bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+                            <Wifi className="w-3.5 h-3.5 text-sky-400" />
+                            <span className="text-slate-200">{act.ip_address || '—'}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                            <span>{act.created_at}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+                <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+              </motion.div>
+            )}
+
+            {/* TAB 3: AUDIT LOGS */}
+            {activeTab === 'audit' && (
+              <motion.div
+                key="tab-audit"
+                variants={fadeInVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="space-y-4"
+              >
+                {loading ? (
+                  <LoadingState label="Cargando registros del sistema..." />
+                ) : auditLogs.length === 0 ? (
+                  <EmptyState icon={FileText} title="Sin registros de auditoría" description="No hay eventos en la bitácora." />
+                ) : (
+                  <div className="space-y-2.5">
+                    {auditLogs.map((log) => (
+                      <motion.div
+                        key={log.id}
+                        variants={cardHoverVariants}
+                        whileHover="hover"
+                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-md"
+                      >
+                        <div className="flex items-start md:items-center gap-4">
+                          <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400 shrink-0">
+                            <Layers className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-white">
+                                Entidad: {log.entity_type} {log.entity_id ? `(#${log.entity_id})` : ''}
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-purple-950/50 text-purple-300 border border-purple-800/50">
+                                {log.action}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">{log.details || 'Sin detalles adicionales'}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs text-slate-400 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800/80 shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="text-slate-300">{log.user_id ? `ID: ${log.user_id}` : 'Sistema'}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                            <span>{log.created_at}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 
