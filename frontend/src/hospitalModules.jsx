@@ -1210,6 +1210,80 @@ export function Consultations() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(INITIAL_CONSULTATION);
+  const [toast, notify, clearToast] = useToast();
+  
+  const debouncedQuery = useDebouncedValue(query);
+  const debouncedPatientQuery = useDebouncedValue(patientQuery, 250);
+
+  const loadConsultations = useCallback(async (q = '') => {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error('No se pudo cargar el historial de consultas');
+      setConsultations(await res.json() || []);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [notify]);
+
+  const searchPatients = useCallback(async (q = '') => {
+    try {
+      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`);
+      if (!res.ok) return;
+      const data = await res.json() || [];
+      setPatients(data);
+      if (data.length === 1) setForm(prev => ({ ...prev, patient_id: data[0].id }));
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  useEffect(() => { loadConsultations(); }, [loadConsultations]);
+
+  useEffect(() => {
+    if (!showForm) loadConsultations(debouncedQuery);
+  }, [debouncedQuery, showForm, loadConsultations]);
+
+  useEffect(() => {
+    if (showForm) searchPatients(debouncedPatientQuery);
+  }, [debouncedPatientQuery, showForm, searchPatients]);
+
+  const updateTriage = (field, value) => {
+    const next = { ...form, [field]: value };
+    if (field === 'weight_kg' || field === 'height_cm') {
+      next.bmi = calculateBMI(
+        field === 'weight_kg' ? value : form.weight_kg, 
+        field === 'height_cm' ? value : form.height_cm
+      );
+    }
+    setForm(next);
+  };
+
+  const submit = async event => {
+    event.preventDefault();
+    if (!form.patient_id) return notify('Selecciona un paciente antes de guardar.', 'error');
+    setSubmitting(true);
+    try {
+      const res = await apiFetch('/consultations', { method: 'POST', body: JSON.stringify(form) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || 'No se pudo registrar la consulta');
+      
+      notify('Consulta registrada correctamente.', 'success', 'Atención guardada');
+      setForm(INITIAL_CONSULTATION);
+      setPatientQuery('');
+      setShowForm(false);
+      await loadConsultations(query);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const selectedPatient = useMemo(() => patients.find(p => String(p.id) === String(form.patient_id)), [patients, form.patient_id]);
+  const bmiState = getBMIState(form.bmi);
 
   return (
     <div style={{
@@ -1220,10 +1294,10 @@ export function Consultations() {
       fontFamily: 'system-ui, -apple-system, sans-serif'
     }}>
       
-      {/* Animaciones y Clases Globales */}
+      {/* Estilos e Inyección de Animaciones CSS */}
       <style>{`
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
         }
         .animated-card {
@@ -1252,6 +1326,9 @@ export function Consultations() {
           transform: translateY(-1px);
           box-shadow: 0 0 18px rgba(59, 130, 246, 0.5) !important;
         }
+        .btn-glow:active {
+          transform: translateY(0);
+        }
       `}</style>
 
       {/* MARCO CONTENEDOR */}
@@ -1273,7 +1350,9 @@ export function Consultations() {
           justify: 'space-between',
           alignItems: 'center',
           borderBottom: '1px solid #1e293b',
-          paddingBottom: '1.5rem'
+          paddingBottom: '1.5rem',
+          flexWrap: 'wrap',
+          gap: '1rem'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{
@@ -1310,62 +1389,357 @@ export function Consultations() {
               gap: '0.5rem',
               cursor: 'pointer'
             }}
-            onClick={() => setShowForm(!showForm)}
+            onClick={() => {
+              if (!showForm) setForm(INITIAL_CONSULTATION);
+              setShowForm(!showForm);
+            }}
           >
-            {showForm ? <><ArrowLeft size={18} /> Volver</> : <><Plus size={18} /> Nueva Consulta</>}
+            {showForm ? <><ArrowLeft size={18} /> Volver al Historial</> : <><Plus size={18} /> Nueva Consulta</>}
           </button>
         </div>
 
-        {/* LISTADO DE TARJETAS REDISEÑADO */}
-        {!showForm && (
-          <div className="animated-card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-            {consultations.map(item => (
-              <article
-                key={item.id}
-                className="card-interactive"
-                style={{
-                  backgroundColor: '#0f172a',
-                  border: '1px solid #1e293b',
-                  borderRadius: '16px',
-                  padding: '1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1rem'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.5rem', borderRadius: '10px' }}>
-                      <User size={20} />
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <Calendar size={12} /> {item.date || '13 AGO. 2026'}
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* VISTA PRINCIPAL: BUSCADOR Y LISTADO DE TARJETAS */}
+        {!showForm ? (
+          <div className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+            
+            {/* PANEL DE BÚSQUEDA */}
+            <div style={{
+              backgroundColor: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '16px',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Filtro de Búsqueda</h3>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
+                  {consultations.length} {consultations.length === 1 ? 'resultado' : 'resultados'}
+                </span>
+              </div>
+              <SearchField value={query} onChange={setQuery} placeholder="Buscar por paciente, diagnóstico, motivo o médico..." loading={loading} />
+            </div>
+
+            {/* LISTADO DE TARJETAS REDISEÑADO */}
+            {loading ? (
+              <div style={{ padding: '3rem 0', textAlign: 'center' }}>
+                <LoadingState label="Cargando consultas..." />
+              </div>
+            ) : consultations.length === 0 ? (
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3rem', textAlign: 'center' }}>
+                <EmptyState icon="🩺" title="No se encontraron consultas" description="Intenta cambiar los términos de búsqueda o registra una nueva atención médica." />
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+                {consultations.map(item => (
+                  <article
+                    key={item.id}
+                    className="card-interactive"
+                    style={{
+                      backgroundColor: '#0f172a',
+                      border: '1px solid #1e293b',
+                      borderRadius: '16px',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.5rem', borderRadius: '10px' }}>
+                          <User size={20} />
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <Calendar size={12} /> {formatDate(item.created_at) || item.date || 'Sin fecha'}
+                          </span>
+                          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>
+                            {item.patient_name || `Paciente #${item.patient_id}`}
+                          </h3>
+                        </div>
+                      </div>
+                      <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>
+                        #{item.id}
                       </span>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>
-                        {item.patient_name || 'Paciente Registrado'}
-                      </h3>
                     </div>
-                  </div>
-                  <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>
-                    #{item.id}
-                  </span>
-                </div>
 
-                <div style={{ backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.825rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Motivo:</strong> <span style={{ color: '#cbd5e1' }}>{item.reason}</span></p>
-                  <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Diagnóstico:</strong> <span style={{ color: '#38bdf8', fontWeight: 500 }}>{item.diagnosis}</span></p>
-                  <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Médico:</strong> <span style={{ color: '#cbd5e1' }}>{item.doctor_name}</span></p>
-                </div>
+                    <div style={{ backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.825rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Motivo:</strong> <span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></p>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Diagnóstico:</strong> <span style={{ color: item.diagnosis ? '#38bdf8' : '#64748b', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></p>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Médico:</strong> <span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></p>
+                    </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Scale size={14} color="#38bdf8" /> {item.weight || '90.00'} kg</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Ruler size={14} color="#38bdf8" /> {item.height || '175.00'} cm</span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600, color: '#f8fafc' }}><Activity size={14} color="#38bdf8" /> IMC {item.bmi || '29.39'}</span>
-                </div>
-              </article>
-            ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Scale size={14} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Ruler size={14} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600, color: '#f8fafc' }}><Activity size={14} color="#38bdf8" /> IMC {item.bmi ?? '—'}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
+        ) : (
+          /* FORMULARIO COMPLETO INTEGRADO */
+          <form onSubmit={submit} className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+            {/* SECCIÓN 1: PACIENTE Y ATENCIÓN */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
+                <UserCheck size={18} color="#38bdf8" />
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Datos del Paciente y Consulta</h3>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Buscar Paciente *</label>
+                  <SearchField value={patientQuery} onChange={setPatientQuery} placeholder="Escribe el Nombre o DNI del paciente..." loading={!patients.length && Boolean(patientQuery)} />
+                  
+                  {patients.length > 0 && (
+                    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+                      {patients.slice(0, 5).map(patient => (
+                        <button
+                          type="button"
+                          key={patient.id}
+                          onClick={() => { setForm(p => ({ ...p, patient_id: patient.id })); setPatientQuery(patient.full_name); }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            backgroundColor: String(patient.id) === String(form.patient_id) ? '#1e293b' : 'transparent',
+                            border: String(patient.id) === String(form.patient_id) ? '1px solid #38bdf8' : 'none',
+                            color: '#f8fafc',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            textAlign: 'left'
+                          }}
+                        >
+                          <span style={{ width: '28px', height: '28px', backgroundColor: '#38bdf8', color: '#090d16', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem' }}>
+                            {patient.full_name?.charAt(0)?.toUpperCase() || 'P'}
+                          </span>
+                          <span style={{ display: 'flex', flexDirection: 'column' }}>
+                            <strong style={{ fontSize: '0.85rem' }}>{patient.full_name}</strong>
+                            <small style={{ color: '#94a3b8', fontSize: '0.75rem' }}>DNI: {patient.dni || patient.document_number || 'S/D'}</small>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Paciente Seleccionado *</label>
+                  <select
+                    required
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.patient_id}
+                    onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}
+                  >
+                    <option value="">-- Seleccionar de la lista --</option>
+                    {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — DNI {p.dni || p.document_number || 'S/D'}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Médico Tratante</label>
+                  <input
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.doctor_name}
+                    onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))}
+                    placeholder="Dr. Nombre Apellido"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Motivo de la Consulta</label>
+                  <input
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.reason}
+                    onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
+                    placeholder="Ej. Chequeo preventivo, evaluación sintomática..."
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Sintomatología / Anamnesis</label>
+                  <textarea
+                    rows={3}
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
+                    value={form.symptoms}
+                    onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))}
+                    placeholder="Detalles sobre las molestias o antecedentes expresados por el paciente..."
+                  />
+                </div>
+              </div>
+
+              {selectedPatient && (
+                <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.75rem 1rem', borderRadius: '12px', color: '#38bdf8', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CheckCircle2 size={16} />
+                  <span>Atendiendo a: <strong>{selectedPatient.full_name}</strong> · HC: {selectedPatient.medical_record_number || 'Sin Historia'}</span>
+                </div>
+              )}
+            </div>
+
+            {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
+                <HeartPulse size={18} color="#38bdf8" />
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y Signos Vitales</h3>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.weight_kg}
+                    onChange={e => updateTriage('weight_kg', e.target.value)}
+                    placeholder="70.0"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.height_cm}
+                    onChange={e => updateTriage('height_cm', e.target.value)}
+                    placeholder="170"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Índice de Masa Corporal (IMC)</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <input
+                      style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none', fontWeight: 700, width: '100%' }}
+                      value={form.bmi}
+                      readOnly
+                      placeholder="0.00"
+                    />
+                    <span className={`badge badge-${bmiState.tone === 'neutral' ? 'info' : bmiState.tone}`} style={{ padding: '0.4rem 0.6rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, whitespace: 'nowrap' }}>
+                      {bmiState.label}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Presión Arterial</label>
+                  <input
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.blood_pressure}
+                    onChange={e => setForm(p => ({ ...p, blood_pressure: e.target.value }))}
+                    placeholder="120/80"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro Abdominal (cm)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.abdominal_perimeter_cm}
+                    onChange={e => setForm(p => ({ ...p, abdominal_perimeter_cm: e.target.value }))}
+                    placeholder="85"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECCIÓN 3: DIAGNÓSTICO Y TRATAMIENTO */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
+                <Pill size={18} color="#38bdf8" />
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y Tratamiento</h3>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico Clínico</label>
+                  <input
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.diagnosis}
+                    onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))}
+                    placeholder="Diagnóstico principal o código CIE-10..."
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Plan de Tratamiento / Indicaciones</label>
+                  <input
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    value={form.treatment}
+                    onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))}
+                    placeholder="Recomendaciones, dieta o estilo de vida..."
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
+                  <textarea
+                    rows={4}
+                    className="input-focus-glow"
+                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
+                    value={form.prescription}
+                    onChange={e => setForm(p => ({ ...p, prescription: e.target.value }))}
+                    placeholder="Detalla los medicamentos prescritos, dosificación, frecuencia y días..."
+                  />
+                </div>
+              </div>
+
+              {/* BOTONES DE ACCIÓN */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
+                <button
+                  type="button"
+                  style={{ backgroundColor: 'transparent', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}
+                  onClick={() => setShowForm(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-glow"
+                  style={{
+                    backgroundColor: '#3b82f6',
+                    border: 'none',
+                    color: '#ffffff',
+                    borderRadius: '12px',
+                    padding: '0.65rem 1.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                    opacity: submitting ? 0.6 : 1
+                  }}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Guardando...' : 'Guardar Consulta'}
+                </button>
+              </div>
+            </div>
+
+          </form>
         )}
 
       </div>
