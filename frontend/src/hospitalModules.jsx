@@ -490,7 +490,9 @@ export function Patients() {
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [patientDocuments, setPatientDocuments] = useState([])
   const [patientAppointments, setPatientAppointments] = useState([])
+  const [patientConsultations, setPatientConsultations] = useState([])
   const [loadingDocs, setLoadingDocs] = useState(false)
+  const [loadingConsultations, setLoadingConsultations] = useState(false)
   
   // Estado para previsualización de documentos
   const [previewDoc, setPreviewDoc] = useState(null)
@@ -547,10 +549,13 @@ export function Patients() {
     setView('detail')
     setIsEditingPatient(false)
     setLoadingDocs(true)
+    setLoadingConsultations(true)
+
     try {
-      const [docsRes, apptsRes] = await Promise.all([
+      const [docsRes, apptsRes, consultsRes] = await Promise.all([
         apiFetch(`/patients/${patient.id}/documents`),
-        apiFetch(`/appointments?patient_id=${patient.id}`)
+        apiFetch(`/appointments?patient_id=${patient.id}`),
+        apiFetch(`/consultations?patient_id=${patient.id}`)
       ])
 
       if (docsRes.ok) setPatientDocuments(await docsRes.json() || [])
@@ -558,11 +563,17 @@ export function Patients() {
 
       if (apptsRes.ok) setPatientAppointments(await apptsRes.json() || [])
       else setPatientAppointments([])
+
+      if (consultsRes.ok) setPatientConsultations(await consultsRes.json() || [])
+      else setPatientConsultations([])
+
     } catch {
       setPatientDocuments([])
       setPatientAppointments([])
+      setPatientConsultations([])
     } finally {
       setLoadingDocs(false)
+      setLoadingConsultations(false)
     }
   }
 
@@ -682,10 +693,6 @@ export function Patients() {
     return patientAppointments.filter(appt => appt.appointment_date && new Date(appt.appointment_date) >= today)
   }, [patientAppointments, today])
 
-  // Helper para determinar extensión/tipo
-  const isImageDoc = (url = '') => /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(url)
-  const isPdfDoc = (url = '') => /\.(pdf)($|\?)/i.test(url)
-
   return (
     <div style={{
       padding: '2rem',
@@ -697,49 +704,19 @@ export function Patients() {
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       <style>{`
-        .btn-interactive {
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .btn-interactive:hover {
-          transform: translateY(-2px);
-          filter: brightness(1.1);
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
-        }
-        .btn-interactive:active {
-          transform: translateY(0);
-          filter: brightness(0.95);
-        }
-        .card-hover {
-          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-        }
-        .card-hover:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.4);
-          border-color: ${theme.accent} !important;
-        }
-        .row-interactive {
-          transition: all 0.2s ease;
-        }
-        .row-interactive:hover {
-          background-color: ${theme.bgHover} !important;
-          transform: translateX(4px);
-        }
-        .icon-hover-bounce {
-          transition: transform 0.2s ease;
-        }
-        .icon-hover-bounce:hover {
-          transform: scale(1.2) rotate(5deg);
-        }
-        .tab-interactive {
-          transition: all 0.2s ease;
-        }
-        .tab-interactive:hover {
-          color: ${theme.accent} !important;
-        }
+        .btn-interactive { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-interactive:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); }
+        .btn-interactive:active { transform: translateY(0); filter: brightness(0.95); }
+        .card-hover { transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease; }
+        .card-hover:hover { transform: translateY(-3px); box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.4); border-color: ${theme.accent} !important; }
+        .row-interactive { transition: all 0.2s ease; }
+        .row-interactive:hover { background-color: ${theme.bgHover} !important; transform: translateX(4px); }
+        .icon-hover-bounce { transition: transform 0.2s ease; }
+        .icon-hover-bounce:hover { transform: scale(1.2) rotate(5deg); }
+        .tab-interactive { transition: all 0.2s ease; }
+        .tab-interactive:hover { color: ${theme.accent} !important; }
 
-        .print-only-section {
-          display: none;
-        }
+        .print-only-section { display: none; }
 
         @media print {
           body, div, p, span, h1, h3, h4, strong {
@@ -748,44 +725,13 @@ export function Patients() {
             box-shadow: none !important;
             text-shadow: none !important;
           }
-
-          .btn-interactive, 
-          button, 
-          .no-print {
-            display: none !important;
-          }
-
-          .card-hover {
-            border: 1px solid #ccc !important;
-            border-radius: 4px !important;
-            margin-bottom: 1rem !important;
-            transform: none !important;
-          }
-
-          .print-full-width {
-            display: block !important;
-            grid-template-columns: none !important;
-            width: 100% !important;
-          }
-
-          .print-tabs-container {
-            display: none !important;
-          }
-
-          .print-only-section {
-            display: block !important;
-            margin-top: 1.5rem;
-          }
-
-          .row-interactive {
-            border: 1px solid #eee !important;
-            background-color: #fff !important;
-            transform: none !important;
-          }
-
-          @page {
-            margin: 1.5cm;
-          }
+          .btn-interactive, button, .no-print { display: none !important; }
+          .card-hover { border: 1px solid #ccc !important; border-radius: 4px !important; margin-bottom: 1rem !important; transform: none !important; }
+          .print-full-width { display: block !important; grid-template-columns: none !important; width: 100% !important; }
+          .print-tabs-container { display: none !important; }
+          .print-only-section { display: block !important; margin-top: 1.5rem; }
+          .row-interactive { border: 1px solid #eee !important; background-color: #fff !important; transform: none !important; }
+          @page { margin: 1.5cm; }
         }
       `}</style>
 
@@ -978,7 +924,77 @@ export function Patients() {
 
             </div>
 
-            {/* CITAS Y HISTORIAL */}
+            {/* SECCIÓN HISTORIAL DE CONSULTAS / ATENCIONES MÉDICAS */}
+            <div className="card-hover print-full-width" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${theme.border}`, paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Stethoscope size={18} color={theme.accent} />
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>
+                    Historial de Consultas ({patientConsultations.length})
+                  </h4>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {loadingConsultations ? (
+                  <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1rem 0' }}>Cargando consultas médicas...</p>
+                ) : patientConsultations.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1rem 0' }}>No hay consultas médicas registradas para este paciente.</p>
+                ) : (
+                  patientConsultations.map((consult) => (
+                    <div key={consult.id} style={{ backgroundColor: theme.bgApp, borderRadius: '8px', padding: '1rem', border: `1px solid ${theme.border}`, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px dashed ${theme.border}`, paddingBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.825rem', fontWeight: 700, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Calendar size={14} /> {consult.created_at ? new Date(consult.created_at).toLocaleDateString() : 'Fecha no disp.'}
+                        </span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: theme.textPrimary }}>
+                          Médico: {consult.doctor_name || 'Atención General'}
+                        </span>
+                      </div>
+
+                      {/* Motivo y Síntomas */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem' }}>
+                        <div>
+                          <span style={{ color: theme.textMuted, display: 'block', fontSize: '0.7rem', fontWeight: 600 }}>MOTIVO</span>
+                          <span style={{ color: theme.textPrimary }}>{consult.reason || '—'}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: theme.textMuted, display: 'block', fontSize: '0.7rem', fontWeight: 600 }}>SÍNTOMAS</span>
+                          <span style={{ color: theme.textPrimary }}>{consult.symptoms || '—'}</span>
+                        </div>
+                      </div>
+
+                      {/* Constantes Vitales / Triaje */}
+                      {(consult.weight_kg || consult.height_cm || consult.blood_pressure || consult.bmi) && (
+                        <div style={{ backgroundColor: theme.bgHover, borderRadius: '6px', padding: '0.5rem 0.75rem', display: 'flex', gap: '1.25rem', fontSize: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: theme.badgeText, fontWeight: 600 }}>
+                            <Activity size={13} /> Signos Vitales:
+                          </span>
+                          {consult.weight_kg && <div><span style={{ color: theme.textMuted }}>Peso:</span> <strong>{consult.weight_kg} kg</strong></div>}
+                          {consult.height_cm && <div><span style={{ color: theme.textMuted }}>Talla:</span> <strong>{consult.height_cm} cm</strong></div>}
+                          {consult.blood_pressure && <div><span style={{ color: theme.textMuted }}>P.A.:</span> <strong>{consult.blood_pressure}</strong></div>}
+                          {consult.bmi && <div><span style={{ color: theme.textMuted }}>IMC:</span> <strong>{consult.bmi}</strong></div>}
+                        </div>
+                      )}
+
+                      {/* Diagnóstico y Tratamiento */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', borderTop: `1px solid ${theme.border}`, paddingTop: '0.5rem' }}>
+                        <div>
+                          <span style={{ color: theme.textMuted, display: 'block', fontSize: '0.7rem', fontWeight: 600 }}>DIAGNÓSTICO</span>
+                          <strong style={{ color: theme.textPrimary }}>{consult.diagnosis || '—'}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: theme.textMuted, display: 'block', fontSize: '0.7rem', fontWeight: 600 }}>TRATAMIENTO / RECETA</span>
+                          <span style={{ color: theme.textPrimary }}>{consult.treatment || consult.prescription || '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* CITAS Y HISTORIAL DE CITAS */}
             <div className="card-hover print-tabs-container" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
               <div style={{ display: 'flex', gap: '2rem', borderBottom: `1px solid ${theme.border}`, paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
                 <span onClick={() => setActiveTab('future')} className="tab-interactive" style={{ fontSize: '0.875rem', fontWeight: 600, color: activeTab === 'future' ? theme.accent : theme.textMuted, borderBottom: activeTab === 'future' ? `2px solid ${theme.accent}` : '2px solid transparent', paddingBottom: '0.75rem', cursor: 'pointer' }}>
@@ -1078,125 +1094,20 @@ export function Patients() {
           {loading ? (
             <p style={{ textAlign: 'center', color: theme.textMuted }}>Cargando pacientes...</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
               {patients.map(p => (
-                <div key={p.id} onClick={() => loadPatientDetail(p)} className="card-hover" style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '1.25rem', cursor: 'pointer' }}>
-                  <h4 style={{ margin: '0 0 0.3rem 0', color: theme.textPrimary, fontSize: '0.95rem' }}>{p.full_name}</h4>
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: theme.textMuted }}>DNI: {p.dni || p.document_number || '—'}</p>
+                <div key={p.id} onClick={() => loadPatientDetail(p)} className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '8px', border: `1px solid ${theme.border}`, padding: '1rem', cursor: 'pointer' }}>
+                  <h3 style={{ fontSize: '1rem', margin: '0 0 0.5rem 0', color: theme.textPrimary }}>{p.full_name}</h3>
+                  <p style={{ fontSize: '0.8rem', color: theme.textMuted, margin: 0 }}>DNI/Doc: {p.dni || p.document_number}</p>
                 </div>
               ))}
             </div>
           )}
         </div>
       )}
-
-      {/* MODAL DE PREVISUALIZACIÓN DE DOCUMENTOS */}
-      {previewDoc && (
-        <div className="no-print" style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          padding: '1.5rem'
-        }}>
-          <div style={{
-            backgroundColor: theme.bgCard,
-            border: `1px solid ${theme.border}`,
-            borderRadius: '12px',
-            width: '100%',
-            maxWidth: '850px',
-            maxHeight: '85vh',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
-          }}>
-            {/* CABECERA MODAL */}
-            <div style={{
-              display: 'flex',
-              justify: 'space-between',
-              alignItems: 'center',
-              padding: '1rem 1.25rem',
-              borderBottom: `1px solid ${theme.border}`,
-              backgroundColor: theme.bgApp
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <FileText size={18} color={theme.accent} />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: theme.textPrimary }}>
-                  {previewDoc.file_name || previewDoc.document_type || 'Previsualización de Documento'}
-                </h3>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {previewDoc.url && (
-                  <a 
-                    href={previewDoc.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    style={{ color: theme.textMuted, display: 'flex', alignItems: 'center', gap: '0.2rem', textDecoration: 'none', fontSize: '0.75rem' }}
-                  >
-                    <ExternalLink size={14} /> Abrir original
-                  </a>
-                )}
-                <button 
-                  onClick={() => setPreviewDoc(null)} 
-                  style={{ backgroundColor: 'transparent', border: 'none', color: theme.textMuted, cursor: 'pointer', padding: '0.2rem', borderRadius: '4px' }}
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            {/* CUERPO DEL VISOR */}
-            <div style={{
-              flex: 1,
-              padding: '1.25rem',
-              overflowY: 'auto',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              backgroundColor: theme.bgApp
-            }}>
-              {previewDoc.url ? (
-                isImageDoc(previewDoc.url) ? (
-                  <img 
-                    src={previewDoc.url} 
-                    alt={previewDoc.file_name || 'Documento'} 
-                    style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '8px' }} 
-                  />
-                ) : isPdfDoc(previewDoc.url) ? (
-                  <iframe 
-                    src={previewDoc.url} 
-                    title="Vista Previa PDF" 
-                    style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '8px' }} 
-                  />
-                ) : (
-                  <iframe 
-                    src={previewDoc.url} 
-                    title="Vista Previa Documento" 
-                    style={{ width: '100%', height: '65vh', border: 'none', borderRadius: '8px' }} 
-                  />
-                )
-              ) : (
-                <div style={{ textAlign: 'center', padding: '2rem', color: theme.textMuted }}>
-                  <AlertTriangle size={36} color={theme.textMuted} style={{ marginBottom: '0.5rem' }} />
-                  <p style={{ margin: 0, fontSize: '0.85rem' }}>El enlace del documento no está disponible para previsualización directa.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
-
 // ============================================================
 // Consultations
 // ============================================================
