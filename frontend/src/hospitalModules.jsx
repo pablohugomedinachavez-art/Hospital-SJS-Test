@@ -501,11 +501,7 @@ export function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }
   );
 }
 
-// Stubs para compatibilidad de Hooks y API si no existen globalmente
-const useAuth = () => ({ user: { role: 'admin' } });
-const apiFetch = async (endpoint, options) => {
-  return fetch(endpoint, options);
-};
+
 
 // ============================================================
 // --- COMPONENTE PRINCIPAL: Dashboard de Dispositivos ---
