@@ -382,19 +382,45 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  const ROUTES_MAP = {
-  '/patients': Patients,
-  '/dashboard': Dashboard,
-  '/users': Users,
-  '/locations': Locations,
-  '/devices': Devices,
-  '/consultations': Consultations,
-  '/appointments': Appointments,
-  '/profile': Profile,
-  '/documents': Documents,
-  '/reports': Reports,
-  '/alerts': Alerts,
-  '/DeviceManagementDashboard': DeviceManagementDashboard,
+  const renderRoute = () => {
+    // Debug fallback if route is missing/invalid
+    const targetRoute = route || '/dashboard'
+    const ActiveComponent = ROUTES_MAP[targetRoute]
+
+    // Diagnostic check to catch undefined components before React crashes
+    if (ROUTES_MAP.hasOwnProperty(targetRoute) && !ActiveComponent) {
+      return (
+        <div className="card" style={{ padding: '2rem', border: '1px solid #ef4444' }}>
+          <h3 style={{ color: '#ef4444' }}>Error de Importación</h3>
+          <p>El componente para la ruta <code>{targetRoute}</code> está siendo importado como <code>undefined</code>.</p>
+          <small>Revisa las exportaciones en <code>hospitalModules.js</code> o la importación de <code>DeviceManagementDashboard</code>.</small>
+        </div>
+      )
+    }
+
+    return ActiveComponent ? <ActiveComponent /> : <DefaultPanel />
+  }
+
+  return (
+    <div className="app-layout">
+      <Sidebar currentRoute={route} />
+      <main className="main-content">
+        <AppHeader />
+        {renderRoute()}
+      </main>
+    </div>
+  )
+}
+
+function DefaultPanel() {
+  return (
+    <div className="card" style={{ padding: '2rem' }}>
+      <h2>Panel Principal</h2>
+      <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+        Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
+      </p>
+    </div>
+  )
 }
 
 const DefaultPanel = () => (
