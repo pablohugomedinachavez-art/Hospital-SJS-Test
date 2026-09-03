@@ -370,24 +370,9 @@ function useToast() {
   return [toast, notify, () => setToast({ text: '', type: 'info' })]
 }
 
-function LoadingState({ label = 'Cargando información...' }) {
-  return (
-    <div className="loading-state" role="status">
-      <span className="spinner" aria-hidden="true" />
-      <span>{label}</span>
-    </div>
-  )
-}
 
-function EmptyState({ icon = '⌕', title = 'No encontramos registros', description = 'Prueba cambiando los filtros o crea un nuevo registro.' }) {
-  return (
-    <div className="empty-state enhanced-empty">
-      <div className="empty-icon" aria-hidden="true">{icon}</div>
-      <h3>{title}</h3>
-      <p>{description}</p>
-    </div>
-  )
-}
+
+
 
 function PageShell({ title, subtitle, actions, children, className = '' }) {
   return (
@@ -526,16 +511,7 @@ function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }) {
   )
 }
 
-function Pagination({ page, perPage, total, onPrev, onNext }) {
-  const totalPages = Math.max(1, Math.ceil(total / perPage))
-  return (
-    <div className="pagination enhanced-pagination">
-      <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={onPrev}>← Anterior</button>
-      <span>Hoja <strong>{page}</strong> de <strong>{totalPages}</strong> · {total} registros</span>
-      <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={onNext}>Siguiente →</button>
-    </div>
-  )
-}
+
 
 
 
