@@ -15,10 +15,18 @@ import { useAuth } from './AuthContext'
 import {
   User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
-  FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit,
+  FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck,
+   FileX, FileSearch, FileEdit,
   X, Save, Eye, ExternalLink, Download, Search, Filter,      
    Scale, Ruler, HeartPulse,  Pill, 
-  AlertCircle, CheckCircle2,  ShieldAlert,     
+  AlertCircle, CheckCircle2,  ShieldAlert,Monitor,
+  Server,
+  Laptop, 
+  Smartphone, 
+  Wifi,
+  Layers,
+  ChevronLeft,
+  ChevronRight,     
 } from 'lucide-react';
 
 
@@ -72,7 +80,16 @@ const getDocumentUrl = (doc) => {
   if (!doc) return '';
   return doc.file_url || doc.url || doc.path || '';
 };
+// Variantes de animación reutilizables
+const fadeInVariants = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+  exit: { opacity: 0, y: -12, transition: { duration: 0.2, ease: 'easeIn' } }
+};
 
+const cardHoverVariants = {
+  hover: { scale: 1.015, translateY: -2, transition: { duration: 0.2 } }
+};
 // Helper para verificar el tipo de archivo según extensión o tipo
 const isImageUrl = (url) => {
   if (!url) return false;
@@ -2256,252 +2273,442 @@ export function DeviceManagementDashboard() {
 
   const locationMap = useMemo(() => new Map(locations.map(loc => [String(loc.id), loc.name])), [locations]);
 
+  // Helpers de renderizado de UI
+  const getDeviceIcon = (type) => {
+    switch (type) {
+      case 'laptop': return <Laptop className="w-5 h-5 text-indigo-400" />;
+      case 'mobile': return <Smartphone className="w-5 h-5 text-emerald-400" />;
+      case 'server': return <Server className="w-5 h-5 text-purple-400" />;
+      default: return <Monitor className="w-5 h-5 text-blue-400" />;
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+      available: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      in_use: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+      maintenance: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+    };
+    const label = {
+      active: 'Activo',
+      available: 'Disponible',
+      in_use: 'En uso',
+      maintenance: 'Mantenimiento'
+    }[status] || status || 'Activo';
+
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status] || styles.active}`}>
+        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+        {label}
+      </span>
+    );
+  };
+
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div className="min-h-screen w-full bg-[#070b14] text-slate-100 p-4 sm:p-6 lg:p-8 font-sans antialiased">
+      <div className="max-w-7xl mx-auto space-y-6">
 
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              Gestión y Auditoría de Dispositivos
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              Administra inventario, rastrea eventos IP y supervisa la bitácora de auditoría.
-            </p>
-          </div>
-
-          {/* Navigation Toggle Buttons */}
-          <div style={{ display: 'flex', backgroundColor: '#0f172a', borderRadius: '12px', padding: '4px', border: '1px solid #1e293b' }}>
-            <button
-              onClick={() => setActiveTab('devices')}
-              style={{
-                padding: '0.6rem 1.2rem',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: activeTab === 'devices' ? '#3b82f6' : 'transparent',
-                color: activeTab === 'devices' ? '#ffffff' : '#94a3b8',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              🖥️ Dispositivos
-            </button>
-            <button
-              onClick={() => setActiveTab('actions')}
-              style={{
-                padding: '0.6rem 1.2rem',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: activeTab === 'actions' ? '#3b82f6' : 'transparent',
-                color: activeTab === 'actions' ? '#ffffff' : '#94a3b8',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              🌐 Acciones & IP
-            </button>
-            <button
-              onClick={() => setActiveTab('audit')}
-              style={{
-                padding: '0.6rem 1.2rem',
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: activeTab === 'audit' ? '#3b82f6' : 'transparent',
-                color: activeTab === 'audit' ? '#ffffff' : '#94a3b8',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              📜 Logs de Auditoría
-            </button>
-          </div>
-        </div>
-
-        <Toast toast={toast} onClose={clearToast} />
-
-        {/* TAB 1: DEVICES */}
-        {activeTab === 'devices' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '1rem', flex: 1, maxWidth: '600px' }}>
-                <SearchField value={deviceSearch} onChange={setDeviceSearch} placeholder="Buscar dispositivo o IP..." loading={loading} />
-                <select
-                  value={deviceStatus}
-                  onChange={e => setDeviceStatus(e.target.value)}
-                  style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', outline: 'none' }}
-                >
-                  <option value="all">Todos los estados</option>
-                  <option value="active">Activo</option>
-                  <option value="available">Disponible</option>
-                  <option value="in_use">En uso</option>
-                  <option value="maintenance">Mantenimiento</option>
-                </select>
+        {/* --- Header & Tabs Bar --- */}
+        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 shadow-2xl space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
+                  <Monitor className="w-6 h-6" />
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight text-white">
+                  Gestión y Auditoría de Dispositivos
+                </h1>
               </div>
-
-              {['admin', 'it_support'].includes(user?.role) && (
-                <button
-                  onClick={() => setShowDeviceForm(!showDeviceForm)}
-                  style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', padding: '0.6rem 1.2rem', fontWeight: 600, cursor: 'pointer' }}
-                >
-                  {showDeviceForm ? 'Cancelar' : '+ Nuevo Dispositivo'}
-                </button>
-              )}
+              <p className="text-sm text-slate-400 mt-1 pl-12">
+                Administra el inventario de TI, monitorea eventos por IP y supervisa la bitácora del sistema.
+              </p>
             </div>
 
-            {showDeviceForm && (
-              <form onSubmit={handleSaveDevice} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
-                <input
-                  type="text"
-                  placeholder="Nombre *"
-                  value={deviceForm.name}
-                  onChange={e => setDeviceForm({ ...deviceForm, name: e.target.value })}
-                  required
-                  style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
-                />
-                <select
-                  value={deviceForm.type}
-                  onChange={e => setDeviceForm({ ...deviceForm, type: e.target.value })}
-                  style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
-                >
-                  <option value="pc">PC de Escritorio</option>
-                  <option value="laptop">Laptop</option>
-                  <option value="mobile">Móvil</option>
-                  <option value="server">Servidor</option>
-                </select>
-                <select
-                  value={deviceForm.status}
-                  onChange={e => setDeviceForm({ ...deviceForm, status: e.target.value })}
-                  style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
-                >
-                  <option value="active">Activo</option>
-                  <option value="available">Disponible</option>
-                  <option value="in_use">En uso</option>
-                  <option value="maintenance">Mantenimiento</option>
-                </select>
-                <select
-                  value={deviceForm.location_id}
-                  onChange={e => setDeviceForm({ ...deviceForm, location_id: e.target.value })}
-                  style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
-                >
-                  <option value="">Sin ubicación</option>
-                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                </select>
-                <button type="submit" style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Guardar
-                </button>
-              </form>
-            )}
+            {/* Pestañas con animación de deslizamiento (Framer Motion layoutId) */}
+            <div className="flex p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl">
+              {[
+                { id: 'devices', label: 'Dispositivos', icon: Monitor },
+                { id: 'actions', label: 'Acciones IP', icon: Activity },
+                { id: 'audit', label: 'Auditoría', icon: FileText }
+              ].map(tab => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors z-10 ${
+                      isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeTabGlow"
+                        className="absolute inset-0 bg-blue-600 rounded-lg shadow-lg shadow-blue-600/30 -z-10"
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-            {loading ? (
-              <LoadingState label="Cargando dispositivos…" />
-            ) : filteredDevices.length === 0 ? (
-              <EmptyState icon="🖥️" title="No hay dispositivos" description="No se registraron coincidencias." />
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-                {filteredDevices.map(device => (
-                  <div key={device.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ID #{device.id}</span>
-                      <span className="badge">{device.status || 'active'}</span>
+          <Toast toast={toast} onClose={clearToast} />
+
+          {/* --- TAB CONTENT AREA --- */}
+          <AnimatePresence mode="wait">
+
+            {/* TAB 1: DEVICES */}
+            {activeTab === 'devices' && (
+              <motion.div
+                key="tab-devices"
+                variants={fadeInVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="space-y-6"
+              >
+                {/* Actions & Filters */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                  <div className="flex flex-1 items-center gap-3 max-w-xl">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        value={deviceSearch}
+                        onChange={(e) => setDeviceSearch(e.target.value)}
+                        placeholder="Buscar dispositivo por nombre, tipo o IP..."
+                        className="w-full bg-slate-950/60 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                      />
                     </div>
-                    <div>
-                      <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{device.name}</strong>
-                      <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{device.type || 'N/A'}</div>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                      <span>IP: <code style={{ color: '#38bdf8' }}>{device.ip_address || '—'}</code></span>
-                      <span>Ubicación: {locationMap.get(String(device.location_id)) || '—'}</span>
+                    <div className="relative">
+                      <select
+                        value={deviceStatus}
+                        onChange={(e) => setDeviceStatus(e.target.value)}
+                        className="appearance-none bg-slate-950/60 border border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                      >
+                        <option value="all">Todos los estados</option>
+                        <option value="active">Activo</option>
+                        <option value="available">Disponible</option>
+                        <option value="in_use">En uso</option>
+                        <option value="maintenance">Mantenimiento</option>
+                      </select>
+                      <Filter className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* TAB 2: DEVICE ACTIONS (public.device_actions) */}
-        {activeTab === 'actions' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {loading ? (
-              <LoadingState label="Cargando trazabilidad por IP..." />
-            ) : actions.length === 0 ? (
-              <EmptyState icon="🌐" title="Sin eventos IP registrados" description="No hay actividades recientes en device_actions." />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {actions.map(act => (
-                  <div key={act.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{act.created_at}</span>
-                      <span className="badge badge-info" style={{ width: 'fit-content' }}>{act.action_type}</span>
-                    </div>
+                  {['admin', 'it_support'].includes(user?.role) && (
+                    <button
+                      onClick={() => setShowDeviceForm(!showDeviceForm)}
+                      className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg active:scale-95 ${
+                        showDeviceForm
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                      }`}
+                    >
+                      {showDeviceForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                      <span>{showDeviceForm ? 'Cancelar' : 'Nuevo Dispositivo'}</span>
+                    </button>
+                  )}
+                </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
-                      <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                        {act.username || (act.user_id ? `Usuario #${act.user_id}` : 'Anónimo')}
-                      </strong>
-                      <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                        {act.details || `${act.entity_type || 'Entidad'} #${act.entity_id || ''}`}
-                      </span>
-                    </div>
+                {/* Animated Collapsible Form */}
+                <AnimatePresence>
+                  {showDeviceForm && (
+                    <motion.form
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25 }}
+                      onSubmit={handleSaveDevice}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 bg-slate-950/80 p-5 rounded-2xl border border-slate-800/80 shadow-inner">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Nombre *</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. PC-URGENCIAS-01"
+                            value={deviceForm.name}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, name: e.target.value })}
+                            required
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Tipo</label>
+                          <select
+                            value={deviceForm.type}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, type: e.target.value })}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
+                          >
+                            <option value="pc">PC de Escritorio</option>
+                            <option value="laptop">Laptop</option>
+                            <option value="mobile">Móvil</option>
+                            <option value="server">Servidor</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Estado</label>
+                          <select
+                            value={deviceForm.status}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, status: e.target.value })}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
+                          >
+                            <option value="active">Activo</option>
+                            <option value="available">Disponible</option>
+                            <option value="in_use">En uso</option>
+                            <option value="maintenance">Mantenimiento</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Ubicación</label>
+                          <select
+                            value={deviceForm.location_id}
+                            onChange={(e) => setDeviceForm({ ...deviceForm, location_id: e.target.value })}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
+                          >
+                            <option value="">Sin ubicación</option>
+                            {locations.map((l) => (
+                              <option key={l.id} value={l.id}>{l.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="submit"
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-all shadow-md shadow-blue-600/20 active:scale-95"
+                          >
+                            Guardar Dispositivo
+                          </button>
+                        </div>
+                      </div>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
 
-                    <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#94a3b8', alignItems: 'center' }}>
-                      <span>Sesión: <code style={{ color: '#cbd5e1' }}>{act.session_id ? `#${act.session_id}` : '—'}</code></span>
-                      <span>IP: <code style={{ color: '#38bdf8' }}>{act.ip_address || '—'}</code></span>
-                    </div>
+                {/* Grid View of Devices */}
+                {loading ? (
+                  <LoadingState label="Cargando catálogo de dispositivos..." />
+                ) : filteredDevices.length === 0 ? (
+                  <EmptyState icon={Monitor} title="No hay dispositivos" description="No se encontraron registros acordes con los filtros especificados." />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredDevices.map((device) => (
+                      <motion.div
+                        key={device.id}
+                        variants={cardHoverVariants}
+                        whileHover="hover"
+                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between gap-4 transition-all shadow-lg"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="p-2 bg-slate-900 rounded-xl border border-slate-800">
+                              {getDeviceIcon(device.type)}
+                            </div>
+                            {getStatusBadge(device.status)}
+                          </div>
+
+                          <div>
+                            <h3 className="font-semibold text-slate-100 text-base line-clamp-1">{device.name}</h3>
+                            <p className="text-xs text-slate-400 capitalize mt-0.5">{device.type || 'Tipo No Especificado'}</p>
+                          </div>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+                          <div className="flex items-center gap-1.5 font-mono text-slate-300">
+                            <Wifi className="w-3.5 h-3.5 text-sky-400" />
+                            <span>{device.ip_address || '—'}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-slate-400 max-w-[120px] truncate">
+                            <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span className="truncate">{locationMap.get(String(device.location_id)) || 'Sin asignación'}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </motion.div>
             )}
-            <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
-          </div>
-        )}
 
-        {/* TAB 3: AUDIT LOGS (public.audit_logs) */}
-        {activeTab === 'audit' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {loading ? (
-              <LoadingState label="Cargando logs del sistema..." />
-            ) : auditLogs.length === 0 ? (
-              <EmptyState icon="📜" title="Sin registros de auditoría" description="No hay eventos en audit_logs." />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {auditLogs.map(log => (
-                  <div key={log.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: '180px' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{log.created_at}</span>
-                      <span className="badge" style={{ width: 'fit-content', backgroundColor: '#334155' }}>{log.action}</span>
-                    </div>
+            {/* TAB 2: DEVICE ACTIONS */}
+            {activeTab === 'actions' && (
+              <motion.div
+                key="tab-actions"
+                variants={fadeInVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="space-y-4"
+              >
+                {loading ? (
+                  <LoadingState label="Cargando trazabilidad IP..." />
+                ) : actions.length === 0 ? (
+                  <EmptyState icon={Activity} title="Sin eventos IP registrados" description="No hay logs recientes de interacción de dispositivos." />
+                ) : (
+                  <div className="space-y-2.5">
+                    {actions.map((act) => (
+                      <motion.div
+                        key={act.id}
+                        variants={cardHoverVariants}
+                        whileHover="hover"
+                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-md"
+                      >
+                        <div className="flex items-start md:items-center gap-4">
+                          <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400 shrink-0">
+                            <Activity className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-white">
+                                {act.username || (act.user_id ? `Usuario #${act.user_id}` : 'Anónimo')}
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-sky-300 border border-slate-700">
+                                {act.action_type}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">
+                              {act.details || `${act.entity_type || 'Entidad'} #${act.entity_id || ''}`}
+                            </p>
+                          </div>
+                        </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '200px' }}>
-                      <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
-                        Entidad: {log.entity_type} {log.entity_id ? `(#${log.entity_id})` : ''}
-                      </strong>
-                      <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{log.details || '—'}</span>
-                    </div>
-
-                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                      Usuario ID: <strong style={{ color: '#cbd5e1' }}>{log.user_id || 'Sistema'}</strong>
-                    </div>
+                        <div className="flex items-center gap-4 text-xs text-slate-400 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800/80 shrink-0">
+                          <div className="flex items-center gap-1 font-mono bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+                            <Wifi className="w-3.5 h-3.5 text-sky-400" />
+                            <span className="text-slate-200">{act.ip_address || '—'}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                            <span>{act.created_at}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+                <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+              </motion.div>
             )}
-            <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
-          </div>
-        )}
 
+            {/* TAB 3: AUDIT LOGS */}
+            {activeTab === 'audit' && (
+              <motion.div
+                key="tab-audit"
+                variants={fadeInVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+                className="space-y-4"
+              >
+                {loading ? (
+                  <LoadingState label="Cargando registros del sistema..." />
+                ) : auditLogs.length === 0 ? (
+                  <EmptyState icon={FileText} title="Sin registros de auditoría" description="No hay eventos en la bitácora." />
+                ) : (
+                  <div className="space-y-2.5">
+                    {auditLogs.map((log) => (
+                      <motion.div
+                        key={log.id}
+                        variants={cardHoverVariants}
+                        whileHover="hover"
+                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-md"
+                      >
+                        <div className="flex items-start md:items-center gap-4">
+                          <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400 shrink-0">
+                            <Layers className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-white">
+                                Entidad: {log.entity_type} {log.entity_id ? `(#${log.entity_id})` : ''}
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-purple-950/50 text-purple-300 border border-purple-800/50">
+                                {log.action}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-1">{log.details || 'Sin detalles adicionales'}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs text-slate-400 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800/80 shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <UserCheck className="w-3.5 h-3.5 text-slate-500" />
+                            <span className="text-slate-300">{log.user_id ? `ID: ${log.user_id}` : 'Sistema'}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                            <span>{log.created_at}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
+              </motion.div>
+            )}
+
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
 }
 
+// --- Componentes UX Secundarios ---
+
+function LoadingState({ label }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-sm font-medium animate-pulse">{label}</span>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, description }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/30">
+      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 mb-3">
+        <Icon className="w-8 h-8" />
+      </div>
+      <h3 className="text-base font-semibold text-slate-200">{title}</h3>
+      <p className="text-xs text-slate-500 max-w-sm mt-1">{description}</p>
+    </div>
+  );
+}
+
+function Pagination({ page, perPage, total, onPrev, onNext }) {
+  const totalPages = Math.ceil(total / perPage) || 1;
+  return (
+    <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-400">
+      <span>Página {page} de {totalPages} ({total} registros totales)</span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onPrev}
+          disabled={page <= 1}
+          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onNext}
+          disabled={page >= totalPages}
+          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function DeviceActions() {
   const [items, setItems] = useState([]);
