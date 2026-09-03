@@ -4,6 +4,7 @@ import { Patients, Consultations, Appointments, Documents, Reports, Locations, D
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
+import NewModule from './NewModule'
 
 
 const Icons = {
