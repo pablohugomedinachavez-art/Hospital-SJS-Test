@@ -42,17 +42,16 @@ function Sidebar({ currentRoute }) {
         { label: 'Documentos', path: '/documents' }
       ]
     },
-    
     {
-    key: 'operations', 
-    title: 'Gestión operativa', 
-    icon: <Icons.Operations />,
-    items: [
-      { label: 'Ubicaciones', path: '/locations' },
-      { label: 'Dispositivos', path: '/devices' },
-      { label: 'Alertas', path: '/alerts' },
-      { label: 'Dispositivos', path: '/DeviceManagementDashboard' } // <-- Add item here
-    ]
+      key: 'operations', 
+      title: 'Gestión operativa', 
+      icon: <Icons.Operations />,
+      items: [
+        { label: 'Ubicaciones', path: '/locations' },
+        { label: 'Dispositivos', path: '/devices' },
+        { label: 'Alertas', path: '/alerts' },
+        { label: 'Auditoría & IP', path: '/device-management' }
+      ]
     },
     { key: 'users', title: 'Usuarios', icon: <Icons.Users />, items: [{ label: 'Usuarios', path: '/users', permission: 'manage_users' }] },
     { key: 'reports', title: 'Informes', icon: <Icons.Reports />, items: [{ label: 'Reportes', path: '/reports' }] },
@@ -110,6 +109,7 @@ function Sidebar({ currentRoute }) {
     </aside>
   )
 }
+
 
 function CollectionList({ title, items = [], render, filters = [] }) {
   const [query, setQuery] = useState('')
@@ -382,32 +382,34 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange)
   }, [])
 
-  const renderRoute = () => {
-    switch (route) {
-      case '/patients': return <Patients />
-      case '/dashboard': return <Dashboard />
-      case '/users': return <Users />
-      case '/locations': return <Locations />
-      case '/devices': return <Devices />
-      case '/consultations': return <Consultations />
-      case '/appointments': return <Appointments />
-      case '/profile': return <Profile />
-      case '/documents': return <Documents />
-      case '/reports': return <Reports />
-      case '/alerts': return <Alerts />
-      case '/DeviceManagementDashboard': return <DeviceManagementDashboard />
-      default:
-        return (
-          <div className="app-layout">
-      <Sidebar currentRoute={route} />
-      <main className="main-content">
-        <AppHeader />
-        {renderRoute()}
-      </main>
-    </div>
-        )
-    }
-  }
+  const ROUTES_MAP = {
+  '/patients': Patients,
+  '/dashboard': Dashboard,
+  '/users': Users,
+  '/locations': Locations,
+  '/devices': Devices,
+  '/consultations': Consultations,
+  '/appointments': Appointments,
+  '/profile': Profile,
+  '/documents': Documents,
+  '/reports': Reports,
+  '/alerts': Alerts,
+  '/DeviceManagementDashboard': DeviceManagementDashboard,
+}
+
+const DefaultPanel = () => (
+  <div className="card">
+    <h2>Panel Principal</h2>
+    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+      Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
+    </p>
+  </div>
+)
+
+const renderRoute = () => {
+  const ActiveComponent = ROUTES_MAP[route]
+  return ActiveComponent ? <ActiveComponent /> : <DefaultPanel />
+}
 }
 
 function MainApp() {
