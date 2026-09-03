@@ -1670,6 +1670,7 @@ def device_actions():
         except Exception as e:
             return jsonify({'message': f'Error logging action: {str(e)}'}), 500
 
+    # VERIFICACIÓN DE PERMISOS
     if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
@@ -1679,38 +1680,52 @@ def device_actions():
     except ValueError:
         page, per_page = 1, 25
 
-    where_sql, params = _build_device_actions_query(tenant_id)
+    # BLOQUE TRY-EXCEPT PARA CAPTURAR ERRORES SQL Y SERIALIZACIÓN EN GET
+    try:
+        where_sql, params = _build_device_actions_query(tenant_id)
 
-    count_sql = f'''
-        SELECT COUNT(*) as total 
-        FROM device_actions da 
-        LEFT JOIN users u ON u.id = da.user_id 
-        WHERE {where_sql}
-    '''
-    total_row = db_query(count_sql, tuple(params), fetchone=True) or {'total': 0}
-    total = total_row.get('total', 0)
+        count_sql = f'''
+            SELECT COUNT(*) as total 
+            FROM device_actions da 
+            LEFT JOIN users u ON u.id::text = da.user_id::text 
+            WHERE {where_sql}
+        '''
+        total_row = db_query(count_sql, tuple(params), fetchone=True) or {'total': 0}
+        total = total_row.get('total', 0)
 
-    offset = (page - 1) * per_page
-    query_sql = f'''
-        SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, da.ip_address, 
-               da.user_agent, da.action_type, da.entity_type, da.entity_id, 
-               da.details, da.created_at
-        FROM device_actions da
-        LEFT JOIN users u ON u.id = da.user_id
-        WHERE {where_sql}
-        ORDER BY da.created_at DESC
-        LIMIT %s OFFSET %s
-    '''
-    
-    query_params = list(params) + [per_page, offset]
-    rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
+        offset = (page - 1) * per_page
+        query_sql = f'''
+            SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, da.ip_address, 
+                   da.user_agent, da.action_type, da.entity_type, da.entity_id, 
+                   da.details, da.created_at
+            FROM device_actions da
+            LEFT JOIN users u ON u.id::text = da.user_id::text
+            WHERE {where_sql}
+            ORDER BY da.created_at DESC
+            LIMIT %s OFFSET %s
+        '''
+        
+        query_params = list(params) + [per_page, offset]
+        rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
 
-    return jsonify({
-        'total': total,
-        'page': page,
-        'per_page': per_page,
-        'items': rows
-    })
+        # SERIALIZACIÓN DE FECHAS A STRING ISO 8601
+        items = []
+        for row in rows:
+            row_dict = dict(row) if not isinstance(row, dict) else row
+            if row_dict.get('created_at') and hasattr(row_dict['created_at'], 'isoformat'):
+                row_dict['created_at'] = row_dict['created_at'].isoformat()
+            items.append(row_dict)
+
+        return jsonify({
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'items': items
+        }), 200
+
+    except Exception as e:
+        print(f"[ERROR /api/device_actions GET]: {str(e)}")
+        return jsonify({'message': f'Error fetching device actions: {str(e)}'}), 500
 
 
 @app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
