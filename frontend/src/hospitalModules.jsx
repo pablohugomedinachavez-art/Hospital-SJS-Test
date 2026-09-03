@@ -30,10 +30,53 @@ import {
 } from 'lucide-react';
 
 
-// ============================================================
-// Shared UX / utilities
-// ============================================================
+// --- Componentes UX Secundarios ---
 
+function LoadingState({ label }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-sm font-medium animate-pulse">{label}</span>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, description }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/30">
+      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 mb-3">
+        <Icon className="w-8 h-8" />
+      </div>
+      <h3 className="text-base font-semibold text-slate-200">{title}</h3>
+      <p className="text-xs text-slate-500 max-w-sm mt-1">{description}</p>
+    </div>
+  );
+}
+
+function Pagination({ page, perPage, total, onPrev, onNext }) {
+  const totalPages = Math.ceil(total / perPage) || 1;
+  return (
+    <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-400">
+      <span>Página {page} de {totalPages} ({total} registros totales)</span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onPrev}
+          disabled={page <= 1}
+          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onNext}
+          disabled={page >= totalPages}
+          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 // ============================================================
 // Configuración y Constantes Auxiliares
 // ============================================================
@@ -2662,53 +2705,6 @@ export function DeviceManagementDashboard() {
   );
 }
 
-// --- Componentes UX Secundarios ---
-
-function LoadingState({ label }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
-      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      <span className="text-sm font-medium animate-pulse">{label}</span>
-    </div>
-  );
-}
-
-function EmptyState({ icon: Icon, title, description }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/30">
-      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 mb-3">
-        <Icon className="w-8 h-8" />
-      </div>
-      <h3 className="text-base font-semibold text-slate-200">{title}</h3>
-      <p className="text-xs text-slate-500 max-w-sm mt-1">{description}</p>
-    </div>
-  );
-}
-
-function Pagination({ page, perPage, total, onPrev, onNext }) {
-  const totalPages = Math.ceil(total / perPage) || 1;
-  return (
-    <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-400">
-      <span>Página {page} de {totalPages} ({total} registros totales)</span>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onPrev}
-          disabled={page <= 1}
-          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onNext}
-          disabled={page >= totalPages}
-          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export function DeviceActions() {
   const [items, setItems] = useState([]);
