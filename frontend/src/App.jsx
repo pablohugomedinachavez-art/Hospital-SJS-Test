@@ -412,16 +412,7 @@ function AppContent() {
   )
 }
 
-function DefaultPanel() {
-  return (
-    <div className="card" style={{ padding: '2rem' }}>
-      <h2>Panel Principal</h2>
-      <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-        Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
-      </p>
-    </div>
-  )
-}
+
 
 const DefaultPanel = () => (
   <div className="card">
