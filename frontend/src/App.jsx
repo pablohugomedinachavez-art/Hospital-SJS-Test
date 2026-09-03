@@ -427,7 +427,7 @@ const renderRoute = () => {
   const ActiveComponent = ROUTES_MAP[route]
   return ActiveComponent ? <ActiveComponent /> : <DefaultPanel />
 }
-}
+
 
 function MainApp() {
   const { user, loading } = useAuth()
