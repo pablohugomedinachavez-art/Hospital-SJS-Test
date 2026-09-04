@@ -506,7 +506,7 @@ export function DataTable({ columns = [], rows = [], getRowKey, emptyTitle = 'Si
 // --- COMPONENTE PRINCIPAL: Dashboard de Dispositivos ---
 // ============================================================
 
-export function DeviceManagerDashboard() {
+export function DeviceManagementDashboard() {
   const [activeTab, setActiveTab] = useState('devices');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
