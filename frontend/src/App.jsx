@@ -4,7 +4,6 @@ import { Patients, Consultations, Appointments, Documents, Reports, Locations, D
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
-
 // 1. ROUTE MAP DEFINED AT TOP LEVEL
 const ROUTES_MAP = {
   '/dashboard': Dashboard,
