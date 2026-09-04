@@ -606,27 +606,30 @@ export function DeviceManagementDashboard() {
   }, [devices, deviceSearch, deviceStatus]);
 
   return (
-    <div className="min-h-screen w-full bg-[#070b14] text-slate-100 p-4 sm:p-6 lg:p-8 font-sans antialiased">
+    <div className="min-h-screen w-full bg-[#0b0f19] text-slate-100 p-4 sm:p-6 lg:p-8 font-sans antialiased">
       <div className="max-w-7xl mx-auto space-y-6">
 
-        {/* --- CABECERA Y SELECTOR DE PESTAÑAS --- */}
-        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 shadow-2xl space-y-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/80 pb-6">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0">
-                  <ShieldAlert className="w-6 h-6" />
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+        {/* --- HEADER & NAVIGATION TABS --- */}
+        <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-6">
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-slate-800/80 pb-6">
+            
+            {/* Header Title */}
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0 shadow-inner">
+                <ShieldAlert className="w-7 h-7" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
                   Módulo de Auditoría de IPs y Dispositivos
                 </h1>
+                <p className="text-sm text-slate-400 mt-1">
+                  Control centralizado de infraestructura red, monitoreo de eventos por IP y trazabilidad de seguridad.
+                </p>
               </div>
-              <p className="text-sm text-slate-400 mt-1 sm:pl-12">
-                Control centralizado de infraestructura red, monitoreo de eventos por IP y trazabilidad de seguridad.
-              </p>
             </div>
 
-            <div className="flex flex-wrap p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl">
+            {/* Clean Tab Controls */}
+            <div className="flex items-center gap-1.5 p-1.5 bg-slate-950/90 border border-slate-800 rounded-xl self-start xl:self-auto">
               {[
                 { id: 'devices', label: '1. Dispositivos', icon: Monitor },
                 { id: 'actions', label: '2. Acciones IP', icon: Activity },
@@ -638,17 +641,12 @@ export function DeviceManagementDashboard() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors z-10 ${
-                      isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+                    className={`relative flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+                      isActive 
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                     }`}
                   >
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeTabGlow"
-                        className="absolute inset-0 bg-blue-600 rounded-lg shadow-lg shadow-blue-600/30 -z-10"
-                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      />
-                    )}
                     <Icon className="w-4 h-4 shrink-0" />
                     <span>{tab.label}</span>
                   </button>
@@ -657,25 +655,25 @@ export function DeviceManagementDashboard() {
             </div>
           </div>
 
-          {/* --- KPI STATS SUMMARY RESUMEN DE CONTROL --- */}
+          {/* --- METRIC STAT CARDS --- */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard 
-              icon={<Monitor className="w-5 h-5" />} 
-              label="Total Dispositivos" 
+              icon={<Monitor className="w-5 h-5 text-blue-400" />} 
+              label="TOTAL DISPOSITIVOS" 
               value={devices.length} 
               hint="Red de Equipos TI" 
               tone="primary" 
             />
             <StatCard 
-              icon={<Wifi className="w-5 h-5" />} 
-              label="Eventos IP Capturados" 
+              icon={<Wifi className="w-5 h-5 text-emerald-400" />} 
+              label="EVENTOS IP CAPTURADOS" 
               value={actionTotal} 
               hint="Tráfico & Acciones" 
               tone="success" 
             />
             <StatCard 
-              icon={<ShieldAlert className="w-5 h-5" />} 
-              label="Registros de Auditoría" 
+              icon={<ShieldAlert className="w-5 h-5 text-amber-400" />} 
+              label="REGISTROS DE AUDITORÍA" 
               value={auditTotal} 
               hint="Logs de Seguridad" 
               tone="warning" 
@@ -684,73 +682,106 @@ export function DeviceManagementDashboard() {
 
           <Toast toast={toast} onClose={clearToast} />
 
-          {/* --- PESTAÑA 1: GESTIÓN DE DISPOSITIVOS --- */}
+          {/* --- TAB 1: DEVICE INVENTORY --- */}
           {activeTab === 'devices' && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
-                <SearchField value={deviceSearch} onChange={setDeviceSearch} placeholder="Buscar por IP, nombre o tipo..." />
-                <select
-                  value={deviceStatus}
-                  onChange={(e) => setDeviceStatus(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 text-slate-300 rounded-xl px-3 py-2 text-sm"
-                >
-                  <option value="all">Todos los estados</option>
-                  <option value="active">Activos</option>
-                  <option value="maintenance">Mantenimiento</option>
-                </select>
+            <div className="space-y-5 pt-2">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-950/40 p-3 rounded-xl border border-slate-800/50">
+                {/* Search Input with Integrated Icon */}
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={deviceSearch}
+                    onChange={(e) => setDeviceSearch(e.target.value)}
+                    placeholder="Buscar por IP, nombre o tipo..."
+                    className="w-full bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-500 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                  <Filter className="w-4 h-4 text-slate-400 hidden sm:block" />
+                  <select
+                    value={deviceStatus}
+                    onChange={(e) => setDeviceStatus(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 text-slate-300 rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:border-blue-500/50 w-full sm:w-auto"
+                  >
+                    <option value="all">Todos los estados</option>
+                    <option value="active">Activos</option>
+                    <option value="maintenance">Mantenimiento</option>
+                  </select>
+                </div>
               </div>
 
               {loading ? (
                 <LoadingState label="Cargando dispositivos..." />
               ) : (
-                <DataTable
-                  columns={[
-                    { key: 'name', label: 'Dispositivo', render: (d) => <span className="font-semibold text-white">{d.name}</span> },
-                    { key: 'ip_address', label: 'Dirección IP', render: (d) => <code className="text-sky-400 font-mono">{d.ip_address || '—'}</code> },
-                    { key: 'type', label: 'Tipo', render: (d) => <span className="capitalize">{d.type}</span> },
-                    { key: 'status', label: 'Estado', render: (d) => <span className="px-2 py-1 rounded text-xs bg-slate-800 text-slate-300">{d.status}</span> }
-                  ]}
-                  rows={filteredDevices}
-                />
+                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/20">
+                  <DataTable
+                    columns={[
+                      { key: 'name', label: 'Dispositivo', render: (d) => <span className="font-medium text-white">{d.name}</span> },
+                      { key: 'ip_address', label: 'Dirección IP', render: (d) => <code className="text-sky-400 font-mono text-xs bg-sky-950/40 border border-sky-800/40 px-2 py-1 rounded-md">{d.ip_address || '—'}</code> },
+                      { key: 'type', label: 'Tipo', render: (d) => <span className="capitalize text-slate-300 text-xs bg-slate-800/60 px-2.5 py-1 rounded-md border border-slate-700/50">{d.type}</span> },
+                      { 
+                        key: 'status', 
+                        label: 'Estado', 
+                        render: (d) => (
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                            d.status === 'active' 
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${d.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                            {d.status}
+                          </span>
+                        ) 
+                      }
+                    ]}
+                    rows={filteredDevices}
+                  />
+                </div>
               )}
             </div>
           )}
 
-          {/* --- PESTAÑA 2: TRAZABILIDAD DE ACCIONES POR IP --- */}
+          {/* --- TAB 2: IP ACTIONS TRAIL --- */}
           {activeTab === 'actions' && (
-            <div className="space-y-4">
+            <div className="space-y-4 pt-2">
               {loading ? (
                 <LoadingState label="Cargando historial IP..." />
               ) : (
-                <DataTable
-                  columns={[
-                    { key: 'ip_address', label: 'Dirección IP', render: (a) => <code className="text-sky-400 font-mono">{a.ip_address || '—'}</code> },
-                    { key: 'username', label: 'Usuario', render: (a) => a.username || 'Anónimo' },
-                    { key: 'action_type', label: 'Acción Ejecutada', render: (a) => <span className="bg-slate-800 px-2 py-0.5 rounded text-xs font-mono text-sky-300">{a.action_type}</span> },
-                    { key: 'created_at', label: 'Fecha / Hora', render: (a) => formatDate(a.created_at) }
-                  ]}
-                  rows={actions}
-                />
+                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/20">
+                  <DataTable
+                    columns={[
+                      { key: 'ip_address', label: 'Dirección IP', render: (a) => <code className="text-sky-400 font-mono text-xs bg-sky-950/40 border border-sky-800/40 px-2 py-1 rounded-md">{a.ip_address || '—'}</code> },
+                      { key: 'username', label: 'Usuario', render: (a) => <span className="text-slate-300 font-medium">{a.username || 'Anónimo'}</span> },
+                      { key: 'action_type', label: 'Acción Ejecutada', render: (a) => <span className="bg-slate-800 text-slate-200 border border-slate-700/60 px-2.5 py-1 rounded-md text-xs font-mono">{a.action_type}</span> },
+                      { key: 'created_at', label: 'Fecha / Hora', render: (a) => <span className="text-slate-400 text-xs">{formatDate(a.created_at)}</span> }
+                    ]}
+                    rows={actions}
+                  />
+                </div>
               )}
               <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
             </div>
           )}
 
-          {/* --- PESTAÑA 3: AUDITORÍA DEL SISTEMA --- */}
+          {/* --- TAB 3: AUDIT LOGS --- */}
           {activeTab === 'audit' && (
-            <div className="space-y-4">
+            <div className="space-y-4 pt-2">
               {loading ? (
                 <LoadingState label="Cargando bitácora del sistema..." />
               ) : (
-                <DataTable
-                  columns={[
-                    { key: 'entity_type', label: 'Entidad', render: (log) => <span className="font-semibold text-purple-300">{log.entity_type}</span> },
-                    { key: 'action', label: 'Operación', render: (log) => <span className="bg-purple-950 text-purple-300 px-2 py-0.5 rounded text-xs font-mono">{log.action}</span> },
-                    { key: 'details', label: 'Detalles', render: (log) => log.details || 'Sin detalles' },
-                    { key: 'created_at', label: 'Fecha Registro', render: (log) => formatDate(log.created_at) }
-                  ]}
-                  rows={auditLogs}
-                />
+                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/20">
+                  <DataTable
+                    columns={[
+                      { key: 'entity_type', label: 'Entidad', render: (log) => <span className="font-semibold text-purple-300">{log.entity_type}</span> },
+                      { key: 'action', label: 'Operación', render: (log) => <span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-2.5 py-1 rounded-md text-xs font-mono">{log.action}</span> },
+                      { key: 'details', label: 'Detalles', render: (log) => <span className="text-slate-300 text-xs">{log.details || 'Sin detalles'}</span> },
+                      { key: 'created_at', label: 'Fecha Registro', render: (log) => <span className="text-slate-400 text-xs">{formatDate(log.created_at)}</span> }
+                    ]}
+                    rows={auditLogs}
+                  />
+                </div>
               )}
               <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
             </div>
@@ -761,6 +792,8 @@ export function DeviceManagementDashboard() {
     </div>
   );
 }
+
+
 
 // ============================================================
 // Patients Component
