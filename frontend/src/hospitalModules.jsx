@@ -1,4 +1,4 @@
-import { apiFetch } from './api'; // Asegúrate de que la ruta coincida con la ubicación de tu archivo api.js
+import { apiFetch } from './api.js'; // Asegúrate de que la ruta coincida con la ubicación de tu archivo api.js
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bar,
