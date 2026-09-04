@@ -20,14 +20,8 @@ import {
   FileX, FileSearch, FileEdit,
   X, Save, Eye, ExternalLink, Download, Search, Filter,      
   Scale, Ruler, HeartPulse, Pill, 
-  AlertCircle, CheckCircle2, ShieldAlert, Monitor,
-  Server,
-  Laptop, 
-  Smartphone, 
-  Wifi,
-  Layers,
-  ChevronLeft,
-  ChevronRight,     
+  AlertCircle, CheckCircle2, ShieldAlert, Monitor,Server,Laptop, Smartphone, Wifi,
+  Layers, ChevronLeft,ChevronRight,Loader2
 } from 'lucide-react';
 
 
@@ -84,10 +78,62 @@ export function Pagination({ page, perPage, total, onPrev, onNext }) {
 }
 
 // ============================================================
+// --- Componentes UX Secundarios Compartidos ---
+// ============================================================
+
+export function LoadingState({ label = 'Cargando información...' }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400" role="status" aria-live="polite">
+      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <span className="text-sm font-medium animate-pulse">{label}</span>
+    </div>
+  );
+}
+
+export function EmptyState({ icon: Icon, title = 'Sin datos', description = 'No encontramos registros para mostrar.' }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/30">
+      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 mb-3">
+        {Icon ? <Icon className="w-8 h-8" /> : <span className="text-xl" aria-hidden="true">⌕</span>}
+      </div>
+      <h3 className="text-base font-semibold text-slate-200">{title}</h3>
+      {description && <p className="text-xs text-slate-500 max-w-sm mt-1">{description}</p>}
+    </div>
+  );
+}
+
+export function Pagination({ page = 1, perPage = 10, total = 0, onPrev, onNext }) {
+  const totalPages = Math.max(1, Math.ceil(total / (perPage || 1)));
+  return (
+    <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-400">
+      <span>Página {page} de {totalPages} ({total} registros totales)</span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onPrev}
+          disabled={page <= 1}
+          aria-label="Página anterior"
+          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onNext}
+          disabled={page >= totalPages}
+          aria-label="Página siguiente"
+          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // Configuración y Constantes Auxiliares
 // ============================================================
 
-const INITIAL_PATIENT = {
+export const INITIAL_PATIENT = {
   document_type: 'dni',
   document_number: '',
   full_name: '',
@@ -100,7 +146,7 @@ const INITIAL_PATIENT = {
   allergies: ''
 };
 
-const PHONE_CONFIGS = {
+export const PHONE_CONFIGS = {
   '+51': 'Perú (+51)',
   '+1': 'EE.UU. / Canadá (+1)',
   '+34': 'España (+34)',
@@ -110,7 +156,7 @@ const PHONE_CONFIGS = {
   '+54': 'Argentina (+54)'
 };
 
-const INITIAL_CONSULTATION = {
+export const INITIAL_CONSULTATION = {
   patient_id: '',
   doctor_name: 'Dr. Demo',
   reason: '',
@@ -125,24 +171,27 @@ const INITIAL_CONSULTATION = {
   prescription: '',
 };
 
-const getDocumentUrl = (doc) => {
+export const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+export const specialties = ['Cardiología', 'Pediatría', 'Medicina General', 'Dermatología', 'Ginecología'];
+
+export const getDocumentUrl = (doc) => {
   if (!doc) return '';
   return doc.file_url || doc.url || doc.path || '';
 };
 
-const fadeInVariants = {
+export const fadeInVariants = {
   hidden: { opacity: 0, y: 12 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
   exit: { opacity: 0, y: -12, transition: { duration: 0.2, ease: 'easeIn' } }
 };
 
-const cardHoverVariants = {
+export const cardHoverVariants = {
   hover: { scale: 1.015, translateY: -2, transition: { duration: 0.2 } }
 };
 
-const isImageUrl = (url) => {
-  if (!url) return false;
-  return /\.(jpeg|jpg|gif|png|webp|svg)$/i.test(url);
+export const isImageUrl = (url) => {
+  if (!url || typeof url !== 'string') return false;
+  return /\.(jpeg|jpg|gif|png|webp|svg)(\?.*)?$/i.test(url);
 };
 
 export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
@@ -289,29 +338,26 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
   );
 };
 
-const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-const specialties = ['Cardiología', 'Pediatría', 'Medicina General', 'Dermatología', 'Ginecología'];
+export const cx = (...values) => values.filter(Boolean).join(' ');
 
-const cx = (...values) => values.filter(Boolean).join(' ');
-
-const calculateBMI = (weight, height) => {
+export const calculateBMI = (weight, height) => {
   const w = Number.parseFloat(weight);
   const h = Number.parseFloat(height) / 100;
-  if (!w || !h || h <= 0) return '';
+  if (!w || !h || h <= 0 || Number.isNaN(w) || Number.isNaN(h)) return '';
   return (w / (h * h)).toFixed(2);
 };
 
-const getBMIState = (bmi) => {
+export const getBMIState = (bmi) => {
   const value = Number.parseFloat(bmi);
-  if (!value) return { label: 'Sin calcular', tone: 'neutral' };
+  if (!value || Number.isNaN(value)) return { label: 'Sin calcular', tone: 'neutral' };
   if (value < 18.5) return { label: 'Bajo peso', tone: 'warning' };
   if (value < 25) return { label: 'Normal', tone: 'success' };
   if (value < 30) return { label: 'Sobrepeso', tone: 'warning' };
   return { label: 'Obesidad', tone: 'danger' };
 };
 
-const parseBrowser = (ua) => {
-  if (!ua) return 'Desconocido';
+export const parseBrowser = (ua) => {
+  if (!ua || typeof ua !== 'string') return 'Desconocido';
   if (ua.includes('Edg')) return 'Microsoft Edge';
   if (ua.includes('Chrome')) return 'Google Chrome';
   if (ua.includes('Firefox')) return 'Mozilla Firefox';
@@ -319,17 +365,17 @@ const parseBrowser = (ua) => {
   return 'Navegador Web';
 };
 
-const formatDate = (value, options = { dateStyle: 'medium' }) => {
+export const formatDate = (value, options = { dateStyle: 'medium' }) => {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat('es-PE', options).format(date);
 };
 
-const formatDateTime = (value) =>
+export const formatDateTime = (value) =>
   formatDate(value, { dateStyle: 'medium', timeStyle: 'short' });
 
-const useDebouncedValue = (value, delay = 350) => {
+export const useDebouncedValue = (value, delay = 350) => {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(value), delay);
@@ -338,8 +384,8 @@ const useDebouncedValue = (value, delay = 350) => {
   return debounced;
 };
 
-const getUserRole = (user) => user?.role || user?.user_metadata?.role || 'viewer';
-const isAdminUser = (user) => ['admin', 'tenant_admin'].includes(getUserRole(user));
+export const getUserRole = (user) => user?.role || user?.user_metadata?.role || 'viewer';
+export const isAdminUser = (user) => ['admin', 'tenant_admin'].includes(getUserRole(user));
 
 // ============================================================
 // Shared UI components & Hooks
@@ -440,14 +486,14 @@ export const StatIcons = {
   Time: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
 };
 
-export function SearchField({ value, onChange, placeholder, onEnter, loading = false }) {
+export function SearchField({ value = '', onChange, placeholder = 'Buscar...', onEnter, loading = false }) {
   return (
     <div className="smart-search">
       <span className="search-icon" aria-hidden="true">⌕</span>
       <input
         className="form-control smart-search-input"
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={e => onChange?.(e.target.value)}
         onKeyDown={e => {
           if (e.key === 'Enter') onEnter?.();
         }}
@@ -455,7 +501,7 @@ export function SearchField({ value, onChange, placeholder, onEnter, loading = f
         aria-label={placeholder}
       />
       {value && !loading && (
-        <button type="button" className="icon-button search-clear" onClick={() => onChange('')} aria-label="Limpiar búsqueda">×</button>
+        <button type="button" className="icon-button search-clear" onClick={() => onChange?.('')} aria-label="Limpiar búsqueda">×</button>
       )}
       {loading && <span className="search-spinner spinner" aria-hidden="true" />}
     </div>
@@ -484,7 +530,7 @@ export function InlineAlert({ type = 'info', children }) {
   return <div className={cx('alert', `alert-${type}`, 'inline-alert')}>{children}</div>;
 }
 
-export function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }) {
+export function DataTable({ columns = [], rows = [], getRowKey, emptyTitle = 'Sin datos' }) {
   if (!rows?.length) return <EmptyState title={emptyTitle} />;
   return (
     <div className="table-wrapper polished-table">
@@ -494,7 +540,7 @@ export function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={getRowKey?.(row) ?? index}>
+            <tr key={getRowKey?.(row) ?? row.id ?? index}>
               {columns.map(column => <td key={column.key}>{column.render ? column.render(row) : row[column.key]}</td>)}
             </tr>
           ))}
@@ -511,7 +557,7 @@ export function DataTable({ columns, rows, getRowKey, emptyTitle = 'Sin datos' }
 // ============================================================
 
 export function DeviceManagementDashboard() {
-  const [activeTab, setActiveTab] = useState('devices'); // 'devices' | 'actions' | 'audit'
+  const [activeTab, setActiveTab] = useState('devices');
 
   // Common State
   const [loading, setLoading] = useState(false);
