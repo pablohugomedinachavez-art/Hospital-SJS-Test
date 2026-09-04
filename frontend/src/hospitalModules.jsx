@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -9,18 +9,18 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from 'recharts'
+} from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch } from './api'
-import { useAuth } from './AuthContext'
+import { apiFetch } from './api';
+import { useAuth } from './AuthContext';
 import {
   User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck,
-   FileX, FileSearch, FileEdit,
+  FileX, FileSearch, FileEdit,
   X, Save, Eye, ExternalLink, Download, Search, Filter,      
-   Scale, Ruler, HeartPulse,  Pill, 
-  AlertCircle, CheckCircle2,  ShieldAlert,Monitor,
+  Scale, Ruler, HeartPulse, Pill, 
+  AlertCircle, CheckCircle2, ShieldAlert, Monitor,
   Server,
   Laptop, 
   Smartphone, 
@@ -65,6 +65,7 @@ export function Pagination({ page, perPage, total, onPrev, onNext }) {
         <button
           onClick={onPrev}
           disabled={page <= 1}
+          aria-label="Página anterior"
           className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -72,6 +73,7 @@ export function Pagination({ page, perPage, total, onPrev, onNext }) {
         <button
           onClick={onNext}
           disabled={page >= totalPages}
+          aria-label="Página siguiente"
           className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         >
           <ChevronRight className="w-4 h-4" />
@@ -213,6 +215,7 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
             )}
             <button 
               onClick={() => setPreviewDoc(null)} 
+              aria-label="Cerrar modal"
               style={{ 
                 backgroundColor: 'transparent', 
                 border: 'none', 
