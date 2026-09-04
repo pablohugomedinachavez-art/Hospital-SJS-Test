@@ -10,9 +10,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import 'styles.css';
-import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch } from './api';
 import { useAuth } from './AuthContext';
 import {
   User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
