@@ -31,6 +31,8 @@ import {
 // --- Componentes UX Secundarios Compartidos ---
 // ============================================================
 
+
+
 export function LoadingState({ label = 'Cargando información...' }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400" role="status" aria-live="polite">
@@ -509,12 +511,12 @@ export function DataTable({ columns = [], rows = [], getRowKey, emptyTitle = 'Si
 export function DeviceManagementDashboard() {
   const [activeTab, setActiveTab] = useState('devices');
 
-  // Common State
+  // Estados
   const [loading, setLoading] = useState(false);
   const [toast, notify, clearToast] = useToast();
   const { user } = useAuth();
 
-  // Devices State
+  // Datos
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
   const [deviceSearch, setDeviceSearch] = useState('');
@@ -522,19 +524,18 @@ export function DeviceManagementDashboard() {
   const [showDeviceForm, setShowDeviceForm] = useState(false);
   const [deviceForm, setDeviceForm] = useState({ name: '', type: 'pc', location_id: '', status: 'active' });
 
-  // Device Actions State
+  // Paginación y Logs
   const [actions, setActions] = useState([]);
   const [actionPage, setActionPage] = useState(1);
   const [actionTotal, setActionTotal] = useState(0);
 
-  // Audit Logs State
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditPage, setAuditPage] = useState(1);
   const [auditTotal, setAuditTotal] = useState(0);
 
   const perPage = 20;
 
-  // --- Data Fetching ---
+  // Carga de datos
   const loadDevices = useCallback(async () => {
     setLoading(true);
     try {
@@ -546,11 +547,8 @@ export function DeviceManagementDashboard() {
       
       const devData = await devRes.json();
       const locData = await locRes.json();
-      const devList = Array.isArray(devData) ? devData : (devData.items || devData.data || []);
-      const locList = Array.isArray(locData) ? locData : (locData.items || locData.data || []);
-      
-      setDevices(devList);
-      setLocations(locList);
+      setDevices(Array.isArray(devData) ? devData : (devData.items || devData.data || []));
+      setLocations(Array.isArray(locData) ? locData : (locData.items || locData.data || []));
     } catch (error) {
       notify(error.message, 'error');
     } finally {
@@ -563,7 +561,7 @@ export function DeviceManagementDashboard() {
     try {
       const params = new URLSearchParams({ page: String(actionPage), per_page: String(perPage) });
       const res = await apiFetch(`/device_actions?${params.toString()}`);
-      if (!res.ok) throw new Error('Error al cargar acciones de dispositivos');
+      if (!res.ok) throw new Error('Error al cargar acciones de IP');
       
       const data = await res.json();
       setActions(Array.isArray(data) ? data : (data.items || data.data || []));
@@ -598,37 +596,6 @@ export function DeviceManagementDashboard() {
     if (activeTab === 'audit') loadAuditLogs();
   }, [activeTab, loadDevices, loadActions, loadAuditLogs]);
 
-  // --- Handlers ---
-  const handleSaveDevice = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = {
-        name: deviceForm.name,
-        type: deviceForm.type,
-        status: deviceForm.status,
-        location_id: deviceForm.location_id ? parseInt(deviceForm.location_id, 10) : null
-      };
-
-      const res = await apiFetch('/devices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.message || 'Error al registrar dispositivo');
-      }
-
-      notify('Dispositivo registrado con éxito', 'success');
-      setShowDeviceForm(false);
-      setDeviceForm({ name: '', type: 'pc', location_id: '', status: 'active' });
-      loadDevices();
-    } catch (error) {
-      notify(error.message, 'error');
-    }
-  };
-
   const filteredDevices = useMemo(() => {
     const q = deviceSearch.trim().toLowerCase();
     return devices.filter(device => {
@@ -638,69 +605,32 @@ export function DeviceManagementDashboard() {
     });
   }, [devices, deviceSearch, deviceStatus]);
 
-  const locationMap = useMemo(() => new Map(locations.map(loc => [String(loc.id), loc.name])), [locations]);
-
-  // Helpers de renderizado de UI
-  const getDeviceIcon = (type) => {
-    switch (type) {
-      case 'laptop': return <Laptop className="w-5 h-5 text-indigo-400" />;
-      case 'mobile': return <Smartphone className="w-5 h-5 text-emerald-400" />;
-      case 'server': return <Server className="w-5 h-5 text-purple-400" />;
-      default: return <Monitor className="w-5 h-5 text-blue-400" />;
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    const styles = {
-      active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      available: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-      in_use: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-      maintenance: 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-    };
-    const label = {
-      active: 'Activo',
-      available: 'Disponible',
-      in_use: 'En uso',
-      maintenance: 'Mantenimiento'
-    }[status] || status || 'Activo';
-
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles[status] || styles.active}`}>
-        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-        {label}
-      </span>
-    );
-  };
-
   return (
     <div className="min-h-screen w-full bg-[#070b14] text-slate-100 p-4 sm:p-6 lg:p-8 font-sans antialiased">
       <div className="max-w-7xl mx-auto space-y-6">
 
-        {/* --- Header & Tabs Bar --- */}
+        {/* --- CABECERA Y SELECTOR DE PESTAÑAS --- */}
         <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 shadow-2xl space-y-6">
-          
-          {/* Top Header Row with Responsive Flex Wrap to prevent overlapping */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/80 pb-6">
             <div>
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0">
-                  <Monitor className="w-6 h-6" />
+                  <ShieldAlert className="w-6 h-6" />
                 </div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white truncate">
-                  Gestión y Auditoría de Dispositivos
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                  Módulo de Auditoría de IPs y Dispositivos
                 </h1>
               </div>
-              <p className="text-sm text-slate-400 mt-1 pl-0 sm:pl-12">
-                Administra el inventario de TI, monitorea eventos por IP y supervisa la bitácora del sistema.
+              <p className="text-sm text-slate-400 mt-1 sm:pl-12">
+                Control centralizado de infraestructura red, monitoreo de eventos por IP y trazabilidad de seguridad.
               </p>
             </div>
 
-            {/* Pestañas con animación reorganizadas para pantallas pequeñas y medianas */}
-            <div className="flex flex-wrap p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl self-start lg:self-auto">
+            <div className="flex flex-wrap p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl">
               {[
-                { id: 'devices', label: 'Dispositivos', icon: Monitor },
-                { id: 'actions', label: 'Acciones IP', icon: Activity },
-                { id: 'audit', label: 'Auditoría', icon: FileText }
+                { id: 'devices', label: '1. Dispositivos', icon: Monitor },
+                { id: 'actions', label: '2. Acciones IP', icon: Activity },
+                { id: 'audit', label: '3. Auditoría Global', icon: FileText }
               ].map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -727,307 +657,110 @@ export function DeviceManagementDashboard() {
             </div>
           </div>
 
+          {/* --- KPI STATS SUMMARY RESUMEN DE CONTROL --- */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatCard 
+              icon={<Monitor className="w-5 h-5" />} 
+              label="Total Dispositivos" 
+              value={devices.length} 
+              hint="Red de Equipos TI" 
+              tone="primary" 
+            />
+            <StatCard 
+              icon={<Wifi className="w-5 h-5" />} 
+              label="Eventos IP Capturados" 
+              value={actionTotal} 
+              hint="Tráfico & Acciones" 
+              tone="success" 
+            />
+            <StatCard 
+              icon={<ShieldAlert className="w-5 h-5" />} 
+              label="Registros de Auditoría" 
+              value={auditTotal} 
+              hint="Logs de Seguridad" 
+              tone="warning" 
+            />
+          </div>
+
           <Toast toast={toast} onClose={clearToast} />
 
-          {/* --- TAB CONTENT AREA --- */}
-          <AnimatePresence mode="wait">
+          {/* --- PESTAÑA 1: GESTIÓN DE DISPOSITIVOS --- */}
+          {activeTab === 'devices' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3 justify-between items-center">
+                <SearchField value={deviceSearch} onChange={setDeviceSearch} placeholder="Buscar por IP, nombre o tipo..." />
+                <select
+                  value={deviceStatus}
+                  onChange={(e) => setDeviceStatus(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 text-slate-300 rounded-xl px-3 py-2 text-sm"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="active">Activos</option>
+                  <option value="maintenance">Mantenimiento</option>
+                </select>
+              </div>
 
-            {/* TAB 1: DEVICES */}
-            {activeTab === 'devices' && (
-              <motion.div
-                key="tab-devices"
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="space-y-6"
-              >
-                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-                  <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-3 max-w-xl">
-                    <div className="relative flex-1">
-                      <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        value={deviceSearch}
-                        onChange={(e) => setDeviceSearch(e.target.value)}
-                        placeholder="Buscar dispositivo por nombre, tipo o IP..."
-                        className="w-full bg-slate-950/60 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-                      />
-                    </div>
-                    <div className="relative">
-                      <select
-                        value={deviceStatus}
-                        onChange={(e) => setDeviceStatus(e.target.value)}
-                        className="w-full sm:w-auto appearance-none bg-slate-950/60 border border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
-                      >
-                        <option value="all">Todos los estados</option>
-                        <option value="active">Activo</option>
-                        <option value="available">Disponible</option>
-                        <option value="in_use">En uso</option>
-                        <option value="maintenance">Mantenimiento</option>
-                      </select>
-                      <Filter className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    </div>
-                  </div>
+              {loading ? (
+                <LoadingState label="Cargando dispositivos..." />
+              ) : (
+                <DataTable
+                  columns={[
+                    { key: 'name', label: 'Dispositivo', render: (d) => <span className="font-semibold text-white">{d.name}</span> },
+                    { key: 'ip_address', label: 'Dirección IP', render: (d) => <code className="text-sky-400 font-mono">{d.ip_address || '—'}</code> },
+                    { key: 'type', label: 'Tipo', render: (d) => <span className="capitalize">{d.type}</span> },
+                    { key: 'status', label: 'Estado', render: (d) => <span className="px-2 py-1 rounded text-xs bg-slate-800 text-slate-300">{d.status}</span> }
+                  ]}
+                  rows={filteredDevices}
+                />
+              )}
+            </div>
+          )}
 
-                  {['admin', 'it_support'].includes(user?.role) && (
-                    <button
-                      onClick={() => setShowDeviceForm(!showDeviceForm)}
-                      className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg active:scale-95 shrink-0 ${
-                        showDeviceForm
-                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
-                      }`}
-                    >
-                      {showDeviceForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                      <span>{showDeviceForm ? 'Cancelar' : 'Nuevo Dispositivo'}</span>
-                    </button>
-                  )}
-                </div>
+          {/* --- PESTAÑA 2: TRAZABILIDAD DE ACCIONES POR IP --- */}
+          {activeTab === 'actions' && (
+            <div className="space-y-4">
+              {loading ? (
+                <LoadingState label="Cargando historial IP..." />
+              ) : (
+                <DataTable
+                  columns={[
+                    { key: 'ip_address', label: 'Dirección IP', render: (a) => <code className="text-sky-400 font-mono">{a.ip_address || '—'}</code> },
+                    { key: 'username', label: 'Usuario', render: (a) => a.username || 'Anónimo' },
+                    { key: 'action_type', label: 'Acción Ejecutada', render: (a) => <span className="bg-slate-800 px-2 py-0.5 rounded text-xs font-mono text-sky-300">{a.action_type}</span> },
+                    { key: 'created_at', label: 'Fecha / Hora', render: (a) => formatDate(a.created_at) }
+                  ]}
+                  rows={actions}
+                />
+              )}
+              <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+            </div>
+          )}
 
-                <AnimatePresence>
-                  {showDeviceForm && (
-                    <motion.form
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25 }}
-                      onSubmit={handleSaveDevice}
-                      className="overflow-hidden"
-                    >
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 bg-slate-950/80 p-5 rounded-2xl border border-slate-800/80 shadow-inner">
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Nombre *</label>
-                          <input
-                            type="text"
-                            placeholder="Ej. PC-URGENCIAS-01"
-                            value={deviceForm.name}
-                            onChange={(e) => setDeviceForm({ ...deviceForm, name: e.target.value })}
-                            required
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Tipo</label>
-                          <select
-                            value={deviceForm.type}
-                            onChange={(e) => setDeviceForm({ ...deviceForm, type: e.target.value })}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
-                          >
-                            <option value="pc">PC de Escritorio</option>
-                            <option value="laptop">Laptop</option>
-                            <option value="mobile">Móvil</option>
-                            <option value="server">Servidor</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Estado</label>
-                          <select
-                            value={deviceForm.status}
-                            onChange={(e) => setDeviceForm({ ...deviceForm, status: e.target.value })}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
-                          >
-                            <option value="active">Activo</option>
-                            <option value="available">Disponible</option>
-                            <option value="in_use">En uso</option>
-                            <option value="maintenance">Mantenimiento</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-semibold text-slate-400 mb-1.5">Ubicación</label>
-                          <select
-                            value={deviceForm.location_id}
-                            onChange={(e) => setDeviceForm({ ...deviceForm, location_id: e.target.value })}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:border-blue-500 outline-none"
-                          >
-                            <option value="">Sin ubicación</option>
-                            {locations.map((l) => (
-                              <option key={l.id} value={l.id}>{l.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex items-end">
-                          <button
-                            type="submit"
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-all shadow-md shadow-blue-600/20 active:scale-95"
-                          >
-                            Guardar Dispositivo
-                          </button>
-                        </div>
-                      </div>
-                    </motion.form>
-                  )}
-                </AnimatePresence>
+          {/* --- PESTAÑA 3: AUDITORÍA DEL SISTEMA --- */}
+          {activeTab === 'audit' && (
+            <div className="space-y-4">
+              {loading ? (
+                <LoadingState label="Cargando bitácora del sistema..." />
+              ) : (
+                <DataTable
+                  columns={[
+                    { key: 'entity_type', label: 'Entidad', render: (log) => <span className="font-semibold text-purple-300">{log.entity_type}</span> },
+                    { key: 'action', label: 'Operación', render: (log) => <span className="bg-purple-950 text-purple-300 px-2 py-0.5 rounded text-xs font-mono">{log.action}</span> },
+                    { key: 'details', label: 'Detalles', render: (log) => log.details || 'Sin detalles' },
+                    { key: 'created_at', label: 'Fecha Registro', render: (log) => formatDate(log.created_at) }
+                  ]}
+                  rows={auditLogs}
+                />
+              )}
+              <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
+            </div>
+          )}
 
-                {loading ? (
-                  <LoadingState label="Cargando catálogo de dispositivos..." />
-                ) : filteredDevices.length === 0 ? (
-                  <EmptyState icon={Monitor} title="No hay dispositivos" description="No se encontraron registros acordes con los filtros especificados." />
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {filteredDevices.map((device) => (
-                      <motion.div
-                        key={device.id}
-                        variants={cardHoverVariants}
-                        whileHover="hover"
-                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-2xl p-4 flex flex-col justify-between gap-4 transition-all shadow-lg"
-                      >
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="p-2 bg-slate-900 rounded-xl border border-slate-800">
-                              {getDeviceIcon(device.type)}
-                            </div>
-                            {getStatusBadge(device.status)}
-                          </div>
-
-                          <div>
-                            <h3 className="font-semibold text-slate-100 text-base line-clamp-1">{device.name}</h3>
-                            <p className="text-xs text-slate-400 capitalize mt-0.5">{device.type || 'Tipo No Especificado'}</p>
-                          </div>
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
-                          <div className="flex items-center gap-1.5 font-mono text-slate-300">
-                            <Wifi className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                            <span className="truncate">{device.ip_address || '—'}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-slate-400 max-w-[120px] truncate">
-                            <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                            <span className="truncate">{locationMap.get(String(device.location_id)) || 'Sin asignación'}</span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-            {/* TAB 2: DEVICE ACTIONS */}
-            {activeTab === 'actions' && (
-              <motion.div
-                key="tab-actions"
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="space-y-4"
-              >
-                {loading ? (
-                  <LoadingState label="Cargando trazabilidad IP..." />
-                ) : actions.length === 0 ? (
-                  <EmptyState icon={Activity} title="Sin eventos IP registrados" description="No hay logs recientes de interacción de dispositivos." />
-                ) : (
-                  <div className="space-y-2.5">
-                    {actions.map((act) => (
-                      <motion.div
-                        key={act.id}
-                        variants={cardHoverVariants}
-                        whileHover="hover"
-                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-md"
-                      >
-                        <div className="flex items-start md:items-center gap-4">
-                          <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400 shrink-0">
-                            <Activity className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold text-white">
-                                {act.username || (act.user_id ? `Usuario #${act.user_id}` : 'Anónimo')}
-                              </span>
-                              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 text-sky-300 border border-slate-700">
-                                {act.action_type}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-400 mt-1">
-                              {act.details || `${act.entity_type || 'Entidad'} #${act.entity_id || ''}`}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 text-xs text-slate-400 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800/80 shrink-0">
-                          <div className="flex items-center gap-1 font-mono bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
-                            <Wifi className="w-3.5 h-3.5 text-sky-400" />
-                            <span className="text-slate-200">{act.ip_address || '—'}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                            <span>{act.created_at}</span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-                <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
-              </motion.div>
-            )}
-
-            {/* TAB 3: AUDIT LOGS */}
-            {activeTab === 'audit' && (
-              <motion.div
-                key="tab-audit"
-                variants={fadeInVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="space-y-4"
-              >
-                {loading ? (
-                  <LoadingState label="Cargando registros del sistema..." />
-                ) : auditLogs.length === 0 ? (
-                  <EmptyState icon={FileText} title="Sin registros de auditoría" description="No hay eventos en la bitácora." />
-                ) : (
-                  <div className="space-y-2.5">
-                    {auditLogs.map((log) => (
-                      <motion.div
-                        key={log.id}
-                        variants={cardHoverVariants}
-                        whileHover="hover"
-                        className="bg-slate-950/50 border border-slate-800/80 hover:border-slate-700/80 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-md"
-                      >
-                        <div className="flex items-start md:items-center gap-4">
-                          <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-purple-400 shrink-0">
-                            <Layers className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold text-white">
-                                Entidad: {log.entity_type} {log.entity_id ? `(#${log.entity_id})` : ''}
-                              </span>
-                              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-purple-950/50 text-purple-300 border border-purple-800/50">
-                                {log.action}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-400 mt-1">{log.details || 'Sin detalles adicionales'}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 text-xs text-slate-400 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800/80 shrink-0">
-                          <div className="flex items-center gap-1.5">
-                            <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-                            <span className="text-slate-300">{log.user_id ? `ID: ${log.user_id}` : 'Sistema'}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                            <span>{log.created_at}</span>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
-              </motion.div>
-            )}
-
-          </AnimatePresence>
         </div>
       </div>
     </div>
   );
 }
-
 
 // ============================================================
 // Patients Component
