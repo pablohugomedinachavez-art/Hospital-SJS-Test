@@ -25,57 +25,7 @@ import {
 } from 'lucide-react';
 
 
-// ============================================================
-// --- Componentes UX Secundarios Compartidos ---
-// ============================================================
 
-export function LoadingState({ label = 'Cargando información...' }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
-      <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      <span className="text-sm font-medium animate-pulse">{label}</span>
-    </div>
-  );
-}
-
-export function EmptyState({ icon: Icon, title = 'Sin datos', description = 'No encontramos registros para mostrar.' }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/30">
-      <div className="p-3 bg-slate-900 border border-slate-800 rounded-2xl text-slate-500 mb-3">
-        {Icon ? <Icon className="w-8 h-8" /> : <span className="text-xl">⌕</span>}
-      </div>
-      <h3 className="text-base font-semibold text-slate-200">{title}</h3>
-      {description && <p className="text-xs text-slate-500 max-w-sm mt-1">{description}</p>}
-    </div>
-  );
-}
-
-export function Pagination({ page, perPage, total, onPrev, onNext }) {
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
-  return (
-    <div className="flex items-center justify-between pt-4 border-t border-slate-800/80 text-xs text-slate-400">
-      <span>Página {page} de {totalPages} ({total} registros totales)</span>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onPrev}
-          disabled={page <= 1}
-          aria-label="Página anterior"
-          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onNext}
-          disabled={page >= totalPages}
-          aria-label="Página siguiente"
-          className="p-2 rounded-lg border border-slate-800 bg-slate-950 hover:bg-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ============================================================
 // --- Componentes UX Secundarios Compartidos ---
@@ -4843,4 +4793,3 @@ export function Profile() {
   return <PageShell title="Mi perfil" subtitle="Resumen de identidad y actividad dentro del sistema."><Toast toast={toast} onClose={clearToast} />{loading ? <SectionCard><LoadingState label="Cargando perfil…" /></SectionCard> : profile ? <><SectionCard title="Información de cuenta" icon="◎"><div className="profile-hero"><div className="profile-avatar">{(profile.username || user?.email || 'U').charAt(0).toUpperCase()}</div><div><div className="card-kicker">Usuario</div><h2>{profile.username}</h2><span className="badge badge-info">{profile.role_name || profile.role}</span></div></div><div className="profile-grid"><div><span className="meta-label">Rol</span><strong>{profile.role_name || profile.role}</strong></div><div><span className="meta-label">Tenant</span><strong>#{profile.tenant_id}</strong></div><div><span className="meta-label">Alta</span><strong>{formatDate(profile.created_at)}</strong></div><div><span className="meta-label">Permisos</span><strong>{profile.permissions?.length ?? 0}</strong></div></div></SectionCard><div className="stats-grid"><StatCard icon="👥" label="Pacientes" value={profile.counts?.patients ?? 0} /><StatCard icon="🩺" label="Consultas" value={profile.counts?.consultations ?? 0} tone="success" /><StatCard icon="◷" label="Citas" value={profile.counts?.appointments ?? 0} tone="primary" /><StatCard icon="▤" label="Documentos" value={profile.counts?.documents ?? 0} tone="warning" /></div></> : <SectionCard><EmptyState title="No se pudo cargar el perfil" /></SectionCard>}</PageShell>
 }
 
-export { calculateBMI, parseBrowser }
