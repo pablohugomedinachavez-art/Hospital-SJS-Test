@@ -546,8 +546,12 @@ export function DeviceManagementDashboard() {
       
       const devData = await devRes.json();
       const locData = await locRes.json();
-      setDevices(Array.isArray(devData) ? devData : []);
-      setLocations(Array.isArray(locData) ? locData : []);
+      // Handle both direct arrays and wrapped responses like { items: [...] } or { data: [...] }
+      const devList = Array.isArray(devData) ? devData : (devData.items || devData.data || []);
+      const locList = Array.isArray(locData) ? locData : (locData.items || locData.data || []);
+      
+      setDevices(devList);
+      setLocations(locList);
     } catch (error) {
       notify(error.message, 'error');
     } finally {
@@ -563,8 +567,8 @@ export function DeviceManagementDashboard() {
       if (!res.ok) throw new Error('Error al cargar acciones de dispositivos');
       
       const data = await res.json();
-      setActions(Array.isArray(data.items) ? data.items : []);
-      setActionTotal(data.total || 0);
+      setActions(Array.isArray(data) ? data : (data.items || data.data || []));
+      setActionTotal(data.total || (Array.isArray(data) ? data.length : 0));
     } catch (error) {
       notify(error.message, 'error');
     } finally {
@@ -580,8 +584,8 @@ export function DeviceManagementDashboard() {
       if (!res.ok) throw new Error('Error al cargar logs de auditoría');
       
       const data = await res.json();
-      setAuditLogs(Array.isArray(data.items) ? data.items : []);
-      setAuditTotal(data.total || 0);
+      setAuditLogs(Array.isArray(data) ? data : (data.items || data.data || []));
+      setAuditTotal(data.total || (Array.isArray(data) ? data.length : 0));
     } catch (error) {
       notify(error.message, 'error');
     } finally {
