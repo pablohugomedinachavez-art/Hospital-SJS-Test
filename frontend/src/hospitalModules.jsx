@@ -546,7 +546,6 @@ export function DeviceManagementDashboard() {
       
       const devData = await devRes.json();
       const locData = await locRes.json();
-      // Handle both direct arrays and wrapped responses like { items: [...] } or { data: [...] }
       const devList = Array.isArray(devData) ? devData : (devData.items || devData.data || []);
       const locList = Array.isArray(locData) ? locData : (locData.items || locData.data || []);
       
@@ -679,23 +678,25 @@ export function DeviceManagementDashboard() {
 
         {/* --- Header & Tabs Bar --- */}
         <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 shadow-2xl space-y-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-6">
+          
+          {/* Top Header Row with Responsive Flex Wrap to prevent overlapping */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/80 pb-6">
             <div>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0">
                   <Monitor className="w-6 h-6" />
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight text-white">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white truncate">
                   Gestión y Auditoría de Dispositivos
                 </h1>
               </div>
-              <p className="text-sm text-slate-400 mt-1 pl-12">
+              <p className="text-sm text-slate-400 mt-1 pl-0 sm:pl-12">
                 Administra el inventario de TI, monitorea eventos por IP y supervisa la bitácora del sistema.
               </p>
             </div>
 
-            {/* Pestañas con animación */}
-            <div className="flex p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl">
+            {/* Pestañas con animación reorganizadas para pantallas pequeñas y medianas */}
+            <div className="flex flex-wrap p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl self-start lg:self-auto">
               {[
                 { id: 'devices', label: 'Dispositivos', icon: Monitor },
                 { id: 'actions', label: 'Acciones IP', icon: Activity },
@@ -707,7 +708,7 @@ export function DeviceManagementDashboard() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors z-10 ${
+                    className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors z-10 ${
                       isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -718,7 +719,7 @@ export function DeviceManagementDashboard() {
                         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                       />
                     )}
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-4 h-4 shrink-0" />
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -741,8 +742,8 @@ export function DeviceManagementDashboard() {
                 exit="exit"
                 className="space-y-6"
               >
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-                  <div className="flex flex-1 items-center gap-3 max-w-xl">
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row flex-1 items-stretch sm:items-center gap-3 max-w-xl">
                     <div className="relative flex-1">
                       <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
@@ -757,7 +758,7 @@ export function DeviceManagementDashboard() {
                       <select
                         value={deviceStatus}
                         onChange={(e) => setDeviceStatus(e.target.value)}
-                        className="appearance-none bg-slate-950/60 border border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
+                        className="w-full sm:w-auto appearance-none bg-slate-950/60 border border-slate-800 rounded-xl pl-4 pr-10 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
                       >
                         <option value="all">Todos los estados</option>
                         <option value="active">Activo</option>
@@ -772,7 +773,7 @@ export function DeviceManagementDashboard() {
                   {['admin', 'it_support'].includes(user?.role) && (
                     <button
                       onClick={() => setShowDeviceForm(!showDeviceForm)}
-                      className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg active:scale-95 ${
+                      className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-lg active:scale-95 shrink-0 ${
                         showDeviceForm
                           ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
                           : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
@@ -887,8 +888,8 @@ export function DeviceManagementDashboard() {
 
                         <div className="pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
                           <div className="flex items-center gap-1.5 font-mono text-slate-300">
-                            <Wifi className="w-3.5 h-3.5 text-sky-400" />
-                            <span>{device.ip_address || '—'}</span>
+                            <Wifi className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                            <span className="truncate">{device.ip_address || '—'}</span>
                           </div>
                           <div className="flex items-center gap-1 text-slate-400 max-w-[120px] truncate">
                             <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -1026,7 +1027,6 @@ export function DeviceManagementDashboard() {
     </div>
   );
 }
-
 
 
 // ============================================================
