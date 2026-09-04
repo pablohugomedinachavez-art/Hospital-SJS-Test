@@ -606,30 +606,29 @@ export function DeviceManagementDashboard() {
   }, [devices, deviceSearch, deviceStatus]);
 
   return (
-    <div className="min-h-screen w-full bg-[#0b0f19] text-slate-100 p-4 sm:p-6 lg:p-8 font-sans antialiased">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen w-full bg-[#070b14] text-slate-100 p-6 lg:p-10 font-sans antialiased">
+      <div className="max-w-7xl mx-auto space-y-8">
 
-        {/* --- HEADER & NAVIGATION TABS --- */}
-        <div className="bg-slate-900/80 backdrop-blur-md border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-6">
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-slate-800/80 pb-6">
-            
-            {/* Header Title */}
+        {/* --- HEADER BLOCK --- */}
+        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 lg:p-8 shadow-2xl space-y-8">
+          
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/80 pb-8">
             <div className="flex items-start gap-4">
-              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0 shadow-inner">
-                <ShieldAlert className="w-7 h-7" />
+              <div className="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0">
+                <ShieldAlert className="w-8 h-8" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-3">
+              <div className="space-y-1">
+                <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-white">
                   Módulo de Auditoría de IPs y Dispositivos
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-sm text-slate-400">
                   Control centralizado de infraestructura red, monitoreo de eventos por IP y trazabilidad de seguridad.
                 </p>
               </div>
             </div>
 
-            {/* Clean Tab Controls */}
-            <div className="flex items-center gap-1.5 p-1.5 bg-slate-950/90 border border-slate-800 rounded-xl self-start xl:self-auto">
+            {/* TAB CONTROLS WITH SPACED PILLS */}
+            <div className="flex items-center gap-3 p-2 bg-slate-950/80 border border-slate-800/80 rounded-xl shrink-0 overflow-x-auto">
               {[
                 { id: 'devices', label: '1. Dispositivos', icon: Monitor },
                 { id: 'actions', label: '2. Acciones IP', icon: Activity },
@@ -641,10 +640,10 @@ export function DeviceManagementDashboard() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`relative flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
+                    className={`flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                       isActive 
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
                     }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
@@ -655,24 +654,24 @@ export function DeviceManagementDashboard() {
             </div>
           </div>
 
-          {/* --- METRIC STAT CARDS --- */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* --- KPI STAT CARDS WITH MARGIN & GAP --- */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <StatCard 
-              icon={<Monitor className="w-5 h-5 text-blue-400" />} 
+              icon={<Monitor className="w-6 h-6 text-blue-400" />} 
               label="TOTAL DISPOSITIVOS" 
               value={devices.length} 
               hint="Red de Equipos TI" 
               tone="primary" 
             />
             <StatCard 
-              icon={<Wifi className="w-5 h-5 text-emerald-400" />} 
+              icon={<Wifi className="w-6 h-6 text-emerald-400" />} 
               label="EVENTOS IP CAPTURADOS" 
               value={actionTotal} 
               hint="Tráfico & Acciones" 
               tone="success" 
             />
             <StatCard 
-              icon={<ShieldAlert className="w-5 h-5 text-amber-400" />} 
+              icon={<ShieldAlert className="w-6 h-6 text-amber-400" />} 
               label="REGISTROS DE AUDITORÍA" 
               value={auditTotal} 
               hint="Logs de Seguridad" 
@@ -682,28 +681,29 @@ export function DeviceManagementDashboard() {
 
           <Toast toast={toast} onClose={clearToast} />
 
-          {/* --- TAB 1: DEVICE INVENTORY --- */}
+          {/* --- TAB 1: DISPOSITIVOS (SPACED LAYOUT) --- */}
           {activeTab === 'devices' && (
-            <div className="space-y-5 pt-2">
-              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-950/40 p-3 rounded-xl border border-slate-800/50">
-                {/* Search Input with Integrated Icon */}
-                <div className="relative w-full sm:w-80">
+            <div className="space-y-6 pt-4">
+              
+              {/* Toolbar */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                <div className="relative w-full sm:w-96">
                   <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     value={deviceSearch}
                     onChange={(e) => setDeviceSearch(e.target.value)}
                     placeholder="Buscar por IP, nombre o tipo..."
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-500 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                    className="w-full bg-slate-900 border border-slate-800 text-slate-200 placeholder-slate-500 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-blue-500/50"
                   />
                 </div>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                  <Filter className="w-4 h-4 text-slate-400 hidden sm:block" />
+                  <Filter className="w-4 h-4 text-slate-400" />
                   <select
                     value={deviceStatus}
                     onChange={(e) => setDeviceStatus(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 text-slate-300 rounded-lg px-3.5 py-2 text-sm focus:outline-none focus:border-blue-500/50 w-full sm:w-auto"
+                    className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-blue-500/50"
                   >
                     <option value="all">Todos los estados</option>
                     <option value="active">Activos</option>
@@ -712,27 +712,42 @@ export function DeviceManagementDashboard() {
                 </div>
               </div>
 
+              {/* Table Container with Generous Row Padding */}
               {loading ? (
                 <LoadingState label="Cargando dispositivos..." />
               ) : (
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/20">
+                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { key: 'name', label: 'Dispositivo', render: (d) => <span className="font-medium text-white">{d.name}</span> },
-                      { key: 'ip_address', label: 'Dirección IP', render: (d) => <code className="text-sky-400 font-mono text-xs bg-sky-950/40 border border-sky-800/40 px-2 py-1 rounded-md">{d.ip_address || '—'}</code> },
-                      { key: 'type', label: 'Tipo', render: (d) => <span className="capitalize text-slate-300 text-xs bg-slate-800/60 px-2.5 py-1 rounded-md border border-slate-700/50">{d.type}</span> },
+                      { 
+                        key: 'name', 
+                        label: 'Dispositivo', 
+                        render: (d) => <div className="py-2"><span className="font-semibold text-white text-base">{d.name}</span></div> 
+                      },
+                      { 
+                        key: 'ip_address', 
+                        label: 'Dirección IP', 
+                        render: (d) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{d.ip_address || '—'}</code></div> 
+                      },
+                      { 
+                        key: 'type', 
+                        label: 'Tipo', 
+                        render: (d) => <div className="py-2"><span className="capitalize text-slate-300 text-sm bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">{d.type}</span></div> 
+                      },
                       { 
                         key: 'status', 
                         label: 'Estado', 
                         render: (d) => (
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            d.status === 'active' 
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${d.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                            {d.status}
-                          </span>
+                          <div className="py-2">
+                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                              d.status === 'active' 
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            }`}>
+                              <span className={`w-2 h-2 rounded-full ${d.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                              {d.status}
+                            </span>
+                          </div>
                         ) 
                       }
                     ]}
@@ -743,47 +758,83 @@ export function DeviceManagementDashboard() {
             </div>
           )}
 
-          {/* --- TAB 2: IP ACTIONS TRAIL --- */}
+          {/* --- TAB 2: ACCIONES IP --- */}
           {activeTab === 'actions' && (
-            <div className="space-y-4 pt-2">
+            <div className="space-y-6 pt-4">
               {loading ? (
                 <LoadingState label="Cargando historial IP..." />
               ) : (
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/20">
+                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { key: 'ip_address', label: 'Dirección IP', render: (a) => <code className="text-sky-400 font-mono text-xs bg-sky-950/40 border border-sky-800/40 px-2 py-1 rounded-md">{a.ip_address || '—'}</code> },
-                      { key: 'username', label: 'Usuario', render: (a) => <span className="text-slate-300 font-medium">{a.username || 'Anónimo'}</span> },
-                      { key: 'action_type', label: 'Acción Ejecutada', render: (a) => <span className="bg-slate-800 text-slate-200 border border-slate-700/60 px-2.5 py-1 rounded-md text-xs font-mono">{a.action_type}</span> },
-                      { key: 'created_at', label: 'Fecha / Hora', render: (a) => <span className="text-slate-400 text-xs">{formatDate(a.created_at)}</span> }
+                      { 
+                        key: 'ip_address', 
+                        label: 'Dirección IP', 
+                        render: (a) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{a.ip_address || '—'}</code></div> 
+                      },
+                      { 
+                        key: 'username', 
+                        label: 'Usuario', 
+                        render: (a) => <div className="py-2"><span className="text-slate-200 font-medium">{a.username || 'Anónimo'}</span></div> 
+                      },
+                      { 
+                        key: 'action_type', 
+                        label: 'Acción Ejecutada', 
+                        render: (a) => <div className="py-2"><span className="bg-slate-800 text-slate-200 border border-slate-700/60 px-3 py-1.5 rounded-lg text-xs font-mono">{a.action_type}</span></div> 
+                      },
+                      { 
+                        key: 'created_at', 
+                        label: 'Fecha / Hora', 
+                        render: (a) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(a.created_at)}</span></div> 
+                      }
                     ]}
                     rows={actions}
                   />
                 </div>
               )}
-              <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+              <div className="pt-2">
+                <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+              </div>
             </div>
           )}
 
-          {/* --- TAB 3: AUDIT LOGS --- */}
+          {/* --- TAB 3: AUDITORÍA GLOBAL --- */}
           {activeTab === 'audit' && (
-            <div className="space-y-4 pt-2">
+            <div className="space-y-6 pt-4">
               {loading ? (
                 <LoadingState label="Cargando bitácora del sistema..." />
               ) : (
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/20">
+                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { key: 'entity_type', label: 'Entidad', render: (log) => <span className="font-semibold text-purple-300">{log.entity_type}</span> },
-                      { key: 'action', label: 'Operación', render: (log) => <span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-2.5 py-1 rounded-md text-xs font-mono">{log.action}</span> },
-                      { key: 'details', label: 'Detalles', render: (log) => <span className="text-slate-300 text-xs">{log.details || 'Sin detalles'}</span> },
-                      { key: 'created_at', label: 'Fecha Registro', render: (log) => <span className="text-slate-400 text-xs">{formatDate(log.created_at)}</span> }
+                      { 
+                        key: 'entity_type', 
+                        label: 'Entidad', 
+                        render: (log) => <div className="py-2"><span className="font-semibold text-purple-300">{log.entity_type}</span></div> 
+                      },
+                      { 
+                        key: 'action', 
+                        label: 'Operación', 
+                        render: (log) => <div className="py-2"><span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-3 py-1.5 rounded-lg text-xs font-mono">{log.action}</span></div> 
+                      },
+                      { 
+                        key: 'details', 
+                        label: 'Detalles', 
+                        render: (log) => <div className="py-2"><span className="text-slate-300 text-xs">{log.details || 'Sin detalles'}</span></div> 
+                      },
+                      { 
+                        key: 'created_at', 
+                        label: 'Fecha Registro', 
+                        render: (log) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(log.created_at)}</span></div> 
+                      }
                     ]}
                     rows={auditLogs}
                   />
                 </div>
               )}
-              <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
+              <div className="pt-2">
+                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+              </div>
             </div>
           )}
 
