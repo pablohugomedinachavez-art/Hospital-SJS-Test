@@ -10,7 +10,7 @@ export function Login() {
   const [passwordError, setPasswordError] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Estados para Modal de Recuperación
+  // Estados para el Modal de Recuperación
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [forgotMessage, setForgotMessage] = useState('');
@@ -37,7 +37,10 @@ export function Login() {
     } catch (err) {
       const msg = err.message || 'Error de autenticación';
       setError(msg);
-      if (!isRegister) setPasswordError(true);
+
+      if (!isRegister) {
+        setPasswordError(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -49,7 +52,9 @@ export function Login() {
     setForgotLoading(true);
 
     try {
-      if (resetPassword) await resetPassword(resetEmail);
+      if (resetPassword) {
+        await resetPassword(resetEmail);
+      }
       setForgotMessage('Se han enviado las instrucciones a tu correo.');
       setTimeout(() => {
         setShowForgotModal(false);
@@ -63,197 +68,243 @@ export function Login() {
     }
   };
 
+  const toggleMode = () => {
+    setIsRegister(!isRegister);
+    setError('');
+    setPasswordError(false);
+  };
+
   return (
-    <div style={styles.pageContainer}>
-      {/* ----------------- FONDO MOSAICO (LAYOUT DE LA FOTO) ----------------- */}
-      <div style={styles.backgroundGrid}>
-        {/* Lado Izquierdo Oscuro / Radiografía / Estetoscopio */}
-        <div style={styles.bgLeftSection}>
-          <div style={styles.bgOverlayDark} />
-          {/* Ilustración o SVG de Ecocardiograma / Monitor de Signos Vitales */}
-          <div style={styles.ecgMonitorGraphic}>
-            <svg viewBox="0 0 200 150" fill="none" style={styles.ecgSvg}>
-              <rect x="10" y="10" width="180" height="130" rx="15" stroke="rgba(255,255,255,0.2)" strokeWidth="3" fill="rgba(15,23,42,0.6)" />
-              <path d="M 20 80 L 60 80 L 70 50 L 80 110 L 95 30 L 110 95 L 120 80 L 180 80" stroke="#38bdf8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-        </div>
+    <div style={styles.overlay}>
+      {/* Keyframes de animación para el cardiograma */}
+      <style>
+        {`
+          @keyframes ecgDash {
+            0% {
+              stroke-dashoffset: 1000;
+            }
+            100% {
+              stroke-dashoffset: 0;
+            }
+          }
+          .ecg-path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: ecgDash 3s linear infinite;
+          }
+        `}
+      </style>
 
-        {/* Lado Derecho Superior con Foto del Hospital */}
-        <div style={styles.bgRightTopSection}>
-          <div style={styles.bgHospitalPhoto} />
-          <div style={styles.bgOverlayBlueTint} />
-        </div>
-
-        {/* Cuadrantes Inferiores (Gotas, Pulso, Caduceo) */}
-        <div style={styles.bgBottomGrid}>
-          <div style={styles.bgBottomLeft}>
-            {/* Icono de gotas de sangre / agua */}
-            <svg style={styles.dropIcon} viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-            </svg>
-          </div>
-          <div style={styles.bgBottomCenter}>
-            {/* Onda ECG azul brillante */}
-            <svg viewBox="0 0 100 40" style={{ width: '80%', height: '40px' }}>
-              <path d="M 0 20 L 30 20 L 38 5 L 46 35 L 54 10 L 62 25 L 70 20 L 100 20" stroke="#00d2ff" strokeWidth="2.5" fill="none" />
-            </svg>
-          </div>
-          <div style={styles.bgBottomRight}>
-            {/* Símbolo Caduceo / Medicina */}
-            <svg style={styles.caduceusIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 2v20M9 5c0 3 6 3 6 6s-6 3-6 6 6 3 6 3M15 5c0 3-6 3-6 6s6 3 6 6-6 3-6 3" />
-            </svg>
-          </div>
-        </div>
+      {/* Animación del Cardiograma al Fondo de la Tarjeta */}
+      <div style={styles.ecgBackground}>
+        <svg
+          viewBox="0 0 1200 150"
+          preserveAspectRatio="none"
+          style={styles.ecgSvg}
+        >
+          <path
+            className="ecg-path"
+            d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
+            fill="none"
+            stroke="#2563eb"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </div>
 
-      {/* ----------------- HEADER CON CURVA Y LOGO REDONDO ----------------- */}
-      <header style={styles.topHeader}>
-        <div style={styles.curvedWhiteCard}>
-          <img
-            src="/assets/logo-hospital.png"
-            alt="Hospital San José Chincha"
-            style={styles.hospitalLogoRound}
-          />
+      {/* Header Institucional */}
+      <header style={styles.header}>
+        <div style={styles.brandContainer}>
+          <div style={styles.logoBadge}>
+            <svg style={styles.logoIcon} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </div>
+          <h1 style={styles.hospitalTitle}>Hospital San José de Chincha</h1>
         </div>
-        <div style={styles.areaBadge}>ÁREA DE SEGUROS</div>
+        <span style={styles.areaBadge}>Área de Seguros</span>
       </header>
 
-      {/* ----------------- FORMULARIO CENTRAL GLASSMORPHISM CELESTE ----------------- */}
-      <main style={styles.mainContent}>
-        <div style={styles.glassCard}>
-          <div style={styles.cardHeader}>
-            <h2 style={styles.cardTitle}>
-              {isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}
-            </h2>
-            <p style={styles.cardSubtitle}>
-              {isRegister
-                ? 'Ingresa tus datos para registrarte'
-                : 'Accede con tus credenciales autorizadas'}
-            </p>
+      {/* Tarjeta Central */}
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <h2 style={styles.cardTitle}>
+            {isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}
+          </h2>
+          <p style={styles.cardSubtitle}>
+            {isRegister
+              ? 'Ingresa tus datos para registrarte en el sistema'
+              : 'Accede con tus credenciales autorizadas'}
+          </p>
+        </div>
+
+        {/* Alerta General (Sólo en caso de errores distintos a contraseña) */}
+        {error && !passwordError && (
+          <div style={styles.errorBox}>
+            <svg style={styles.errorIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={styles.form}>
+          {/* Campo Usuario */}
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Usuario / Correo</label>
+            <div style={styles.inputWrapper}>
+              <svg style={styles.inputIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Ingresa tu usuario o correo"
+                style={styles.input}
+              />
+            </div>
           </div>
 
-          {error && !passwordError && (
-            <div style={styles.errorAlert}>
-              <span>{error}</span>
+          {/* Campo Contraseña */}
+          <div style={styles.fieldGroup}>
+            <label style={styles.label}>Contraseña</label>
+            <div style={styles.inputWrapper}>
+              <svg
+                style={{ ...styles.inputIcon, color: passwordError ? '#f87171' : '#64748b' }}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (passwordError) setPasswordError(false);
+                }}
+                placeholder="••••••••"
+                style={{
+                  ...styles.input,
+                  paddingRight: '42px',
+                  borderColor: passwordError ? '#ef4444' : '#334155',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                {showPassword ? (
+                  <svg style={styles.actionIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg style={styles.actionIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12c1.341-4.55 5.43-7.5 9.964-7.5 4.533 0 8.623 2.95 9.964 7.5-1.341 4.55-5.43 7.5-9.964 7.5-4.533 0-8.623-2.95-9.964-7.5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </button>
             </div>
-          )}
 
-          <form onSubmit={handleSubmit} style={styles.form}>
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>USUARIO / CORREO</label>
-              <div style={styles.inputContainer}>
-                <svg style={styles.inputIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                </svg>
-                <input
-                  type="text"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Ingresa tu usuario o correo"
-                  style={styles.input}
-                />
-              </div>
-            </div>
-
-            <div style={styles.fieldGroup}>
-              <label style={styles.label}>CONTRASEÑA</label>
-              <div style={styles.inputContainer}>
-                <svg style={styles.inputIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                </svg>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (passwordError) setPasswordError(false);
-                  }}
-                  placeholder="••••••••"
-                  style={styles.input}
-                />
+            {/* SECCIÓN DE ERROR Y RECUPERACIÓN */}
+            {passwordError && (
+              <div style={styles.passwordErrorContainer}>
+                <div style={styles.passwordErrorText}>
+                  <svg style={styles.miniErrorIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                  </svg>
+                  <span>Contraseña incorrecta. Por favor vuelve a intentarlo.</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={styles.eyeBtn}
+                  onClick={() => setShowForgotModal(true)}
+                  style={styles.inlineForgotBtn}
                 >
-                  <svg style={{ width: '18px', height: '18px', color: '#64748b' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12c1.341-4.55 5.43-7.5 9.964-7.5 4.533 0 8.623 2.95 9.964 7.5-1.341 4.55-5.43 7.5-9.964 7.5-4.533 0-8.623-2.95-9.964-7.5z" />
-                  </svg>
+                  ¿Olvidaste tu contraseña?
                 </button>
               </div>
-
-              {passwordError && (
-                <div style={styles.passwordErrorBox}>
-                  <span>Contraseña incorrecta.</span>
-                  <button type="button" onClick={() => setShowForgotModal(true)} style={styles.forgotBtn}>
-                    ¿Olvidaste tu contraseña?
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <button type="submit" disabled={loading} style={styles.submitButton}>
-              {loading ? 'Ingresando...' : isRegister ? 'Registrarse' : 'Ingresar'}
-            </button>
-          </form>
-
-          <div style={styles.statusIndicator}>
-            <svg style={styles.heartIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-            </svg>
-            <span style={{ fontSize: '0.8rem', color: '#1e3a8a' }}>Validando...</span>
+            )}
           </div>
 
-          <div style={styles.footerToggle}>
-            <span style={{ fontSize: '0.8rem', color: '#334155' }}>
-              {isRegister ? '¿Ya tienes una cuenta?' : '¿No tienes una cuenta?'}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setIsRegister(!isRegister);
-                setError('');
-              }}
-              style={styles.toggleLink}
-            >
-              {isRegister ? 'Inicia sesión aquí' : 'Regístrate aquí'}
-            </button>
-          </div>
-        </div>
+          {/* Botón Principal */}
+          <button type="submit" disabled={loading} style={styles.submitBtn}>
+            {loading ? 'Procesando...' : isRegister ? 'Registrarse' : 'Ingresar'}
+          </button>
+        </form>
 
-        {/* Insignia Inferior Flotante de Pulso Heartbeat */}
-        <div style={styles.floatingHeartBadge}>
-          <svg style={{ width: '28px', height: '28px', color: '#38bdf8' }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-          </svg>
+        {/* Toggle Modo */}
+        <div style={styles.toggleFooter}>
+          <span style={styles.toggleText}>
+            {isRegister ? '¿Ya tienes una cuenta?' : '¿No tienes una cuenta?'}
+          </span>
+          <button type="button" onClick={toggleMode} style={styles.toggleBtn}>
+            {isRegister ? 'Inicia sesión aquí' : 'Regístrate aquí'}
+          </button>
         </div>
-      </main>
+      </div>
 
       {/* Modal de Recuperación */}
       {showForgotModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#0f172a' }}>Recuperar Contraseña</h3>
-            {forgotMessage && <p style={{ fontSize: '0.85rem', color: '#2563eb' }}>{forgotMessage}</p>}
-            <form onSubmit={handleForgotSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <input
-                type="email"
-                required
-                value={resetEmail}
-                onChange={(e) => setResetEmail(e.target.value)}
-                placeholder="Tu correo electrónico"
-                style={{ ...styles.input, backgroundColor: '#f1f5f9', color: '#0f172a' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button type="button" onClick={() => setShowForgotModal(false)} style={styles.cancelBtn}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalBadge}>
+                <svg style={styles.modalIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                </svg>
+              </div>
+              <div>
+                <h3 style={styles.modalTitle}>Recuperar Contraseña</h3>
+                <p style={styles.modalSubtitle}>Te enviaremos un correo para restablecer tu acceso</p>
+              </div>
+            </div>
+
+            {forgotMessage && (
+              <div style={styles.infoBox}>
+                <span>{forgotMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleForgotSubmit} style={styles.form}>
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Correo Electrónico Registrado</label>
+                <div style={styles.inputWrapper}>
+                  <svg style={styles.inputIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                  </svg>
+                  <input
+                    type="email"
+                    required
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="ejemplo@hospital.com"
+                    style={styles.input}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.modalActions}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotModal(false);
+                    setForgotMessage('');
+                  }}
+                  style={styles.cancelBtn}
+                >
                   Cancelar
                 </button>
-                <button type="submit" disabled={forgotLoading} style={styles.submitButton}>
-                  {forgotLoading ? 'Enviando...' : 'Enviar'}
+                <button type="submit" disabled={forgotLoading} style={styles.submitBtnModal}>
+                  {forgotLoading ? 'Enviando...' : 'Enviar enlace'}
                 </button>
               </div>
             </form>
@@ -264,214 +315,155 @@ export function Login() {
   );
 }
 
-// ----------------- ESTILOS EXACTOS BASADOS EN LA SEGUNDA CAPTURA -----------------
+// Estilos Nativos CSS
 const styles = {
-  pageContainer: {
+  overlay: {
     position: 'fixed',
     top: 0,
     left: 0,
     width: '100vw',
     height: '100vh',
-    overflow: 'hidden',
-    backgroundColor: '#07162c',
-    fontFamily: 'system-ui, -apple-system, sans-serif',
+    backgroundColor: '#090d16',
     display: 'flex',
     flexDirection: 'column',
+    alignItems: 'center',
+    justify: 'center',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    boxSizing: 'border-box',
+    margin: 0,
+    padding: '20px',
+    zIndex: 9999,
   },
-
-  /* Mosaico de Fondo */
-  backgroundGrid: {
+  /* Estilos para el cardiograma de fondo */
+  ecgBackground: {
     position: 'absolute',
-    top: 0,
+    top: '50%',
     left: 0,
     width: '100%',
-    height: '100%',
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gridTemplateRows: '70% 30%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none',
     zIndex: 1,
-  },
-  bgLeftSection: {
-    position: 'relative',
-    backgroundColor: '#0c1e38',
-    backgroundImage: 'url("/assets/estetoscopio-bg.jpg")', // Ocupa el lado izquierdo
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bgOverlayDark: {
-    position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(7, 22, 44, 0.75)',
-  },
-  ecgMonitorGraphic: {
-    position: 'relative',
-    zIndex: 2,
-    width: '200px',
-    height: '150px',
-    opacity: 0.8,
+    opacity: 0.35,
+    overflow: 'hidden',
   },
   ecgSvg: {
     width: '100%',
-    height: '100%',
+    height: '120px',
+    display: 'block',
   },
-  bgRightTopSection: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  bgHospitalPhoto: {
-    width: '100%',
-    height: '100%',
-    backgroundImage: 'url("/assets/fachada-hospital-chincha.jpg")', // Fachada del hospital
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-  },
-  bgOverlayBlueTint: {
+  header: {
     position: 'absolute',
-    inset: 0,
-    backgroundColor: 'rgba(56, 189, 248, 0.25)', // Tono azul claro semitransparente sobre el hospital
-  },
-  bgBottomGrid: {
-    gridColumn: '1 / -1',
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1fr',
-    backgroundColor: '#091a32',
-    borderTop: '1px solid rgba(255,255,255,0.05)',
-  },
-  bgBottomLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(12, 30, 56, 0.9)',
-  },
-  dropIcon: {
-    width: '40px',
-    height: '40px',
-    color: '#ffffff',
-    opacity: 0.9,
-  },
-  bgBottomCenter: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#061325',
-    borderLeft: '1px solid rgba(255,255,255,0.05)',
-    borderRight: '1px solid rgba(255,255,255,0.05)',
-  },
-  bgBottomRight: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0a1d37',
-  },
-  caduceusIcon: {
-    width: '48px',
-    height: '48px',
-    color: '#1d4ed8',
-  },
-
-  /* Top Header con Curva Grande Superior Izquierda */
-  topHeader: {
-    position: 'relative',
-    zIndex: 10,
+    top: 0,
+    left: 0,
+    right: 0,
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingRight: '32px',
+    alignItems: 'center',
+    padding: '20px 32px',
+    boxSizing: 'border-box',
+    zIndex: 10,
   },
-  curvedWhiteCard: {
-    backgroundColor: '#ffffff',
-    width: '260px',
-    height: '110px',
-    borderBottomRightRadius: '130px', // Orea la curva pronunciada de la foto
+  brandContainer: {
     display: 'flex',
     alignItems: 'center',
-    paddingLeft: '24px',
-    boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+    gap: '12px',
   },
-  hospitalLogoRound: {
-    width: '85px',
-    height: '85px',
-    objectFit: 'contain',
-  },
-  areaBadge: {
-    marginTop: '20px',
-    padding: '8px 20px',
-    backgroundColor: '#1d4ed8',
-    color: '#ffffff',
-    borderRadius: '20px',
-    fontSize: '0.75rem',
-    fontWeight: '700',
-    letterSpacing: '0.05em',
-    boxShadow: '0 4px 12px rgba(29, 78, 216, 0.4)',
-  },
-
-  /* Formulario Central (Glassmorphism Celeste) */
-  mainContent: {
-    position: 'relative',
-    zIndex: 10,
-    flex: 1,
+  logoBadge: {
+    width: '36px',
+    height: '36px',
+    backgroundColor: '#2563eb',
+    borderRadius: '10px',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  glassCard: {
-    width: '100%',
-    maxWidth: '370px',
-    backgroundColor: 'rgba(186, 230, 253, 0.55)', // Color celeste translúcido idéntico
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderRadius: '24px',
-    border: '1px solid rgba(255, 255, 255, 0.6)',
+  logoIcon: {
+    width: '20px',
+    height: '20px',
+    color: '#ffffff',
+  },
+  hospitalTitle: {
+    margin: 0,
+    fontSize: '1.2rem',
+    fontWeight: '700',
+    color: '#f8fafc',
+    letterSpacing: '-0.02em',
+  },
+  areaBadge: {
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    color: '#60a5fa',
+    backgroundColor: 'rgba(30, 58, 138, 0.5)',
+    border: '1px solid rgba(30, 64, 175, 0.6)',
+    padding: '6px 14px',
+    borderRadius: '20px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+  card: {
+    position: 'relative',
+    zIndex: 2, // Se coloca sobre el cardiograma
+    backgroundColor: '#0f172a',
+    border: '1px solid #1e293b',
+    borderRadius: '16px',
     padding: '32px 28px',
-    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+    width: '100%',
+    maxWidth: '400px',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
     boxSizing: 'border-box',
   },
   cardHeader: {
     textAlign: 'center',
-    marginBottom: '20px',
+    marginBottom: '24px',
   },
   cardTitle: {
     margin: '0 0 6px 0',
-    fontSize: '1.45rem',
+    fontSize: '1.5rem',
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#f8fafc',
   },
   cardSubtitle: {
     margin: 0,
-    fontSize: '0.78rem',
-    color: '#334155',
-  },
-  errorAlert: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    border: '1px solid #ef4444',
-    color: '#991b1b',
-    padding: '8px',
-    borderRadius: '8px',
     fontSize: '0.8rem',
-    marginBottom: '12px',
-    textAlign: 'center',
+    color: '#94a3b8',
+  },
+  errorBox: {
+    backgroundColor: 'rgba(127, 29, 29, 0.4)',
+    border: '1px solid #991b1b',
+    borderRadius: '10px',
+    padding: '10px 12px',
+    color: '#fca5a5',
+    fontSize: '0.825rem',
+    marginBottom: '20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  errorIcon: {
+    width: '18px',
+    height: '18px',
+    flexShrink: 0,
+    color: '#f87171',
   },
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px',
+    gap: '16px',
   },
   fieldGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '6px',
   },
   label: {
-    fontSize: '0.7rem',
-    fontWeight: '700',
-    color: '#1e293b',
-    letterSpacing: '0.03em',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    color: '#cbd5e1',
   },
-  inputContainer: {
+  inputWrapper: {
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
@@ -479,126 +471,195 @@ const styles = {
   inputIcon: {
     position: 'absolute',
     left: '12px',
-    width: '18px',
-    height: '18px',
-    color: '#475569',
+    width: '20px',
+    height: '20px',
+    color: '#64748b',
     pointerEvents: 'none',
+    flexShrink: 0,
   },
   input: {
     width: '100%',
-    height: '40px',
-    paddingLeft: '38px',
-    paddingRight: '36px',
-    backgroundColor: 'rgba(51, 65, 85, 0.45)', // Gris/Azul oscuro semitransparente de la captura
-    border: 'none',
-    borderRadius: '8px',
-    color: '#ffffff',
-    fontSize: '0.85rem',
+    height: '42px',
+    paddingLeft: '40px',
+    paddingRight: '12px',
+    backgroundColor: '#020617',
+    border: '1px solid #334155',
+    borderRadius: '10px',
+    color: '#f8fafc',
+    fontSize: '0.875rem',
     outline: 'none',
     boxSizing: 'border-box',
+    transition: 'border-color 0.2s ease',
   },
-  eyeBtn: {
+  eyeButton: {
     position: 'absolute',
     right: '10px',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: 0,
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  passwordErrorBox: {
+  actionIcon: {
+    width: '20px',
+    height: '20px',
+    color: '#64748b',
+    flexShrink: 0,
+  },
+
+  passwordErrorContainer: {
     marginTop: '4px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '2px',
-    fontSize: '0.75rem',
-    color: '#b91c1c',
+    gap: '6px',
   },
-  forgotBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#1d4ed8',
-    fontSize: '0.75rem',
-    cursor: 'pointer',
-    textAlign: 'left',
-    padding: 0,
-    fontWeight: '600',
-  },
-  submitButton: {
-    marginTop: '6px',
-    height: '40px',
-    backgroundColor: '#7dd3fc', // Celeste botón
-    color: '#0f172a',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '0.9rem',
-    fontWeight: '700',
-    cursor: 'pointer',
-    boxShadow: '0 4px 10px rgba(125, 211, 252, 0.3)',
-  },
-  statusIndicator: {
+  passwordErrorText: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: '6px',
-    marginTop: '12px',
+    fontSize: '0.775rem',
+    color: '#f87171',
   },
-  heartIcon: {
+  miniErrorIcon: {
     width: '14px',
     height: '14px',
-    color: '#1e3a8a',
+    flexShrink: 0,
   },
-  footerToggle: {
-    marginTop: '14px',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-  },
-  toggleLink: {
+  inlineForgotBtn: {
     background: 'none',
     border: 'none',
-    color: '#0284c7',
+    color: '#60a5fa',
+    fontSize: '0.775rem',
+    fontWeight: '600',
+    textAlign: 'left',
+    cursor: 'pointer',
+    padding: 0,
+  },
+
+  submitBtn: {
+    marginTop: '8px',
+    height: '44px',
+    backgroundColor: '#2563eb',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+  },
+  toggleFooter: {
+    marginTop: '24px',
+    paddingTop: '16px',
+    borderTop: '1px solid #1e293b',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+  },
+  toggleText: {
     fontSize: '0.8rem',
-    fontWeight: '700',
+    color: '#64748b',
+  },
+  toggleBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#60a5fa',
+    fontSize: '0.85rem',
+    fontWeight: '600',
     cursor: 'pointer',
   },
 
-  /* Elemento Flotante en la parte inferior */
-  floatingHeartBadge: {
-    position: 'absolute',
-    bottom: '-20px',
-    width: '50px',
-    height: '50px',
-    backgroundColor: '#091a32',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 6px 16px rgba(0,0,0,0.5)',
-    border: '2px solid rgba(56, 189, 248, 0.3)',
-  },
-
-  /* Modal */
   modalOverlay: {
     position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    zIndex: 100,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(2, 6, 23, 0.85)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: '20px',
+    zIndex: 10000,
   },
   modalCard: {
-    backgroundColor: '#ffffff',
-    padding: '24px',
+    backgroundColor: '#0f172a',
+    border: '1px solid #334155',
     borderRadius: '16px',
-    width: '320px',
+    padding: '24px',
+    width: '100%',
+    maxWidth: '380px',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+  },
+  modalHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '16px',
+  },
+  modalBadge: {
+    width: '40px',
+    height: '40px',
+    backgroundColor: 'rgba(30, 58, 138, 0.4)',
+    border: '1px solid rgba(37, 99, 235, 0.4)',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  modalIcon: {
+    width: '20px',
+    height: '20px',
+    color: '#60a5fa',
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '1.1rem',
+    fontWeight: '700',
+    color: '#f8fafc',
+  },
+  modalSubtitle: {
+    margin: 0,
+    fontSize: '0.75rem',
+    color: '#94a3b8',
+  },
+  infoBox: {
+    backgroundColor: 'rgba(30, 58, 138, 0.3)',
+    border: '1px solid rgba(37, 99, 235, 0.5)',
+    borderRadius: '8px',
+    padding: '10px 12px',
+    color: '#93c5fd',
+    fontSize: '0.8rem',
+    marginBottom: '14px',
+  },
+  modalActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '10px',
+    marginTop: '12px',
   },
   cancelBtn: {
-    padding: '8px 12px',
-    backgroundColor: '#e2e8f0',
+    padding: '8px 14px',
+    backgroundColor: '#1e293b',
+    color: '#cbd5e1',
     border: 'none',
-    borderRadius: '6px',
+    borderRadius: '8px',
+    fontSize: '0.8rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+  },
+  submitBtnModal: {
+    padding: '8px 14px',
+    backgroundColor: '#2563eb',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '0.8rem',
+    fontWeight: '600',
     cursor: 'pointer',
   },
 };
