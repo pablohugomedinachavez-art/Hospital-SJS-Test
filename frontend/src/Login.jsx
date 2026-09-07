@@ -76,48 +76,35 @@ export function Login() {
 
   return (
     <div className="login-overlay" style={styles.overlay}>
-      {/* Estilos CSS Avanzados: Barrido Infinito + Palpitación en Fondo */}
+      {/* Estilos CSS Avanzados: Animación de Trazo Infinito Sin Brillo */}
       <style>
         {`
-          /* Animación de Barrido / Scanner Infinito (Desplaza el degradado de visibilidad) */
-          @keyframes ecgScan {
+          /* Animación de trazado que avanza y desaparece infinitamente */
+          @keyframes ecgDrawInfinite {
             0% {
-              x1: -30%;
-              x2: 0%;
+              stroke-dashoffset: 1400;
             }
             100% {
-              x1: 100%;
-              x2: 130%;
+              stroke-dashoffset: 0;
             }
           }
 
-          /* Animación de Palpitación Cardíaca (Doble latido "lub-dub") únicamente en el fondo */
+          /* Animación de Palpitación Cardíaca únicamente en el fondo de la pantalla */
           @keyframes heartPalpitation {
             0%, 100% {
               background-color: #080c15;
-              box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
             }
-            25% {
-              background-color: #080c15;
-              box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
-            }
-            /* Primer latido (Sístole / Onda P-Q) */
             32% {
               background-color: #0d1b38;
-              box-shadow: inset 0 0 90px rgba(37, 99, 235, 0.22);
             }
             35% {
               background-color: #091020;
-              box-shadow: inset 0 0 25px rgba(37, 99, 235, 0.08);
             }
-            /* Segundo latido más fuerte (Complejo QRS) */
             40% {
               background-color: #112348;
-              box-shadow: inset 0 0 160px rgba(37, 99, 235, 0.35);
             }
             48% {
               background-color: #080c15;
-              box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
             }
           }
 
@@ -125,8 +112,9 @@ export function Login() {
             animation: heartPalpitation 3s ease-in-out infinite;
           }
 
-          .scan-gradient {
-            animation: ecgScan 3s linear infinite;
+          .animated-ecg-path {
+            stroke-dasharray: 400 1000;
+            animation: ecgDrawInfinite 2.8s linear infinite;
           }
 
           /* Interacciones y animaciones en Inputs */
@@ -198,66 +186,24 @@ export function Login() {
         `}
       </style>
 
-      {/* Fondo de Electrocardiograma con Patrón Original y Barrido Continuo */}
+      {/* Fondo de Electrocardiograma Animado Sin Brillos/Glow */}
       <div style={styles.ecgBackground}>
         <svg
           viewBox="0 0 1200 150"
           preserveAspectRatio="none"
           style={styles.ecgSvg}
         >
-          <defs>
-            {/* Máscara dinámicamente animada que hace desaparecer y reaparecer la línea */}
-            <linearGradient
-              id="scanGradient"
-              className="scan-gradient"
-              gradientUnits="userSpaceOnUse"
-              y1="0%"
-              y2="0%"
-            >
-              <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-              <stop offset="30%" stopColor="#fff" stopOpacity="0.1" />
-              <stop offset="85%" stopColor="#fff" stopOpacity="1" />
-              <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-            </linearGradient>
-
-            <mask id="scan-mask">
-              <rect x="0" y="0" width="1200" height="150" fill="url(#scanGradient)" />
-            </mask>
-
-            {/* Filtro de Glow / Resplandor */}
-            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-
-          {/* Patrón Estático Original pero Revelado Progresivamente por la Máscara */}
-          <g mask="url(#scan-mask)">
-            {/* Capa de resplandor difuminada */}
-            <path
-              d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
-              fill="none"
-              stroke="#2563eb"
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              filter="url(#glow)"
-              opacity="0.45"
-            />
-            {/* Capa nítida de la línea de electrocardiograma */}
-            <path
-              d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
-              fill="none"
-              stroke="#60a5fa"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.95"
-            />
-          </g>
+          {/* Línea nítida del electrocardiograma dibujándose dinámicamente */}
+          <path
+            className="animated-ecg-path"
+            d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
+            fill="none"
+            stroke="#60a5fa"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.95"
+          />
         </svg>
       </div>
 
