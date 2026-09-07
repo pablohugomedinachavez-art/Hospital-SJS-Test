@@ -74,43 +74,86 @@ export function Login() {
     setPasswordError(false);
   };
 
+  // Patrón idéntico repetido en x=0 y x=600 para un bucle transparente continuo
+  const ecgPath = "M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L600,75 L610,45 L620,105 L630,20 L645,135 L660,60 L670,85 L680,75 L1200,75";
+
   return (
     <div style={styles.overlay}>
-      {/* Keyframes de animación para el cardiograma */}
+      {/* Keyframes para una animación de traslación fluida e infinita */}
       <style>
         {`
-          @keyframes ecgDash {
+          @keyframes ecgLoop {
             0% {
-              stroke-dashoffset: 1000;
+              transform: translateX(0);
             }
             100% {
-              stroke-dashoffset: 0;
+              transform: translateX(-50%);
             }
           }
-          .ecg-path {
-            stroke-dasharray: 1000;
-            stroke-dashoffset: 1000;
-            animation: ecgDash 3s linear infinite;
+          .ecg-track {
+            animation: ecgLoop 8s linear infinite;
+            will-change: transform;
           }
         `}
       </style>
 
-      {/* Animación del Cardiograma al Fondo de la Tarjeta */}
+      {/* Fondo de Cardiograma con efecto de profundidad y lejania */}
       <div style={styles.ecgBackground}>
         <svg
-          viewBox="0 0 1200 150"
+          viewBox="0 0 600 150"
           preserveAspectRatio="none"
           style={styles.ecgSvg}
         >
-          <path
-            className="ecg-path"
-            d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
-            fill="none"
-            stroke="#2563eb"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          {/* Definición de degradados y filtros de profundidad */}
+          <defs>
+            {/* Máscara de desvanecimiento lateral */}
+            <linearGradient id="fadeMask" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#fff" stopOpacity="0" />
+              <stop offset="15%" stopColor="#fff" stopOpacity="1" />
+              <stop offset="85%" stopColor="#fff" stopOpacity="1" />
+              <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
+
+            <mask id="mask-layer">
+              <rect x="0" y="0" width="100%" height="100%" fill="url(#fadeMask)" />
+            </mask>
+
+            {/* Filtro de resplandor para simular lejania y luz difusa */}
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Grupo animado con máscara de bordes suaves */}
+          <g mask="url(#mask-layer)">
+            <g className="ecg-track" style={{ display: 'flex', width: '200%' }}>
+              {/* Capa de destello difuminado al fondo */}
+              <path
+                d={ecgPath}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#glow)"
+                opacity="0.35"
+              />
+              {/* Línea nítida principal */}
+              <path
+                d={ecgPath}
+                fill="none"
+                stroke="#60a5fa"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.75"
+              />
+            </g>
+          </g>
         </svg>
       </div>
 
@@ -140,7 +183,7 @@ export function Login() {
           </p>
         </div>
 
-        {/* Alerta General (Sólo en caso de errores distintos a contraseña) */}
+        {/* Alerta General */}
         {error && !passwordError && (
           <div style={styles.errorBox}>
             <svg style={styles.errorIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -327,14 +370,14 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justify: 'center',
+    justifyContent: 'center',
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     boxSizing: 'border-box',
     margin: 0,
     padding: '20px',
     zIndex: 9999,
   },
-  /* Estilos para el cardiograma de fondo */
+  /* Contenedor del ECG Lejano */
   ecgBackground: {
     position: 'absolute',
     top: '50%',
@@ -343,12 +386,11 @@ const styles = {
     transform: 'translateY(-50%)',
     pointerEvents: 'none',
     zIndex: 1,
-    opacity: 0.35,
     overflow: 'hidden',
   },
   ecgSvg: {
     width: '100%',
-    height: '120px',
+    height: '140px',
     display: 'block',
   },
   header: {
@@ -403,7 +445,7 @@ const styles = {
   },
   card: {
     position: 'relative',
-    zIndex: 2, // Se coloca sobre el cardiograma
+    zIndex: 2,
     backgroundColor: '#0f172a',
     border: '1px solid #1e293b',
     borderRadius: '16px',
