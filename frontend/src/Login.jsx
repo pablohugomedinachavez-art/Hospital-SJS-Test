@@ -76,23 +76,23 @@ export function Login() {
 
   return (
     <div className="login-overlay" style={styles.overlay}>
-      {/* CSS Personalizado para la animación de Trazo Único Continuo */}
+      {/* CSS Personalizado para la animación fluida y pausada */}
       <style>
         {`
-          /* Animación de trazado que recorre la línea completa de izquierda a derecha */
+          /* Transición suave y continua sin saltos */
           @keyframes ecgContinuousLine {
             0% {
               stroke-dashoffset: 1600;
             }
             100% {
-              stroke-dashoffset: -1600;
+              stroke-dashoffset: 0;
             }
           }
 
           .single-ecg-path {
-            /* Trazado: segmento visible de la onda + espacio vacío ajustado */
-            stroke-dasharray: 450 1600;
-            animation: ecgContinuousLine 3.5s linear infinite;
+            /* Trazado: Tamaño visible del segmento y espacio de ciclo perfecto */
+            stroke-dasharray: 400 1200;
+            animation: ecgContinuousLine 6.5s linear infinite;
           }
 
           /* Interacciones y animaciones en Inputs */
@@ -164,17 +164,17 @@ export function Login() {
         `}
       </style>
 
-      {/* Fondo de Electrocardiograma en Línea Única (Sin Brillos de Fondo) */}
+      {/* Fondo de Electrocardiograma Continuo */}
       <div style={styles.ecgBackground}>
         <svg
-          viewBox="0 0 1200 150"
+          viewBox="0 0 1600 150"
           preserveAspectRatio="none"
           style={styles.ecgSvg}
         >
-          {/* Un único trazo continuo cruzando la pantalla */}
+          {/* Patrón repetido exactamente para continuidad perfecta */}
           <path
             className="single-ecg-path"
-            d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
+            d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L1100,75 L1110,45 L1120,105 L1130,20 L1145,135 L1160,60 L1170,85 L1180,75 L1600,75"
             fill="none"
             stroke="#60a5fa"
             strokeWidth="2.5"
