@@ -10,7 +10,6 @@ export function Login() {
   const [passwordError, setPasswordError] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  
   // Estados para el Modal de Recuperación
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
@@ -77,37 +76,35 @@ export function Login() {
 
   return (
     <div className="login-overlay" style={styles.overlay}>
-      {/* Estilos CSS Avanzados con Animación de Palpitación en Fondo */}
+      {/* Estilos CSS Avanzados: Movimiento Infinito del Electro + Palpitación en Fondo */}
       <style>
         {`
-          /* Trazado del electrocardiograma que avanza continuamente */
-          @keyframes ecgDraw {
+          /* Desplazamiento continuo e infinito de la línea ECG */
+          @keyframes ecgScroll {
             0% {
-              stroke-dashoffset: 1200;
+              transform: translateX(0);
             }
             100% {
-              stroke-dashoffset: 0;
+              transform: translateX(-50%);
             }
           }
 
-          /* Animación de Palpitación Cardíaca (Doble latido "lub-dub") en el fondo de pantalla */
+          /* Animación de Palpitación Cardíaca (Doble latido fisiológico) únicamente en el fondo */
           @keyframes heartPalpitation {
             0%, 100% {
               background-color: #080c15;
               box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
             }
-            /* Reposo */
-            28% {
+            25% {
               background-color: #080c15;
               box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
             }
             /* Primer latido (Sístole / Onda P-Q) */
-            33% {
+            32% {
               background-color: #0d1b38;
               box-shadow: inset 0 0 90px rgba(37, 99, 235, 0.22);
             }
-            /* Retracción rápida */
-            36% {
+            35% {
               background-color: #091020;
               box-shadow: inset 0 0 25px rgba(37, 99, 235, 0.08);
             }
@@ -116,7 +113,6 @@ export function Login() {
               background-color: #112348;
               box-shadow: inset 0 0 160px rgba(37, 99, 235, 0.35);
             }
-            /* Disipación gradual */
             48% {
               background-color: #080c15;
               box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
@@ -124,13 +120,13 @@ export function Login() {
           }
 
           .login-overlay {
-            animation: heartPalpitation 2.5s ease-in-out infinite;
+            animation: heartPalpitation 3s ease-in-out infinite;
           }
 
-          .ecg-line {
-            stroke-dasharray: 1200;
-            stroke-dashoffset: 1200;
-            animation: ecgDraw 2.5s linear infinite;
+          .ecg-infinite-track {
+            display: flex;
+            width: 200%;
+            animation: ecgScroll 4s linear infinite;
           }
 
           /* Interacciones y animaciones en Inputs */
@@ -148,7 +144,6 @@ export function Login() {
             background-color: #030712 !important;
           }
 
-          /* Animación interactiva en los íconos de los inputs */
           .input-container:hover .input-icon-svg {
             color: #60a5fa !important;
             transform: scale(1.15) rotate(-5deg);
@@ -157,7 +152,7 @@ export function Login() {
             transition: transform 0.3s ease, color 0.3s ease;
           }
 
-          /* Botón Principal con Efecto Shimmer Sweep y Elevación 3D */
+          /* Botón Principal con Efecto Shimmer */
           .btn-shimmer {
             position: relative;
             overflow: hidden;
@@ -191,7 +186,6 @@ export function Login() {
             transform: translateY(1px) scale(0.98);
           }
 
-          /* Efecto Hover en el botón del ojo */
           .eye-btn-anim {
             transition: transform 0.2s ease, color 0.2s ease;
           }
@@ -204,63 +198,90 @@ export function Login() {
         `}
       </style>
 
-      {/* Fondo de Cardiograma Lejano con Trazado Avanzado */}
+      {/* Fondo Infinito de Cardiograma (Sin Cortes) */}
       <div style={styles.ecgBackground}>
-        <svg
-          viewBox="0 0 1200 150"
-          preserveAspectRatio="none"
-          style={styles.ecgSvg}
-        >
-          <defs>
-            {/* Máscara de degradado para desvanecimiento en los bordes laterales */}
-            <linearGradient id="fadeMask" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-              <stop offset="12%" stopColor="#fff" stopOpacity="1" />
-              <stop offset="88%" stopColor="#fff" stopOpacity="1" />
-              <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-            </linearGradient>
+        <div className="ecg-infinite-track">
+          <svg
+            viewBox="0 0 1200 150"
+            preserveAspectRatio="none"
+            style={styles.ecgSvg}
+          >
+            <defs>
+              <linearGradient id="edgeFade" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#fff" stopOpacity="0" />
+                <stop offset="10%" stopColor="#fff" stopOpacity="1" />
+                <stop offset="90%" stopColor="#fff" stopOpacity="1" />
+                <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+              </linearGradient>
 
-            <mask id="mask-layer">
-              <rect x="0" y="0" width="1200" height="150" fill="url(#fadeMask)" />
-            </mask>
+              <mask id="fade-mask">
+                <rect x="0" y="0" width="1200" height="150" fill="url(#edgeFade)" />
+              </mask>
 
-            {/* Filtro de Resplandor / Difuminado de Lejanía */}
-            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="4" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
 
-          {/* Grupo de Trazado con Máscara de Difuminado */}
-          <g mask="url(#mask-layer)">
-            {/* Capa de resplandor lejano (difuminada) */}
-            <path
-              className="ecg-line"
-              d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
-              fill="none"
-              stroke="#2563eb"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              filter="url(#glow)"
-              opacity="0.4"
-            />
-            {/* Capa nítida de la línea del electrocardiograma */}
-            <path
-              className="ecg-line"
-              d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
-              fill="none"
-              stroke="#60a5fa"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity="0.85"
-            />
-          </g>
-        </svg>
+            {/* Grupo de Trazado Duplicado para Bucle Perfecto */}
+            <g mask="url(#fade-mask)">
+              {/* Resplandor azuldut sutil */}
+              <path
+                d="M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L450,75 L460,45 L470,105 L480,20 L495,135 L510,60 L520,85 L530,75 L750,75 L760,45 L770,105 L780,20 L795,135 L810,60 L820,85 L830,75 L1050,75 L1060,45 L1070,105 L1080,20 L1095,135 L1110,60 L1120,85 L1130,75 L1200,75"
+                fill="none"
+                stroke="#2563eb"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#glow)"
+                opacity="0.35"
+              />
+              {/* Línea Principal Nítida */}
+              <path
+                d="M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L450,75 L460,45 L470,105 L480,20 L495,135 L510,60 L520,85 L530,75 L750,75 L760,45 L770,105 L780,20 L795,135 L810,60 L820,85 L830,75 L1050,75 L1060,45 L1070,105 L1080,20 L1095,135 L1110,60 L1120,85 L1130,75 L1200,75"
+                fill="none"
+                stroke="#60a5fa"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.9"
+              />
+            </g>
+          </svg>
+
+          {/* Segunda Copia Idéntica para Empalme Sin Costuras */}
+          <svg
+            viewBox="0 0 1200 150"
+            preserveAspectRatio="none"
+            style={styles.ecgSvg}
+          >
+            <g mask="url(#fade-mask)">
+              <path
+                d="M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L450,75 L460,45 L470,105 L480,20 L495,135 L510,60 L520,85 L530,75 L750,75 L760,45 L770,105 L780,20 L795,135 L810,60 L820,85 L830,75 L1050,75 L1060,45 L1070,105 L1080,20 L1095,135 L1110,60 L1120,85 L1130,75 L1200,75"
+                fill="none"
+                stroke="#2563eb"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#glow)"
+                opacity="0.35"
+              />
+              <path
+                d="M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L450,75 L460,45 L470,105 L480,20 L495,135 L510,60 L520,85 L530,75 L750,75 L760,45 L770,105 L780,20 L795,135 L810,60 L820,85 L830,75 L1050,75 L1060,45 L1070,105 L1080,20 L1095,135 L1110,60 L1120,85 L1130,75 L1200,75"
+                fill="none"
+                stroke="#60a5fa"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.9"
+              />
+            </g>
+          </svg>
+        </div>
       </div>
 
       {/* Header Institucional */}
@@ -368,7 +389,7 @@ export function Login() {
               </button>
             </div>
 
-            {/* SECCIÓN DE ERROR Y RECUPERACIÓN */}
+            {/* Error de contraseña y recuperación */}
             {passwordError && (
               <div style={styles.passwordErrorContainer}>
                 <div style={styles.passwordErrorText}>
@@ -469,7 +490,6 @@ export function Login() {
   );
 }
 
-// Estilos JS Nativos
 const styles = {
   overlay: {
     position: 'fixed',
@@ -486,6 +506,7 @@ const styles = {
     margin: 0,
     padding: '20px',
     zIndex: 9999,
+    overflow: 'hidden',
   },
   ecgBackground: {
     position: 'absolute',
@@ -498,9 +519,10 @@ const styles = {
     overflow: 'hidden',
   },
   ecgSvg: {
-    width: '100%',
+    width: '50%',
     height: '140px',
     display: 'block',
+    flexShrink: 0,
   },
   header: {
     position: 'absolute',
