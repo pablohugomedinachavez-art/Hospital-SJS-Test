@@ -76,45 +76,23 @@ export function Login() {
 
   return (
     <div className="login-overlay" style={styles.overlay}>
-      {/* Estilos CSS Avanzados: Animación de Trazo Infinito Sin Brillo */}
+      {/* CSS Personalizado para la animación de Trazo Único Continuo */}
       <style>
         {`
-          /* Animación de trazado que avanza y desaparece infinitamente */
-          @keyframes ecgDrawInfinite {
+          /* Animación de trazado que recorre la línea completa de izquierda a derecha */
+          @keyframes ecgContinuousLine {
             0% {
-              stroke-dashoffset: 1400;
+              stroke-dashoffset: 1600;
             }
             100% {
-              stroke-dashoffset: 0;
+              stroke-dashoffset: -1600;
             }
           }
 
-          /* Animación de Palpitación Cardíaca únicamente en el fondo de la pantalla */
-          @keyframes heartPalpitation {
-            0%, 100% {
-              background-color: #080c15;
-            }
-            32% {
-              background-color: #0d1b38;
-            }
-            35% {
-              background-color: #091020;
-            }
-            40% {
-              background-color: #112348;
-            }
-            48% {
-              background-color: #080c15;
-            }
-          }
-
-          .login-overlay {
-            animation: heartPalpitation 3s ease-in-out infinite;
-          }
-
-          .animated-ecg-path {
-            stroke-dasharray: 400 1000;
-            animation: ecgDrawInfinite 2.8s linear infinite;
+          .single-ecg-path {
+            /* Trazado: segmento visible de la onda + espacio vacío ajustado */
+            stroke-dasharray: 450 1600;
+            animation: ecgContinuousLine 3.5s linear infinite;
           }
 
           /* Interacciones y animaciones en Inputs */
@@ -186,23 +164,23 @@ export function Login() {
         `}
       </style>
 
-      {/* Fondo de Electrocardiograma Animado Sin Brillos/Glow */}
+      {/* Fondo de Electrocardiograma en Línea Única (Sin Brillos de Fondo) */}
       <div style={styles.ecgBackground}>
         <svg
           viewBox="0 0 1200 150"
           preserveAspectRatio="none"
           style={styles.ecgSvg}
         >
-          {/* Línea nítida del electrocardiograma dibujándose dinámicamente */}
+          {/* Un único trazo continuo cruzando la pantalla */}
           <path
-            className="animated-ecg-path"
+            className="single-ecg-path"
             d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
             fill="none"
             stroke="#60a5fa"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.95"
+            opacity="0.9"
           />
         </svg>
       </div>
@@ -420,6 +398,7 @@ const styles = {
     left: 0,
     width: '100vw',
     height: '100vh',
+    backgroundColor: '#080c15',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
