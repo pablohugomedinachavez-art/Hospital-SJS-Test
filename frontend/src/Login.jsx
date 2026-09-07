@@ -76,10 +76,10 @@ export function Login() {
 
   return (
     <div className="login-overlay" style={styles.overlay}>
-      {/* Estilos CSS Avanzados para Animaciones Complejas */}
+      {/* Estilos CSS Avanzados con Animación de Palpitación en Fondo */}
       <style>
         {`
-          /* Animación del trazado que avanza continuo */
+          /* Trazado del electrocardiograma que avanza continuamente */
           @keyframes ecgDraw {
             0% {
               stroke-dashoffset: 1200;
@@ -89,35 +89,41 @@ export function Login() {
             }
           }
 
-          /* Pulsación luminosa en el fondo de la pantalla al ritmo del electrocardiograma */
-          @keyframes screenPulse {
+          /* Animación de Palpitación Cardíaca (Doble latido "lub-dub") en el fondo de pantalla */
+          @keyframes heartPalpitation {
             0%, 100% {
-              background-color: #090d16;
+              background-color: #080c15;
               box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
             }
-            32% {
-              background-color: #090d16;
+            /* Reposo */
+            28% {
+              background-color: #080c15;
+              box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
             }
+            /* Primer latido (Sístole / Onda P-Q) */
+            33% {
+              background-color: #0d1b38;
+              box-shadow: inset 0 0 90px rgba(37, 99, 235, 0.22);
+            }
+            /* Retracción rápida */
             36% {
-              background-color: #0c152b;
-              box-shadow: inset 0 0 100px rgba(37, 99, 235, 0.18);
+              background-color: #091020;
+              box-shadow: inset 0 0 25px rgba(37, 99, 235, 0.08);
             }
+            /* Segundo latido más fuerte (Complejo QRS) */
             40% {
-              background-color: #090d16;
-              box-shadow: inset 0 0 20px rgba(37, 99, 235, 0.05);
+              background-color: #112348;
+              box-shadow: inset 0 0 160px rgba(37, 99, 235, 0.35);
             }
-            44% {
-              background-color: #0e1a38;
-              box-shadow: inset 0 0 140px rgba(37, 99, 235, 0.25);
-            }
-            52% {
-              background-color: #090d16;
+            /* Disipación gradual */
+            48% {
+              background-color: #080c15;
               box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
             }
           }
 
           .login-overlay {
-            animation: screenPulse 2.5s ease-in-out infinite;
+            animation: heartPalpitation 2.5s ease-in-out infinite;
           }
 
           .ecg-line {
@@ -381,7 +387,7 @@ export function Login() {
             )}
           </div>
 
-          {/* Botón Principal con Efectos Complejos */}
+          {/* Botón Principal */}
           <button type="submit" disabled={loading} className="btn-shimmer" style={styles.submitBtn}>
             {loading ? 'Procesando...' : isRegister ? 'Registrarse' : 'Ingresar'}
           </button>
