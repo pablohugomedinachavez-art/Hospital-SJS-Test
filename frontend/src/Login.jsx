@@ -76,20 +76,22 @@ export function Login() {
 
   return (
     <div className="login-overlay" style={styles.overlay}>
-      {/* Estilos CSS Avanzados: Movimiento Infinito del Electro + Palpitación en Fondo */}
+      {/* Estilos CSS Avanzados: Barrido Infinito + Palpitación en Fondo */}
       <style>
         {`
-          /* Desplazamiento continuo e infinito de la línea ECG */
-          @keyframes ecgScroll {
+          /* Animación de Barrido / Scanner Infinito (Desplaza el degradado de visibilidad) */
+          @keyframes ecgScan {
             0% {
-              transform: translateX(0);
+              x1: -30%;
+              x2: 0%;
             }
             100% {
-              transform: translateX(-50%);
+              x1: 100%;
+              x2: 130%;
             }
           }
 
-          /* Animación de Palpitación Cardíaca (Doble latido fisiológico) únicamente en el fondo */
+          /* Animación de Palpitación Cardíaca (Doble latido "lub-dub") únicamente en el fondo */
           @keyframes heartPalpitation {
             0%, 100% {
               background-color: #080c15;
@@ -123,10 +125,8 @@ export function Login() {
             animation: heartPalpitation 3s ease-in-out infinite;
           }
 
-          .ecg-infinite-track {
-            display: flex;
-            width: 200%;
-            animation: ecgScroll 4s linear infinite;
+          .scan-gradient {
+            animation: ecgScan 3s linear infinite;
           }
 
           /* Interacciones y animaciones en Inputs */
@@ -198,90 +198,67 @@ export function Login() {
         `}
       </style>
 
-      {/* Fondo Infinito de Cardiograma (Sin Cortes) */}
+      {/* Fondo de Electrocardiograma con Patrón Original y Barrido Continuo */}
       <div style={styles.ecgBackground}>
-        <div className="ecg-infinite-track">
-          <svg
-            viewBox="0 0 1200 150"
-            preserveAspectRatio="none"
-            style={styles.ecgSvg}
-          >
-            <defs>
-              <linearGradient id="edgeFade" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-                <stop offset="10%" stopColor="#fff" stopOpacity="1" />
-                <stop offset="90%" stopColor="#fff" stopOpacity="1" />
-                <stop offset="100%" stopColor="#fff" stopOpacity="0" />
-              </linearGradient>
+        <svg
+          viewBox="0 0 1200 150"
+          preserveAspectRatio="none"
+          style={styles.ecgSvg}
+        >
+          <defs>
+            {/* Máscara dinámicamente animada que hace desaparecer y reaparecer la línea */}
+            <linearGradient
+              id="scanGradient"
+              className="scan-gradient"
+              gradientUnits="userSpaceOnUse"
+              y1="0%"
+              y2="0%"
+            >
+              <stop offset="0%" stopColor="#fff" stopOpacity="0" />
+              <stop offset="30%" stopColor="#fff" stopOpacity="0.1" />
+              <stop offset="85%" stopColor="#fff" stopOpacity="1" />
+              <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
 
-              <mask id="fade-mask">
-                <rect x="0" y="0" width="1200" height="150" fill="url(#edgeFade)" />
-              </mask>
+            <mask id="scan-mask">
+              <rect x="0" y="0" width="1200" height="150" fill="url(#scanGradient)" />
+            </mask>
 
-              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="4" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
+            {/* Filtro de Glow / Resplandor */}
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
 
-            {/* Grupo de Trazado Duplicado para Bucle Perfecto */}
-            <g mask="url(#fade-mask)">
-              {/* Resplandor azuldut sutil */}
-              <path
-                d="M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L450,75 L460,45 L470,105 L480,20 L495,135 L510,60 L520,85 L530,75 L750,75 L760,45 L770,105 L780,20 L795,135 L810,60 L820,85 L830,75 L1050,75 L1060,45 L1070,105 L1080,20 L1095,135 L1110,60 L1120,85 L1130,75 L1200,75"
-                fill="none"
-                stroke="#2563eb"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#glow)"
-                opacity="0.35"
-              />
-              {/* Línea Principal Nítida */}
-              <path
-                d="M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L450,75 L460,45 L470,105 L480,20 L495,135 L510,60 L520,85 L530,75 L750,75 L760,45 L770,105 L780,20 L795,135 L810,60 L820,85 L830,75 L1050,75 L1060,45 L1070,105 L1080,20 L1095,135 L1110,60 L1120,85 L1130,75 L1200,75"
-                fill="none"
-                stroke="#60a5fa"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.9"
-              />
-            </g>
-          </svg>
-
-          {/* Segunda Copia Idéntica para Empalme Sin Costuras */}
-          <svg
-            viewBox="0 0 1200 150"
-            preserveAspectRatio="none"
-            style={styles.ecgSvg}
-          >
-            <g mask="url(#fade-mask)">
-              <path
-                d="M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L450,75 L460,45 L470,105 L480,20 L495,135 L510,60 L520,85 L530,75 L750,75 L760,45 L770,105 L780,20 L795,135 L810,60 L820,85 L830,75 L1050,75 L1060,45 L1070,105 L1080,20 L1095,135 L1110,60 L1120,85 L1130,75 L1200,75"
-                fill="none"
-                stroke="#2563eb"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#glow)"
-                opacity="0.35"
-              />
-              <path
-                d="M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L450,75 L460,45 L470,105 L480,20 L495,135 L510,60 L520,85 L530,75 L750,75 L760,45 L770,105 L780,20 L795,135 L810,60 L820,85 L830,75 L1050,75 L1060,45 L1070,105 L1080,20 L1095,135 L1110,60 L1120,85 L1130,75 L1200,75"
-                fill="none"
-                stroke="#60a5fa"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.9"
-              />
-            </g>
-          </svg>
-        </div>
+          {/* Patrón Estático Original pero Revelado Progresivamente por la Máscara */}
+          <g mask="url(#scan-mask)">
+            {/* Capa de resplandor difuminada */}
+            <path
+              d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter="url(#glow)"
+              opacity="0.45"
+            />
+            {/* Capa nítida de la línea de electrocardiograma */}
+            <path
+              d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
+              fill="none"
+              stroke="#60a5fa"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.95"
+            />
+          </g>
+        </svg>
       </div>
 
       {/* Header Institucional */}
@@ -519,10 +496,9 @@ const styles = {
     overflow: 'hidden',
   },
   ecgSvg: {
-    width: '50%',
+    width: '100%',
     height: '140px',
     display: 'block',
-    flexShrink: 0,
   },
   header: {
     position: 'absolute',
