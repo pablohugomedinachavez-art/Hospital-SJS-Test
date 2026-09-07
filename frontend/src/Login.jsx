@@ -38,7 +38,6 @@ export function Login() {
       const msg = err.message || 'Error de autenticación';
       setError(msg);
 
-      // Si el error detecta credenciales/contraseña incorrecta
       if (!isRegister) {
         setPasswordError(true);
       }
@@ -77,20 +76,32 @@ export function Login() {
 
   return (
     <div style={styles.overlay}>
-      {/* Header Institucional */}
-      <header style={styles.header}>
-        <div style={styles.brandContainer}>
-          <div style={styles.logoBadge}>
-            <svg style={styles.logoIcon} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
+      {/* Fondo temático con capas de textura y opacidad azulada */}
+      <div style={styles.bgLayerContainer}>
+        <div style={styles.bgHospitalPhoto} />
+        <div style={styles.bgBlueOverlay} />
+      </div>
+
+      {/* Header Institucional con solapa curva superior izquierda */}
+      <header style={styles.headerBar}>
+        <div style={styles.headerCurvedCard}>
+          <div style={styles.brandContainer}>
+            {/* Reemplazar con la ruta/import del logo oficial en tu carpeta assets */}
+            <img 
+              src="/assets/logo-hospital.png" 
+              alt="Logo Hospital San José" 
+              style={styles.hospitalLogo} 
+            />
+            <div>
+              <h1 style={styles.hospitalTitle}>Hospital San José de Chincha</h1>
+              <span style={styles.hospitalSub}>Perú</span>
+            </div>
           </div>
-          <h1 style={styles.hospitalTitle}>Hospital San José de Chincha</h1>
         </div>
         <span style={styles.areaBadge}>Área de Seguros</span>
       </header>
 
-      {/* Tarjeta Central */}
+      {/* Tarjeta Central con Glassmorphism azulado */}
       <div style={styles.card}>
         <div style={styles.cardHeader}>
           <h2 style={styles.cardTitle}>
@@ -103,7 +114,7 @@ export function Login() {
           </p>
         </div>
 
-        {/* Alerta General (Sólo en caso de errores distintos a contraseña) */}
+        {/* Alerta General */}
         {error && !passwordError && (
           <div style={styles.errorBox}>
             <svg style={styles.errorIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -137,7 +148,7 @@ export function Login() {
             <label style={styles.label}>Contraseña</label>
             <div style={styles.inputWrapper}>
               <svg
-                style={{ ...styles.inputIcon, color: passwordError ? '#f87171' : '#64748b' }}
+                style={{ ...styles.inputIcon, color: passwordError ? '#f87171' : '#94a3b8' }}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -157,7 +168,7 @@ export function Login() {
                 style={{
                   ...styles.input,
                   paddingRight: '42px',
-                  borderColor: passwordError ? '#ef4444' : '#334155',
+                  borderColor: passwordError ? '#ef4444' : 'rgba(255, 255, 255, 0.2)',
                 }}
               />
               <button
@@ -178,7 +189,7 @@ export function Login() {
               </button>
             </div>
 
-            {/* SECCIÓN DE ERROR Y RECUPERACIÓN (Ubicada justo debajo del campo) */}
+            {/* ERROR Y RECUPERACIÓN */}
             {passwordError && (
               <div style={styles.passwordErrorContainer}>
                 <div style={styles.passwordErrorText}>
@@ -198,11 +209,21 @@ export function Login() {
             )}
           </div>
 
-          {/* Botón Principal */}
+          {/* Botón Principal estilo Neumorfismo Azul */}
           <button type="submit" disabled={loading} style={styles.submitBtn}>
             {loading ? 'Procesando...' : isRegister ? 'Registrarse' : 'Ingresar'}
           </button>
         </form>
+
+        {/* Indicador inferior animado / Validando */}
+        <div style={styles.statusIndicator}>
+          <svg style={styles.heartbeatIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+          </svg>
+          <span style={{ fontSize: '0.78rem', color: '#93c5fd' }}>
+            {loading ? 'Validando credenciales...' : 'Sistema Seguro en Línea'}
+          </span>
+        </div>
 
         {/* Toggle Modo */}
         <div style={styles.toggleFooter}>
@@ -278,7 +299,7 @@ export function Login() {
   );
 }
 
-// Estilos Nativos CSS
+// Estilos visuales con la paleta de azúles oscuros, transparentes e imagen de fondo
 const styles = {
   overlay: {
     position: 'fixed',
@@ -286,74 +307,109 @@ const styles = {
     left: 0,
     width: '100vw',
     height: '100vh',
-    backgroundColor: '#090d16',
+    backgroundColor: '#0a192f',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
+    justify: 'center',
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     boxSizing: 'border-box',
     margin: 0,
     padding: '20px',
     zIndex: 9999,
+    overflow: 'hidden',
   },
-  header: {
+  bgLayerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  bgHospitalPhoto: {
+    width: '100%',
+    height: '100%',
+    backgroundImage: 'url("/assets/fachada-hospital-chincha.jpg")', // Imagen difuminada de la fachada
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    filter: 'blur(6px) brightness(0.6) contrast(1.1)',
+    transform: 'scale(1.05)',
+  },
+  bgBlueOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'linear-gradient(135deg, rgba(10, 25, 47, 0.88) 0%, rgba(15, 30, 65, 0.75) 50%, rgba(8, 20, 40, 0.9) 100%)',
+  },
+  headerBar: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '20px 32px',
+    alignItems: 'flex-start',
+    padding: '0 32px',
+    zIndex: 10,
     boxSizing: 'border-box',
+  },
+  headerCurvedCard: {
+    backgroundColor: '#ffffff',
+    padding: '12px 28px 16px 20px',
+    borderBottomRightRadius: '32px',
+    borderBottomLeftRadius: '0px',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
   },
   brandContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
   },
-  logoBadge: {
-    width: '36px',
-    height: '36px',
-    backgroundColor: '#2563eb',
-    borderRadius: '10px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  logoIcon: {
-    width: '20px',
-    height: '20px',
-    color: '#ffffff',
+  hospitalLogo: {
+    width: '46px',
+    height: '46px',
+    objectFit: 'contain',
   },
   hospitalTitle: {
     margin: 0,
-    fontSize: '1.2rem',
+    fontSize: '1.15rem',
     fontWeight: '700',
-    color: '#f8fafc',
-    letterSpacing: '-0.02em',
+    color: '#0f172a',
+    letterSpacing: '-0.01em',
+  },
+  hospitalSub: {
+    fontSize: '0.75rem',
+    color: '#64748b',
+    fontWeight: '500',
   },
   areaBadge: {
+    marginTop: '20px',
     fontSize: '0.75rem',
     fontWeight: '600',
     color: '#60a5fa',
-    backgroundColor: 'rgba(30, 58, 138, 0.5)',
-    border: '1px solid rgba(30, 64, 175, 0.6)',
-    padding: '6px 14px',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    border: '1px solid rgba(59, 130, 246, 0.4)',
+    backdropFilter: 'blur(8px)',
+    padding: '8px 18px',
     borderRadius: '20px',
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
   },
   card: {
-    backgroundColor: '#0f172a',
-    border: '1px solid #1e293b',
-    borderRadius: '16px',
-    padding: '32px 28px',
+    position: 'relative',
+    zIndex: 10,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    borderRadius: '20px',
+    padding: '36px 32px',
     width: '100%',
-    maxWidth: '400px',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+    maxWidth: '410px',
+    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
     boxSizing: 'border-box',
   },
   cardHeader: {
@@ -362,18 +418,18 @@ const styles = {
   },
   cardTitle: {
     margin: '0 0 6px 0',
-    fontSize: '1.5rem',
+    fontSize: '1.6rem',
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#ffffff',
   },
   cardSubtitle: {
     margin: 0,
-    fontSize: '0.8rem',
+    fontSize: '0.825rem',
     color: '#94a3b8',
   },
   errorBox: {
-    backgroundColor: 'rgba(127, 29, 29, 0.4)',
-    border: '1px solid #991b1b',
+    backgroundColor: 'rgba(153, 27, 27, 0.4)',
+    border: '1px solid #ef4444',
     borderRadius: '10px',
     padding: '10px 12px',
     color: '#fca5a5',
@@ -392,7 +448,7 @@ const styles = {
   form: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '18px',
   },
   fieldGroup: {
     display: 'flex',
@@ -416,23 +472,23 @@ const styles = {
     left: '12px',
     width: '20px',
     height: '20px',
-    color: '#64748b',
+    color: '#94a3b8',
     pointerEvents: 'none',
     flexShrink: 0,
   },
   input: {
     width: '100%',
-    height: '42px',
+    height: '44px',
     paddingLeft: '40px',
     paddingRight: '12px',
-    backgroundColor: '#020617',
-    border: '1px solid #334155',
+    backgroundColor: 'rgba(2, 6, 23, 0.5)',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
     borderRadius: '10px',
-    color: '#f8fafc',
+    color: '#ffffff',
     fontSize: '0.875rem',
     outline: 'none',
     boxSizing: 'border-box',
-    transition: 'border-color 0.2s ease',
+    transition: 'all 0.2s ease',
   },
   eyeButton: {
     position: 'absolute',
@@ -448,13 +504,11 @@ const styles = {
   actionIcon: {
     width: '20px',
     height: '20px',
-    color: '#64748b',
+    color: '#94a3b8',
     flexShrink: 0,
   },
-
-  /* Estilos específicos debajo del campo de contraseña */
   passwordErrorContainer: {
-    marginTop: '4px',
+    marginTop: '6px',
     display: 'flex',
     flexDirection: 'column',
     gap: '6px',
@@ -481,23 +535,35 @@ const styles = {
     cursor: 'pointer',
     padding: 0,
   },
-
   submitBtn: {
-    marginTop: '8px',
+    marginTop: '6px',
     height: '44px',
-    backgroundColor: '#2563eb',
+    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
     color: '#ffffff',
     border: 'none',
     borderRadius: '10px',
-    fontSize: '0.9rem',
+    fontSize: '0.925rem',
     fontWeight: '600',
     cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
+    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
+    transition: 'transform 0.1s ease',
+  },
+  statusIndicator: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '6px',
+    marginTop: '16px',
+  },
+  heartbeatIcon: {
+    width: '16px',
+    height: '16px',
+    color: '#60a5fa',
   },
   toggleFooter: {
-    marginTop: '24px',
+    marginTop: '20px',
     paddingTop: '16px',
-    borderTop: '1px solid #1e293b',
+    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -505,18 +571,16 @@ const styles = {
   },
   toggleText: {
     fontSize: '0.8rem',
-    color: '#64748b',
+    color: '#94a3b8',
   },
   toggleBtn: {
     background: 'none',
     border: 'none',
-    color: '#60a5fa',
+    color: '#38bdf8',
     fontSize: '0.85rem',
     fontWeight: '600',
     cursor: 'pointer',
   },
-
-  // Modal
   modalOverlay: {
     position: 'fixed',
     top: 0,
