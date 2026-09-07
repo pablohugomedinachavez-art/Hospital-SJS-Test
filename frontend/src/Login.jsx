@@ -74,53 +74,152 @@ export function Login() {
     setPasswordError(false);
   };
 
-  // Patrón idéntico repetido en x=0 y x=600 para un bucle transparente continuo
-  const ecgPath = "M0,75 L150,75 L160,45 L170,105 L180,20 L195,135 L210,60 L220,85 L230,75 L600,75 L610,45 L620,105 L630,20 L645,135 L660,60 L670,85 L680,75 L1200,75";
-
   return (
-    <div style={styles.overlay}>
-      {/* Keyframes para una animación de traslación fluida e infinita */}
+    <div className="login-overlay" style={styles.overlay}>
+      {/* Estilos CSS Avanzados para Animaciones Complejas */}
       <style>
         {`
-          @keyframes ecgLoop {
+          /* Animación del trazado que avanza continuo */
+          @keyframes ecgDraw {
             0% {
-              transform: translateX(0);
+              stroke-dashoffset: 1200;
             }
             100% {
-              transform: translateX(-50%);
+              stroke-dashoffset: 0;
             }
           }
-          .ecg-track {
-            animation: ecgLoop 8s linear infinite;
-            will-change: transform;
+
+          /* Pulsación luminosa en el fondo de la pantalla al ritmo del electrocardiograma */
+          @keyframes screenPulse {
+            0%, 100% {
+              background-color: #090d16;
+              box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
+            }
+            32% {
+              background-color: #090d16;
+            }
+            36% {
+              background-color: #0c152b;
+              box-shadow: inset 0 0 100px rgba(37, 99, 235, 0.18);
+            }
+            40% {
+              background-color: #090d16;
+              box-shadow: inset 0 0 20px rgba(37, 99, 235, 0.05);
+            }
+            44% {
+              background-color: #0e1a38;
+              box-shadow: inset 0 0 140px rgba(37, 99, 235, 0.25);
+            }
+            52% {
+              background-color: #090d16;
+              box-shadow: inset 0 0 0px rgba(37, 99, 235, 0);
+            }
+          }
+
+          .login-overlay {
+            animation: screenPulse 2.5s ease-in-out infinite;
+          }
+
+          .ecg-line {
+            stroke-dasharray: 1200;
+            stroke-dashoffset: 1200;
+            animation: ecgDraw 2.5s linear infinite;
+          }
+
+          /* Interacciones y animaciones en Inputs */
+          .custom-input {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .custom-input:hover {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+            transform: translateX(2px);
+          }
+          .custom-input:focus {
+            border-color: #60a5fa !important;
+            box-shadow: 0 0 18px rgba(96, 165, 250, 0.4);
+            background-color: #030712 !important;
+          }
+
+          /* Animación interactiva en los íconos de los inputs */
+          .input-container:hover .input-icon-svg {
+            color: #60a5fa !important;
+            transform: scale(1.15) rotate(-5deg);
+          }
+          .input-icon-svg {
+            transition: transform 0.3s ease, color 0.3s ease;
+          }
+
+          /* Botón Principal con Efecto Shimmer Sweep y Elevación 3D */
+          .btn-shimmer {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .btn-shimmer::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+              60deg,
+              transparent 30%,
+              rgba(255, 255, 255, 0.25) 50%,
+              transparent 70%
+            );
+            transform: rotate(30deg) translateX(-100%);
+            transition: transform 0.75s ease;
+          }
+          .btn-shimmer:hover::before {
+            transform: rotate(30deg) translateX(100%);
+          }
+          .btn-shimmer:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.5) !important;
+            background-color: #1d4ed8 !important;
+          }
+          .btn-shimmer:active {
+            transform: translateY(1px) scale(0.98);
+          }
+
+          /* Efecto Hover en el botón del ojo */
+          .eye-btn-anim {
+            transition: transform 0.2s ease, color 0.2s ease;
+          }
+          .eye-btn-anim:hover {
+            transform: scale(1.15);
+          }
+          .eye-btn-anim:hover svg {
+            color: #93c5fd !important;
           }
         `}
       </style>
 
-      {/* Fondo de Cardiograma con efecto de profundidad y lejania */}
+      {/* Fondo de Cardiograma Lejano con Trazado Avanzado */}
       <div style={styles.ecgBackground}>
         <svg
-          viewBox="0 0 600 150"
+          viewBox="0 0 1200 150"
           preserveAspectRatio="none"
           style={styles.ecgSvg}
         >
-          {/* Definición de degradados y filtros de profundidad */}
           <defs>
-            {/* Máscara de desvanecimiento lateral */}
+            {/* Máscara de degradado para desvanecimiento en los bordes laterales */}
             <linearGradient id="fadeMask" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#fff" stopOpacity="0" />
-              <stop offset="15%" stopColor="#fff" stopOpacity="1" />
-              <stop offset="85%" stopColor="#fff" stopOpacity="1" />
+              <stop offset="12%" stopColor="#fff" stopOpacity="1" />
+              <stop offset="88%" stopColor="#fff" stopOpacity="1" />
               <stop offset="100%" stopColor="#fff" stopOpacity="0" />
             </linearGradient>
 
             <mask id="mask-layer">
-              <rect x="0" y="0" width="100%" height="100%" fill="url(#fadeMask)" />
+              <rect x="0" y="0" width="1200" height="150" fill="url(#fadeMask)" />
             </mask>
 
-            {/* Filtro de resplandor para simular lejania y luz difusa */}
+            {/* Filtro de Resplandor / Difuminado de Lejanía */}
             <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
@@ -128,31 +227,31 @@ export function Login() {
             </filter>
           </defs>
 
-          {/* Grupo animado con máscara de bordes suaves */}
+          {/* Grupo de Trazado con Máscara de Difuminado */}
           <g mask="url(#mask-layer)">
-            <g className="ecg-track" style={{ display: 'flex', width: '200%' }}>
-              {/* Capa de destello difuminado al fondo */}
-              <path
-                d={ecgPath}
-                fill="none"
-                stroke="#3b82f6"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#glow)"
-                opacity="0.35"
-              />
-              {/* Línea nítida principal */}
-              <path
-                d={ecgPath}
-                fill="none"
-                stroke="#60a5fa"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.75"
-              />
-            </g>
+            {/* Capa de resplandor lejano (difuminada) */}
+            <path
+              className="ecg-line"
+              d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth="5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              filter="url(#glow)"
+              opacity="0.4"
+            />
+            {/* Capa nítida de la línea del electrocardiograma */}
+            <path
+              className="ecg-line"
+              d="M0,75 L300,75 L310,45 L320,105 L330,20 L345,135 L360,60 L370,85 L380,75 L700,75 L710,45 L720,105 L730,20 L745,135 L760,60 L770,85 L780,75 L1200,75"
+              fill="none"
+              stroke="#60a5fa"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.85"
+            />
           </g>
         </svg>
       </div>
@@ -170,7 +269,7 @@ export function Login() {
         <span style={styles.areaBadge}>Área de Seguros</span>
       </header>
 
-      {/* Tarjeta Central */}
+      {/* Tarjeta Central Inmóvil */}
       <div style={styles.card}>
         <div style={styles.cardHeader}>
           <h2 style={styles.cardTitle}>
@@ -197,13 +296,14 @@ export function Login() {
           {/* Campo Usuario */}
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Usuario / Correo</label>
-            <div style={styles.inputWrapper}>
-              <svg style={styles.inputIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <div className="input-container" style={styles.inputWrapper}>
+              <svg className="input-icon-svg" style={styles.inputIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
               </svg>
               <input
                 type="text"
                 required
+                className="custom-input"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Ingresa tu usuario o correo"
@@ -215,8 +315,9 @@ export function Login() {
           {/* Campo Contraseña */}
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Contraseña</label>
-            <div style={styles.inputWrapper}>
+            <div className="input-container" style={styles.inputWrapper}>
               <svg
+                className="input-icon-svg"
                 style={{ ...styles.inputIcon, color: passwordError ? '#f87171' : '#64748b' }}
                 fill="none"
                 stroke="currentColor"
@@ -228,6 +329,7 @@ export function Login() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                className="custom-input"
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value);
@@ -243,6 +345,7 @@ export function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                className="eye-btn-anim"
                 style={styles.eyeButton}
               >
                 {showPassword ? (
@@ -278,8 +381,8 @@ export function Login() {
             )}
           </div>
 
-          {/* Botón Principal */}
-          <button type="submit" disabled={loading} style={styles.submitBtn}>
+          {/* Botón Principal con Efectos Complejos */}
+          <button type="submit" disabled={loading} className="btn-shimmer" style={styles.submitBtn}>
             {loading ? 'Procesando...' : isRegister ? 'Registrarse' : 'Ingresar'}
           </button>
         </form>
@@ -320,13 +423,14 @@ export function Login() {
             <form onSubmit={handleForgotSubmit} style={styles.form}>
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Correo Electrónico Registrado</label>
-                <div style={styles.inputWrapper}>
-                  <svg style={styles.inputIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <div className="input-container" style={styles.inputWrapper}>
+                  <svg className="input-icon-svg" style={styles.inputIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                   </svg>
                   <input
                     type="email"
                     required
+                    className="custom-input"
                     value={resetEmail}
                     onChange={(e) => setResetEmail(e.target.value)}
                     placeholder="ejemplo@hospital.com"
@@ -346,7 +450,7 @@ export function Login() {
                 >
                   Cancelar
                 </button>
-                <button type="submit" disabled={forgotLoading} style={styles.submitBtnModal}>
+                <button type="submit" disabled={forgotLoading} className="btn-shimmer" style={styles.submitBtnModal}>
                   {forgotLoading ? 'Enviando...' : 'Enviar enlace'}
                 </button>
               </div>
@@ -358,7 +462,7 @@ export function Login() {
   );
 }
 
-// Estilos Nativos CSS
+// Estilos JS Nativos
 const styles = {
   overlay: {
     position: 'fixed',
@@ -366,7 +470,6 @@ const styles = {
     left: 0,
     width: '100vw',
     height: '100vh',
-    backgroundColor: '#090d16',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -377,7 +480,6 @@ const styles = {
     padding: '20px',
     zIndex: 9999,
   },
-  /* Contenedor del ECG Lejano */
   ecgBackground: {
     position: 'absolute',
     top: '50%',
@@ -531,7 +633,6 @@ const styles = {
     fontSize: '0.875rem',
     outline: 'none',
     boxSizing: 'border-box',
-    transition: 'border-color 0.2s ease',
   },
   eyeButton: {
     position: 'absolute',
