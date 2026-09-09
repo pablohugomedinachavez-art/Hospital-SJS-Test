@@ -3957,7 +3957,6 @@ export function Dashboard() {
   // FUNCIONES DE EXPORTACIÓN
   // ============================================================
 
-  // 1. Exportar a JSON (Se mantiene limpio y directo en el cliente)
   const exportJSON = () => {
     try {
       const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() }
@@ -3976,10 +3975,9 @@ export function Dashboard() {
     }
   }
 
-  // 2. Exportar a CSV mejorado con soporte para tildes (UTF-8 BOM)
   const exportCSV = () => {
     try {
-      let csvContent = "\uFEFFDía,Pacientes,Consultas\n"; // \uFEFF asegura que Excel reconozca tildes y caracteres en español
+      let csvContent = "\uFEFFDía,Pacientes,Consultas\n";
       series.forEach(row => {
         csvContent += `"${row.day}","${row.patients}","${row.consultations}"\n`;
       })
@@ -3997,10 +3995,8 @@ export function Dashboard() {
     }
   }
 
-  // 3. Exportar a Excel (XLSX) profesional consumiendo el endpoint del Dashboard
   const exportExcel = async () => {
     try {
-      // Recuperar el token del localStorage (o de donde lo guardes al iniciar sesión)
       const currentToken = localStorage.getItem('token') || '';
 
       const res = await apiFetch('/dashboard/export/excel', {
@@ -4026,8 +4022,6 @@ export function Dashboard() {
     }
   };
 
-
-  // MÉTODO PROFESIONAL PARA PDF: Inyecta estilos temporales de paginación y diseño corporativo
   const exportPDF = () => {
     try {
       const styleId = 'pdf-print-styles';
@@ -4040,25 +4034,24 @@ export function Dashboard() {
       }
 
       styleElement.innerHTML = `
-        /* ESTILOS DE ADAPTACIÓN RESPONSIVA (320px - 640px) */
         @media (max-width: 640px) {
           .dashboard-wrapper {
             padding: 0.5rem !important;
           }
           .printable-container {
-            padding: 0.85rem !important;
-            border-radius: 12px !important;
+            padding: 1rem !important;
+            border-radius: 16px !important;
             gap: 1.25rem !important;
           }
           .dashboard-title {
-            font-size: 1.25rem !important;
+            font-size: 1.35rem !important;
           }
           .kpi-grid {
-            grid-template-columns: repeat(2, 1fr) !important; /* 2 columnas en tarjetas pequeñas */
+            grid-template-columns: repeat(2, 1fr) !important;
             gap: 0.5rem !important;
           }
           .charts-grid {
-            grid-template-columns: 1fr !important; /* Fuerza 1 sola columna en gráficos */
+            grid-template-columns: 1fr !important;
           }
           .actions-bar {
             width: 100% !important;
@@ -4067,16 +4060,18 @@ export function Dashboard() {
           }
           .export-buttons-group {
             width: 100% !important;
-            justify-content: space-between !important;
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 0.35rem !important;
           }
           .export-buttons-group button {
-            flex: 1 !important;
-            padding: 0.5rem 0.25rem !important;
-            font-size: 0.7rem !important;
+            width: 100% !important;
+            padding: 0.5rem 0.2rem !important;
+            font-size: 0.75rem !important;
+            text-align: center !important;
           }
         }
 
-        /* ESTILOS DE IMPRESIÓN (PDF) */
         @media print {
           body * { visibility: hidden; }
           #printable-dashboard, #printable-dashboard * { visibility: visible; }
@@ -4108,21 +4103,21 @@ export function Dashboard() {
   };
 
   return (
-    <div className="dashboard-wrapper" style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div id="printable-dashboard" className="printable-container" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div className="dashboard-wrapper p-3 sm:p-6 lg:p-10" style={{ backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div id="printable-dashboard" className="printable-container p-4 sm:p-6 lg:p-8" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
         {/* CABECERA Y FILTROS */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 className="dashboard-title" style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>Dashboard Gerencial</h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>Visión rápida del desempeño clínico y operativo en tiempo real.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div style={{ maxWidth: '100%' }}>
+            <h1 className="dashboard-title text-xl sm:text-2xl font-bold" style={{ color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>Dashboard Gerencial</h1>
+            <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>Visión rápida del desempeño clínico y operativo en tiempo real.</p>
           </div>
 
-          <div className="no-print actions-bar" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <div className="no-print actions-bar" style={{ display: 'flex', alignItems: 'stretch', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: '1 1 100%' }}>
               <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Día(s)</label>
               <select
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, outline: 'none', cursor: 'pointer' }}
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, outline: 'none', cursor: 'pointer', width: '100%' }}
                 value={days}
                 onChange={e => setDays(Number(e.target.value))}
               >
@@ -4133,20 +4128,19 @@ export function Dashboard() {
             </div>
 
             {/* BOTONES DE EXPORTACIÓN */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
               <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exportar</label>
-              <div className="export-buttons-group" style={{ display: 'flex', gap: '0.5rem' }}>
-                <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportCSV}>CSV</button>
-                <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportExcel}>Excel</button>
-                <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportPDF}>PDF</button>
-                <button title="Exportar a JSON" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportJSON}>JSON</button>
+              <div className="export-buttons-group" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', width: '100%' }}>
+                <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }} onClick={exportCSV}>CSV</button>
+                <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }} onClick={exportExcel}>Excel</button>
+                <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }} onClick={exportPDF}>PDF</button>
+                <button title="Exportar a JSON" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '10px', padding: '0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }} onClick={exportJSON}>JSON</button>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'transparent', textTransform: 'uppercase' }}>&nbsp;</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
               <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%' }}
                 onClick={load}
                 disabled={loading}
               >
@@ -4161,10 +4155,10 @@ export function Dashboard() {
         {loading ? (
           <div style={{ padding: '4rem 0', textAlign: 'center' }}><LoadingState label="Actualizando indicadores del sistema…" /></div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
 
             {/* GRILLA DE KPI */}
-            <div className="print-card kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1.25rem', width: '100%' }}>
+            <div className="print-card kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', width: '100%' }}>
               <StatCard icon={<StatIcons.Patients />} label="Pacientes" value={reports?.summary?.patients ?? 0} hint="Total registrado" tone="primary" />
               <StatCard icon={<StatIcons.Consultations />} label="Consultas" value={reports?.summary?.consultations ?? 0} hint={`Últimos ${days} días`} tone="success" />
               <StatCard icon={<StatIcons.Users />} label="Usuarios activos" value={metrics?.active_users ?? 0} hint="Sesiones recientes" tone="primary" />
@@ -4175,17 +4169,17 @@ export function Dashboard() {
             {/* GRILLA INFERIOR DE GRÁFICOS */}
             <div className="charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', width: '100%', paddingTop: '0.5rem' }}>
 
-              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
+              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
                 <div>
                   <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Tendencia de pacientes / consultas</h3>
                   <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Evolución diaria de atención</p>
                 </div>
                 <div style={{ paddingTop: '0.5rem' }}>
-                  <ResponsiveContainer width="100%" height={280}>
+                  <ResponsiveContainer width="100%" height={260}>
                     <LineChart data={series}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 12 }} />
-                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 12 }} />
+                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 11 }} />
                       <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
                       <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={3} dot={false} name="Pacientes" />
                       <Line type="monotone" dataKey="consultations" stroke="#10b981" strokeWidth={3} dot={false} name="Consultas" />
@@ -4200,11 +4194,11 @@ export function Dashboard() {
                   <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Distribución operativa del sistema</p>
                 </div>
                 <div style={{ paddingTop: '0.5rem' }}>
-                  <ResponsiveContainer width="100%" height={280}>
+                  <ResponsiveContainer width="100%" height={260}>
                     <BarChart data={areas} margin={{ left: 0, right: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={56} />
-                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 12 }} />
+                      <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={56} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 11 }} />
                       <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
                       <Bar dataKey="device_count" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Dispositivos" />
                       <Bar dataKey="active_alerts" fill="#ef4444" radius={[6, 6, 0, 0]} name="Alertas activas" />
