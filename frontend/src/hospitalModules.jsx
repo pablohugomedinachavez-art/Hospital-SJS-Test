@@ -1591,31 +1591,35 @@ export function Consultations() {
   return (
     <div className="consultations-container">
       
-      {/* Estilos CSS Responsive */}
+      {/* Estilos CSS Responsive Corregidos */}
       <style>{`
+        *, *::before, *::after {
+          box-sizing: border-box;
+        }
+
         .consultations-container {
-          padding: 1.25rem;
+          padding: 0.75rem;
           background-color: #090d16;
           color: #f8fafc;
           min-height: 100vh;
           font-family: system-ui, -apple-system, sans-serif;
-          box-sizing: border-box;
+          width: 100%;
+          max-width: 100vw;
           overflow-x: hidden;
         }
 
         .main-card {
           background-color: rgba(15, 23, 42, 0.6);
           border: 1px solid #1e293b;
-          border-radius: 20px;
-          padding: 1.25rem;
+          border-radius: 16px;
+          padding: 1rem;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
           backdrop-filter: blur(12px);
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 1.25rem;
           width: 100%;
           max-width: 100%;
-          box-sizing: border-box;
           overflow: hidden;
         }
 
@@ -1624,9 +1628,10 @@ export function Consultations() {
           justify-content: space-between;
           align-items: center;
           border-bottom: 1px solid #1e293b;
-          padding-bottom: 1.25rem;
+          padding-bottom: 1rem;
           flex-wrap: wrap;
-          gap: 1rem;
+          gap: 0.75rem;
+          width: 100%;
         }
 
         .header-info {
@@ -1634,15 +1639,16 @@ export function Consultations() {
           align-items: center;
           gap: 0.75rem;
           min-width: 0;
-          flex: 1 1 250px;
+          flex: 1 1 200px;
         }
 
         .header-title-text {
           min-width: 0;
+          flex: 1;
         }
 
         .header-title-text h1 {
-          font-size: 1.5rem;
+          font-size: 1.25rem;
           font-weight: 700;
           margin: 0;
           letter-spacing: -0.02em;
@@ -1654,62 +1660,80 @@ export function Consultations() {
         .grid-cards {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 1.25rem;
+          gap: 1rem;
           width: 100%;
-          box-sizing: border-box;
         }
 
         .grid-form-2col {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 1rem;
-        }
-
-        @media (min-width: 640px) {
-          .grid-cards {
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          }
-        
-          .main-card {
-            padding: 2rem;
-            gap: 2rem;
-          }
-          .header-title-text h1 {
-            font-size: 1.875rem;
-          }
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animated-card {
-          animation: fadeIn 0.35s ease-out forwards;
-        }
-        .input-focus-glow {
-          transition: all 0.2s ease-in-out;
+          grid-template-columns: 1fr;
+          gap: 0.85rem;
           width: 100%;
-          box-sizing: border-box;
         }
-        .input-focus-glow:focus {
+
+        .responsive-input {
+          width: 100% !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+          background-color: #090d16;
+          border: 1px solid #334155;
+          color: #f8fafc;
+          border-radius: 12px;
+          padding: 0.65rem 0.85rem;
+          font-size: 0.85rem;
+          outline: none;
+          transition: all 0.2s ease-in-out;
+        }
+
+        .responsive-input:focus {
           border-color: #38bdf8 !important;
           box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
           background-color: #0f172a !important;
         }
+
+        @media (min-width: 640px) {
+          .consultations-container {
+            padding: 1.25rem;
+          }
+          .main-card {
+            padding: 1.75rem;
+            gap: 1.75rem;
+            border-radius: 20px;
+          }
+          .grid-cards {
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          }
+          .grid-form-2col {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          }
+          .header-title-text h1 {
+            font-size: 1.75rem;
+          }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animated-card {
+          animation: fadeIn 0.3s ease-out forwards;
+          width: 100%;
+        }
+        
         .card-interactive {
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .card-interactive:hover {
-          transform: translateY(-3px);
+          transform: translateY(-2px);
           border-color: #38bdf8 !important;
-          box-shadow: 0 12px 24px -10px rgba(56, 189, 248, 0.25) !important;
+          box-shadow: 0 10px 20px -10px rgba(56, 189, 248, 0.25) !important;
         }
         .btn-glow {
           transition: all 0.2s ease;
         }
         .btn-glow:hover {
           transform: translateY(-1px);
-          box-shadow: 0 0 18px rgba(59, 130, 246, 0.5) !important;
+          box-shadow: 0 0 16px rgba(59, 130, 246, 0.4) !important;
         }
         .btn-glow:active {
           transform: translateY(0);
@@ -1724,8 +1748,8 @@ export function Consultations() {
           <div className="header-info">
             <div style={{
               backgroundColor: 'rgba(56, 189, 248, 0.12)',
-              padding: '0.65rem',
-              borderRadius: '14px',
+              padding: '0.55rem',
+              borderRadius: '12px',
               color: '#38bdf8',
               border: '1px solid rgba(56, 189, 248, 0.25)',
               display: 'flex',
@@ -1733,13 +1757,13 @@ export function Consultations() {
               justifyContent: 'center',
               flexShrink: 0
             }}>
-              <Stethoscope size={24} />
+              <Stethoscope size={22} />
             </div>
             <div className="header-title-text">
               <h1>
                 {showForm ? 'Nueva Consulta' : 'Consultas Médicas'}
               </h1>
-              <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.15rem 0 0 0' }}>
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.1rem 0 0 0' }}>
                 {showForm ? 'Gestión de triaje y receta.' : 'Historial de atención clínica.'}
               </p>
             </div>
@@ -1751,17 +1775,17 @@ export function Consultations() {
               backgroundColor: '#3b82f6',
               border: 'none',
               color: '#ffffff',
-              borderRadius: '12px',
-              padding: '0.65rem 1.25rem',
+              borderRadius: '10px',
+              padding: '0.6rem 1rem',
               fontSize: '0.85rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '0.5rem',
+              gap: '0.4rem',
               cursor: 'pointer',
               width: '100%',
-              maxWidth: '200px',
+              maxWidth: '180px',
               flexShrink: 0
             }}
             onClick={() => {
@@ -1783,14 +1807,15 @@ export function Consultations() {
             <div style={{
               backgroundColor: '#0f172a',
               border: '1px solid #1e293b',
-              borderRadius: '16px',
-              padding: '1rem 1.25rem',
+              borderRadius: '14px',
+              padding: '0.85rem 1rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.75rem'
+              gap: '0.65rem',
+              width: '100%'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Filtro de Búsqueda</h3>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Filtro de Búsqueda</h3>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
                   {consultations.length} {consultations.length === 1 ? 'resultado' : 'resultados'}
                 </span>
@@ -1804,7 +1829,7 @@ export function Consultations() {
                 <LoadingState label="Cargando consultas..." />
               </div>
             ) : consultations.length === 0 ? (
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem 1rem', textAlign: 'center' }}>
+              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '2rem 1rem', textAlign: 'center' }}>
                 <EmptyState icon="🩺" title="No se encontraron consultas" description="Intenta cambiar los términos de búsqueda o registra una nueva atención." />
               </div>
             ) : (
@@ -1816,48 +1841,46 @@ export function Consultations() {
                     style={{
                       backgroundColor: '#0f172a',
                       border: '1px solid #1e293b',
-                      borderRadius: '16px',
-                      padding: '1rem',
+                      borderRadius: '14px',
+                      padding: '0.85rem',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '0.85rem',
-                      overflow: 'hidden',
-                      width: '100%',
-                      boxSizing: 'border-box'
+                      gap: '0.75rem',
+                      width: '100%'
                     }}
                   >
                     {/* Cabecera */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
-                        <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.4rem', borderRadius: '8px', flexShrink: 0 }}>
-                          <User size={18} />
+                        <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.35rem', borderRadius: '8px', flexShrink: 0 }}>
+                          <User size={16} />
                         </div>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <Calendar size={12} /> {formatDate(item.created_at) || item.date || 'Sin fecha'}
+                            <Calendar size={11} /> {formatDate(item.created_at) || item.date || 'Sin fecha'}
                           </span>
-                          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f8fafc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {item.patient_name || `Paciente #${item.patient_id}`}
                           </h3>
                         </div>
                       </div>
-                      <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.15rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, flexShrink: 0 }}>
+                      <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.1rem 0.35rem', borderRadius: '6px', fontSize: '0.68rem', fontWeight: 600, flexShrink: 0 }}>
                         #{item.id}
                       </span>
                     </div>
 
                     {/* Cuerpo */}
-                    <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowWrap: 'anywhere', wordBreak: 'break-word', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ backgroundColor: '#090d16', padding: '0.65rem', borderRadius: '8px', border: '1px solid #1e293b', fontSize: '0.78rem', display: 'flex', flexDirection: 'column', gap: '0.3rem', wordBreak: 'break-word', width: '100%' }}>
                       <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Motivo: </strong><span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></p>
                       <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Diagnóstico: </strong><span style={{ color: item.diagnosis ? '#38bdf8' : '#64748b', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></p>
                       <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Médico: </strong><span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></p>
                     </div>
 
-                    {/* Pie de métricas adaptativo */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap', gap: '0.4rem', width: '100%', boxSizing: 'border-box' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Scale size={13} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Ruler size={13} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600, color: '#f8fafc' }}><Activity size={13} color="#38bdf8" /> IMC {item.bmi ?? '—'}</span>
+                    {/* Pie de métricas */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: '#94a3b8', paddingTop: '0.4rem', borderTop: '1px solid #1e293b', gap: '0.3rem', width: '100%' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Scale size={12} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Ruler size={12} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600, color: '#f8fafc' }}><Activity size={12} color="#38bdf8" /> IMC {item.bmi ?? '—'}</span>
                     </div>
                   </article>
                 ))}
@@ -1866,22 +1889,22 @@ export function Consultations() {
           </div>
         ) : (
           /* FORMULARIO COMPLETO INTEGRADO */
-          <form onSubmit={submit} className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <form onSubmit={submit} className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%' }}>
 
             {/* SECCIÓN 1: PACIENTE Y ATENCIÓN */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.65rem' }}>
-                <UserCheck size={18} color="#38bdf8" />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Datos del Paciente y Consulta</h3>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
+                <UserCheck size={16} color="#38bdf8" />
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Datos del Paciente y Consulta</h3>
               </div>
 
               <div className="grid-form-2col">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Buscar Paciente *</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Buscar Paciente *</label>
                   <SearchField value={patientQuery} onChange={setPatientQuery} placeholder="Escribe el Nombre o DNI..." loading={!patients.length && Boolean(patientQuery)} />
                   
                   {patients.length > 0 && (
-                    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+                    <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '10px', padding: '0.4rem', maxHeight: '160px', overflowY: 'auto', width: '100%' }}>
                       {patients.slice(0, 5).map(patient => (
                         <button
                           type="button"
@@ -1890,22 +1913,23 @@ export function Consultations() {
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.75rem',
+                            gap: '0.6rem',
                             backgroundColor: String(patient.id) === String(form.patient_id) ? '#1e293b' : 'transparent',
                             border: String(patient.id) === String(form.patient_id) ? '1px solid #38bdf8' : 'none',
                             color: '#f8fafc',
-                            padding: '0.5rem 0.75rem',
-                            borderRadius: '8px',
+                            padding: '0.4rem 0.6rem',
+                            borderRadius: '6px',
                             cursor: 'pointer',
-                            textAlign: 'left'
+                            textAlign: 'left',
+                            width: '100%'
                           }}
                         >
-                          <span style={{ width: '28px', height: '28px', backgroundColor: '#38bdf8', color: '#090d16', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem', flexShrink: 0 }}>
+                          <span style={{ width: '24px', height: '24px', backgroundColor: '#38bdf8', color: '#090d16', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.7rem', flexShrink: 0 }}>
                             {patient.full_name?.charAt(0)?.toUpperCase() || 'P'}
                           </span>
-                          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                            <strong style={{ fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{patient.full_name}</strong>
-                            <small style={{ color: '#94a3b8', fontSize: '0.75rem' }}>DNI: {patient.dni || patient.document_number || 'S/D'}</small>
+                          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                            <strong style={{ fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{patient.full_name}</strong>
+                            <small style={{ color: '#94a3b8', fontSize: '0.7rem' }}>DNI: {patient.dni || patient.document_number || 'S/D'}</small>
                           </span>
                         </button>
                       ))}
@@ -1913,12 +1937,11 @@ export function Consultations() {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Paciente Seleccionado *</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Paciente Seleccionado *</label>
                   <select
                     required
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.patient_id}
                     onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}
                   >
@@ -1927,34 +1950,32 @@ export function Consultations() {
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Médico Tratante</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Médico Tratante</label>
                   <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.doctor_name}
                     onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))}
                     placeholder="Dr. Nombre Apellido"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Motivo de la Consulta</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Motivo de la Consulta</label>
                   <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.reason}
                     onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
                     placeholder="Ej. Chequeo preventivo..."
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Sintomatología / Anamnesis</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Sintomatología / Anamnesis</label>
                   <textarea
                     rows={3}
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none', resize: 'vertical' }}
+                    className="responsive-input"
+                    style={{ resize: 'vertical' }}
                     value={form.symptoms}
                     onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))}
                     placeholder="Detalles expresados por el paciente..."
@@ -1963,82 +1984,79 @@ export function Consultations() {
               </div>
 
               {selectedPatient && (
-                <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.65rem 0.85rem', borderRadius: '10px', color: '#38bdf8', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.5rem 0.75rem', borderRadius: '8px', color: '#38bdf8', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%' }}>
+                  <CheckCircle2 size={14} style={{ flexShrink: 0 }} />
                   <span>Atendiendo a: <strong>{selectedPatient.full_name}</strong></span>
                 </div>
               )}
             </div>
 
             {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.65rem' }}>
-                <HeartPulse size={18} color="#38bdf8" />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y Signos Vitales</h3>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
+                <HeartPulse size={16} color="#38bdf8" />
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y Signos Vitales</h3>
               </div>
 
               <div className="grid-form-2col">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.1"
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.weight_kg}
                     onChange={e => updateTriage('weight_kg', e.target.value)}
                     placeholder="70.0"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
                   <input
                     type="number"
                     min="0"
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.height_cm}
                     onChange={e => updateTriage('height_cm', e.target.value)}
                     placeholder="170"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Índice de Masa Corporal (IMC)</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>IMC</label>
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', width: '100%' }}>
                     <input
-                      style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none', fontWeight: 700, width: '100%' }}
+                      className="responsive-input"
+                      style={{ color: '#38bdf8', fontWeight: 700 }}
                       value={form.bmi}
                       readOnly
                       placeholder="0.00"
                     />
-                    <span className={`badge badge-${bmiState.tone === 'neutral' ? 'info' : bmiState.tone}`} style={{ padding: '0.4rem 0.6rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    <span className={`badge badge-${bmiState.tone === 'neutral' ? 'info' : bmiState.tone}`} style={{ padding: '0.35rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
                       {bmiState.label}
                     </span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Presión Arterial</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Presión Arterial</label>
                   <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.blood_pressure}
                     onChange={e => setForm(p => ({ ...p, blood_pressure: e.target.value }))}
                     placeholder="120/80"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro Abdominal (cm)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro Abdominal (cm)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.1"
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.abdominal_perimeter_cm}
                     onChange={e => setForm(p => ({ ...p, abdominal_perimeter_cm: e.target.value }))}
                     placeholder="85"
@@ -2048,41 +2066,39 @@ export function Consultations() {
             </div>
 
             {/* SECCIÓN 3: DIAGNÓSTICO Y TRATAMIENTO */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.65rem' }}>
-                <Pill size={18} color="#38bdf8" />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y Tratamiento</h3>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.5rem' }}>
+                <Pill size={16} color="#38bdf8" />
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y Tratamiento</h3>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico Clínico</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico Clínico</label>
                   <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.diagnosis}
                     onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))}
                     placeholder="Diagnóstico principal o código CIE-10..."
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Plan de Tratamiento / Indicaciones</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Plan de Tratamiento / Indicaciones</label>
                   <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none' }}
+                    className="responsive-input"
                     value={form.treatment}
                     onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))}
                     placeholder="Recomendaciones, dieta o estilo de vida..."
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
                   <textarea
                     rows={4}
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 0.85rem', fontSize: '0.85rem', outline: 'none', resize: 'vertical' }}
+                    className="responsive-input"
+                    style={{ resize: 'vertical' }}
                     value={form.prescription}
                     onChange={e => setForm(p => ({ ...p, prescription: e.target.value }))}
                     placeholder="Detalla los medicamentos prescritos..."
@@ -2091,10 +2107,10 @@ export function Consultations() {
               </div>
 
               {/* BOTONES DE ACCIÓN */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap', width: '100%' }}>
                 <button
                   type="button"
-                  style={{ backgroundColor: 'transparent', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1.25rem', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', flex: '1 1 120px' }}
+                  style={{ backgroundColor: 'transparent', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 1rem', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer', flex: '1 1 100px' }}
                   onClick={() => setShowForm(false)}
                 >
                   Cancelar
@@ -2106,8 +2122,8 @@ export function Consultations() {
                     backgroundColor: '#3b82f6',
                     border: 'none',
                     color: '#ffffff',
-                    borderRadius: '12px',
-                    padding: '0.65rem 1.25rem',
+                    borderRadius: '10px',
+                    padding: '0.6rem 1rem',
                     fontSize: '0.85rem',
                     fontWeight: 600,
                     cursor: submitting ? 'not-allowed' : 'pointer',
