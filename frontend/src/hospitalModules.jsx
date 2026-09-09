@@ -4039,33 +4039,55 @@ export function Dashboard() {
         document.head.appendChild(styleElement);
       }
 
-      // Reglas CSS estrictas para impresión: Evita cortes en cajas, fuerza fondo blanco corporativo y oculta controles interactivos
       styleElement.innerHTML = `
-      
-      @media (max-width: 360px) {
-      .device-dashboard-container { padding: 0.5rem !important; }
-      h1 { font-size: 1.25rem !important; }
-      }
-      
-      @media print {
-          body * {
-            visibility: hidden;
+        /* ESTILOS DE ADAPTACIÓN RESPONSIVA (320px - 640px) */
+        @media (max-width: 640px) {
+          .dashboard-wrapper {
+            padding: 0.5rem !important;
           }
-          #printable-dashboard, #printable-dashboard * {
-            visibility: visible;
+          .printable-container {
+            padding: 0.85rem !important;
+            border-radius: 12px !important;
+            gap: 1.25rem !important;
           }
+          .dashboard-title {
+            font-size: 1.25rem !important;
+          }
+          .kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important; /* 2 columnas en tarjetas pequeñas */
+            gap: 0.5rem !important;
+          }
+          .charts-grid {
+            grid-template-columns: 1fr !important; /* Fuerza 1 sola columna en gráficos */
+          }
+          .actions-bar {
+            width: 100% !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .export-buttons-group {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+          .export-buttons-group button {
+            flex: 1 !important;
+            padding: 0.5rem 0.25rem !important;
+            font-size: 0.7rem !important;
+          }
+        }
+
+        /* ESTILOS DE IMPRESIÓN (PDF) */
+        @media print {
+          body * { visibility: hidden; }
+          #printable-dashboard, #printable-dashboard * { visibility: visible; }
           #printable-dashboard {
-            position: absolute;
-            left: 0;
-            top: 0;
+            position: absolute; left: 0; top: 0;
             width: 100% !important;
             background-color: #ffffff !important;
             color: #0f172a !important;
             padding: 1rem !important;
           }
-          .no-print {
-            display: none !important;
-          }
+          .no-print { display: none !important; }
           .print-card {
             background-color: #f8fafc !important;
             border: 1px solid #cbd5e1 !important;
@@ -4086,19 +4108,17 @@ export function Dashboard() {
   };
 
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-
-      {/* MARCO GENERAL ESTILO DOCUMENTO (ID añadido para control de impresión limpio) */}
-      <div id="printable-dashboard" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div className="dashboard-wrapper" style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div id="printable-dashboard" className="printable-container" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
 
         {/* CABECERA Y FILTROS */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
           <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>Dashboard Gerencial</h1>
+            <h1 className="dashboard-title" style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>Dashboard Gerencial</h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>Visión rápida del desempeño clínico y operativo en tiempo real.</p>
           </div>
 
-          <div className="no-print" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="no-print actions-bar" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Día(s)</label>
               <select
@@ -4115,7 +4135,7 @@ export function Dashboard() {
             {/* BOTONES DE EXPORTACIÓN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exportar</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div className="export-buttons-group" style={{ display: 'flex', gap: '0.5rem' }}>
                 <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportCSV}>CSV</button>
                 <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportExcel}>Excel</button>
                 <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportPDF}>PDF</button>
@@ -4144,7 +4164,7 @@ export function Dashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', width: '100%' }}>
 
             {/* GRILLA DE KPI */}
-            <div className="print-card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem', width: '100%' }}>
+            <div className="print-card kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1.25rem', width: '100%' }}>
               <StatCard icon={<StatIcons.Patients />} label="Pacientes" value={reports?.summary?.patients ?? 0} hint="Total registrado" tone="primary" />
               <StatCard icon={<StatIcons.Consultations />} label="Consultas" value={reports?.summary?.consultations ?? 0} hint={`Últimos ${days} días`} tone="success" />
               <StatCard icon={<StatIcons.Users />} label="Usuarios activos" value={metrics?.active_users ?? 0} hint="Sesiones recientes" tone="primary" />
@@ -4153,7 +4173,7 @@ export function Dashboard() {
             </div>
 
             {/* GRILLA INFERIOR DE GRÁFICOS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem', width: '100%', paddingTop: '0.5rem' }}>
+            <div className="charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', width: '100%', paddingTop: '0.5rem' }}>
 
               <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
                 <div>
