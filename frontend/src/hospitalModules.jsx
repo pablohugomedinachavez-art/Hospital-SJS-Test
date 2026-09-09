@@ -1652,11 +1652,11 @@ export function Consultations() {
         }
 
         .grid-cards {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-          gap: 1.25rem;
-          width: 100%;
-          box-sizing: border-box;
+        display: grid;
+        grid-template-columns: 1fr; /* En pantallas pequeñas ocupa el 100% real */
+        gap: 1.25rem;
+        width: 100%;
+        box-sizing: border-box;
         }
 
         .grid-form-2col {
@@ -1665,11 +1665,11 @@ export function Consultations() {
           gap: 1rem;
         }
 
-        /* Ajustes adaptativos para dispositivos móviles */
         @media (min-width: 640px) {
-          .consultations-container {
-            padding: 2.5rem;
+        .grid-cards {
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           }
+        
           .main-card {
             padding: 2rem;
             gap: 2rem;
@@ -1809,60 +1809,59 @@ export function Consultations() {
               </div>
             ) : (
               <div className="grid-cards">
-  {consultations.map(item => (
-    <article
-      key={item.id}
-      className="card-interactive"
-      style={{
-        backgroundColor: '#0f172a',
-        border: '1px solid #1e293b',
-        borderRadius: '16px',
-        padding: '1.25rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-        overflow: 'hidden',
-        width: '100%',
-        maxWidth: '100%',
-        boxSizing: 'border-box'
-      }}
-    >
-      {/* Cabecera de la tarjeta */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0, flex: 1 }}>
-          <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.4rem', borderRadius: '8px', flexShrink: 0 }}>
-            <User size={18} />
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <Calendar size={12} /> {formatDate(item.created_at) || item.date || 'Sin fecha'}
-            </span>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {item.patient_name || `Paciente #${item.patient_id}`}
-            </h3>
-          </div>
-        </div>
-        <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.15rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, flexShrink: 0 }}>
-          #{item.id}
-        </span>
-      </div>
+                {consultations.map(item => (
+                  <article
+                    key={item.id}
+                    className="card-interactive"
+                    style={{
+                      backgroundColor: '#0f172a',
+                      border: '1px solid #1e293b',
+                      borderRadius: '16px',
+                      padding: '1rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.85rem',
+                      overflow: 'hidden',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    {/* Cabecera */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
+                        <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.4rem', borderRadius: '8px', flexShrink: 0 }}>
+                          <User size={18} />
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <Calendar size={12} /> {formatDate(item.created_at) || item.date || 'Sin fecha'}
+                          </span>
+                          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f8fafc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.patient_name || `Paciente #${item.patient_id}`}
+                          </h3>
+                        </div>
+                      </div>
+                      <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.15rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, flexShrink: 0 }}>
+                        #{item.id}
+                      </span>
+              </div>
 
-        {/* Cuerpo con texto destructivo/largo */}
-        <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowWrap: 'anywhere', wordBreak: 'break-word', width: '100%', boxSizing: 'border-box' }}>
-          <p style={{ margin: 0, overflowWrap: 'anywhere' }}><strong style={{ color: '#94a3b8' }}>Motivo: </strong><span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></p>
-          <p style={{ margin: 0, overflowWrap: 'anywhere' }}><strong style={{ color: '#94a3b8' }}>Diagnóstico: </strong><span style={{ color: item.diagnosis ? '#38bdf8' : '#64748b', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></p>
-          <p style={{ margin: 0, overflowWrap: 'anywhere' }}><strong style={{ color: '#94a3b8' }}>Médico: </strong><span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></p>
-        </div>
+                    {/* Cuerpo */}
+                    <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowWrap: 'anywhere', wordBreak: 'break-word', width: '100%', boxSizing: 'border-box' }}>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Motivo: </strong><span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></p>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Diagnóstico: </strong><span style={{ color: item.diagnosis ? '#38bdf8' : '#64748b', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></p>
+                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Médico: </strong><span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></p>
+                    </div>
 
-        {/* Pie de datos numéricos */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}><Scale size={13} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}><Ruler size={13} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap' }}><Activity size={13} color="#38bdf8" /> IMC {item.bmi ?? '—'}</span>
-        </div>
-      </article>
-        ))}
-        </div>
+                    {/* Pie de métricas adaptativo */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap', gap: '0.4rem', width: '100%', boxSizing: 'border-box' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Scale size={13} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Ruler size={13} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontWeight: 600, color: '#f8fafc' }}><Activity size={13} color="#38bdf8" /> IMC {item.bmi ?? '—'}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
             )}
           </div>
         ) : (
