@@ -1599,25 +1599,25 @@ export function Consultations() {
           color: #f8fafc;
           min-height: 100vh;
           font-family: system-ui, -apple-system, sans-serif;
-          box-sizing: border-border-box;
+          box-sizing: border-box;
           overflow-x: hidden;
         }
 
         .main-card {
-        background-color: rgba(15, 23, 42, 0.6);
-        border: 1px solid #1e293b;
-        border-radius: 20px;
-        padding: 1.25rem;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(12px);
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-        overflow: hidden; /* Evita desbordamiento general */
-      }
+          background-color: rgba(15, 23, 42, 0.6);
+          border: 1px solid #1e293b;
+          border-radius: 20px;
+          padding: 1.25rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(12px);
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
 
         .header-wrapper {
           display: flex;
@@ -1652,11 +1652,11 @@ export function Consultations() {
         }
 
         .grid-cards {
-        display: grid;
-        grid-template-columns: 1fr; /* En pantallas pequeñas ocupa el 100% real */
-        gap: 1.25rem;
-        width: 100%;
-        box-sizing: border-box;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 1.25rem;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .grid-form-2col {
@@ -1666,8 +1666,8 @@ export function Consultations() {
         }
 
         @media (min-width: 640px) {
-        .grid-cards {
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          .grid-cards {
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
           }
         
           .main-card {
@@ -1844,7 +1844,7 @@ export function Consultations() {
                       <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.15rem 0.4rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, flexShrink: 0 }}>
                         #{item.id}
                       </span>
-              </div>
+                    </div>
 
                     {/* Cuerpo */}
                     <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowWrap: 'anywhere', wordBreak: 'break-word', width: '100%', boxSizing: 'border-box' }}>
@@ -1964,7 +1964,7 @@ export function Consultations() {
 
               {selectedPatient && (
                 <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.65rem 0.85rem', borderRadius: '10px', color: '#38bdf8', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={16} flexShrink={0} />
+                  <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
                   <span>Atendiendo a: <strong>{selectedPatient.full_name}</strong></span>
                 </div>
               )}
@@ -2078,7 +2078,7 @@ export function Consultations() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight :500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
                   <textarea
                     rows={4}
                     className="input-focus-glow"
@@ -2128,8 +2128,6 @@ export function Consultations() {
     </div>
   );
 }
-
-
 // ============================================================
 // Locations
 // ============================================================
