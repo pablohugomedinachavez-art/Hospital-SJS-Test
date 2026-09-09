@@ -1650,7 +1650,7 @@ export function Consultations() {
         {/* ENCABEZADO DE ALTO IMPACTO */}
         <div style={{
           display: 'flex',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           alignItems: 'center',
           borderBottom: '1px solid #1e293b',
           paddingBottom: '1.5rem',
