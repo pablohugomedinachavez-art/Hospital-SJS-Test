@@ -4041,7 +4041,13 @@ export function Dashboard() {
 
       // Reglas CSS estrictas para impresión: Evita cortes en cajas, fuerza fondo blanco corporativo y oculta controles interactivos
       styleElement.innerHTML = `
-        @media print {
+      
+      @media (max-width: 360px) {
+      .device-dashboard-container { padding: 0.5rem !important; }
+      h1 { font-size: 1.25rem !important; }
+      }
+      
+      @media print {
           body * {
             visibility: hidden;
           }
