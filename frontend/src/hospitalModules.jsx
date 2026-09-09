@@ -1604,17 +1604,20 @@ export function Consultations() {
         }
 
         .main-card {
-          background-color: rgba(15, 23, 42, 0.6);
-          border: 1px solid #1e293b;
-          border-radius: 20px;
-          padding: 1.25rem;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(12px);
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-          max-width: 100%;
-        }
+        background-color: rgba(15, 23, 42, 0.6);
+        border: 1px solid #1e293b;
+        border-radius: 20px;
+        padding: 1.25rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(12px);
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden; /* Evita desbordamiento general */
+      }
 
         .header-wrapper {
           display: flex;
@@ -1650,8 +1653,10 @@ export function Consultations() {
 
         .grid-cards {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
           gap: 1.25rem;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .grid-form-2col {
@@ -1816,11 +1821,14 @@ export function Consultations() {
         display: 'flex',
         flexDirection: 'column',
         gap: '1rem',
-        overflow: 'hidden', // Evita que los hijos salgan de la tarjeta
-        minWidth: 0        // Permite la reducción flexible en contenedores grid/flex
+        overflow: 'hidden',
+        width: '100%',
+        maxWidth: '100%',
+        boxSizing: 'border-box'
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', minWidth: 0 }}>
+      {/* Cabecera de la tarjeta */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0, flex: 1 }}>
           <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.4rem', borderRadius: '8px', flexShrink: 0 }}>
             <User size={18} />
@@ -1839,35 +1847,22 @@ export function Consultations() {
         </span>
       </div>
 
-      <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', wordBreak: 'break-word', overflow: 'hidden' }}>
-        <p style={{ margin: 0, wordBreak: 'break-word' }}>
-          <strong style={{ color: '#94a3b8' }}>Motivo: </strong>
-          <span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span>
-        </p>
-        <p style={{ margin: 0, wordBreak: 'break-word' }}>
-          <strong style={{ color: '#94a3b8' }}>Diagnóstico: </strong>
-          <span style={{ color: item.diagnosis ? '#38bdf8' : '#64748b', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span>
-        </p>
-        <p style={{ margin: 0, wordBreak: 'break-word' }}>
-          <strong style={{ color: '#94a3b8' }}>Médico: </strong>
-          <span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span>
-        </p>
-      </div>
+        {/* Cuerpo con texto destructivo/largo */}
+        <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowWrap: 'anywhere', wordBreak: 'break-word', width: '100%', boxSizing: 'border-box' }}>
+          <p style={{ margin: 0, overflowWrap: 'anywhere' }}><strong style={{ color: '#94a3b8' }}>Motivo: </strong><span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></p>
+          <p style={{ margin: 0, overflowWrap: 'anywhere' }}><strong style={{ color: '#94a3b8' }}>Diagnóstico: </strong><span style={{ color: item.diagnosis ? '#38bdf8' : '#64748b', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></p>
+          <p style={{ margin: 0, overflowWrap: 'anywhere' }}><strong style={{ color: '#94a3b8' }}>Médico: </strong><span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></p>
+        </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap', gap: '0.5rem', minWidth: 0 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-          <Scale size={13} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-          <Ruler size={13} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap' }}>
-          <Activity size={13} color="#38bdf8" /> IMC {item.bmi ?? '—'}
-        </span>
-      </div>
-    </article>
-  ))}
-</div>
+        {/* Pie de datos numéricos */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}><Scale size={13} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}><Ruler size={13} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap' }}><Activity size={13} color="#38bdf8" /> IMC {item.bmi ?? '—'}</span>
+        </div>
+      </article>
+        ))}
+        </div>
             )}
           </div>
         ) : (
