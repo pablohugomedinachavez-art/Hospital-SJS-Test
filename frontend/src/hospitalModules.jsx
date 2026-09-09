@@ -2795,15 +2795,14 @@ export function Appointments() {
 
   // Verificador de solapamientos
   const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
-    if (!newDateStr) return false
-    const newStart = new Date(newDateStr).getTime()
-    let newEnd = newStart + 30 * 60000
     if (newEndTimeStr) {
-      const [eh, em] = newEndTimeStr.split(':').map(Number)
-      const startDateObj = new Date(newDateStr)
-      startDateObj.setHours(eh, em, 0, 0)
-      newEnd = startDateObj.getTime()
-    }
+  const parts = newEndTimeStr.split(':')
+  const eh = Number(parts[0])
+  const em = Number(parts[1])
+  const startDateObj = new Date(newDateStr)
+  startDateObj.setHours(eh, em, 0, 0)
+  newEnd = startDateObj.getTime()
+}
 
     return appointments.some(app => {
       if (excludeId && app.id === excludeId) return false
@@ -3307,20 +3306,18 @@ export function Appointments() {
 
                     return (
                       <div 
-                        key={hour}
-                        onClick={() => {
-                          setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
-                          setShowForm(true)
-                        }}
-                        style={{ display: 'flex', borderBottom: '1px solid #333333', minHeight: '65px', alignItems: 'stretch', cursor: 'pointer' }}
-                      >
-                        <div style={{ width: '70px', padding: '0.5rem', fontSize: '0.8rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '1rem', borderRight: '1px solid #333333' }}>
-                          {`${String(hour).padStart(2, '0')}:00`}
+                          key={hour}
+                          onClick={() => {
+                            setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
+                            setShowForm(true)
+                          }}
+                          style={{ display: 'grid', gridTemplateColumns: '60px 1fr', borderBottom: '1px solid #333333', minHeight: '60px', cursor: 'pointer' }}
+                        >
+                          <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
+                          <div style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            {cellApps.map(item => renderAppointmentCard(item))}
+                          </div>
                         </div>
-                        <div style={{ flex: 1, padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }} onClick={e => e.stopPropagation()}>
-                          {cellApps.map(item => renderAppointmentCard(item))}
-                        </div>
-                      </div>
                     )
                   })}
                 </div>
@@ -3333,103 +3330,47 @@ export function Appointments() {
 
       {/* POPUP DE EDICIÓN / DETALLE */}
       {selectedAppointment && (
-        <div className="animated-container" style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
-          <div className="animated-container" style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-
-            <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedAppointment.color || '#6264a7' }}></div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Detalles de la cita</h3>
+            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
+              <div className="animated-container" style={{ backgroundColor: '#292929', border: '1px solid #484644', borderRadius: '8px', padding: '1.5rem', width: '90%', maxWidth: '500px', color: '#f3f2f1' }}>
+                {!editingAppointment ? (
+                  <div>
+                    <h3 style={{ marginTop: 0 }}>Detalle de Cita</h3>
+                    <p><strong>Médico:</strong> {selectedAppointment.doctor_name}</p>
+                    <p><strong>Especialidad:</strong> {selectedAppointment.specialty}</p>
+                    <p><strong>Fecha/Hora:</strong> {selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</p>
+                    <p><strong>Prioridad:</strong> {selectedAppointment.priority}</p>
+                    <p><strong>Notas:</strong> {selectedAppointment.notes || 'Sin observaciones'}</p>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+                      <button onClick={() => setEditingAppointment(true)} style={{ backgroundColor: '#005a9e', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                      <button onClick={() => handleCancelAppointment(selectedAppointment.id)} disabled={actionLoading} style={{ backgroundColor: '#a80000', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cancelar Cita</button>
+                      <button onClick={() => setSelectedAppointment(null)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cerrar</button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <h3>Editar Cita</h3>
+                    <label style={{ fontSize: '0.8rem' }}>Médico:
+                      <input style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#fff', padding: '0.4rem' }} value={editForm.doctor_name} onChange={e => setEditForm(p => ({ ...p, doctor_name: e.target.value }))} />
+                    </label>
+                    <label style={{ fontSize: '0.8rem' }}>Inicio:
+                      <input type="datetime-local" style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#fff', padding: '0.4rem' }} value={editForm.appointment_date} onChange={e => setEditForm(p => ({ ...p, appointment_date: e.target.value }))} />
+                    </label>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                      <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Atrás</button>
+                      <button type="submit" disabled={actionLoading} style={{ backgroundColor: '#237b4b', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>{actionLoading ? 'Guardando...' : 'Guardar Cambios'}</button>
+                    </div>
+                  </form>
+                )}
               </div>
-              <button onClick={() => setSelectedAppointment(null)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer' }}>✕</button>
             </div>
-
-            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {!editingAppointment ? (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Médico Tratante</span>
-                      <strong>{selectedAppointment.doctor_name}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Especialidad</span>
-                      <strong>{selectedAppointment.specialty}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Fecha y Hora</span>
-                      <strong>{selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Prioridad</span>
-                      <strong>{selectedAppointment.priority}</strong>
-                    </div>
-                  </div>
-                  {selectedAppointment.notes && (
-                    <div style={{ fontSize: '0.85rem' }}>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Notas</span>
-                      <p style={{ margin: '0.25rem 0 0 0', backgroundColor: '#201f1f', padding: '0.5rem', borderRadius: '4px' }}>{selectedAppointment.notes}</p>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                    <button type="button" onClick={() => handleCancelAppointment(selectedAppointment.id)} style={{ backgroundColor: 'transparent', border: '1px solid #a80000', color: '#ff6666', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }} disabled={actionLoading}>Cancelar cita</button>
-                    <button type="button" onClick={() => setEditingAppointment(true)} style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}>Editar</button>
-                  </div>
-                </>
-              ) : (
-                <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Médico tratante</label>
-                    <input style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.doctor_name} onChange={e => setEditForm(p => ({ ...p, doctor_name: e.target.value }))} />
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad</label>
-                    <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.specialty} onChange={e => {
-                      const spec = e.target.value
-                      setEditForm(p => ({ ...p, specialty: spec, color: specialtyColors[spec] || p.color }))
-                    }}>
-                      {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Inicio *</label>
-                      <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.appointment_date} onChange={e => setEditForm(p => ({ ...p, appointment_date: e.target.value }))} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Prioridad</label>
-                      <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.priority} onChange={e => setEditForm(p => ({ ...p, priority: e.target.value }))}>
-                        <option value="Baja">Baja</option>
-                        <option value="Media">Media</option>
-                        <option value="Alta">Alta</option>
-                        <option value="Urgente">Urgente</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Notas</label>
-                    <textarea rows="2" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} />
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-                    <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }}>Volver</button>
-                    <button type="submit" style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }} disabled={actionLoading}>{actionLoading ? 'Guardando…' : 'Guardar cambios'}</button>
-                  </div>
-                </form>
-              )}
-            </div>
-
-          </div>
+          )}
         </div>
-      )}
+      )
+    }
 
-    </div>
-  )
-}
+    
+  
+
 
 export function Documents() {
   const [documents, setDocuments] = useState([]);
