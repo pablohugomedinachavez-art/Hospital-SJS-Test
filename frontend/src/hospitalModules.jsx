@@ -2068,7 +2068,7 @@ export function Consultations() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight 500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight :500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
                   <textarea
                     rows={4}
                     className="input-focus-glow"
