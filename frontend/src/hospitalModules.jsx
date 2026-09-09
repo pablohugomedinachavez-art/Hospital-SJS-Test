@@ -1983,7 +1983,7 @@ export function Consultations() {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight 500, color: '#94a3b8' }}>Talla (cm)</label>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
                   <input
                     type="number"
                     min="0"
@@ -2117,7 +2117,7 @@ export function Consultations() {
       </div>
     </div>
   );
-}s
+}
 
 
 // ============================================================
