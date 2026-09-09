@@ -1216,14 +1216,14 @@ export function Patients() {
             </div>
 
             {/* SECCIÓN 2: CONTACTO Y SALUD */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+            <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Código País / Teléfono</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <select value={form.phone_country} onChange={e => setForm(p => ({ ...p, phone_country: e.target.value }))} style={{ width: '110px', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }}>
+                <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                  <select value={form.phone_country} onChange={e => setForm(p => ({ ...p, phone_country: e.target.value }))} style={{ width: '110px', flexShrink: 0, padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }}>
                     {Object.entries(PHONE_CONFIGS).map(([code]) => <option key={code} value={code}>{code}</option>)}
                   </select>
-                  <input placeholder="999888777" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+                  <input placeholder="999888777" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ flex: 1, minWidth: 0, width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
                 </div>
               </div>
 
@@ -1259,7 +1259,7 @@ export function Patients() {
       ) : view === 'detail' && selectedPatient ? (
         
         /* VISTA DETALLE PERFIL */
-        <div className="print-full-width" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)',backgroundColor: theme.bgCard,borderRadius: '12px',
+        <div className="print-full-width mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)',backgroundColor: theme.bgCard,borderRadius: '12px',
               border: `1px solid ${theme.border}`,
               padding: '1.25rem',
               gap: '1.25rem' }}>
@@ -1402,7 +1402,7 @@ export function Patients() {
                   <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1.5rem 0' }}>No hay citas registradas.</p>
                 ) : (
                   (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
-                    <div key={appt.id} className="row-interactive appointment-row-mobile"style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 100px', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
+                    <div key={appt.id} className="row-interactive appointment-row-mobile"style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
                       <div style={{ fontWeight: 600, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Calendar size={14} /> {new Date(appt.appointment_date).toLocaleDateString()}
                       </div>
