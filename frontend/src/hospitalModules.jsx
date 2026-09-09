@@ -2471,12 +2471,13 @@ export function Devices() {
   }, [locations]);
 
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: 'clamp(1.25rem, 3vw, 2.5rem)', width: '100%', boxSizing: 'border-box' }}>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+        {/* CABECERA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div style={{ minWidth: 0, flex: '1 1 250px' }}>
+            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em', overflowWrap: 'break-word' }}>
               Dispositivos y auditoría
             </h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
@@ -2484,35 +2485,39 @@ export function Devices() {
             </p>
           </div>
           {['admin', 'it_support'].includes(user?.role) && (
-            <button
-              onClick={() => setShowForm(!showForm)}
-              style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}
-            >
-              {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
-            </button>
+            <div style={{ flexShrink: 0, width: '100%', maxWidth: 'max-content' }}>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+              >
+                {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
+              </button>
+            </div>
           )}
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
-        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '1rem', fontSize: '0.875rem', color: '#93c5fd' }}>
+        {/* BANNER DE AUDITORÍA */}
+        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#93c5fd', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
           <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · IP {clientInfo.ip || 'Detectando...'}
         </div>
 
+        {/* FORMULARIO DE REGISTRO */}
         {showForm && (
-          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
+          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: 'clamp(1rem, 2vw, 1.5rem)', borderRadius: '16px', border: '1px solid #334155', width: '100%', boxSizing: 'border-box' }}>
             <input
               type="text"
               placeholder="Nombre del dispositivo *"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               required
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             />
             <select
               value={formData.type}
               onChange={e => setFormData({ ...formData, type: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="pc">PC de Escritorio</option>
               <option value="laptop">Laptop</option>
@@ -2524,7 +2529,7 @@ export function Devices() {
             <select
               value={formData.status}
               onChange={e => setFormData({ ...formData, status: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="active">Activo</option>
               <option value="available">Disponible</option>
@@ -2534,27 +2539,30 @@ export function Devices() {
             <select
               value={formData.location_id}
               onChange={e => setFormData({ ...formData, location_id: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="">Sin ubicación</option>
               {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
             <button
               type="submit"
-              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem' }}
+              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem', width: '100%' }}
             >
               Guardar Dispositivo
             </button>
           </form>
         )}
 
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: '240px' }}>
+        {/* CONTENEDOR DE CONTENIDO Y FILTROS */}
+        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+          
+          {/* BARRA DE BÚSQUEDA Y FILTRO */}
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
               <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo o IP…" loading={loading} />
             </div>
             <select
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', flex: '1 1 140px', minWidth: 0 }}
               value={status}
               onChange={e => setStatus(e.target.value)}
             >
@@ -2566,25 +2574,30 @@ export function Devices() {
             </select>
           </div>
 
+          {/* LISTADO DE DISPOSITIVOS */}
           {loading ? (
             <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando dispositivos…" /></div>
           ) : filteredDevices.length === 0 ? (
             <EmptyState icon="📟" title="No hay dispositivos" description="No se encontraron elementos con los filtros seleccionados." />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: '1rem', width: '100%' }}>
               {filteredDevices.map(row => (
-                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)', width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>#{row.id}</span>
-                    <span className="badge">{row.status || '—'}</span>
+                    <span className="badge" style={{ flexShrink: 0 }}>{row.status || '—'}</span>
                   </div>
-                  <div>
-                    <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{row.name}</strong>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.type || '—'}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: '1rem', color: '#f8fafc', display: 'block', overflowWrap: 'break-word' }}>{row.name}</strong>
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.1rem' }}>{row.type || '—'}</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                    <span>IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></span>
-                    <span>Ubicación: {locationMap.get(String(row.location_id)) || 'Sin asignación'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
+                    <span style={{ overflowWrap: 'break-word', wordBreak: 'break-all' }}>
+                      IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code>
+                    </span>
+                    <span style={{ textAlign: 'right', overflowWrap: 'break-word' }}>
+                      Ubicación: {locationMap.get(String(row.location_id)) || 'Sin asignación'}
+                    </span>
                   </div>
                 </div>
               ))}
