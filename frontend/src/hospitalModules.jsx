@@ -1591,12 +1591,11 @@ export function Consultations() {
   return (
     <div className="consultations-container">
       
-      {/* Reset CSS y Ancho Estricto */}
+      {/* CSS global para forzar ajuste responsivo estricto */}
       <style>{`
         .consultations-container,
         .consultations-container * {
           box-sizing: border-box !important;
-          max-width: 100% !important;
         }
 
         .consultations-container {
@@ -1605,7 +1604,8 @@ export function Consultations() {
           color: #f8fafc;
           min-height: 100vh;
           font-family: system-ui, -apple-system, sans-serif;
-          width: 100vw;
+          width: 100%;
+          max-width: 100vw;
           overflow-x: hidden;
         }
 
@@ -1613,14 +1613,16 @@ export function Consultations() {
           background-color: rgba(15, 23, 42, 0.6);
           border: 1px solid #1e293b;
           border-radius: 12px;
-          padding: 0.75rem;
+          padding: 0.65rem;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
           backdrop-filter: blur(12px);
           display: flex;
           flex-direction: column;
           gap: 1rem;
           width: 100%;
+          max-width: 100%;
           margin: 0 auto;
+          overflow: hidden;
         }
 
         .header-wrapper {
@@ -1628,7 +1630,7 @@ export function Consultations() {
           justify-content: space-between;
           align-items: center;
           border-bottom: 1px solid #1e293b;
-          padding-bottom: 0.75rem;
+          padding-bottom: 0.65rem;
           flex-wrap: wrap;
           gap: 0.5rem;
           width: 100%;
@@ -1648,7 +1650,7 @@ export function Consultations() {
         }
 
         .header-title-text h1 {
-          font-size: 1.15rem;
+          font-size: 1.1rem;
           font-weight: 700;
           margin: 0;
           letter-spacing: -0.02em;
@@ -1673,6 +1675,7 @@ export function Consultations() {
 
         .input-mobile {
           width: 100% !important;
+          max-width: 100% !important;
           min-width: 0 !important;
           box-sizing: border-box !important;
           background-color: #090d16 !important;
@@ -1688,6 +1691,20 @@ export function Consultations() {
         .input-mobile:focus {
           border-color: #38bdf8 !important;
           box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+        }
+
+        .patient-item-text {
+          min-width: 0;
+          flex: 1;
+          overflow: hidden;
+        }
+
+        .patient-item-text strong {
+          display: block;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-size: 0.75rem;
         }
 
         @media (min-width: 640px) {
@@ -1718,6 +1735,7 @@ export function Consultations() {
         .animated-card {
           animation: fadeIn 0.25s ease-out forwards;
           width: 100%;
+          max-width: 100%;
         }
       `}</style>
 
@@ -1868,17 +1886,16 @@ export function Consultations() {
           <form onSubmit={submit} className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
 
             {/* SECCIÓN 1: PACIENTE Y ATENCIÓN */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem' }}>
                 <UserCheck size={15} color="#38bdf8" />
                 <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Datos del Paciente y Consulta</h3>
               </div>
 
               <div className="grid-form-2col">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Buscar Paciente *</label>
                   
-                  {/* Campo de búsqueda integrado nativo sin romper ancho */}
                   <input
                     type="text"
                     className="input-mobile"
@@ -1905,23 +1922,24 @@ export function Consultations() {
                             borderRadius: '6px',
                             cursor: 'pointer',
                             textAlign: 'left',
-                            width: '100%'
+                            width: '100%',
+                            minWidth: 0
                           }}
                         >
                           <span style={{ width: '22px', height: '22px', backgroundColor: '#38bdf8', color: '#090d16', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.65rem', flexShrink: 0 }}>
                             {patient.full_name?.charAt(0)?.toUpperCase() || 'P'}
                           </span>
-                          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
-                            <strong style={{ fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{patient.full_name}</strong>
-                            <small style={{ color: '#94a3b8', fontSize: '0.65rem' }}>DNI: {patient.dni || patient.document_number || 'S/D'}</small>
-                          </span>
+                          <div className="patient-item-text">
+                            <strong>{patient.full_name}</strong>
+                            <small style={{ color: '#94a3b8', fontSize: '0.65rem', display: 'block' }}>DNI: {patient.dni || patient.document_number || 'S/D'}</small>
+                          </div>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Paciente Seleccionado *</label>
                   <select
                     required
@@ -1934,7 +1952,7 @@ export function Consultations() {
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Médico Tratante</label>
                   <input
                     className="input-mobile"
@@ -1944,7 +1962,7 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Motivo de la Consulta</label>
                   <input
                     className="input-mobile"
@@ -1954,7 +1972,7 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Sintomatología / Anamnesis</label>
                   <textarea
                     rows={3}
@@ -1968,22 +1986,22 @@ export function Consultations() {
               </div>
 
               {selectedPatient && (
-                <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#38bdf8', fontSize: '0.725rem', display: 'flex', alignItems: 'center', gap: '0.35rem', width: '100%' }}>
+                <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#38bdf8', fontSize: '0.725rem', display: 'flex', alignItems: 'center', gap: '0.35rem', width: '100%', minWidth: 0 }}>
                   <CheckCircle2 size={13} style={{ flexShrink: 0 }} />
-                  <span>Atendiendo a: <strong>{selectedPatient.full_name}</strong></span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Atendiendo a: <strong>{selectedPatient.full_name}</strong></span>
                 </div>
               )}
             </div>
 
             {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem' }}>
                 <HeartPulse size={15} color="#38bdf8" />
                 <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y Signos Vitales</h3>
               </div>
 
               <div className="grid-form-2col">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
                   <input
                     type="number"
@@ -1996,7 +2014,7 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
                   <input
                     type="number"
@@ -2008,7 +2026,7 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>IMC</label>
                   <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', width: '100%' }}>
                     <input
@@ -2024,7 +2042,7 @@ export function Consultations() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Presión Arterial</label>
                   <input
                     className="input-mobile"
@@ -2034,7 +2052,7 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro Abdominal (cm)</label>
                   <input
                     type="number"
@@ -2050,14 +2068,14 @@ export function Consultations() {
             </div>
 
             {/* SECCIÓN 3: DIAGNÓSTICO Y TRATAMIENTO */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem' }}>
                 <Pill size={15} color="#38bdf8" />
                 <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y Tratamiento</h3>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico Clínico</label>
                   <input
                     className="input-mobile"
@@ -2067,7 +2085,7 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Plan de Tratamiento / Indicaciones</label>
                   <input
                     className="input-mobile"
@@ -2077,7 +2095,7 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
                   <textarea
                     rows={4}
