@@ -1061,11 +1061,12 @@ export function Patients() {
   }, [patientAppointments, today])
 
   return (
-    <div style={{
-      padding: '2rem',
+    <div className="patients-container" style={{
+      padding: 'clamp(1rem, 3vw, 2rem)',
       backgroundColor: theme.bgApp,
       color: theme.textPrimary,
       minHeight: '100vh',
+      overflowX: 'hidden',
       width: '100%',
       boxSizing: 'border-box',
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
@@ -1100,6 +1101,26 @@ export function Patients() {
           .row-interactive { border: 1px solid #eee !important; background-color: #fff !important; transform: none !important; }
           @page { margin: 1.5cm; }
         }
+          @media (max-width: 640px) {
+        /* Contenedor principal de la vista de pacientes */
+        .patients-container {
+          padding: 0.75rem !important;
+        }
+        /* Forzar grillas a una sola columna en móviles */
+        .mobile-stack-grid {
+          grid-template-columns: 1fr !important;
+        }
+        /* Ajustar tarjetas de resumen e información del paciente */
+        .patient-summary-card {
+          grid-template-columns: 1fr !important;
+          padding: 1rem !important;
+        }
+        /* Ajustar filas de citas y formularios */
+        .appointment-row-mobile {
+          grid-template-columns: 1fr !important;
+          gap: 0.5rem !important;
+        }
+          }
       `}</style>
 
       <Toast toast={toast} onClose={clearToast} />
@@ -1168,7 +1189,7 @@ export function Patients() {
             </div>
 
             {/* SECCIÓN 1: DATOS PERSONALES */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+            <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Nombre completo *</label>
                 <input required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
@@ -1238,12 +1259,16 @@ export function Patients() {
       ) : view === 'detail' && selectedPatient ? (
         
         /* VISTA DETALLE PERFIL */
-        <div className="print-full-width" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
+        <div className="print-full-width" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)',backgroundColor: theme.bgCard,borderRadius: '12px',
+              border: `1px solid ${theme.border}`,
+              padding: '1.25rem',
+              gap: '1.25rem' }}>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             
             {/* TARJETA RESUMEN DEL PACIENTE */}
-            <div className="card-hover print-full-width" style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
+            <div className="card-hover print-full-width patient-summary-card" 
+            style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
               
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: `1px solid ${theme.border}`, paddingRight: '1rem' }}>
                 <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.bgHover, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem', border: `1px solid ${theme.border}` }}>
@@ -1377,7 +1402,7 @@ export function Patients() {
                   <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1.5rem 0' }}>No hay citas registradas.</p>
                 ) : (
                   (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
-                    <div key={appt.id} className="row-interactive" style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 100px', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
+                    <div key={appt.id} className="row-interactive appointment-row-mobile"style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 100px', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
                       <div style={{ fontWeight: 600, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Calendar size={14} /> {new Date(appt.appointment_date).toLocaleDateString()}
                       </div>
