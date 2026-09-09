@@ -18,10 +18,10 @@ import {
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck,
   FileX, FileSearch, FileEdit,
-  X, Save, Eye, ExternalLink, Download, Search, Filter,      
-  Scale, Ruler, HeartPulse, Pill, 
-  AlertCircle, CheckCircle2, ShieldAlert, Monitor,Server,Laptop, Smartphone, Wifi,
-  Layers, ChevronLeft,ChevronRight,Loader2
+  X, Save, Eye, ExternalLink, Download, Search, Filter,
+  Scale, Ruler, HeartPulse, Pill,
+  AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop, Smartphone, Wifi,
+  Layers, ChevronLeft, ChevronRight, Loader2
 } from 'lucide-react';
 
 
@@ -194,19 +194,19 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
               {previewDoc.file_name || previewDoc.title || 'Previsualización de Documento'}
             </h3>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {docUrl && (
-              <a 
-                href={docUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                style={{ 
-                  color: theme?.accent || '#0284c7', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.3rem', 
-                  textDecoration: 'none', 
+              <a
+                href={docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: theme?.accent || '#0284c7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  textDecoration: 'none',
                   fontSize: '0.8rem',
                   fontWeight: 500
                 }}
@@ -214,16 +214,16 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
                 <ExternalLink size={14} /> Abrir en pestaña nueva
               </a>
             )}
-            <button 
-              onClick={() => setPreviewDoc(null)} 
+            <button
+              onClick={() => setPreviewDoc(null)}
               aria-label="Cerrar modal"
-              style={{ 
-                backgroundColor: 'transparent', 
-                border: 'none', 
-                color: theme?.textMuted || '#64748b', 
-                cursor: 'pointer', 
-                padding: '0.2rem', 
-                borderRadius: '4px' 
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: theme?.textMuted || '#64748b',
+                cursor: 'pointer',
+                padding: '0.2rem',
+                borderRadius: '4px'
               }}
             >
               <X size={20} />
@@ -243,10 +243,10 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
         }}>
           {docUrl ? (
             isImage ? (
-              <img 
-                src={docUrl} 
-                alt={previewDoc.file_name || 'Documento'} 
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} 
+              <img
+                src={docUrl}
+                alt={previewDoc.file_name || 'Documento'}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }}
               />
             ) : (
               <object
@@ -259,8 +259,8 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
                 <div style={{ textAlign: 'center', color: '#ffffff', padding: '2rem' }}>
                   <AlertTriangle size={40} style={{ marginBottom: '1rem' }} />
                   <p style={{ margin: '0 0 1rem 0' }}>Este navegador no soporta la vista previa directa del PDF.</p>
-                  <a 
-                    href={docUrl} 
+                  <a
+                    href={docUrl}
                     download
                     style={{
                       backgroundColor: '#0284c7',
@@ -544,7 +544,7 @@ export function DeviceManagementDashboard() {
         apiFetch('/locations')
       ]);
       if (!devRes.ok || !locRes.ok) throw new Error('Error al cargar dispositivos o ubicaciones');
-      
+
       const devData = await devRes.json();
       const locData = await locRes.json();
       setDevices(Array.isArray(devData) ? devData : (devData.items || devData.data || []));
@@ -562,7 +562,7 @@ export function DeviceManagementDashboard() {
       const params = new URLSearchParams({ page: String(actionPage), per_page: String(perPage) });
       const res = await apiFetch(`/device_actions?${params.toString()}`);
       if (!res.ok) throw new Error('Error al cargar acciones de IP');
-      
+
       const data = await res.json();
       setActions(Array.isArray(data) ? data : (data.items || data.data || []));
       setActionTotal(data.total || (Array.isArray(data) ? data.length : 0));
@@ -579,7 +579,7 @@ export function DeviceManagementDashboard() {
       const params = new URLSearchParams({ page: String(auditPage), per_page: String(perPage) });
       const res = await apiFetch(`/audit_logs?${params.toString()}`);
       if (!res.ok) throw new Error('Error al cargar logs de auditoría');
-      
+
       const data = await res.json();
       setAuditLogs(Array.isArray(data) ? data : (data.items || data.data || []));
       setAuditTotal(data.total || (Array.isArray(data) ? data.length : 0));
@@ -611,7 +611,7 @@ export function DeviceManagementDashboard() {
 
         {/* --- HEADER BLOCK --- */}
         <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 lg:p-8 shadow-2xl space-y-8">
-          
+
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/80 pb-8">
             <div className="flex items-start gap-4">
               <div className="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0">
@@ -640,11 +640,10 @@ export function DeviceManagementDashboard() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                      isActive 
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
+                    className={`flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${isActive
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
                         : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
                     <span>{tab.label}</span>
@@ -656,26 +655,26 @@ export function DeviceManagementDashboard() {
 
           {/* --- KPI STAT CARDS WITH MARGIN & GAP --- */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard 
-              icon={<Monitor className="w-6 h-6 text-blue-400" />} 
-              label="TOTAL DISPOSITIVOS" 
-              value={devices.length} 
-              hint="Red de Equipos TI" 
-              tone="primary" 
+            <StatCard
+              icon={<Monitor className="w-6 h-6 text-blue-400" />}
+              label="TOTAL DISPOSITIVOS"
+              value={devices.length}
+              hint="Red de Equipos TI"
+              tone="primary"
             />
-            <StatCard 
-              icon={<Wifi className="w-6 h-6 text-emerald-400" />} 
-              label="EVENTOS IP CAPTURADOS" 
-              value={actionTotal} 
-              hint="Tráfico & Acciones" 
-              tone="success" 
+            <StatCard
+              icon={<Wifi className="w-6 h-6 text-emerald-400" />}
+              label="EVENTOS IP CAPTURADOS"
+              value={actionTotal}
+              hint="Tráfico & Acciones"
+              tone="success"
             />
-            <StatCard 
-              icon={<ShieldAlert className="w-6 h-6 text-amber-400" />} 
-              label="REGISTROS DE AUDITORÍA" 
-              value={auditTotal} 
-              hint="Logs de Seguridad" 
-              tone="warning" 
+            <StatCard
+              icon={<ShieldAlert className="w-6 h-6 text-amber-400" />}
+              label="REGISTROS DE AUDITORÍA"
+              value={auditTotal}
+              hint="Logs de Seguridad"
+              tone="warning"
             />
           </div>
 
@@ -684,7 +683,7 @@ export function DeviceManagementDashboard() {
           {/* --- TAB 1: DISPOSITIVOS (SPACED LAYOUT) --- */}
           {activeTab === 'devices' && (
             <div className="space-y-6 pt-4">
-              
+
               {/* Toolbar */}
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
                 <div className="relative w-full sm:w-96">
@@ -719,36 +718,35 @@ export function DeviceManagementDashboard() {
                 <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { 
-                        key: 'name', 
-                        label: 'Dispositivo', 
-                        render: (d) => <div className="py-2"><span className="font-semibold text-white text-base">{d.name}</span></div> 
+                      {
+                        key: 'name',
+                        label: 'Dispositivo',
+                        render: (d) => <div className="py-2"><span className="font-semibold text-white text-base">{d.name}</span></div>
                       },
-                      { 
-                        key: 'ip_address', 
-                        label: 'Dirección IP', 
-                        render: (d) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{d.ip_address || '—'}</code></div> 
+                      {
+                        key: 'ip_address',
+                        label: 'Dirección IP',
+                        render: (d) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{d.ip_address || '—'}</code></div>
                       },
-                      { 
-                        key: 'type', 
-                        label: 'Tipo', 
-                        render: (d) => <div className="py-2"><span className="capitalize text-slate-300 text-sm bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">{d.type}</span></div> 
+                      {
+                        key: 'type',
+                        label: 'Tipo',
+                        render: (d) => <div className="py-2"><span className="capitalize text-slate-300 text-sm bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">{d.type}</span></div>
                       },
-                      { 
-                        key: 'status', 
-                        label: 'Estado', 
+                      {
+                        key: 'status',
+                        label: 'Estado',
                         render: (d) => (
                           <div className="py-2">
-                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                              d.status === 'active' 
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${d.status === 'active'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                 : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            }`}>
+                              }`}>
                               <span className={`w-2 h-2 rounded-full ${d.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                               {d.status}
                             </span>
                           </div>
-                        ) 
+                        )
                       }
                     ]}
                     rows={filteredDevices}
@@ -767,25 +765,25 @@ export function DeviceManagementDashboard() {
                 <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { 
-                        key: 'ip_address', 
-                        label: 'Dirección IP', 
-                        render: (a) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{a.ip_address || '—'}</code></div> 
+                      {
+                        key: 'ip_address',
+                        label: 'Dirección IP',
+                        render: (a) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{a.ip_address || '—'}</code></div>
                       },
-                      { 
-                        key: 'username', 
-                        label: 'Usuario', 
-                        render: (a) => <div className="py-2"><span className="text-slate-200 font-medium">{a.username || 'Anónimo'}</span></div> 
+                      {
+                        key: 'username',
+                        label: 'Usuario',
+                        render: (a) => <div className="py-2"><span className="text-slate-200 font-medium">{a.username || 'Anónimo'}</span></div>
                       },
-                      { 
-                        key: 'action_type', 
-                        label: 'Acción Ejecutada', 
-                        render: (a) => <div className="py-2"><span className="bg-slate-800 text-slate-200 border border-slate-700/60 px-3 py-1.5 rounded-lg text-xs font-mono">{a.action_type}</span></div> 
+                      {
+                        key: 'action_type',
+                        label: 'Acción Ejecutada',
+                        render: (a) => <div className="py-2"><span className="bg-slate-800 text-slate-200 border border-slate-700/60 px-3 py-1.5 rounded-lg text-xs font-mono">{a.action_type}</span></div>
                       },
-                      { 
-                        key: 'created_at', 
-                        label: 'Fecha / Hora', 
-                        render: (a) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(a.created_at)}</span></div> 
+                      {
+                        key: 'created_at',
+                        label: 'Fecha / Hora',
+                        render: (a) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(a.created_at)}</span></div>
                       }
                     ]}
                     rows={actions}
@@ -807,25 +805,25 @@ export function DeviceManagementDashboard() {
                 <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { 
-                        key: 'entity_type', 
-                        label: 'Entidad', 
-                        render: (log) => <div className="py-2"><span className="font-semibold text-purple-300">{log.entity_type}</span></div> 
+                      {
+                        key: 'entity_type',
+                        label: 'Entidad',
+                        render: (log) => <div className="py-2"><span className="font-semibold text-purple-300">{log.entity_type}</span></div>
                       },
-                      { 
-                        key: 'action', 
-                        label: 'Operación', 
-                        render: (log) => <div className="py-2"><span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-3 py-1.5 rounded-lg text-xs font-mono">{log.action}</span></div> 
+                      {
+                        key: 'action',
+                        label: 'Operación',
+                        render: (log) => <div className="py-2"><span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-3 py-1.5 rounded-lg text-xs font-mono">{log.action}</span></div>
                       },
-                      { 
-                        key: 'details', 
-                        label: 'Detalles', 
-                        render: (log) => <div className="py-2"><span className="text-slate-300 text-xs">{log.details || 'Sin detalles'}</span></div> 
+                      {
+                        key: 'details',
+                        label: 'Detalles',
+                        render: (log) => <div className="py-2"><span className="text-slate-300 text-xs">{log.details || 'Sin detalles'}</span></div>
                       },
-                      { 
-                        key: 'created_at', 
-                        label: 'Fecha Registro', 
-                        render: (log) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(log.created_at)}</span></div> 
+                      {
+                        key: 'created_at',
+                        label: 'Fecha Registro',
+                        render: (log) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(log.created_at)}</span></div>
                       }
                     ]}
                     rows={auditLogs}
@@ -860,13 +858,13 @@ export function Patients() {
   const [patientConsultations, setPatientConsultations] = useState([])
   const [loadingDocs, setLoadingDocs] = useState(false)
   const [loadingConsultations, setLoadingConsultations] = useState(false)
-  
+
   // Estado para previsualización de documentos
   const [previewDoc, setPreviewDoc] = useState(null)
-  
+
   // Estado para controlar edición
   const [isEditingPatient, setIsEditingPatient] = useState(false)
-  
+
   const [activeTab, setActiveTab] = useState('future') // 'future' | 'past'
   const [form, setForm] = useState(INITIAL_PATIENT)
   const [loading, setLoading] = useState(false)
@@ -978,7 +976,7 @@ export function Patients() {
     if (!selectedPatient) return
     let phoneCountry = '+51'
     let phoneNumber = selectedPatient.phone || ''
-    
+
     Object.keys(PHONE_CONFIGS).forEach(code => {
       if (phoneNumber.startsWith(code)) {
         phoneCountry = code
@@ -1025,13 +1023,13 @@ export function Patients() {
       if (!res.ok) throw new Error(json.message || `No se pudo procesar la solicitud`)
 
       notify(`Paciente ${isEditingPatient ? 'actualizado' : 'registrado'} correctamente.`, 'success')
-      
+
       if (isEditingPatient) {
-        const updated = { 
-          ...selectedPatient, 
-          ...form, 
-          dni: form.document_number, 
-          phone 
+        const updated = {
+          ...selectedPatient,
+          ...form,
+          dni: form.document_number,
+          phone
         }
         setSelectedPatient(updated)
         setIsEditingPatient(false)
@@ -1136,15 +1134,15 @@ export function Patients() {
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           {view === 'detail' && !isEditingPatient && (
             <>
-              <button 
-                onClick={handlePrint} 
+              <button
+                onClick={handlePrint}
                 className="btn-interactive"
                 style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textPrimary, borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
               >
                 <Printer size={15} /> Imprimir
               </button>
-              <button 
-                onClick={startEditPatient} 
+              <button
+                onClick={startEditPatient}
                 className="btn-interactive"
                 style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
               >
@@ -1154,16 +1152,16 @@ export function Patients() {
           )}
 
           {view === 'list' ? (
-            <button 
-              onClick={openCreate} 
+            <button
+              onClick={openCreate}
               className="btn-interactive"
               style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
             >
               <Plus size={16} /> Nuevo paciente
             </button>
           ) : (
-            <button 
-              onClick={() => { setView('list'); setIsEditingPatient(false); }} 
+            <button
+              onClick={() => { setView('list'); setIsEditingPatient(false); }}
               className="btn-interactive"
               style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textPrimary, borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
             >
@@ -1257,19 +1255,21 @@ export function Patients() {
           </form>
         </div>
       ) : view === 'detail' && selectedPatient ? (
-        
+
         /* VISTA DETALLE PERFIL */
-        <div className="print-full-width mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)',backgroundColor: theme.bgCard,borderRadius: '12px',
-              border: `1px solid ${theme.border}`,
-              padding: '1.25rem',
-              gap: '1.25rem' }}>
-          
+        <div className="print-full-width mobile-stack-grid" style={{
+          display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', backgroundColor: theme.bgCard, borderRadius: '12px',
+          border: `1px solid ${theme.border}`,
+          padding: '1.25rem',
+          gap: '1.25rem'
+        }}>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
+
             {/* TARJETA RESUMEN DEL PACIENTE */}
-            <div className="card-hover print-full-width patient-summary-card" 
-            style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
-              
+            <div className="card-hover print-full-width patient-summary-card"
+              style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
+
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: `1px solid ${theme.border}`, paddingRight: '1rem' }}>
                 <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.bgHover, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem', border: `1px solid ${theme.border}` }}>
                   <User size={44} color={theme.textMuted} />
@@ -1402,7 +1402,7 @@ export function Patients() {
                   <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1.5rem 0' }}>No hay citas registradas.</p>
                 ) : (
                   (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
-                    <div key={appt.id} className="row-interactive appointment-row-mobile"style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
+                    <div key={appt.id} className="row-interactive appointment-row-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
                       <div style={{ fontWeight: 600, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Calendar size={14} /> {new Date(appt.appointment_date).toLocaleDateString()}
                       </div>
@@ -1448,10 +1448,10 @@ export function Patients() {
                   <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>Sin documentos adjuntos.</span>
                 ) : (
                   patientDocuments.map((doc, idx) => (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       onClick={() => setPreviewDoc(doc)}
-                      className="row-interactive" 
+                      className="row-interactive"
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.5rem', borderRadius: '6px', borderBottom: `1px solid ${theme.border}`, cursor: 'pointer' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1514,7 +1514,7 @@ export function Consultations() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(INITIAL_CONSULTATION);
   const [toast, notify, clearToast] = useToast();
-  
+
   const debouncedQuery = useDebouncedValue(query);
   const debouncedPatientQuery = useDebouncedValue(patientQuery, 250);
 
@@ -1557,7 +1557,7 @@ export function Consultations() {
     const next = { ...form, [field]: value };
     if (field === 'weight_kg' || field === 'height_cm') {
       next.bmi = calculateBMI(
-        field === 'weight_kg' ? value : form.weight_kg, 
+        field === 'weight_kg' ? value : form.weight_kg,
         field === 'height_cm' ? value : form.height_cm
       );
     }
@@ -1572,7 +1572,7 @@ export function Consultations() {
       const res = await apiFetch('/consultations', { method: 'POST', body: JSON.stringify(form) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.message || 'No se pudo registrar la consulta');
-      
+
       notify('Consulta registrada correctamente.', 'success', 'Atención guardada');
       setForm(INITIAL_CONSULTATION);
       setPatientQuery('');
@@ -1590,7 +1590,7 @@ export function Consultations() {
 
   return (
     <div className="consultations-container">
-      
+
       {/* CSS global para forzar ajuste responsivo estricto */}
       <style>{`
         .consultations-container,
@@ -1800,7 +1800,7 @@ export function Consultations() {
         {/* VISTA PRINCIPAL: BUSCADOR Y LISTADO */}
         {!showForm ? (
           <div className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-            
+
             {/* PANEL DE BÚSQUEDA */}
             <div style={{
               backgroundColor: '#0f172a',
@@ -1895,7 +1895,7 @@ export function Consultations() {
               <div className="grid-form-2col">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Buscar Paciente *</label>
-                  
+
                   <input
                     type="text"
                     className="input-mobile"
@@ -2387,11 +2387,11 @@ export function Devices() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    type: 'pc', 
-    location_id: '', 
-    status: 'active' 
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'pc',
+    location_id: '',
+    status: 'active'
   });
 
   const { user } = useAuth();
@@ -2570,7 +2570,7 @@ export function Devices() {
 
         {/* CONTENEDOR DE CONTENIDO Y FILTROS */}
         <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
-          
+
           {/* BARRA DE BÚSQUEDA Y FILTRO */}
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
             <div style={{ flex: '1 1 200px', minWidth: 0 }}>
@@ -2796,13 +2796,13 @@ export function Appointments() {
   // Verificador de solapamientos
   const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
     if (newEndTimeStr) {
-  const parts = newEndTimeStr.split(':')
-  const eh = Number(parts[0])
-  const em = Number(parts[1])
-  const startDateObj = new Date(newDateStr)
-  startDateObj.setHours(eh, em, 0, 0)
-  newEnd = startDateObj.getTime()
-}
+      const parts = newEndTimeStr.split(':')
+      const eh = Number(parts[0])
+      const em = Number(parts[1])
+      const startDateObj = new Date(newDateStr)
+      startDateObj.setHours(eh, em, 0, 0)
+      newEnd = startDateObj.getTime()
+    }
 
     return appointments.some(app => {
       if (excludeId && app.id === excludeId) return false
@@ -3022,7 +3022,7 @@ export function Appointments() {
 
   return (
     <div style={{ padding: '1.5rem', backgroundColor: '#1f1f1f', color: '#f3f2f1', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: '"Segoe UI", sans-serif' }}>
-      
+
       {/* Estilos globales para animaciones fluidas */}
       <style>{`
         @keyframes fadeInScale {
@@ -3094,21 +3094,36 @@ export function Appointments() {
 
         {/* FORMULARIO NUEVA CITA */}
         {showForm && (
-          <form onSubmit={submit} className="animated-container" style={{ backgroundColor: '#252423', borderBottom: '1px solid #333333', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <form
+            onSubmit={submit}
+            className="animated-container"
+            style={{
+              backgroundColor: '#252423',
+              borderBottom: '1px solid #333333',
+              padding: '1.25rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              width: '100%',
+              boxSizing: 'border-box',
+              overflowX: 'hidden'
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Programar nueva cita médica</h3>
-              <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer' }}>✕</button>
+              <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer', fontSize: '1.1rem' }}>✕</button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+            {/* Cambiado a flex de una sola columna con box-sizing controlado */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Buscar paciente *</label>
                 <SearchField value={patientSearch} onChange={setPatientSearch} placeholder="Nombre o DNI..." />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Paciente seleccionado *</label>
-                <select required style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
+                <select required style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
                   <option value="">Seleccionar paciente</option>
                   {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.dni || p.document_number || '—'}</option>)}
                 </select>
@@ -3116,14 +3131,14 @@ export function Appointments() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Médico tratante</label>
-                <input style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
+                <input style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad y Color</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <select
-                    style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }}
+                    style={{ flex: 1, minWidth: 0, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }}
                     value={form.specialty}
                     onChange={e => {
                       const spec = e.target.value
@@ -3132,13 +3147,13 @@ export function Appointments() {
                   >
                     {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
                   </select>
-                  <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} style={{ width: '38px', height: '36px', background: 'transparent', border: '1px solid #484644', borderRadius: '4px', cursor: 'pointer' }} />
+                  <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} style={{ width: '38px', height: '34px', flexShrink: 0, background: 'transparent', border: '1px solid #484644', borderRadius: '4px', cursor: 'pointer', padding: '0 2px' }} />
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Prioridad</label>
-                <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
+                <select style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
                   <option value="Baja">Baja</option>
                   <option value="Media">Media</option>
                   <option value="Alta">Alta</option>
@@ -3148,16 +3163,16 @@ export function Appointments() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Inicio *</label>
-                <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
+                <input required type="datetime-local" style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Hora de fin</label>
-                <input type="time" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} />
+                <input type="time" style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} />
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
               <button type="button" style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }} onClick={() => setShowForm(false)}>Descartar</button>
               <button type="submit" style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
             </div>
@@ -3250,19 +3265,19 @@ export function Appointments() {
                       <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
                       {weekDays.map(d => {
                         const weekCellDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-                        
+
                         const cellApps = filteredAppointments.filter(item => {
                           if (!item.appointment_date) return false
                           const localDateObj = new Date(item.appointment_date)
                           if (isNaN(localDateObj.getTime())) return false
-                          
+
                           const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
                           if (itemDateStr !== weekCellDateStr) return false
                           return localDateObj.getHours() === hour
                         })
 
                         return (
-                          <div 
+                          <div
                             key={d.toISOString()}
                             onClick={() => {
                               setForm(p => ({ ...p, appointment_date: `${weekCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
@@ -3290,7 +3305,7 @@ export function Appointments() {
               if (!item.appointment_date) return false
               const localDateObj = new Date(item.appointment_date)
               if (isNaN(localDateObj.getTime())) return false
-              
+
               const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
               return itemDateStr === dayCellDateStr
             })
@@ -3305,19 +3320,19 @@ export function Appointments() {
                     })
 
                     return (
-                      <div 
-                          key={hour}
-                          onClick={() => {
-                            setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
-                            setShowForm(true)
-                          }}
-                          style={{ display: 'grid', gridTemplateColumns: '60px 1fr', borderBottom: '1px solid #333333', minHeight: '60px', cursor: 'pointer' }}
-                        >
-                          <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
-                          <div style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            {cellApps.map(item => renderAppointmentCard(item))}
-                          </div>
+                      <div
+                        key={hour}
+                        onClick={() => {
+                          setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
+                          setShowForm(true)
+                        }}
+                        style={{ display: 'grid', gridTemplateColumns: '60px 1fr', borderBottom: '1px solid #333333', minHeight: '60px', cursor: 'pointer' }}
+                      >
+                        <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
+                        <div style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          {cellApps.map(item => renderAppointmentCard(item))}
                         </div>
+                      </div>
                     )
                   })}
                 </div>
@@ -3330,46 +3345,46 @@ export function Appointments() {
 
       {/* POPUP DE EDICIÓN / DETALLE */}
       {selectedAppointment && (
-            <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
-              <div className="animated-container" style={{ backgroundColor: '#292929', border: '1px solid #484644', borderRadius: '8px', padding: '1.5rem', width: '90%', maxWidth: '500px', color: '#f3f2f1' }}>
-                {!editingAppointment ? (
-                  <div>
-                    <h3 style={{ marginTop: 0 }}>Detalle de Cita</h3>
-                    <p><strong>Médico:</strong> {selectedAppointment.doctor_name}</p>
-                    <p><strong>Especialidad:</strong> {selectedAppointment.specialty}</p>
-                    <p><strong>Fecha/Hora:</strong> {selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</p>
-                    <p><strong>Prioridad:</strong> {selectedAppointment.priority}</p>
-                    <p><strong>Notas:</strong> {selectedAppointment.notes || 'Sin observaciones'}</p>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
-                      <button onClick={() => setEditingAppointment(true)} style={{ backgroundColor: '#005a9e', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
-                      <button onClick={() => handleCancelAppointment(selectedAppointment.id)} disabled={actionLoading} style={{ backgroundColor: '#a80000', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cancelar Cita</button>
-                      <button onClick={() => setSelectedAppointment(null)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cerrar</button>
-                    </div>
-                  </div>
-                ) : (
-                  <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <h3>Editar Cita</h3>
-                    <label style={{ fontSize: '0.8rem' }}>Médico:
-                      <input style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#fff', padding: '0.4rem' }} value={editForm.doctor_name} onChange={e => setEditForm(p => ({ ...p, doctor_name: e.target.value }))} />
-                    </label>
-                    <label style={{ fontSize: '0.8rem' }}>Inicio:
-                      <input type="datetime-local" style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#fff', padding: '0.4rem' }} value={editForm.appointment_date} onChange={e => setEditForm(p => ({ ...p, appointment_date: e.target.value }))} />
-                    </label>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-                      <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Atrás</button>
-                      <button type="submit" disabled={actionLoading} style={{ backgroundColor: '#237b4b', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>{actionLoading ? 'Guardando...' : 'Guardar Cambios'}</button>
-                    </div>
-                  </form>
-                )}
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
+          <div className="animated-container" style={{ backgroundColor: '#292929', border: '1px solid #484644', borderRadius: '8px', padding: '1.5rem', width: '90%', maxWidth: '500px', color: '#f3f2f1' }}>
+            {!editingAppointment ? (
+              <div>
+                <h3 style={{ marginTop: 0 }}>Detalle de Cita</h3>
+                <p><strong>Médico:</strong> {selectedAppointment.doctor_name}</p>
+                <p><strong>Especialidad:</strong> {selectedAppointment.specialty}</p>
+                <p><strong>Fecha/Hora:</strong> {selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</p>
+                <p><strong>Prioridad:</strong> {selectedAppointment.priority}</p>
+                <p><strong>Notas:</strong> {selectedAppointment.notes || 'Sin observaciones'}</p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+                  <button onClick={() => setEditingAppointment(true)} style={{ backgroundColor: '#005a9e', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                  <button onClick={() => handleCancelAppointment(selectedAppointment.id)} disabled={actionLoading} style={{ backgroundColor: '#a80000', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cancelar Cita</button>
+                  <button onClick={() => setSelectedAppointment(null)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cerrar</button>
+                </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <h3>Editar Cita</h3>
+                <label style={{ fontSize: '0.8rem' }}>Médico:
+                  <input style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#fff', padding: '0.4rem' }} value={editForm.doctor_name} onChange={e => setEditForm(p => ({ ...p, doctor_name: e.target.value }))} />
+                </label>
+                <label style={{ fontSize: '0.8rem' }}>Inicio:
+                  <input type="datetime-local" style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#fff', padding: '0.4rem' }} value={editForm.appointment_date} onChange={e => setEditForm(p => ({ ...p, appointment_date: e.target.value }))} />
+                </label>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Atrás</button>
+                  <button type="submit" disabled={actionLoading} style={{ backgroundColor: '#237b4b', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>{actionLoading ? 'Guardando...' : 'Guardar Cambios'}</button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
-      )
-    }
+      )}
+    </div>
+  )
+}
 
-    
-  
+
+
 
 
 export function Documents() {
@@ -3882,7 +3897,7 @@ export function Documents() {
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#94a3b8' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Calendar size={14} color="#64748b" /> 
+                          <Calendar size={14} color="#64748b" />
                           {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
                         </span>
                       </td>
@@ -3933,9 +3948,9 @@ export function Documents() {
       </div>
 
       {previewDoc && (
-        <DocumentPreviewModal 
-          previewDoc={previewDoc} 
-          setPreviewDoc={setPreviewDoc} 
+        <DocumentPreviewModal
+          previewDoc={previewDoc}
+          setPreviewDoc={setPreviewDoc}
         />
       )}
     </div>
