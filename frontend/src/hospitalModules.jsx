@@ -4084,11 +4084,11 @@ export function Dashboard() {
             {/* BOTONES DE EXPORTACIÓN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
               <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exportar</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportCSV}>CSV</button>
-                <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportExcel}>Excel</button>
-                <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportPDF}>PDF</button>
-                <button title="Exportar a JSON" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportJSON}>JSON</button>
+              <div style={{ display: 'flex', gap: '0.5rem', height: '40px' }}>
+                <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportCSV}>CSV</button>
+                <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportExcel}>Excel</button>
+                <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportPDF}>PDF</button>
+                <button title="Exportar a JSON" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportJSON}>JSON</button>
               </div>
             </div>
 
@@ -4113,7 +4113,7 @@ export function Dashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', width: '100%' }}>
 
             {/* GRILLA DE KPI */}
-            <div className="print-card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem', width: '100%' }}>
+            <div className="print-card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',marginLeft:'10px', gap: '1.25rem', width: '100%' }}>
               <StatCard icon={<StatIcons.Patients />} label="Pacientes" value={reports?.summary?.patients ?? 0} hint="Total registrado" tone="primary" />
               <StatCard icon={<StatIcons.Consultations />} label="Consultas" value={reports?.summary?.consultations ?? 0} hint={`Últimos ${days} días`} tone="success" />
               <StatCard icon={<StatIcons.Users />} label="Usuarios activos" value={metrics?.active_users ?? 0} hint="Sesiones recientes" tone="primary" />

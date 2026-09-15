@@ -1342,6 +1342,29 @@ def dashboard_areas():
         return jsonify({'message': 'Error generating dashboard areas'}), 500
 
 
+@app.route('/api/dashboard/alerts', methods=['GET, POST,PUT'])
+@token_required
+def dashboard_alerts():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    try:
+        rows = db_query(
+            '''
+            SELECT a.id, a.title, a.description, a.is_resolved, d.name as device_name
+            FROM alerts a
+            JOIN devices d ON d.id = a.device_id
+            WHERE a.tenant_id = %s AND a.is_resolved = 0
+            ORDER BY a.created_at DESC
+            ''',
+            (tenant_id,), fetchall=True
+        )
+        return jsonify(rows or [])
+    except Exception as e:
+        print(f"[DASHBOARD ALERTS ERROR]: {e}")
+        return jsonify({'message': 'Error generating dashboard alerts'}), 500
+
+
 @app.route('/api/reports')
 @token_required
 def reports():
