@@ -1173,7 +1173,48 @@ def documents():
     except Exception as db_err:
         print(f"--- ERROR DE BASE DE DATOS: {db_err} ---")
         return jsonify({'message': f'Error al registrar en la base de datos: {str(db_err)}'}), 500
-    
+
+@app.route('/api/dashboard/alerts', methods=['GET', 'POST'])
+@token_required
+def dashboard_alerts():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+
+    if request.method == 'GET':
+        rows = db_query(
+            '''
+            SELECT a.id, a.device_id, d.name as device_name, a.alert_type, a.message, 
+                   a.is_resolved, a.created_at
+            FROM alerts a
+            LEFT JOIN devices d ON d.id = a.device_id
+            WHERE a.tenant_id = %s
+            ORDER BY a.created_at DESC
+            ''',
+            (tenant_id,), fetchall=True
+        )
+        return jsonify(rows or []), 200
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        device_id = data.get('device_id')
+        alert_type = data.get('alert_type')
+        message = data.get('message')
+
+        if not device_id or not alert_type or not message:
+            return jsonify({'message': 'device_id, alert_type y message son obligatorios'}), 400
+
+        new_alert = db_query(
+            '''
+            INSERT INTO alerts (tenant_id, device_id, alert_type, message, is_resolved, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+            ''',
+            (tenant_id, device_id, alert_type, message, False, now_utc()),
+            commit=True, fetchone=True
+        )
+
+        return jsonify({'message': 'Alerta registrada', 'id': new_alert['id']}), 201
+
+
 # ==========================================
 # ENDPOINT OPCIONAL: TRIAJE INDEPENDIENTE
 # ==========================================
