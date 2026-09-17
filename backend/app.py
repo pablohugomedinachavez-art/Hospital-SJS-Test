@@ -125,7 +125,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # 5. Funciones auxiliares
 def now_utc():
     """Retorna timestamp UTC compatible sin fallos de atributo."""
-    return datetime.now(timezone.utc)
+    # Updated to datetime.datetime.now
+    return datetime.datetime.now(timezone.utc)
 
 def get_db():
     """Conecta directamente a PostgreSQL vía psycopg2 utilizando la URL parseada."""
