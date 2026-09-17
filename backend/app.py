@@ -971,9 +971,27 @@ def get_patient_documents(patient_id):
 @app.route('/api/templates/<int:template_id>', methods=['DELETE'])
 @token_required
 def templates_handler(template_id=None):
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
+    tenant_id = claims.get('tenant_id')
+    data = request.get_json() or {}
 
+    patient_id = str(data.get('patient_id'))
+    document_type = data.get('document_type')
+    template_id = data.get('template_id')
+    dynamic_values = json.dumps(data.get('dynamic_values', {}))
+    pdf_url = data.get('pdf_url')
+
+    record = db_query(
+        '''
+        INSERT INTO formularios_paciente 
+        (patient_id, document_type, template_id, dynamic_values, pdf_url, tenant_id, fecha_creacion)
+        VALUES (%s, %s, %s, %s::jsonb, %s, %s, NOW())
+        RETURNING id
+        ''',
+        (patient_id, document_type, template_id, dynamic_values, pdf_url, tenant_id),
+        commit=True,
+        fetchone=True
+    )
+    return jsonify({'message': 'Patient form stored successfully', 'id': record['id']}), 201
     # 1. OBTENER PLANTILLAS (GET)
     if request.method == 'GET':
         rows = db_query(
@@ -1339,38 +1357,46 @@ def dashboard_alerts():
 @app.route('/api/triage', methods=['GET', 'POST'])
 @token_required
 def triage_handler():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
+    tenant_id = claims.get('tenant_id')
 
     if request.method == 'GET':
-        rows = db_query('SELECT * FROM triages WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
-        return jsonify(rows or []), 200
+        patient_id = request.args.get('patient_id')
+        query = "SELECT * FROM triages WHERE tenant_id = %s"
+        params = [tenant_id]
+        if patient_id:
+            query += " AND patient_id = %s"
+            params.append(patient_id)
+        query += " ORDER BY created_at DESC"
+        
+        triages = db_query(query, tuple(params), fetchall=True)
+        return jsonify(triages), 200
 
     if request.method == 'POST':
         data = request.get_json() or {}
         patient_id = data.get('patient_id')
-        weight_kg = data.get('weight_kg')
-        height_cm = data.get('height_cm')
-        blood_pressure = data.get('blood_pressure')
-
-        if not patient_id or not weight_kg or not height_cm or not blood_pressure:
-            return jsonify({'message': 'patient_id, weight_kg, height_cm y blood_pressure son obligatorios'}), 400
-
-        bmi = data.get('bmi')
-        if not bmi and float(height_cm) > 0:
-            h_m = float(height_cm) / 100.0
-            bmi = round(float(weight_kg) / (h_m * h_m), 2)
+        weight = float(data.get('weight_kg', 0))
+        height = float(data.get('height_cm', 0))
+        
+        # Calculate BMI automatically if height > 0
+        height_m = height / 100.0 if height > 0 else 0
+        bmi = round(weight / (height_m ** 2), 2) if height_m > 0 else 0.0
 
         new_triage = db_query(
             '''
-            INSERT INTO triages (tenant_id, patient_id, weight_kg, height_cm, blood_pressure, bmi, abdominal_perimeter_cm, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            INSERT INTO triages 
+            (patient_id, tenant_id, weight_kg, height_cm, blood_pressure, bmi, abdominal_perimeter_cm, notes, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            RETURNING id
             ''',
-            (tenant_id, patient_id, weight_kg, height_cm, blood_pressure, bmi, data.get('abdominal_perimeter_cm'), now_utc()),
-            commit=True, fetchone=True
+            (
+                patient_id, tenant_id, weight, height, 
+                data.get('blood_pressure'), bmi, 
+                data.get('abdominal_perimeter_cm'), data.get('notes')
+            ),
+            commit=True,
+            fetchone=True
         )
-
-        return jsonify({'message': 'Triaje registrado', 'id': new_triage['id']}), 201
+        return jsonify({'message': 'Triage record created successfully', 'triage_id': new_triage['id']}), 201
     
 @app.route('/api/locations', methods=['GET', 'POST'])
 @token_required
@@ -1566,9 +1592,24 @@ def reports_series():
 @app.route('/api/metrics')
 @token_required
 def metrics():
-    """Return key metrics and a simple session duration prediction."""
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
+    tenant_id = claims.get('tenant_id')
+    device_id = request.args.get('device_id')
+
+    query = '''
+        SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
+        FROM metrics
+        WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
+    '''
+    params = [tenant_id]
+
+    if device_id:
+        query += " AND device_id = %s"
+        params.append(device_id)
+
+    query += " GROUP BY metric_type, component_name, unit"
+    
+    summary = db_query(query, tuple(params), fetchall=True)
+    return jsonify(summary), 200
     try:
         # Active users: distinct user_id in sessions last 24h
         # CÓDIGO CORREGIDO
@@ -1795,9 +1836,28 @@ def devices():
 @app.route('/api/audit_logs', methods=['GET'])
 @token_required
 def get_audit_logs():
-    claims = getattr(request, 'claims', {})
     tenant_id = claims.get('tenant_id')
-    user_role = claims.get('role')
+    user_id = claims.get('sub')
+    data = request.get_json() or {}
+    ip_addr = request.remote_addr
+    user_agent = request.headers.get('User-Agent')
+    action_type = data.get('action_type')
+    entity_type = data.get('entity_type')
+    entity_id = data.get('entity_id')  # Castable to int if supplied
+    details = json.dumps(data.get('details', {})) if isinstance(data.get('details'), dict) else data.get('details')
+    # Execute insert with correct integer foreign keys
+    new_action = db_query(
+        '''
+        INSERT INTO device_actions 
+        (tenant_id, session_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        RETURNING id
+        ''',
+        (tenant_id, data.get('session_id'), user_id, ip_addr, user_agent, action_type, entity_type, entity_id, details),
+        commit=True,
+        fetchone=True
+    )
+    return jsonify({'message': 'Device action logged', 'action_id': new_action['id']}), 201
 
     # Verificación de permisos
     if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
@@ -2049,7 +2109,7 @@ def _build_device_actions_query(tenant_id):
 
     where_sql = " AND ".join(where_conditions)
     return where_sql, params
-
+    
 
 
 @app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
