@@ -158,7 +158,9 @@ def register_client_device(db_connection, tenant_id, user_id, location_id=None):
     ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
     device_type = parse_device_type(user_agent)
     device_name = f"{device_type.upper()} - {ip_address}"
-    created_at = datetime.now(timezone.utc)
+    
+    # Updated to datetime.datetime.now
+    created_at = datetime.datetime.now(timezone.utc)
     
     cursor = db_connection.cursor()
     
