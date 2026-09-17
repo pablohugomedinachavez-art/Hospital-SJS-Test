@@ -1833,6 +1833,8 @@ def devices():
         print(f"[ERROR DB /api/devices POST]: {str(e)}")
         return jsonify({'message': 'Error interno al registrar dispositivo', 'error': str(e)}), 500
 
+
+
 @app.route('/api/audit_logs', methods=['GET'])
 @token_required
 def get_audit_logs(claims):
@@ -1862,7 +1864,7 @@ def get_audit_logs(claims):
             where_conditions.append("al.action = %s")
             params.append(action_filter)
 
-        # Optional search filter across username or JSON details
+        # Optional search filter across username or JSON details (explicit cast to jsonb text)
         search = request.args.get('search') or request.args.get('q')
         if search and search.strip():
             search_term = f"%{search.strip()}%"
@@ -1871,7 +1873,7 @@ def get_audit_logs(claims):
 
         where_sql = " AND ".join(where_conditions)
 
-        # 1. Fetch total count for pagination response metadata
+        # 1. Fetch total count for pagination metadata
         count_sql = f'''
             SELECT COUNT(*) as total
             FROM audit_logs al
@@ -1931,7 +1933,7 @@ def get_audit_logs(claims):
         app.logger.error(f"[ERROR /api/audit_logs GET]: {str(e)}")
         traceback.print_exc()
         return jsonify({'message': f'Error fetching audit logs: {str(e)}'}), 500
-
+    
             
 @app.route('/api/device_actions', methods=['GET', 'POST'])
 @token_required
