@@ -1835,35 +1835,16 @@ def devices():
 
 @app.route('/api/audit_logs', methods=['GET'])
 @token_required
-def get_audit_logs():
+def get_audit_logs(claims):
+    # Extract identity and credentials from claims
     tenant_id = claims.get('tenant_id')
-    user_id = claims.get('sub')
-    data = request.get_json() or {}
-    ip_addr = request.remote_addr
-    user_agent = request.headers.get('User-Agent')
-    action_type = data.get('action_type')
-    entity_type = data.get('entity_type')
-    entity_id = data.get('entity_id')  # Castable to int if supplied
-    details = json.dumps(data.get('details', {})) if isinstance(data.get('details'), dict) else data.get('details')
-    # Execute insert with correct integer foreign keys
-    new_action = db_query(
-        '''
-        INSERT INTO device_actions 
-        (tenant_id, session_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-        RETURNING id
-        ''',
-        (tenant_id, data.get('session_id'), user_id, ip_addr, user_agent, action_type, entity_type, entity_id, details),
-        commit=True,
-        fetchone=True
-    )
-    return jsonify({'message': 'Device action logged', 'action_id': new_action['id']}), 201
+    user_role = claims.get('role')
 
-    # Verificación de permisos
+    # Permission check
     if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    # Parseo seguro de paginación
+    # Safe pagination parameter extraction
     try:
         page = max(1, int(request.args.get('page', 1)))
         per_page = max(1, min(100, int(request.args.get('per_page', 20))))
@@ -1871,27 +1852,30 @@ def get_audit_logs():
         page, per_page = 1, 20
 
     try:
-        where_conditions = ["al.tenant_id::text = %s"]
-        params = [str(tenant_id)]
+        # Enforce integer tenant isolation natively without string casting
+        where_conditions = ["al.tenant_id = %s"]
+        params = [tenant_id]
 
+        # Optional action filter
         action_filter = request.args.get('action')
         if action_filter:
             where_conditions.append("al.action = %s")
             params.append(action_filter)
 
+        # Optional search filter across username or JSON details
         search = request.args.get('search') or request.args.get('q')
         if search and search.strip():
             search_term = f"%{search.strip()}%"
-            where_conditions.append("(u.username ILIKE %s OR al.details ILIKE %s)")
+            where_conditions.append("(u.username ILIKE %s OR al.details::text ILIKE %s)")
             params.extend([search_term, search_term])
 
         where_sql = " AND ".join(where_conditions)
 
-        # 1. Obtener total de registros
+        # 1. Fetch total count for pagination response metadata
         count_sql = f'''
             SELECT COUNT(*) as total
             FROM audit_logs al
-            LEFT JOIN users u ON u.id::text = al.user_id::text
+            LEFT JOIN users u ON u.id = al.user_id
             WHERE {where_sql}
         '''
         total_row = db_query(count_sql, tuple(params), fetchone=True)
@@ -1903,13 +1887,20 @@ def get_audit_logs():
         else:
             total = 0
 
-        # 2. Consulta paginada de registros
+        # 2. Query paginated records with proper integer foreign key joins
         offset = (page - 1) * per_page
         query_sql = f'''
-            SELECT al.id, al.action, al.entity_type, al.entity_id, 
-                   al.details, al.user_id, u.username, al.created_at
+            SELECT 
+                al.id, 
+                al.action, 
+                al.entity_type, 
+                al.entity_id, 
+                al.details, 
+                al.user_id, 
+                COALESCE(u.username, 'System') as username, 
+                al.created_at
             FROM audit_logs al
-            LEFT JOIN users u ON u.id::text = al.user_id::text
+            LEFT JOIN users u ON u.id = al.user_id
             WHERE {where_sql}
             ORDER BY al.created_at DESC
             LIMIT %s OFFSET %s
@@ -1918,7 +1909,7 @@ def get_audit_logs():
         query_params = list(params) + [per_page, offset]
         rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
 
-        # 3. Serialización de respuesta
+        # 3. Serialize output
         items = []
         for row in rows:
             row_dict = dict(row) if hasattr(row, '_asdict') or isinstance(row, dict) else dict(zip([
@@ -1937,11 +1928,9 @@ def get_audit_logs():
         }), 200
 
     except Exception as e:
-        import traceback
-        print(f"[ERROR /api/audit_logs GET]: {str(e)}")
+        app.logger.error(f"[ERROR /api/audit_logs GET]: {str(e)}")
         traceback.print_exc()
         return jsonify({'message': f'Error fetching audit logs: {str(e)}'}), 500
-
 
             
 @app.route('/api/device_actions', methods=['GET', 'POST'])
