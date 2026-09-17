@@ -17,20 +17,33 @@ import csv
 from io import StringIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
+import os
+import datetime
+import time
+from datetime import timezone
+from functools import wraps
+from pathlib import Path
+from io import StringIO
 import io
+import logging
+from urllib.parse import unquote
+
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, send_from_directory, g, send_file
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+import jwt
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from werkzeug.security import generate_password_hash, check_password_hash
 import pandas as pd
-from flask import send_file
 import openpyxl
 from openpyxl.chart import BarChart, Reference
+from supabase import create_client, Client
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from urllib.parse import unquote
-import logging
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
@@ -39,6 +52,9 @@ CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PARENT_DIR = CURRENT_DIR.parent
+DEMO_DATA_ENABLED = os.getenv('DEMO_DATA_ENABLED', 'False').lower() in ('true', '1', 't')
+FRONTEND_DIR = os.getenv('FRONTEND_DIR', str(PARENT_DIR / 'frontend'))
+
 
 env_loaded = False
 for env_path in [CURRENT_DIR / '.env', PARENT_DIR / '.env', Path('.env')]:
@@ -681,13 +697,11 @@ def consultations_handler():
 
     # 1. OBTENER CONSULTAS CON FILTROS (GET)
     if request.method == 'GET':
-        # Capturar parámetros de la URL
-        search_query = request.args.get('q', '').strip()       # Búsqueda general (Nombre, diagnóstico, motivo)
-        doctor = request.args.get('doctor', '').strip()         # Filtro por médico
-        start_date = request.args.get('start_date', '').strip() # Fecha inicio (YYYY-MM-DD)
-        end_date = request.args.get('end_date', '').strip()     # Fecha fin (YYYY-MM-DD)
+        search_query = request.args.get('q', '').strip()
+        doctor = request.args.get('doctor', '').strip()
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
 
-        # Base del SQL
         sql = '''
             SELECT c.id, c.patient_id, p.full_name as patient_name, c.doctor_name, 
                    c.reason, c.symptoms, c.diagnosis, c.treatment, c.prescription, 
@@ -700,7 +714,6 @@ def consultations_handler():
         '''
         params = [tenant_id]
 
-        # Aplicar filtro de búsqueda general por texto
         if search_query:
             sql += ''' AND (
                 p.full_name ILIKE %s OR 
@@ -711,12 +724,10 @@ def consultations_handler():
             term = f"%{search_query}%"
             params.extend([term, term, term, term])
 
-        # Aplicar filtro por médico
         if doctor:
             sql += ' AND c.doctor_name ILIKE %s'
             params.append(f"%{doctor}%")
 
-        # Aplicar filtro por rango de fechas
         if start_date:
             sql += ' AND c.created_at >= %s'
             params.append(start_date)
@@ -731,7 +742,39 @@ def consultations_handler():
         return jsonify(rows or []), 200
 
     # 2. CREAR CONSULTA (POST)
-    # ... (Se mantiene igual a tu código previo)
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        doctor_name = data.get('doctor_name', claims.get('username'))
+        reason = data.get('reason')
+        symptoms = data.get('symptoms')
+        diagnosis = data.get('diagnosis')
+        treatment = data.get('treatment')
+        prescription = data.get('prescription')
+        triage_id = data.get('triage_id')
+
+        if not patient_id or not diagnosis:
+            return jsonify({'message': 'patient_id and diagnosis are required'}), 400
+
+        new_consultation = db_query(
+            '''
+            INSERT INTO consultations (
+                tenant_id, patient_id, doctor_name, reason, symptoms, 
+                diagnosis, treatment, prescription, triage_id, created_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            ''',
+            (
+                tenant_id, patient_id, doctor_name, reason, symptoms,
+                diagnosis, treatment, prescription, triage_id, now_utc()
+            ),
+            commit=True,
+            fetchone=True
+        )
+
+        record_audit('create', 'consultation', new_consultation['id'], f'Consultation for patient {patient_id}', tenant_id, user_id)
+        return jsonify({'message': 'Consultation created', 'id': new_consultation['id']}), 201
 
 
 # ==========================================
