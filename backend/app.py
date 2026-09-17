@@ -25,6 +25,7 @@ from functools import wraps
 from pathlib import Path
 from io import StringIO
 import io
+import traceback
 import logging
 from urllib.parse import unquote
 
@@ -1838,33 +1839,35 @@ def devices():
 @app.route('/api/audit_logs', methods=['GET'])
 @token_required
 def get_audit_logs(claims):
-    # Extract identity and credentials from claims
+    # Extract JWT claims safely
     tenant_id = claims.get('tenant_id')
     user_role = claims.get('role')
 
-    # Permission check
+    # Authorization / Permission Check
     if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    # Safe pagination parameter extraction
+    # Safe Pagination Parsing
     try:
         page = max(1, int(request.args.get('page', 1)))
         per_page = max(1, min(100, int(request.args.get('per_page', 20))))
     except (ValueError, TypeError):
         page, per_page = 1, 20
 
+    offset = (page - 1) * per_page
+
     try:
-        # Enforce integer tenant isolation natively without string casting
+        # Build query parameters using native integer operations for foreign keys
         where_conditions = ["al.tenant_id = %s"]
         params = [tenant_id]
 
-        # Optional action filter
+        # Optional action filtering
         action_filter = request.args.get('action')
         if action_filter:
             where_conditions.append("al.action = %s")
             params.append(action_filter)
 
-        # Optional search filter across username or JSON details (explicit cast to jsonb text)
+        # Optional search filtering (explicit JSONB to text conversion for ILIKE)
         search = request.args.get('search') or request.args.get('q')
         if search and search.strip():
             search_term = f"%{search.strip()}%"
@@ -1873,7 +1876,7 @@ def get_audit_logs(claims):
 
         where_sql = " AND ".join(where_conditions)
 
-        # 1. Fetch total count for pagination metadata
+        # 1. Query Total Record Count for Pagination
         count_sql = f'''
             SELECT COUNT(*) as total
             FROM audit_logs al
@@ -1889,17 +1892,16 @@ def get_audit_logs(claims):
         else:
             total = 0
 
-        # 2. Query paginated records with proper integer foreign key joins
-        offset = (page - 1) * per_page
+        # 2. Query Paginated Records
         query_sql = f'''
             SELECT 
-                al.id, 
+                al.id AS log_id, 
                 al.action, 
                 al.entity_type, 
                 al.entity_id, 
                 al.details, 
                 al.user_id, 
-                COALESCE(u.username, 'System') as username, 
+                COALESCE(u.username, 'System') AS username, 
                 al.created_at
             FROM audit_logs al
             LEFT JOIN users u ON u.id = al.user_id
@@ -1911,7 +1913,7 @@ def get_audit_logs(claims):
         query_params = list(params) + [per_page, offset]
         rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
 
-        # 3. Serialize output
+        # 3. Serialize Results safely
         items = []
         for row in rows:
             row_dict = dict(row) if hasattr(row, '_asdict') or isinstance(row, dict) else dict(zip([
