@@ -1839,15 +1839,15 @@ def devices():
 @app.route('/api/audit_logs', methods=['GET'])
 @token_required
 def get_audit_logs(claims):
-    # Extract JWT claims safely
+    # Retrieve tenant and role from the passed JWT claims
     tenant_id = claims.get('tenant_id')
     user_role = claims.get('role')
 
-    # Authorization / Permission Check
+    # Permission check
     if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    # Safe Pagination Parsing
+    # Safe pagination parameter parsing
     try:
         page = max(1, int(request.args.get('page', 1)))
         per_page = max(1, min(100, int(request.args.get('per_page', 20))))
@@ -1857,17 +1857,15 @@ def get_audit_logs(claims):
     offset = (page - 1) * per_page
 
     try:
-        # Build query parameters using native integer operations for foreign keys
+        # Construct filter conditions using native integer foreign keys
         where_conditions = ["al.tenant_id = %s"]
         params = [tenant_id]
 
-        # Optional action filtering
         action_filter = request.args.get('action')
         if action_filter:
             where_conditions.append("al.action = %s")
             params.append(action_filter)
 
-        # Optional search filtering (explicit JSONB to text conversion for ILIKE)
         search = request.args.get('search') or request.args.get('q')
         if search and search.strip():
             search_term = f"%{search.strip()}%"
@@ -1876,7 +1874,7 @@ def get_audit_logs(claims):
 
         where_sql = " AND ".join(where_conditions)
 
-        # 1. Query Total Record Count for Pagination
+        # 1. Total record count for pagination metadata
         count_sql = f'''
             SELECT COUNT(*) as total
             FROM audit_logs al
@@ -1892,7 +1890,7 @@ def get_audit_logs(claims):
         else:
             total = 0
 
-        # 2. Query Paginated Records
+        # 2. Query paginated records
         query_sql = f'''
             SELECT 
                 al.id AS log_id, 
@@ -1913,7 +1911,7 @@ def get_audit_logs(claims):
         query_params = list(params) + [per_page, offset]
         rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
 
-        # 3. Serialize Results safely
+        # 3. Serialize response payload
         items = []
         for row in rows:
             row_dict = dict(row) if hasattr(row, '_asdict') or isinstance(row, dict) else dict(zip([
