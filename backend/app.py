@@ -31,7 +31,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from urllib.parse import unquote
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
-
+import logging
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -107,7 +107,8 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 5. Funciones auxiliares
 def now_utc():
-    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    """Retorna la fecha y hora actual en formato UTC con zona horaria explícita."""
+    return datetime.now(timezone.utc)
 
 def get_db():
     """Conecta directamente a PostgreSQL vía psycopg2 utilizando la URL parseada."""
@@ -1173,16 +1174,20 @@ def documents():
     except Exception as db_err:
         print(f"--- ERROR DE BASE DE DATOS: {db_err} ---")
         return jsonify({'message': f'Error al registrar en la base de datos: {str(db_err)}'}), 500
+
+
 @app.route('/api/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
 @app.route('/api/dashboard/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
 @token_required
 def dashboard_alerts():
-    claims = get_current_user()
+    # 1. Obtención segura del tenant_id desde el token
+    claims = get_current_user() or {}
     tenant_id = claims.get('tenant_id')
 
     if not tenant_id:
-        return jsonify({'message': 'tenant_id no encontrado en el token'}), 401
+        return jsonify({'message': 'tenant_id no encontrado en la sesión o token'}), 401
 
+    # --- MÉTODO GET ---
     if request.method == 'GET':
         try:
             rows = db_query(
@@ -1197,9 +1202,77 @@ def dashboard_alerts():
                 (tenant_id,), fetchall=True
             )
             return jsonify(rows or []), 200
+
         except Exception as e:
-            logging.error(f"Error al obtener alertas: {str(e)}")
-            return jsonify({'message': 'Error interno al consultar las alertas'}), 500
+            logging.error(f"Error en GET /api/alerts: {str(e)}")
+            return jsonify({
+                'error': 'Internal Server Error',
+                'message': 'Ocurrió un error al consultar la lista de alertas'
+            }), 500
+
+    # --- MÉTODO POST ---
+    if request.method == 'POST':
+        # Validar la presencia del tipo de contenido application/json
+        if not request.is_json:
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'El encabezado Content-Type debe ser application/json'
+            }), 400
+
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'El cuerpo de la petición no contiene un formato JSON válido'
+            }), 400
+
+        # Validar campos obligatorios
+        required_fields = ['device_id', 'alert_type', 'message']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+
+        if missing_fields:
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'Faltan campos obligatorios en la petición',
+                'missing_fields': missing_fields
+            }), 400
+
+        device_id = data.get('device_id')
+        alert_type = data.get('alert_type')
+        message = data.get('message')
+
+        try:
+            new_alert = db_query(
+                '''
+                INSERT INTO alerts (tenant_id, device_id, alert_type, message, is_resolved, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+                ''',
+                (tenant_id, device_id, alert_type, message, False, now_utc()),
+                commit=True, fetchone=True
+            )
+
+            if not new_alert:
+                return jsonify({
+                    'error': 'Internal Server Error',
+                    'message': 'No se pudo registrar la alerta en la base de datos'
+                }), 500
+
+            # Compatibilidad para tuplas o diccionarios según la BD
+            alert_id = new_alert['id'] if isinstance(new_alert, dict) else new_alert[0]
+
+            return jsonify({
+                'message': 'Alerta registrada con éxito',
+                'id': alert_id
+            }), 201
+
+        except Exception as e:
+            logging.error(f"Error en POST /api/alerts: {str(e)}")
+            return jsonify({
+                'error': 'Internal Server Error',
+                'message': 'Error interno al registrar la alerta'
+            }), 500
+
+
 
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
