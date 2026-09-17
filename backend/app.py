@@ -30,8 +30,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from urllib.parse import unquote
-# 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 import logging
+# 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
+
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
@@ -107,6 +108,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 5. Funciones auxiliares
 def now_utc():
+    """Retorna timestamp UTC compatible sin fallos de atributo."""
     return datetime.now(timezone.utc)
 
 def get_db():
@@ -1175,14 +1177,15 @@ def documents():
         return jsonify({'message': f'Error al registrar en la base de datos: {str(db_err)}'}), 500
 
 
+
+# 1. Múltiples rutas para soportar /api/alerts y /api/dashboard/alerts
 @app.route('/api/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
 @app.route('/api/dashboard/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
 @token_required
 def dashboard_alerts():
-    # 1. Obtención segura del tenant_id y user_id desde las claims del JWT
     claims = get_current_user() or {}
     tenant_id = claims.get('tenant_id')
-    user_id = claims.get('user_id') or claims.get('id')  # Opcional si la claim existe
+    user_id = claims.get('user_id') or claims.get('id')
 
     if not tenant_id:
         return jsonify({'message': 'tenant_id no encontrado en la sesión o token'}), 401
@@ -1193,7 +1196,7 @@ def dashboard_alerts():
             rows = db_query(
                 '''
                 SELECT a.id, a.device_id, d.name as device_name, a.alert_type, 
-                       a.message, a.severity, a.is_resolved, a.created_at, a.user_id
+                       a.message, a.severity, a.is_resolved, a.created_at
                 FROM alerts a
                 LEFT JOIN devices d ON d.id = a.device_id
                 WHERE a.tenant_id = %s
@@ -1202,44 +1205,38 @@ def dashboard_alerts():
                 (tenant_id,), fetchall=True
             )
             return jsonify(rows or []), 200
-
         except Exception as e:
             logging.error(f"Error en GET /api/alerts: {str(e)}")
-            return jsonify({
-                'error': 'Internal Server Error',
-                'message': 'Ocurrió un error al consultar la lista de alertas'
-            }), 500
+            return jsonify({'error': 'Internal Server Error', 'detail': str(e)}), 500
 
     # --- MÉTODO POST ---
-    # --- MÉTODO POST REVISADO ---
     if request.method == 'POST':
         if not request.is_json:
-            return jsonify({'error': 'Bad Request', 'message': 'Content-Type debe ser application/json'}), 400
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'El encabezado Content-Type debe ser application/json'
+            }), 400
 
         data = request.get_json(silent=True) or {}
 
-        required_fields = ['device_id', 'alert_type', 'message']
-        missing_fields = [field for field in required_fields if not data.get(field)]
-        if missing_fields:
-            return jsonify({'error': 'Bad Request', 'missing_fields': missing_fields}), 400
-
-        # Sanitización y casteo explícito de IDs
+        # Validar y castear device_id
         try:
             device_id = int(data.get('device_id'))
         except (ValueError, TypeError):
-            return jsonify({'error': 'Bad Request', 'message': 'device_id debe ser un número entero válido'}), 400
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'El campo device_id es obligatorio y debe ser un número entero'
+            }), 400
 
-        alert_type = str(data.get('alert_type'))
-        message = str(data.get('message'))
-        severity = str(data.get('severity', 'medium'))
-        
-        # Evaluar user_id opcional
-        post_user_id = data.get('user_id') or user_id
-        if post_user_id:
-            try:
-                post_user_id = int(post_user_id)
-            except (ValueError, TypeError):
-                post_user_id = None
+        alert_type = str(data.get('alert_type', '')).strip()
+        message = str(data.get('message', '')).strip()
+        severity = str(data.get('severity', 'medium')).strip()
+
+        if not alert_type or not message:
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'alert_type y message son campos obligatorios'
+            }), 400
 
         try:
             new_alert = db_query(
@@ -1252,44 +1249,44 @@ def dashboard_alerts():
                 RETURNING id
                 ''',
                 (
-                    int(tenant_id), 
-                    device_id, 
-                    post_user_id, 
-                    alert_type, 
-                    message, 
-                    severity, 
-                    0, 
+                    int(tenant_id),
+                    device_id,
+                    user_id,
+                    alert_type,
+                    message,
+                    severity,
+                    0,  # smallint: 0 = no resuelto
                     now_utc()
                 ),
                 commit=True, fetchone=True
             )
 
             if not new_alert:
-                return jsonify({'error': 'Database Error', 'message': 'No se retornó el ID generado'}), 500
+                return jsonify({'error': 'Database Error', 'message': 'No se pudo registrar la alerta'}), 500
 
+            # Maneja retorno como diccionario o tupla según el cursor SQL
             alert_id = new_alert['id'] if isinstance(new_alert, dict) else new_alert[0]
-            return jsonify({'message': 'Alerta registrada con éxito', 'id': alert_id}), 201
-
-        except Exception as e:
-            error_str = str(e)
-            logging.error(f"Error detallado en POST /api/alerts: {error_str}")
-            
-            # Captura de error de clave foránea en PostgreSQL
-            if 'foreign key constraint' in error_str.lower():
-                return jsonify({
-                    'error': 'Bad Request',
-                    'message': 'El device_id, tenant_id o user_id especificado no existe en la base de datos',
-                    'detail': error_str
-                }), 400
 
             return jsonify({
-                'error': 'Internal Server Error',
-                'message': 'Error interno de base de datos',
-                'detail': error_str
-            }), 500
+                'message': 'Alerta registrada con éxito',
+                'id': alert_id
+            }), 201
+
+        except Exception as e:
+            error_msg = str(e)
+            logging.error(f"Error en POST /api/alerts: {error_msg}")
+
+            if 'foreign key' in error_msg.lower():
+                return jsonify({
+                    'error': 'Bad Request',
+                    'message': f'El device_id {device_id} o tenant_id {tenant_id} no existe en la base de datos',
+                    'detail': error_msg
+                }), 400
+
+            return jsonify({'error': 'Internal Server Error', 'detail': error_msg}), 500
 
 
-            
+
 # ==========================================
 # ENDPOINT OPCIONAL: TRIAJE INDEPENDIENTE
 # ==========================================
