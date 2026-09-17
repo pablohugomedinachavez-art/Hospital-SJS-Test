@@ -1174,7 +1174,8 @@ def documents():
         print(f"--- ERROR DE BASE DE DATOS: {db_err} ---")
         return jsonify({'message': f'Error al registrar en la base de datos: {str(db_err)}'}), 500
 
-@app.route('/api/dashboard/alerts', methods=['GET', 'POST','HEAD', 'OPTIONS'])
+@app.route('/api/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
+@app.route('/api/dashboard/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
 @token_required
 def dashboard_alerts():
     claims = get_current_user()
