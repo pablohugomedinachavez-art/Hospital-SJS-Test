@@ -1838,8 +1838,9 @@ def devices():
 
 @app.route('/api/audit_logs', methods=['GET'])
 @token_required
-def get_audit_logs(claims):
-    # Retrieve tenant and role from the passed JWT claims
+def get_audit_logs(): # Removed 'claims' parameter
+    # Retrieve claims using the helper function or request context
+    claims = get_current_user()
     tenant_id = claims.get('tenant_id')
     user_role = claims.get('role')
 
