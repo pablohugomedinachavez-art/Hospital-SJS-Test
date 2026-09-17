@@ -107,7 +107,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 5. Funciones auxiliares
 def now_utc():
-    """Retorna la fecha y hora actual en formato UTC con zona horaria explícita."""
     return datetime.now(timezone.utc)
 
 def get_db():
@@ -1180,9 +1179,10 @@ def documents():
 @app.route('/api/dashboard/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
 @token_required
 def dashboard_alerts():
-    # 1. Obtención segura del tenant_id desde el token
+    # 1. Obtención segura del tenant_id y user_id desde las claims del JWT
     claims = get_current_user() or {}
     tenant_id = claims.get('tenant_id')
+    user_id = claims.get('user_id') or claims.get('id')  # Opcional si la claim existe
 
     if not tenant_id:
         return jsonify({'message': 'tenant_id no encontrado en la sesión o token'}), 401
@@ -1192,8 +1192,8 @@ def dashboard_alerts():
         try:
             rows = db_query(
                 '''
-                SELECT a.id, a.device_id, d.name as device_name, a.alert_type, a.message, 
-                       a.is_resolved, a.created_at
+                SELECT a.id, a.device_id, d.name as device_name, a.alert_type, 
+                       a.message, a.severity, a.is_resolved, a.created_at, a.user_id
                 FROM alerts a
                 LEFT JOIN devices d ON d.id = a.device_id
                 WHERE a.tenant_id = %s
@@ -1212,7 +1212,7 @@ def dashboard_alerts():
 
     # --- MÉTODO POST ---
     if request.method == 'POST':
-        # Validar la presencia del tipo de contenido application/json
+        # Validar el encabezado Content-Type
         if not request.is_json:
             return jsonify({
                 'error': 'Bad Request',
@@ -1226,7 +1226,7 @@ def dashboard_alerts():
                 'message': 'El cuerpo de la petición no contiene un formato JSON válido'
             }), 400
 
-        # Validar campos obligatorios
+        # Validar campos requeridos obligatorios
         required_fields = ['device_id', 'alert_type', 'message']
         missing_fields = [field for field in required_fields if not data.get(field)]
 
@@ -1240,14 +1240,31 @@ def dashboard_alerts():
         device_id = data.get('device_id')
         alert_type = data.get('alert_type')
         message = data.get('message')
+        severity = data.get('severity', 'medium')  # 'low', 'medium', 'high', 'critical'
+        
+        # Permitir user_id desde el body o desde las claims del JWT
+        post_user_id = data.get('user_id') or user_id
 
         try:
             new_alert = db_query(
                 '''
-                INSERT INTO alerts (tenant_id, device_id, alert_type, message, is_resolved, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+                INSERT INTO alerts (
+                    tenant_id, device_id, user_id, alert_type, 
+                    message, severity, is_resolved, created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
+                RETURNING id
                 ''',
-                (tenant_id, device_id, alert_type, message, False, now_utc()),
+                (
+                    tenant_id, 
+                    device_id, 
+                    post_user_id, 
+                    alert_type, 
+                    message, 
+                    severity, 
+                    0,  # smallint: 0 = unresolved
+                    now_utc()
+                ),
                 commit=True, fetchone=True
             )
 
@@ -1257,7 +1274,6 @@ def dashboard_alerts():
                     'message': 'No se pudo registrar la alerta en la base de datos'
                 }), 500
 
-            # Compatibilidad para tuplas o diccionarios según la BD
             alert_id = new_alert['id'] if isinstance(new_alert, dict) else new_alert[0]
 
             return jsonify({
@@ -1269,45 +1285,9 @@ def dashboard_alerts():
             logging.error(f"Error en POST /api/alerts: {str(e)}")
             return jsonify({
                 'error': 'Internal Server Error',
-                'message': 'Error interno al registrar la alerta'
+                'message': 'Error interno al registrar la alerta',
+                'detail': str(e)
             }), 500
-
-
-
-    if request.method == 'POST':
-        data = request.get_json(silent=True) or {}
-        device_id = data.get('device_id')
-        alert_type = data.get('alert_type')
-        message = data.get('message')
-
-        if not device_id or not alert_type or not message:
-            return jsonify({'message': 'device_id, alert_type y message son obligatorios'}), 400
-
-        try:
-            new_alert = db_query(
-                '''
-                INSERT INTO alerts (tenant_id, device_id, alert_type, message, is_resolved, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-                ''',
-                (tenant_id, device_id, alert_type, message, False, now_utc()),
-                commit=True, fetchone=True
-            )
-
-            if not new_alert:
-                return jsonify({'message': 'No se pudo crear el registro de alerta'}), 500
-
-            # Soporta retorno como diccionario dictCursor o tupla
-            alert_id = new_alert['id'] if isinstance(new_alert, dict) else new_alert[0]
-
-            return jsonify({'message': 'Alerta registrada', 'id': alert_id}), 201
-
-        except Exception as e:
-            logging.error(f"Error al insertar alerta: {str(e)}")
-            return jsonify({
-                'message': 'Error interno del servidor al procesar la alerta',
-                'detail': str(e)  # Remover 'detail' en producción
-            }), 500
-
 # ==========================================
 # ENDPOINT OPCIONAL: TRIAJE INDEPENDIENTE
 # ==========================================
