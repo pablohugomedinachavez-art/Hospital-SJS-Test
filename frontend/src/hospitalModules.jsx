@@ -3917,33 +3917,36 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </div>
 
-      {/* MÉTRICAS KPI (NUEVO CONTEXTO DE APILAMIENTO) */}
+      {/* MÉTRICAS KPI (CONTENEDOR FLEX BLOQUEADO) */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        display: 'flex',
+        flexWrap: 'wrap',
         gap: '1rem',
         width: '100%',
-        transform: 'translateZ(0)', /* Crea contexto aislado */
-        contain: 'layout style'
+        clear: 'both'
       }}>
         {metrics.map((item, idx) => {
           const Icon = item.icon;
           return (
-            <div key={idx} style={{
-              background: '#0f172a',
-              border: '1px solid #1e293b',
-              borderRadius: '14px',
-              padding: '1.25rem',
-              height: 'auto',
-              maxHeight: '140px', /* Limita altura para que no se estire horizontalmente */
-              display: 'flex',
-              flexDirection: 'column',
-              justify: 'space-between',
-              position: 'relative',
-              top: 0,
-              left: 0,
-              boxSizing: 'border-box'
-            }}>
+            <div 
+              key={idx} 
+              style={{
+                flex: '1 1 220px',
+                background: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '14px',
+                padding: '1.25rem',
+                minHeight: '110px',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+                /* Anulación estricta de CSS global flotante */
+                position: 'static',
+                float: 'none',
+                clear: 'both',
+                boxSizing: 'border-box'
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ padding: '0.5rem', borderRadius: '10px', backgroundColor: item.bg, color: item.color, display: 'flex' }}>
                   <Icon size={18} />
@@ -3978,14 +3981,14 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
       {/* ANALÍTICA Y ALERTAS */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        display: 'flex',
+        flexWrap: 'wrap',
         gap: '1.25rem',
         width: '100%',
-        transform: 'translateZ(0)'
+        clear: 'both'
       }}>
         {/* Especialidades */}
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+        <div style={{ flex: '1 1 300px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static', float: 'none' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>
               <BarChart3 size={16} /> ATENCIONES POR ESPECIALIDAD
@@ -4008,7 +4011,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
 
         {/* Alertas */}
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+        <div style={{ flex: '1 1 300px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static', float: 'none' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#f87171' }}>
               <ShieldAlert size={16} /> ALERTAS CRÍTICAS
@@ -4037,7 +4040,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       </div>
 
       {/* DIRECTORIO DE USUARIOS */}
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', transform: 'translateZ(0)' }}>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', position: 'static', float: 'none', clear: 'both', boxSizing: 'border-box' }}>
         <div style={{ marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Directorio de Usuarios</h3>
           <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>{filteredUsers.length} cuentas registradas en el sistema.</p>
