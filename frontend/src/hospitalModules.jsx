@@ -1527,6 +1527,10 @@ export function Patients() {
 // Consultations
 // ============================================================
 
+// ============================================================
+// Consultations (Corregido y Completado)
+// ============================================================
+
 export function Consultations() {
   const [consultations, setConsultations] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -1576,6 +1580,13 @@ export function Consultations() {
     if (showForm) searchPatients(debouncedPatientQuery);
   }, [debouncedPatientQuery, showForm, searchPatients]);
 
+  const calculateBMI = (weight, height) => {
+    const w = parseFloat(weight);
+    const h = parseFloat(height) / 100;
+    if (!w || !h || h === 0) return '';
+    return (w / (h * h)).toFixed(1);
+  };
+
   const updateTriage = (field, value) => {
     const next = { ...form, [field]: value };
     if (field === 'weight_kg' || field === 'height_cm') {
@@ -1613,8 +1624,6 @@ export function Consultations() {
 
   return (
     <div className="consultations-container">
-
-      {/* CSS global para forzar ajuste responsivo estricto */}
       <style>{`
         .consultations-container,
         .consultations-container * {
@@ -1622,30 +1631,27 @@ export function Consultations() {
         }
 
         .consultations-container {
-          padding: 0.5rem;
+          padding: 1rem;
           background-color: #090d16;
           color: #f8fafc;
           min-height: 100vh;
           font-family: system-ui, -apple-system, sans-serif;
           width: 100%;
-          max-width: 100vw;
-          overflow-x: hidden;
         }
 
         .main-card {
           background-color: rgba(15, 23, 42, 0.6);
           border: 1px solid #1e293b;
-          border-radius: 12px;
-          padding: 0.65rem;
+          border-radius: 16px;
+          padding: 1.25rem;
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
           backdrop-filter: blur(12px);
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: 1.25rem;
           width: 100%;
-          max-width: 100%;
+          max-width: 1200px;
           margin: 0 auto;
-          overflow: hidden;
         }
 
         .header-wrapper {
@@ -1653,251 +1659,117 @@ export function Consultations() {
           justify-content: space-between;
           align-items: center;
           border-bottom: 1px solid #1e293b;
-          padding-bottom: 0.65rem;
+          padding-bottom: 1rem;
           flex-wrap: wrap;
-          gap: 0.5rem;
+          gap: 0.75rem;
           width: 100%;
-        }
-
-        .header-info {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          min-width: 0;
-          flex: 1 1 180px;
-        }
-
-        .header-title-text {
-          min-width: 0;
-          flex: 1;
-        }
-
-        .header-title-text h1 {
-          font-size: 1.1rem;
-          font-weight: 700;
-          margin: 0;
-          letter-spacing: -0.02em;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
         }
 
         .grid-cards {
           display: grid;
-          grid-template-columns: 1fr;
-          gap: 0.75rem;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 1rem;
           width: 100%;
         }
 
         .grid-form-2col {
           display: grid;
-          grid-template-columns: 1fr;
-          gap: 0.75rem;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 1rem;
           width: 100%;
         }
 
         .input-mobile {
           width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          box-sizing: border-box !important;
           background-color: #090d16 !important;
           border: 1px solid #334155 !important;
           color: #f8fafc !important;
-          border-radius: 10px !important;
-          padding: 0.6rem 0.75rem !important;
-          font-size: 0.825rem !important;
+          border-radius: 8px !important;
+          padding: 0.65rem 0.85rem !important;
+          font-size: 0.875rem !important;
           outline: none !important;
-          display: block !important;
         }
 
         .input-mobile:focus {
           border-color: #38bdf8 !important;
           box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
         }
-
-        .patient-item-text {
-          min-width: 0;
-          flex: 1;
-          overflow: hidden;
-        }
-
-        .patient-item-text strong {
-          display: block;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          font-size: 0.75rem;
-        }
-
-        @media (min-width: 640px) {
-          .consultations-container {
-            padding: 1.25rem;
-          }
-          .main-card {
-            padding: 1.5rem;
-            gap: 1.5rem;
-            border-radius: 20px;
-            max-width: 1200px;
-          }
-          .grid-cards {
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          }
-          .grid-form-2col {
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          }
-          .header-title-text h1 {
-            font-size: 1.5rem;
-          }
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(6px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animated-card {
-          animation: fadeIn 0.25s ease-out forwards;
-          width: 100%;
-          max-width: 100%;
-        }
       `}</style>
 
-      {/* MARCO CONTENEDOR */}
       <div className="main-card">
-
-        {/* ENCABEZADO RESPONSIVE */}
+        {/* ENCABEZADO */}
         <div className="header-wrapper">
-          <div className="header-info">
-            <div style={{
-              backgroundColor: 'rgba(56, 189, 248, 0.12)',
-              padding: '0.45rem',
-              borderRadius: '10px',
-              color: '#38bdf8',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}>
-              <Stethoscope size={20} />
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400">
+              <Stethoscope size={22} />
             </div>
-            <div className="header-title-text">
-              <h1>
-                {showForm ? 'Nueva Consulta' : 'Consultas Médicas'}
+            <div>
+              <h1 className="text-xl font-bold text-white">
+                {showForm ? 'Nueva Consulta Médica' : 'Consultas Médicas'}
               </h1>
-              <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.1rem 0 0 0' }}>
-                {showForm ? 'Gestión de triaje y receta.' : 'Historial de atención clínica.'}
+              <p className="text-xs text-slate-400">
+                {showForm ? 'Gestión de triaje, diagnóstico y prescripción.' : 'Historial de atenciones clínicas.'}
               </p>
             </div>
           </div>
 
           <button
-            style={{
-              backgroundColor: '#3b82f6',
-              border: 'none',
-              color: '#ffffff',
-              borderRadius: '8px',
-              padding: '0.55rem 0.85rem',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.35rem',
-              cursor: 'pointer',
-              width: '100%',
-              maxWidth: '160px',
-              flexShrink: 0
-            }}
+            className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer"
             onClick={() => {
               if (!showForm) setForm(INITIAL_CONSULTATION);
               setShowForm(!showForm);
             }}
           >
-            {showForm ? <><ArrowLeft size={14} /> Volver</> : <><Plus size={14} /> Nueva Consulta</>}
+            {showForm ? <><ArrowLeft size={16} /> Volver al Historial</> : <><Plus size={16} /> Nueva Consulta</>}
           </button>
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* VISTA PRINCIPAL: BUSCADOR Y LISTADO */}
+        {/* LISTADO DE CONSULTAS */}
         {!showForm ? (
-          <div className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
-
-            {/* PANEL DE BÚSQUEDA */}
-            <div style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
-              borderRadius: '12px',
-              padding: '0.75rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.5rem',
-              width: '100%'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Filtro de Búsqueda</h3>
-                <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 500 }}>
-                  {consultations.length} {consultations.length === 1 ? 'resultado' : 'resultados'}
-                </span>
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row gap-3 justify-between items-center">
+              <span className="text-xs text-slate-400 font-medium">
+                {consultations.length} {consultations.length === 1 ? 'consulta registrada' : 'consultas registradas'}
+              </span>
+              <div className="w-full sm:w-80">
+                <SearchField value={query} onChange={setQuery} placeholder="Buscar por paciente, diagnóstico o médico..." loading={loading} />
               </div>
-              <SearchField value={query} onChange={setQuery} placeholder="Buscar paciente, diagnóstico o médico..." loading={loading} />
             </div>
 
-            {/* LISTADO DE TARJETAS */}
             {loading ? (
-              <div style={{ padding: '2rem 0', textAlign: 'center' }}>
-                <LoadingState label="Cargando consultas..." />
-              </div>
+              <LoadingState label="Cargando atenciones clínicas..." />
             ) : consultations.length === 0 ? (
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '1.5rem 1rem', textAlign: 'center' }}>
-                <EmptyState icon="🩺" title="No se encontraron consultas" description="Intenta cambiar los términos de búsqueda o registra una nueva atención." />
-              </div>
+              <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
             ) : (
               <div className="grid-cards">
                 {consultations.map(item => (
-                  <article
-                    key={item.id}
-                    style={{
-                      backgroundColor: '#0f172a',
-                      border: '1px solid #1e293b',
-                      borderRadius: '12px',
-                      padding: '0.75rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.65rem',
-                      width: '100%'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, flex: 1 }}>
-                        <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.3rem', borderRadius: '6px', flexShrink: 0 }}>
-                          <User size={14} />
-                        </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <span style={{ fontSize: '0.68rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                            <Calendar size={10} /> {formatDate(item.created_at) || item.date || 'Sin fecha'}
-                          </span>
-                          <h3 style={{ fontSize: '0.825rem', fontWeight: 600, color: '#f8fafc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {item.patient_name || `Paciente #${item.patient_id}`}
-                          </h3>
-                        </div>
+                  <article key={item.id} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between gap-3 transition-all shadow-md">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
+                          <Calendar size={12} /> {formatDate(item.created_at || item.date)}
+                        </span>
+                        <h3 className="text-sm font-semibold text-white line-clamp-1">
+                          {item.patient_name || `Paciente #${item.patient_id}`}
+                        </h3>
                       </div>
-                      <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.1rem 0.3rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 600, flexShrink: 0 }}>
+                      <span className="bg-sky-950/60 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
                         #{item.id}
                       </span>
                     </div>
 
-                    <div style={{ backgroundColor: '#090d16', padding: '0.55rem', borderRadius: '6px', border: '1px solid #1e293b', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', wordBreak: 'break-word', width: '100%' }}>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Motivo: </strong><span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></p>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Diagnóstico: </strong><span style={{ color: item.diagnosis ? '#38bdf8' : '#64748b', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></p>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Médico: </strong><span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></p>
+                    <div className="bg-[#090d16] p-3 rounded-lg border border-slate-800/80 text-xs space-y-1.5">
+                      <p><strong className="text-slate-400">Motivo: </strong><span className="text-slate-300">{item.reason || 'Sin especificar'}</span></p>
+                      <p><strong className="text-slate-400">Diagnóstico: </strong><span className="text-sky-400 font-medium">{item.diagnosis || 'Pendiente'}</span></p>
+                      <p><strong className="text-slate-400">Médico: </strong><span className="text-slate-300">{item.doctor_name || 'No asignado'}</span></p>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7rem', color: '#94a3b8', paddingTop: '0.35rem', borderTop: '1px solid #1e293b', gap: '0.25rem', width: '100%' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}><Scale size={11} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.15rem' }}><Ruler size={11} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', fontWeight: 600, color: '#f8fafc' }}><Activity size={11} color="#38bdf8" /> IMC {item.bmi ?? '—'}</span>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
+                      <span className="flex items-center gap-1"><Scale size={13} className="text-sky-400" /> {item.weight_kg ?? '—'} kg</span>
+                      <span className="flex items-center gap-1"><Ruler size={13} className="text-sky-400" /> {item.height_cm ?? '—'} cm</span>
+                      <span className="flex items-center gap-1 font-semibold text-slate-200"><Activity size={13} className="text-sky-400" /> IMC {item.bmi ?? '—'}</span>
                     </div>
                   </article>
                 ))}
@@ -1905,78 +1777,58 @@ export function Consultations() {
             )}
           </div>
         ) : (
-          /* FORMULARIO ADAPTADO */
-          <form onSubmit={submit} className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+          /* FORMULARIO DE NUEVA CONSULTA */
+          <form onSubmit={submit} className="space-y-6">
 
             {/* SECCIÓN 1: PACIENTE Y ATENCIÓN */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem' }}>
-                <UserCheck size={15} color="#38bdf8" />
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Datos del Paciente y Consulta</h3>
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <UserCheck size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">1. Identificación y Motivo</h3>
               </div>
 
               <div className="grid-form-2col">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Buscar Paciente *</label>
-
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Buscar Paciente *</label>
                   <input
                     type="text"
                     className="input-mobile"
                     value={patientQuery}
                     onChange={e => setPatientQuery(e.target.value)}
-                    placeholder="Escribe el Nombre o DNI..."
+                    placeholder="Escriba nombre o DNI..."
                   />
-
                   {patients.length > 0 && (
-                    <div style={{ marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '8px', padding: '0.35rem', maxHeight: '150px', overflowY: 'auto', width: '100%' }}>
+                    <div className="mt-1 bg-slate-950 border border-slate-800 rounded-lg p-1.5 max-h-36 overflow-y-auto space-y-1">
                       {patients.slice(0, 5).map(patient => (
                         <button
                           type="button"
                           key={patient.id}
                           onClick={() => { setForm(p => ({ ...p, patient_id: patient.id })); setPatientQuery(patient.full_name); }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            backgroundColor: String(patient.id) === String(form.patient_id) ? '#1e293b' : 'transparent',
-                            border: String(patient.id) === String(form.patient_id) ? '1px solid #38bdf8' : 'none',
-                            color: '#f8fafc',
-                            padding: '0.35rem 0.5rem',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            width: '100%',
-                            minWidth: 0
-                          }}
+                          className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between ${String(patient.id) === String(form.patient_id) ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-900'}`}
                         >
-                          <span style={{ width: '22px', height: '22px', backgroundColor: '#38bdf8', color: '#090d16', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.65rem', flexShrink: 0 }}>
-                            {patient.full_name?.charAt(0)?.toUpperCase() || 'P'}
-                          </span>
-                          <div className="patient-item-text">
-                            <strong>{patient.full_name}</strong>
-                            <small style={{ color: '#94a3b8', fontSize: '0.65rem', display: 'block' }}>DNI: {patient.dni || patient.document_number || 'S/D'}</small>
-                          </div>
+                          <span className="font-medium">{patient.full_name}</span>
+                          <span className="text-[10px] text-slate-500">DNI: {patient.dni || patient.document_number || 'S/D'}</span>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Paciente Seleccionado *</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Paciente Seleccionado *</label>
                   <select
                     required
                     className="input-mobile"
                     value={form.patient_id}
                     onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}
                   >
-                    <option value="">-- Seleccionar --</option>
+                    <option value="">-- Seleccionar de la lista --</option>
                     {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — DNI {p.dni || p.document_number || 'S/D'}</option>)}
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Médico Tratante</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Médico Tratante</label>
                   <input
                     className="input-mobile"
                     value={form.doctor_name}
@@ -1985,49 +1837,39 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Motivo de la Consulta</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Motivo de Consulta</label>
                   <input
                     className="input-mobile"
                     value={form.reason}
                     onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
-                    placeholder="Ej. Chequeo preventivo..."
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Sintomatología / Anamnesis</label>
-                  <textarea
-                    rows={3}
-                    className="input-mobile"
-                    style={{ resize: 'vertical' }}
-                    value={form.symptoms}
-                    onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))}
-                    placeholder="Detalles expresados por el paciente..."
+                    placeholder="Ej. Control de rutina, dolor abdominal..."
                   />
                 </div>
               </div>
 
-              {selectedPatient && (
-                <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#38bdf8', fontSize: '0.725rem', display: 'flex', alignItems: 'center', gap: '0.35rem', width: '100%', minWidth: 0 }}>
-                  <CheckCircle2 size={13} style={{ flexShrink: 0 }} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    Paciente seleccionado: <strong>{selectedPatient.full_name}</strong> (DNI: {selectedPatient.dni || selectedPatient.document_number || 'S/D'})
-                  </span>
-                </div>
-              )}
+              <div className="space-y-1 pt-2">
+                <label className="text-xs font-medium text-slate-400">Sintomatología / Anamnesis</label>
+                <textarea
+                  rows={2}
+                  className="input-mobile"
+                  value={form.symptoms}
+                  onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))}
+                  placeholder="Detalles clínicos o síntomas manifestados por el paciente..."
+                />
+              </div>
             </div>
 
             {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem' }}>
-                <HeartPulse size={15} color="#38bdf8" />
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y Constantes Vitales</h3>
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <HeartPulse size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">2. Signos Vitales y Triaje</h3>
               </div>
 
-              <div className="grid-form-2col">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Peso (kg)</label>
                   <input
                     type="number"
                     step="0.1"
@@ -2038,143 +1880,97 @@ export function Consultations() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Talla (cm)</label>
                   <input
                     type="number"
-                    step="1"
                     className="input-mobile"
                     value={form.height_cm}
                     onChange={e => updateTriage('height_cm', e.target.value)}
-                    placeholder="Ej. 175"
+                    placeholder="Ej. 170"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Presión Arterial</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Presión Arterial</label>
                   <input
                     className="input-mobile"
                     value={form.blood_pressure}
-                    onChange={e => setForm(p => ({ ...p, blood_pressure: e.target.value }))}
-                    placeholder="Ej. 120/80"
+                    onChange={e => updateTriage('blood_pressure', e.target.value)}
+                    placeholder="120/80"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro Abdominal (cm)</label>
-                  <input
-                    type="number"
-                    className="input-mobile"
-                    value={form.abdominal_perimeter_cm}
-                    onChange={e => setForm(p => ({ ...p, abdominal_perimeter_cm: e.target.value }))}
-                    placeholder="Ej. 85"
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>IMC Calculado</label>
-                  <input
-                    readOnly
-                    className="input-mobile"
-                    style={{ backgroundColor: '#1e293b', cursor: 'not-allowed' }}
-                    value={form.bmi ? `${form.bmi} (${bmiState.label})` : ''}
-                    placeholder="Auto-calculado"
-                  />
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">IMC (Calculado)</label>
+                  <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm font-mono text-sky-400 font-semibold flex items-center justify-between">
+                    <span>{form.bmi || '—'}</span>
+                    {form.bmi && <span className="text-[10px] text-slate-400 uppercase font-sans">{bmiState.label}</span>}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* SECCIÓN 3: DIAGNÓSTICO Y TRATAMIENTO */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem' }}>
-                <Pill size={15} color="#38bdf8" />
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y Prescripción</h3>
+            {/* SECCIÓN 3: DIAGNÓSTICO Y RECETA */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <FileEdit size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">3. Diagnóstico y Prescripción</h3>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico Médico</label>
-                  <textarea
-                    rows={2}
-                    className="input-mobile"
-                    style={{ resize: 'vertical' }}
-                    value={form.diagnosis}
-                    onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))}
-                    placeholder="Conclusión diagnóstica..."
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Tratamiento y Plan Médico</label>
-                  <textarea
-                    rows={2}
-                    className="input-mobile"
-                    style={{ resize: 'vertical' }}
-                    value={form.treatment}
-                    onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))}
-                    placeholder="Indicaciones y plan de seguimiento..."
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Receta / Medicamentos</label>
+              <div className="grid-form-2col">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Diagnóstico Principal</label>
                   <textarea
                     rows={3}
                     className="input-mobile"
-                    style={{ resize: 'vertical' }}
-                    value={form.prescription}
-                    onChange={e => setForm(p => ({ ...p, prescription: e.target.value }))}
-                    placeholder="Medicamentos, dosis y frecuencia..."
+                    value={form.diagnosis}
+                    onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))}
+                    placeholder="Diagnóstico clínico, código CIE-10..."
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Tratamiento / Receta Médica</label>
+                  <textarea
+                    rows={3}
+                    className="input-mobile"
+                    value={form.treatment}
+                    onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))}
+                    placeholder="Medicamentos, posología e indicaciones generales..."
                   />
                 </div>
               </div>
             </div>
 
             {/* BOTONES DE ACCIÓN */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                style={{
-                  backgroundColor: '#1e293b',
-                  color: '#f8fafc',
-                  border: '1px solid #334155',
-                  padding: '0.55rem 1rem',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className="px-5 py-2.5 rounded-lg border border-slate-800 text-slate-300 bg-slate-900 hover:bg-slate-800 text-sm font-medium transition-all cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                style={{
-                  backgroundColor: '#3b82f6',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '0.55rem 1.25rem',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem'
-                }}
+                className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all cursor-pointer disabled:opacity-50"
               >
-                <Save size={15} />
-                {submitting ? 'Guardando...' : 'Guardar Consulta'}
+                <Save size={16} /> {submitting ? 'Guardando...' : 'Guardar Consulta'}
               </button>
             </div>
+
           </form>
         )}
+
       </div>
     </div>
   );
 }
+
+
+
 // ============================================================
 // Locations
 // ============================================================
