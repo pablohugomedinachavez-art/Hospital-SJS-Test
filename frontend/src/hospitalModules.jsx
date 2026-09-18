@@ -4793,8 +4793,8 @@ export function Profile() {
         <div className="space-y-6">
           {/* Tarjeta Principal de Información */}
           <SectionCard title="Información de cuenta" icon="◎">
-            <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-slate-50 border border-slate-100 rounded-xl mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-2xl shadow-sm">
+            <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-slate-900/60 border border-slate-700/50 rounded-xl mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-2xl shadow-sm shrink-0">
                 {avatarInitial}
               </div>
               
@@ -4802,10 +4802,10 @@ export function Profile() {
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Usuario
                 </span>
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold text-white">
                   {profile.username || 'Usuario sin nombre'}
                 </h2>
-                <span className="inline-block px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                <span className="inline-block px-2.5 py-0.5 text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
                   {profile.role_name || profile.role || 'Sin rol'}
                 </span>
               </div>
@@ -4813,30 +4813,30 @@ export function Profile() {
 
             {/* Grid de Metadatos */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-              <div className="p-3 bg-white border border-slate-200/80 rounded-lg">
+              <div className="p-3 bg-slate-900/50 border border-slate-700/50 rounded-lg">
                 <span className="block text-xs font-medium text-slate-400 mb-0.5">Rol</span>
-                <strong className="text-sm font-semibold text-slate-700">
+                <strong className="text-sm font-semibold text-slate-200">
                   {profile.role_name || profile.role || '-'}
                 </strong>
               </div>
 
-              <div className="p-3 bg-white border border-slate-200/80 rounded-lg">
+              <div className="p-3 bg-slate-900/50 border border-slate-700/50 rounded-lg">
                 <span className="block text-xs font-medium text-slate-400 mb-0.5">Tenant</span>
-                <strong className="text-sm font-semibold text-slate-700">
+                <strong className="text-sm font-semibold text-slate-200">
                   #{profile.tenant_id ?? 'N/A'}
                 </strong>
               </div>
 
-              <div className="p-3 bg-white border border-slate-200/80 rounded-lg">
+              <div className="p-3 bg-slate-900/50 border border-slate-700/50 rounded-lg">
                 <span className="block text-xs font-medium text-slate-400 mb-0.5">Alta</span>
-                <strong className="text-sm font-semibold text-slate-700">
+                <strong className="text-sm font-semibold text-slate-200">
                   {formatDate(profile.created_at)}
                 </strong>
               </div>
 
-              <div className="p-3 bg-white border border-slate-200/80 rounded-lg">
+              <div className="p-3 bg-slate-900/50 border border-slate-700/50 rounded-lg">
                 <span className="block text-xs font-medium text-slate-400 mb-0.5">Permisos</span>
-                <strong className="text-sm font-semibold text-slate-700">
+                <strong className="text-sm font-semibold text-slate-200">
                   {profile.permissions?.length ?? 0} asignados
                 </strong>
               </div>
