@@ -1974,60 +1974,91 @@ export function Consultations() {
 // ============================================================
 
 export function Locations() {
-  const [items, setItems] = useState([])
-  const [selectedArea, setSelectedArea] = useState(null)
-  const [detail, setDetail] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [loadingDetail, setLoadingDetail] = useState(false)
-  const [showNewArea, setShowNewArea] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDescription, setNewDescription] = useState('')
-  const [saving, setSaving] = useState(false)
-  const { user } = useAuth()
-  const [toast, notify, clearToast] = useToast()
-  const canEdit = isAdminUser(user)
+  const [items, setItems] = useState([]);
+  const [selectedArea, setSelectedArea] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [showNewArea, setShowNewArea] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+  
+  const { user } = useAuth();
+  const [toast, notify, clearToast] = useToast();
+  const canEdit = isAdminUser(user);
 
   const load = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await apiFetch('/locations')
-      if (!res.ok) throw new Error('No se pudieron cargar las áreas')
-      setItems(await res.json() || [])
+      const res = await apiFetch('/locations');
+      if (!res.ok) throw new Error('No se pudieron cargar las áreas');
+      const data = await res.json();
+      
+      // Asegura que siempre sea un array
+      if (Array.isArray(data)) {
+        setItems(data);
+      } else if (data && Array.isArray(data.items)) {
+        setItems(data.items);
+      } else if (data && Array.isArray(data.data)) {
+        setItems(data.data);
+      } else {
+        setItems([]);
+      }
     } catch (error) {
-      notify(error.message, 'error')
-    } finally { setLoading(false) }
-  }, [notify])
+      notify(error.message, 'error');
+      setItems([]);
+    } finally { 
+      setLoading(false); 
+    }
+  }, [notify]);
 
-  const loadDetail = useCallback(async id => {
-    setLoadingDetail(true)
+  const loadDetail = useCallback(async (id) => {
+    setLoadingDetail(true);
     try {
-      const res = await apiFetch(`/locations/${id}`)
-      if (!res.ok) throw new Error('No se pudo cargar el detalle')
-      setDetail(await res.json())
+      const res = await apiFetch(`/locations/${id}`);
+      if (!res.ok) throw new Error('No se pudo cargar el detalle');
+      const data = await res.json();
+      setDetail(data);
     } catch (error) {
-      notify(error.message, 'error')
-    } finally { setLoadingDetail(false) }
-  }, [notify])
+      notify(error.message, 'error');
+    } finally { 
+      setLoadingDetail(false); 
+    }
+  }, [notify]);
 
-  useEffect(() => { load() }, [load])
-  useEffect(() => { if (selectedArea) loadDetail(selectedArea) }, [selectedArea, loadDetail])
+  useEffect(() => { 
+    load(); 
+  }, [load]);
 
-  const submit = async event => {
-    event.preventDefault()
-    if (!newName.trim()) return notify('Ingresa un nombre para el área.', 'error')
-    setSaving(true)
+  useEffect(() => { 
+    if (selectedArea) loadDetail(selectedArea); 
+  }, [selectedArea, loadDetail]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!newName.trim()) return notify('Ingresa un nombre para el área.', 'error');
+    setSaving(true);
     try {
-      const res = await apiFetch('/locations', { method: 'POST', body: JSON.stringify({ name: newName.trim(), description: newDescription.trim() }) })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo crear el área')
-      notify('Área creada correctamente.', 'success')
-      setNewName(''); setNewDescription(''); setShowNewArea(false)
-      await load()
-      if (json.id) setSelectedArea(json.id)
+      const res = await apiFetch('/locations', { 
+        method: 'POST', 
+        body: JSON.stringify({ name: newName.trim(), description: newDescription.trim() }) 
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || 'No se pudo crear el área');
+      
+      notify('Área creada correctamente.', 'success');
+      setNewName(''); 
+      setNewDescription(''); 
+      setShowNewArea(false);
+      await load();
+      if (json.id) setSelectedArea(json.id);
     } catch (error) {
-      notify(error.message, 'error')
-    } finally { setSaving(false) }
-  }
+      notify(error.message, 'error');
+    } finally { 
+      setSaving(false); 
+    }
+  };
 
   return (
     <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
@@ -2126,16 +2157,16 @@ export function Locations() {
                     }}
                     onMouseEnter={e => {
                       if (!isSelected) {
-                        e.currentTarget.style.transform = 'translateY(-4px)'
-                        e.currentTarget.style.borderColor = '#3b82f6'
-                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)';
                       }
                     }}
                     onMouseLeave={e => {
                       if (!isSelected) {
-                        e.currentTarget.style.transform = 'translateY(0px)'
-                        e.currentTarget.style.borderColor = '#1e293b'
-                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+                        e.currentTarget.style.transform = 'translateY(0px)';
+                        e.currentTarget.style.borderColor = '#1e293b';
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
                       }
                     }}
                   >
@@ -2193,7 +2224,7 @@ export function Locations() {
 
       </div>
     </div>
-  )
+  );
 }
 
 // ============================================================
