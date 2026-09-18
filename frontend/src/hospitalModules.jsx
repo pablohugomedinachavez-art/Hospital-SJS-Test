@@ -4009,7 +4009,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         {/* Alertas */}
         <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight 700, color: '#f87171' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#f87171' }}>
               <ShieldAlert size={16} /> ALERTAS CRÍTICAS
             </span>
             <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700 }}>{activeAlerts.length} Activas</span>
@@ -4068,8 +4068,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             <thead>
               <tr style={{ background: '#090d16', borderBottom: '1px solid #1e293b' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>USUARIO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight 700 }}>CORREO ELECTRÓNICO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight 700 }}>ROL</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>CORREO ELECTRÓNICO</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>ROL</th>
               </tr>
             </thead>
             <tbody>
