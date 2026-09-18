@@ -4790,60 +4790,68 @@ export function Profile() {
           <LoadingState label="Cargando perfil…" />
         </SectionCard>
       ) : profile ? (
-        <div className="space-y-6">
-          {/* Tarjeta Principal de Información */}
-          <SectionCard title="Información de cuenta" icon="◎">
-            <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-slate-900/60 border border-slate-700/50 rounded-xl mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-2xl shadow-sm shrink-0">
+        <div className="space-y-6 text-slate-100">
+          
+          {/* Banner Principal Estilo Header Hero */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-500 p-6 sm:p-8 shadow-lg">
+            <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
+              <div className="w-20 h-20 rounded-full bg-slate-900/40 backdrop-blur-md text-white flex items-center justify-center font-extrabold text-3xl ring-4 ring-white/20 shadow-inner shrink-0">
                 {avatarInitial}
               </div>
               
               <div className="text-center sm:text-left space-y-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Usuario
+                <span className="text-xs font-semibold uppercase tracking-widest text-blue-200">
+                  Panel de Usuario
                 </span>
-                <h2 className="text-xl font-bold text-white">
-                  {profile.username || 'Usuario sin nombre'}
-                </h2>
-                <span className="inline-block px-2.5 py-0.5 text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full">
-                  {profile.role_name || profile.role || 'Sin rol'}
-                </span>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                  Hola, {profile.username || 'Usuario'}
+                </h1>
+                <p className="text-sm text-blue-100 max-w-xl">
+                  Bienvenido a tu resumen general de actividad médica y estado de la cuenta.
+                </p>
+                <div className="pt-2">
+                  <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-slate-900/40 text-blue-200 border border-white/10 rounded-full backdrop-blur-sm">
+                    {profile.role_name || profile.role || 'Sin rol'}
+                  </span>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Grid de Metadatos */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-              <div className="p-3 bg-slate-900/50 border border-slate-700/50 rounded-lg">
-                <span className="block text-xs font-medium text-slate-400 mb-0.5">Rol</span>
-                <strong className="text-sm font-semibold text-slate-200">
+          {/* Grid de Detalle de Cuenta (Layout estilo Widget) */}
+          <SectionCard title="Información de cuenta" icon="◎">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 bg-[#0F172A]/70 border border-slate-800 rounded-xl shadow-sm hover:border-slate-700 transition-colors">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Rol</span>
+                <strong className="text-base font-bold text-white block">
                   {profile.role_name || profile.role || '-'}
                 </strong>
               </div>
 
-              <div className="p-3 bg-slate-900/50 border border-slate-700/50 rounded-lg">
-                <span className="block text-xs font-medium text-slate-400 mb-0.5">Tenant</span>
-                <strong className="text-sm font-semibold text-slate-200">
+              <div className="p-4 bg-[#0F172A]/70 border border-slate-800 rounded-xl shadow-sm hover:border-slate-700 transition-colors">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tenant</span>
+                <strong className="text-base font-bold text-white block">
                   #{profile.tenant_id ?? 'N/A'}
                 </strong>
               </div>
 
-              <div className="p-3 bg-slate-900/50 border border-slate-700/50 rounded-lg">
-                <span className="block text-xs font-medium text-slate-400 mb-0.5">Alta</span>
-                <strong className="text-sm font-semibold text-slate-200">
+              <div className="p-4 bg-[#0F172A]/70 border border-slate-800 rounded-xl shadow-sm hover:border-slate-700 transition-colors">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Fecha de Alta</span>
+                <strong className="text-base font-bold text-white block">
                   {formatDate(profile.created_at)}
                 </strong>
               </div>
 
-              <div className="p-3 bg-slate-900/50 border border-slate-700/50 rounded-lg">
-                <span className="block text-xs font-medium text-slate-400 mb-0.5">Permisos</span>
-                <strong className="text-sm font-semibold text-slate-200">
+              <div className="p-4 bg-[#0F172A]/70 border border-slate-800 rounded-xl shadow-sm hover:border-slate-700 transition-colors">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Permisos</span>
+                <strong className="text-base font-bold text-white block">
                   {profile.permissions?.length ?? 0} asignados
                 </strong>
               </div>
             </div>
           </SectionCard>
 
-          {/* Métricas / Estadísticas del Usuario */}
+          {/* Tarjetas de Métricas Médicas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               icon="👥"
@@ -4869,6 +4877,7 @@ export function Profile() {
               tone="warning"
             />
           </div>
+
         </div>
       ) : (
         <SectionCard>
