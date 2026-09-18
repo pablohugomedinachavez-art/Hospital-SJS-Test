@@ -4792,25 +4792,25 @@ export function Profile() {
       ) : profile ? (
         <div className="space-y-6 text-slate-100">
           
-          {/* Banner Principal Estilo Header Hero */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-500 p-6 sm:p-8 shadow-lg">
-            <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
-              <div className="w-20 h-20 rounded-full bg-slate-900/40 backdrop-blur-md text-white flex items-center justify-center font-extrabold text-3xl ring-4 ring-white/20 shadow-inner shrink-0">
+          {/* Banner Hero Limpio con Avatar a la izquierda */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-500 p-6 shadow-lg">
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-md text-white flex items-center justify-center font-black text-3xl border border-white/20 shadow-inner shrink-0">
                 {avatarInitial}
               </div>
               
-              <div className="text-center sm:text-left space-y-1">
-                <span className="text-xs font-semibold uppercase tracking-widest text-blue-200">
-                  Panel de Usuario
+              <div className="flex-1 text-center sm:text-left">
+                <span className="text-xs font-semibold uppercase tracking-widest text-blue-200 block mb-1">
+                  PANEL DE USUARIO
                 </span>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
                   Hola, {profile.username || 'Usuario'}
                 </h1>
-                <p className="text-sm text-blue-100 max-w-xl">
+                <p className="text-sm text-blue-100/90 mt-1 mb-3">
                   Bienvenido a tu resumen general de actividad médica y estado de la cuenta.
                 </p>
-                <div className="pt-2">
-                  <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-slate-900/40 text-blue-200 border border-white/10 rounded-full backdrop-blur-sm">
+                <div>
+                  <span className="inline-flex items-center px-3 py-1 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-full backdrop-blur-md">
                     {profile.role_name || profile.role || 'Sin rol'}
                   </span>
                 </div>
@@ -4818,32 +4818,32 @@ export function Profile() {
             </div>
           </div>
 
-          {/* Grid de Detalle de Cuenta (Layout estilo Widget) */}
+          {/* Grid de Detalle de Cuenta */}
           <SectionCard title="Información de cuenta" icon="◎">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-[#0F172A]/70 border border-slate-800 rounded-xl shadow-sm hover:border-slate-700 transition-colors">
-                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Rol</span>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">ROL</span>
                 <strong className="text-base font-bold text-white block">
                   {profile.role_name || profile.role || '-'}
                 </strong>
               </div>
 
-              <div className="p-4 bg-[#0F172A]/70 border border-slate-800 rounded-xl shadow-sm hover:border-slate-700 transition-colors">
-                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tenant</span>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">TENANT</span>
                 <strong className="text-base font-bold text-white block">
                   #{profile.tenant_id ?? 'N/A'}
                 </strong>
               </div>
 
-              <div className="p-4 bg-[#0F172A]/70 border border-slate-800 rounded-xl shadow-sm hover:border-slate-700 transition-colors">
-                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Fecha de Alta</span>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">FECHA DE ALTA</span>
                 <strong className="text-base font-bold text-white block">
                   {formatDate(profile.created_at)}
                 </strong>
               </div>
 
-              <div className="p-4 bg-[#0F172A]/70 border border-slate-800 rounded-xl shadow-sm hover:border-slate-700 transition-colors">
-                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Permisos</span>
+              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
+                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">PERMISOS</span>
                 <strong className="text-base font-bold text-white block">
                   {profile.permissions?.length ?? 0} asignados
                 </strong>
@@ -4855,24 +4855,24 @@ export function Profile() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               icon="👥"
-              label="Pacientes"
+              label="PACIENTES"
               value={profile.counts?.patients ?? 0}
             />
             <StatCard
               icon="🩺"
-              label="Consultas"
+              label="CONSULTAS"
               value={profile.counts?.consultations ?? 0}
               tone="success"
             />
             <StatCard
               icon="◷"
-              label="Citas"
+              label="CITAS"
               value={profile.counts?.appointments ?? 0}
               tone="primary"
             />
             <StatCard
               icon="▤"
-              label="Documentos"
+              label="DOCUMENTOS"
               value={profile.counts?.documents ?? 0}
               tone="warning"
             />
