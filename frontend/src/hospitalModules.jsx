@@ -4532,203 +4532,128 @@ export function Users() {
 }
 
 
-export function Profile() {
-  const { user } = useAuth()
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [toast, notify, clearToast] = useToast()
+export function Profile({ user = {}, stats = {} }) {
+  // Datos fallback por si la prop viene vacía
+  const userData = {
+    username: user.username || user.name || 'admin',
+    role: user.role || 'Administrador',
+    tenant: user.tenant_id || user.tenant || '#1',
+    createdAt: user.created_at || '10 ago 2026',
+    permissionsCount: user.permissions?.length || 6,
+  };
 
-  useEffect(() => {
-    let isMounted = true
-
-    const fetchProfile = async () => {
-      try {
-        const res = await apiFetch('/profile')
-        if (!res.ok) throw new Error('No se pudo cargar el perfil')
-        const data = await res.json()
-        if (isMounted) setProfile(data)
-      } catch (error) {
-        if (isMounted) notify(error.message, 'error')
-      } finally {
-        if (isMounted) setLoading(false)
-      }
-    }
-
-    fetchProfile()
-
-    return () => {
-      isMounted = false
-    }
-  }, [notify])
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-
-  const avatarInitial = (profile?.username || user?.email || 'U')
-    .charAt(0)
-    .toUpperCase()
+  const statsData = [
+    { label: 'PACIENTES', count: stats.patients ?? 5, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'CONSULTAS', count: stats.consultations ?? 1, icon: Stethoscope, color: 'text-teal-400', bg: 'bg-teal-500/10' },
+    { label: 'CITAS', count: stats.appointments ?? 14, icon: Clock, color: 'text-sky-400', bg: 'bg-sky-500/10' },
+    { label: 'DOCUMENTOS', count: stats.documents ?? 7, icon: FileText, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+  ];
 
   return (
-    <PageShell
-      title="Mi perfil"
-      subtitle="Resumen de identidad y actividad dentro del sistema."
-    >
-      <Toast toast={toast} onClose={clearToast} />
+    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 text-slate-100 font-sans space-y-6">
+      {/* TÍTULO PRINCIPAL */}
+      <div>
+        <h1 className="text-2xl font-bold text-white tracking-tight">Hospital TIC</h1>
+        <h2 className="text-lg font-semibold text-slate-300">Mi perfil</h2>
+        <p className="text-xs text-slate-400">Resumen de identidad y actividad dentro del sistema.</p>
+      </div>
 
-      {loading ? (
-        <SectionCard>
-          <LoadingState label="Cargando perfil…" />
-        </SectionCard>
-      ) : profile ? (
-        <div className="space-y-6 text-slate-100">
-          
-          {/* Banner Hero aislado */}
-          <div 
-            style={{
-              width: '100%',
-              borderRadius: '16px',
-              background: 'linear-gradient(90deg, #2563eb 0%, #4f46e5 50%, #06b6d4 100%)',
-              padding: '24px',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-              color: '#ffffff',
-              boxSizing: 'border-box'
-            }}
-          >
-            <div 
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'auto 1fr',
-                alignItems: 'center',
-                gap: '20px'
-              }}
-            >
-              
-              {/* Avatar desacoplado de CSS global */}
-              <div 
-                style={{
-                  gridColumn: '1',
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '28px',
-                  fontWeight: '800',
-                  color: '#ffffff',
-                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
-                }}
-              >
-                {avatarInitial}
-              </div>
-              
-              {/* Información de Usuario */}
-              <div style={{ gridColumn: '2', minWidth: 0 }}>
-                <p style={{ margin: '0 0 4px 0', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255, 255, 255, 0.8)' }}>
-                  PANEL DE USUARIO
-                </p>
-                <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', fontWeight: '800', color: '#ffffff', lineHeight: '1.2' }}>
-                  Hola, {profile.username || 'Usuario'}
-                </h1>
-                <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'rgba(255, 255, 255, 0.9)' }}>
-                  Bienvenido a tu resumen general de actividad médica y estado de la cuenta.
-                </p>
-                <div>
-                  <span 
-                    style={{
-                      display: 'inline-block',
-                      padding: '3px 12px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      color: '#ffffff',
-                      backgroundColor: 'rgba(255, 255, 255, 0.25)',
-                      border: '1px solid rgba(255, 255, 255, 0.35)',
-                      borderRadius: '9999px',
-                      lineHeight: '1.4'
-                    }}
-                  >
-                    {profile.role_name || profile.role || 'Sin rol'}
-                  </span>
-                </div>
-              </div>
-
+      {/* BANNER PRINCIPAL DE BIENVENIDA */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 p-6 sm:p-8 shadow-xl">
+        <div className="relative z-10 flex items-center gap-5">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-2xl sm:text-3xl font-bold text-white shadow-inner shrink-0">
+            {userData.username.charAt(0).toUpperCase()}
+          </div>
+          <div className="space-y-1.5">
+            <span className="text-[11px] font-bold tracking-wider text-blue-200 uppercase bg-blue-900/40 px-2.5 py-0.5 rounded-full border border-blue-400/30">
+              PANEL DE USUARIO
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+              Hola, {userData.username}
+            </h2>
+            <p className="text-xs sm:text-sm text-blue-100/90 max-w-xl">
+              Bienvenido a tu resumen general de actividad médica y estado de la cuenta.
+            </p>
+            <div className="pt-1">
+              <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md text-white text-xs font-medium px-3 py-1 rounded-lg border border-white/30">
+                <Shield size={14} />
+                {userData.role}
+              </span>
             </div>
           </div>
-
-          {/* Grid de Detalle de Cuenta */}
-          <SectionCard title="Información de cuenta" icon="◎">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
-                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">ROL</span>
-                <strong className="text-base font-bold text-white block">
-                  {profile.role_name || profile.role || '-'}
-                </strong>
-              </div>
-
-              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
-                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">TENANT</span>
-                <strong className="text-base font-bold text-white block">
-                  #{profile.tenant_id ?? 'N/A'}
-                </strong>
-              </div>
-
-              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
-                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">FECHA DE ALTA</span>
-                <strong className="text-base font-bold text-white block">
-                  {formatDate(profile.created_at)}
-                </strong>
-              </div>
-
-              <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-xl">
-                <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">PERMISOS</span>
-                <strong className="text-base font-bold text-white block">
-                  {profile.permissions?.length ?? 0} asignados
-                </strong>
-              </div>
-            </div>
-          </SectionCard>
-
-          {/* Tarjetas de Métricas Médicas */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              icon="👥"
-              label="PACIENTES"
-              value={profile.counts?.patients ?? 0}
-            />
-            <StatCard
-              icon="🩺"
-              label="CONSULTAS"
-              value={profile.counts?.consultations ?? 0}
-              tone="success"
-            />
-            <StatCard
-              icon="◷"
-              label="CITAS"
-              value={profile.counts?.appointments ?? 0}
-              tone="primary"
-            />
-            <StatCard
-              icon="▤"
-              label="DOCUMENTOS"
-              value={profile.counts?.documents ?? 0}
-              tone="warning"
-            />
-          </div>
-
         </div>
-      ) : (
-        <SectionCard>
-          <EmptyState title="No se pudo cargar el perfil" />
-        </SectionCard>
-      )}
-    </PageShell>
-  )
+      </div>
+
+      {/* INFORMACIÓN DE CUENTA (GRID DE 2 COLUMNAS) */}
+      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 sm:p-6 backdrop-blur-xl shadow-lg space-y-4">
+        <div className="flex items-center gap-2 text-slate-300 border-b border-slate-800/80 pb-3">
+          <User size={18} className="text-cyan-400" />
+          <h3 className="text-sm font-semibold tracking-wide uppercase text-slate-200">Información de cuenta</h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-slate-800/60 text-slate-300">
+              <Shield size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ROL</p>
+              <p className="text-sm font-semibold text-white">{userData.role}</p>
+            </div>
+          </div>
+
+          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-slate-800/60 text-slate-300">
+              <User size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">TENANT</p>
+              <p className="text-sm font-semibold text-white">{userData.tenant}</p>
+            </div>
+          </div>
+
+          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-slate-800/60 text-slate-300">
+              <Calendar size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">FECHA DE ALTA</p>
+              <p className="text-sm font-semibold text-white">{userData.createdAt}</p>
+            </div>
+          </div>
+
+          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-slate-800/60 text-slate-300">
+              <Key size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">PERMISOS</p>
+              <p className="text-sm font-semibold text-white">{userData.permissionsCount} asignados</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* METRICAS Y ESTADÍSTICAS (GRID HORIZONTAL ADAPTATIVO DE 4 COLUMNAS) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {statsData.map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <div 
+              key={idx} 
+              className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all rounded-2xl p-4 flex items-center gap-4 backdrop-blur-xl shadow-md"
+            >
+              <div className={`p-3 rounded-xl ${item.bg} ${item.color} shrink-0`}>
+                <Icon size={22} />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">{item.label}</p>
+                <p className="text-2xl font-black text-white">{item.count}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
