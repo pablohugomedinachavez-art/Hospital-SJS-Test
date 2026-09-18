@@ -3790,7 +3790,6 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   const [timeRange, setTimeRange] = useState('month');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Métricas principales
   const metrics = [
     { label: 'PACIENTES REGISTRADOS', value: stats.patients ?? 5, trend: '+12%', isUp: true, icon: Users, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' },
     { label: 'CONSULTAS ATENDIDAS', value: stats.consultations ?? 1, trend: '-5%', isUp: false, icon: Stethoscope, color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.12)' },
@@ -3798,20 +3797,17 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     { label: 'ALERTAS ACTIVAS', value: stats.alerts ?? 1, trend: 'Atención', isUp: false, icon: AlertTriangle, color: '#f87171', bg: 'rgba(248, 113, 113, 0.12)' },
   ];
 
-  // Datos de especialidades
   const specialties = [
     { name: 'Medicina General', count: 8, percentage: 57, color: '#3b82f6' },
     { name: 'Pediatría', count: 4, percentage: 28, color: '#10b981' },
     { name: 'Cardiología', count: 2, percentage: 15, color: '#f59e0b' },
   ];
 
-  // Alertas dinámicas
   const activeAlerts = alertsList.length > 0 ? alertsList : [
     { id: 1, title: 'Inconsistencia en registro de DNI', scope: 'Módulo Pacientes', level: 'Alta', time: 'Hace 10 min' },
     { id: 2, title: 'Documento pendiente de firma médica', scope: 'Consultas', level: 'Media', time: 'Hace 1 hora' },
   ];
 
-  // Directorio de Usuarios
   const defaultUsers = [
     { id: 5, username: 'int_test_user', email: '—', role: 'Usuario' },
     { id: 4, username: 'admin', email: '—', role: 'Administrador' },
@@ -3825,322 +3821,118 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   );
 
   return (
-    <div className="reports-container">
-      <style>{`
-        .reports-container {
-          width: 100%;
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 1.5rem;
-          color: #f8fafc;
-          font-family: system-ui, -apple-system, sans-serif;
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-          box-sizing: border-box;
-        }
+    <div style={{
+      width: '100%',
+      maxWidth: '1200px',
+      margin: '0 auto',
+      padding: '1.5rem',
+      color: '#f8fafc',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      display: 'block',
+      position: 'relative',
+      boxSizing: 'border-box'
+    }}>
 
-        .reports-container * {
-          box-sizing: border-box;
-        }
-
-        /* Header Section */
-        .header-section {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          flex-wrap: wrap;
-          gap: 1rem;
-          border-bottom: 1px solid #1e293b;
-          padding-bottom: 1rem;
-        }
-
-        .header-title h1 {
-          font-size: 1.5rem;
-          font-weight: 800;
-          margin: 0;
-          color: #ffffff;
-        }
-
-        .header-title h2 {
-          font-size: 1.1rem;
-          font-weight: 600;
-          margin: 0.2rem 0;
-          color: #cbd5e1;
-        }
-
-        .header-title p {
-          font-size: 0.8rem;
-          color: #94a3b8;
-          margin: 0;
-        }
-
-        .header-actions {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .select-filter {
-          background: #0f172a;
-          border: 1px solid #334155;
-          color: #f8fafc;
-          padding: 0.5rem 0.8rem;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          outline: none;
-        }
-
-        .btn-export {
-          background: #2563eb;
-          color: #ffffff;
-          border: none;
-          padding: 0.5rem 1rem;
-          border-radius: 8px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          cursor: pointer;
-        }
-
-        /* KPI Grid */
-        .kpi-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 1rem;
-          width: 100%;
-        }
-
-        .kpi-card {
-          background: #0f172a;
-          border: 1px solid #1e293b;
-          border-radius: 14px;
-          padding: 1.25rem;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          min-height: 120px;
-        }
-
-        .kpi-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .kpi-icon {
-          padding: 0.5rem;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .kpi-body label {
-          display: block;
-          font-size: 0.65rem;
-          font-weight: 700;
-          color: #64748b;
-          letter-spacing: 0.05em;
-          margin-top: 0.5rem;
-        }
-
-        .kpi-value {
-          font-size: 1.75rem;
-          font-weight: 800;
-          color: #ffffff;
-          line-height: 1.2;
-        }
-
-        .kpi-trend {
-          font-size: 0.75rem;
-          font-weight: 600;
-          display: flex;
-          align-items: center;
-          gap: 0.2rem;
-          padding: 0.2rem 0.5rem;
-          border-radius: 6px;
-        }
-
-        .trend-up { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-        .trend-down { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-
-        /* Main Section Grid */
-        .analytics-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-          gap: 1.25rem;
-          width: 100%;
-        }
-
-        .card-box {
-          background: #0f172a;
-          border: 1px solid #1e293b;
-          border-radius: 16px;
-          padding: 1.25rem;
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .card-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-bottom: 1px solid #1e293b;
-          padding-bottom: 0.75rem;
-        }
-
-        .card-title {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.85rem;
-          font-weight: 700;
-          color: #38bdf8;
-          text-transform: uppercase;
-        }
-
-        .specialty-list, .alerts-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.85rem;
-        }
-
-        .specialty-item {
-          display: flex;
-          flex-direction: column;
-          gap: 0.35rem;
-        }
-
-        .progress-bg {
-          width: 100%;
-          height: 8px;
-          background: #1e293b;
-          border-radius: 4px;
-          overflow: hidden;
-        }
-
-        .progress-fill {
-          height: 100%;
-          border-radius: 4px;
-        }
-
-        .alert-item {
-          background: #090d16;
-          border-left: 4px solid #f87171;
-          border-radius: 8px;
-          padding: 0.75rem 1rem;
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-        }
-
-        .alert-item.medium { border-left-color: #f59e0b; }
-
-        /* Directorio de Usuarios */
-        .users-table-container {
-          width: 100%;
-          overflow-x: auto;
-        }
-
-        .users-table {
-          width: 100%;
-          border-collapse: collapse;
-          text-align: left;
-          font-size: 0.85rem;
-        }
-
-        .users-table th {
-          padding: 0.75rem 1rem;
-          color: #64748b;
-          font-size: 0.7rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          border-bottom: 1px solid #1e293b;
-          background: #090d16;
-        }
-
-        .users-table td {
-          padding: 0.85rem 1rem;
-          border-bottom: 1px solid #1e293b;
-        }
-
-        .user-avatar {
-          width: 32px;
-          height: 32px;
-          background: #6366f1;
-          border-radius: 50%;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 0.8rem;
-          color: #ffffff;
-          margin-right: 0.6rem;
-        }
-
-        .search-box {
-          position: relative;
-          width: 100%;
-          max-width: 360px;
-        }
-
-        .search-input {
-          width: 100%;
-          background: #090d16;
-          border: 1px solid #334155;
-          border-radius: 8px;
-          padding: 0.6rem 0.8rem 0.6rem 2.2rem;
-          color: #ffffff;
-          font-size: 0.85rem;
-          outline: none;
-        }
-      `}</style>
-
-      {/* ENCABEZADO */}
-      <div className="header-section">
-        <div className="header-title">
-          <h1>Hospital TIC</h1>
-          <h2>Reportes Operativos y Analítica</h2>
-          <p>Indicadores en tiempo real para supervisar la operación médica diaria.</p>
+      {/* HEADER */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        marginBottom: '1.5rem',
+        borderBottom: '1px solid #1e293b',
+        paddingBottom: '1rem'
+      }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>Hospital TIC</h1>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0.2rem 0', color: '#cbd5e1' }}>Reportes Operativos y Analítica</h2>
+          <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Indicadores en tiempo real para supervisar la operación médica diaria.</p>
         </div>
-        <div className="header-actions">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <select 
-            className="select-filter"
             value={timeRange} 
             onChange={(e) => setTimeRange(e.target.value)}
+            style={{
+              background: '#0f172a',
+              border: '1px solid #334155',
+              color: '#f8fafc',
+              padding: '0.5rem 0.8rem',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+              outline: 'none'
+            }}
           >
             <option value="today">Hoy</option>
             <option value="week">Esta semana</option>
             <option value="month">Este mes</option>
           </select>
-          <button className="btn-export">
+          <button style={{
+            background: '#2563eb',
+            color: '#ffffff',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            cursor: 'pointer'
+          }}>
             <Download size={15} /> Exportar Reporte
           </button>
         </div>
       </div>
 
-      {/* GRID DE KPIs */}
-      <div className="kpi-grid">
+      {/* MÉTRICAS KPI */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '1rem',
+        marginBottom: '1.5rem'
+      }}>
         {metrics.map((item, idx) => {
           const Icon = item.icon;
           return (
-            <div key={idx} className="kpi-card">
-              <div className="kpi-header">
-                <div className="kpi-icon" style={{ backgroundColor: item.bg, color: item.color }}>
+            <div key={idx} style={{
+              background: '#0f172a',
+              border: '1px solid #1e293b',
+              borderRadius: '14px',
+              padding: '1.25rem',
+              height: 'auto',
+              minHeight: '110px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              position: 'relative'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '0.5rem', borderRadius: '10px', backgroundColor: item.bg, color: item.color, display: 'flex' }}>
                   <Icon size={18} />
                 </div>
-                <span className={`kpi-trend ${item.isUp ? 'trend-up' : 'trend-down'}`}>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.2rem',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '6px',
+                  backgroundColor: item.isUp ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: item.isUp ? '#4ade80' : '#f87171'
+                }}>
                   {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                   {item.trend}
                 </span>
               </div>
-              <div className="kpi-body">
-                <label>{item.label}</label>
-                <span className="kpi-value">{item.value}</span>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 700, color: '#64748b', marginTop: '0.5rem' }}>
+                  {item.label}
+                </label>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.2 }}>
+                  {item.value}
+                </div>
               </div>
             </div>
           );
@@ -4148,55 +3940,58 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       </div>
 
       {/* ANALÍTICA Y ALERTAS */}
-      <div className="analytics-grid">
-        <div className="card-box">
-          <div className="card-header">
-            <div className="card-title">
-              <BarChart3 size={16} /> Atenciones por Especialidad
-            </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: '1.25rem',
+        marginBottom: '1.5rem'
+      }}>
+        {/* Especialidades */}
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>
+              <BarChart3 size={16} /> ATENCIONES POR ESPECIALIDAD
+            </span>
             <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Total: 14</span>
           </div>
-          <div className="specialty-list">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             {specialties.map((spec, i) => (
-              <div key={i} className="specialty-item">
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                   <span style={{ color: '#e2e8f0' }}>{spec.name}</span>
                   <span style={{ color: '#94a3b8', fontWeight: 600 }}>{spec.count} ({spec.percentage}%)</span>
                 </div>
-                <div className="progress-bg">
-                  <div className="progress-fill" style={{ width: `${spec.percentage}%`, backgroundColor: spec.color }} />
+                <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: '4px' }} />
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="card-box">
-          <div className="card-header">
-            <div className="card-title" style={{ color: '#f87171' }}>
-              <ShieldAlert size={16} /> Alertas Críticas
-            </div>
-            <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700 }}>
-              {activeAlerts.length} Activas
+        {/* Alertas */}
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#f87171' }}>
+              <ShieldAlert size={16} /> ALERTAS CRÍTICAS
             </span>
+            <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700 }}>{activeAlerts.length} Activas</span>
           </div>
-          <div className="alerts-list">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {activeAlerts.map((alert) => (
-              <div key={alert.id} className={`alert-item ${alert.level === 'Media' ? 'medium' : ''}`}>
+              <div key={alert.id} style={{
+                background: '#090d16',
+                borderLeft: `4px solid ${alert.level === 'Alta' ? '#f87171' : '#f59e0b'}`,
+                borderRadius: '8px',
+                padding: '0.75rem 1rem',
+                display: 'flex',
+                justifyCallbacks: 'space-between',
+                alignItems: 'flex-start'
+              }}>
                 <div>
                   <h4 style={{ margin: 0, fontSize: '0.85rem', color: '#f8fafc' }}>{alert.title}</h4>
                   <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>{alert.scope} • {alert.time}</p>
                 </div>
-                <span style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  padding: '0.15rem 0.4rem',
-                  borderRadius: '4px',
-                  backgroundColor: alert.level === 'Alta' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
-                  color: alert.level === 'Alta' ? '#f87171' : '#fbbf24'
-                }}>
-                  {alert.level}
-                </span>
               </div>
             ))}
           </div>
@@ -4204,48 +3999,68 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       </div>
 
       {/* DIRECTORIO DE USUARIOS */}
-      <div className="card-box">
-        <div>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+        <div style={{ marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Directorio de Usuarios</h3>
-          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-            {filteredUsers.length} cuentas registradas en el sistema.
-          </p>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>{filteredUsers.length} cuentas registradas en el sistema.</p>
         </div>
 
-        <div className="search-box">
+        <div style={{ position: 'relative', width: '100%', maxWidth: '360px', marginBottom: '1rem' }}>
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
           <input
             type="text"
-            className="search-input"
             placeholder="Buscar por usuario, correo o rol..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              width: '100%',
+              background: '#090d16',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              padding: '0.6rem 0.8rem 0.6rem 2.2rem',
+              color: '#ffffff',
+              fontSize: '0.85rem',
+              outline: 'none',
+              boxSizing: 'border-box'
+            }}
           />
         </div>
 
-        <div className="users-table-container">
-          <table className="users-table">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
-              <tr>
-                <th>Usuario</th>
-                <th>Correo Electrónico</th>
-                <th>Rol</th>
+              <tr style={{ background: '#090d16', borderBottom: '1px solid #1e293b' }}>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>USUARIO</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight 700 }}>CORREO ELECTRÓNICO</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight 700 }}>ROL</th>
               </tr>
             </thead>
             <tbody>
               {filteredUsers.map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span className="user-avatar">{u.username.charAt(0).toUpperCase()}</span>
+                <tr key={u.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                  <td style={{ padding: '0.85rem 1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <span style={{
+                        width: '32px',
+                        height: '32px',
+                        background: '#6366f1',
+                        borderRadius: '50%',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        color: '#ffffff'
+                      }}>
+                        {u.username.charAt(0).toUpperCase()}
+                      </span>
                       <div>
                         <div style={{ fontWeight: 600, color: '#f8fafc' }}>{u.username}</div>
                         <div style={{ fontSize: '0.7rem', color: '#64748b' }}>ID: #{u.id}</div>
                       </div>
                     </div>
                   </td>
-                  <td style={{ color: u.email !== '—' ? '#f8fafc' : '#64748b' }}>{u.email}</td>
-                  <td>
+                  <td style={{ padding: '0.85rem 1rem', color: u.email !== '—' ? '#f8fafc' : '#64748b' }}>{u.email}</td>
+                  <td style={{ padding: '0.85rem 1rem' }}>
                     <span style={{ background: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', color: '#38bdf8' }}>
                       {u.role}
                     </span>
