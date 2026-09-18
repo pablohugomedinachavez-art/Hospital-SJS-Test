@@ -4792,33 +4792,61 @@ export function Profile() {
       ) : profile ? (
         <div className="space-y-6 text-slate-100">
           
-          {/* Banner Hero Reconstruido */}
-          <div className="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 p-6 shadow-xl text-white">
-            <div className="flex flex-row items-center gap-5">
+          {/* Banner Hero a prueba de CSS Global */}
+          <div 
+            className="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 p-6 shadow-xl text-white"
+            style={{ position: 'relative', display: 'block', overflow: 'hidden' }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '20px', width: '100%' }}>
               
-              {/* Avatar independiente sin clases heredadas */}
+              {/* Contenedor del Avatar Reset Unificado */}
               <div 
-                className="w-16 h-16 min-w-[64px] rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center font-extrabold text-3xl text-white shadow-inner"
-                style={{ position: 'static' }}
+                style={{
+                  position: 'static',
+                  width: '64px',
+                  height: '64px',
+                  minWidth: '64px',
+                  minHeight: '64px',
+                  borderRadius: '16px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '28px',
+                  fontWeight: '800',
+                  color: '#ffffff',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+                }}
               >
                 {avatarInitial}
               </div>
               
-              {/* Contenido de texto y badge */}
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-100 opacity-90 m-0">
+              {/* Bloque de Información Reset Unificado */}
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <p style={{ margin: 0, padding: 0, fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255, 255, 255, 0.8)' }}>
                   PANEL DE USUARIO
                 </p>
-                <h1 className="text-2xl font-black text-white leading-tight m-0 tracking-wide">
+                <h1 style={{ margin: 0, padding: 0, fontSize: '24px', fontWeight: '800', color: '#ffffff', lineHeight: '1.2' }}>
                   Hola, {profile.username || 'Usuario'}
                 </h1>
-                <p className="text-xs text-blue-50/80 my-1 truncate">
+                <p style={{ margin: 0, padding: 0, fontSize: '13px', color: 'rgba(255, 255, 255, 0.9)' }}>
                   Bienvenido a tu resumen general de actividad médica y estado de la cuenta.
                 </p>
-                <div className="mt-2">
+                <div style={{ marginTop: '6px' }}>
                   <span 
-                    className="inline-block px-3 py-1 text-xs font-semibold text-white bg-black/20 border border-white/20 rounded-full"
-                    style={{ position: 'static' }}
+                    style={{
+                      position: 'static',
+                      display: 'inline-block',
+                      padding: '3px 12px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                      border: '1px solid rgba(255, 255, 255, 0.35)',
+                      borderRadius: '9999px',
+                      lineHeight: '1.4'
+                    }}
                   >
                     {profile.role_name || profile.role || 'Sin rol'}
                   </span>
