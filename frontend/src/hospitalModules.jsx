@@ -4792,21 +4792,33 @@ export function Profile() {
       ) : profile ? (
         <div className="space-y-6 text-slate-100">
           
-          {/* Banner Hero a prueba de CSS Global */}
+          {/* Banner Hero aislado */}
           <div 
-            className="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 p-6 shadow-xl text-white"
-            style={{ position: 'relative', display: 'block', overflow: 'hidden' }}
+            style={{
+              width: '100%',
+              borderRadius: '16px',
+              background: 'linear-gradient(90deg, #2563eb 0%, #4f46e5 50%, #06b6d4 100%)',
+              padding: '24px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+              color: '#ffffff',
+              boxSizing: 'border-box'
+            }}
           >
-            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '20px', width: '100%' }}>
+            <div 
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'auto 1fr',
+                alignItems: 'center',
+                gap: '20px'
+              }}
+            >
               
-              {/* Contenedor del Avatar Reset Unificado */}
+              {/* Avatar desacoplado de CSS global */}
               <div 
                 style={{
-                  position: 'static',
+                  gridColumn: '1',
                   width: '64px',
                   height: '64px',
-                  minWidth: '64px',
-                  minHeight: '64px',
                   borderRadius: '16px',
                   backgroundColor: 'rgba(255, 255, 255, 0.2)',
                   border: '1px solid rgba(255, 255, 255, 0.3)',
@@ -4822,21 +4834,20 @@ export function Profile() {
                 {avatarInitial}
               </div>
               
-              {/* Bloque de Información Reset Unificado */}
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <p style={{ margin: 0, padding: 0, fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255, 255, 255, 0.8)' }}>
+              {/* Información de Usuario */}
+              <div style={{ gridColumn: '2', minWidth: 0 }}>
+                <p style={{ margin: '0 0 4px 0', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255, 255, 255, 0.8)' }}>
                   PANEL DE USUARIO
                 </p>
-                <h1 style={{ margin: 0, padding: 0, fontSize: '24px', fontWeight: '800', color: '#ffffff', lineHeight: '1.2' }}>
+                <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', fontWeight: '800', color: '#ffffff', lineHeight: '1.2' }}>
                   Hola, {profile.username || 'Usuario'}
                 </h1>
-                <p style={{ margin: 0, padding: 0, fontSize: '13px', color: 'rgba(255, 255, 255, 0.9)' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'rgba(255, 255, 255, 0.9)' }}>
                   Bienvenido a tu resumen general de actividad médica y estado de la cuenta.
                 </p>
-                <div style={{ marginTop: '6px' }}>
+                <div>
                   <span 
                     style={{
-                      position: 'static',
                       display: 'inline-block',
                       padding: '3px 12px',
                       fontSize: '12px',
@@ -4925,4 +4936,3 @@ export function Profile() {
     </PageShell>
   )
 }
-
