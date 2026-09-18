@@ -3786,15 +3786,16 @@ export function Documents() {
 // Reports + Dashboard (Con funciones de exportación)
 // ============================================================
 
-export function Reports({ stats = {}, alertsList = [] }) {
+export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   const [timeRange, setTimeRange] = useState('month');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Métricas principales con fallbacks dinámicos
+  // Métricas principales
   const metrics = [
-    { label: 'PACIENTES REGISTRADOS', value: stats.patients ?? 5, trend: '+12%', isUp: true, icon: Users, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.1)' },
-    { label: 'CONSULTAS ATENDIDAS', value: stats.consultations ?? 1, trend: '-5%', isUp: false, icon: Stethoscope, color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.1)' },
-    { label: 'CITAS PROGRAMADAS', value: stats.appointments ?? 14, trend: '+18%', isUp: true, icon: Clock, color: '#818cf8', bg: 'rgba(129, 140, 248, 0.1)' },
-    { label: 'ALERTAS ACTIVAS', value: stats.alerts ?? 1, trend: 'Atención requerida', isUp: false, icon: AlertTriangle, color: '#f87171', bg: 'rgba(248, 113, 113, 0.1)' },
+    { label: 'PACIENTES REGISTRADOS', value: stats.patients ?? 5, trend: '+12%', isUp: true, icon: Users, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' },
+    { label: 'CONSULTAS ATENDIDAS', value: stats.consultations ?? 1, trend: '-5%', isUp: false, icon: Stethoscope, color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.12)' },
+    { label: 'CITAS PROGRAMADAS', value: stats.appointments ?? 14, trend: '+18%', isUp: true, icon: Clock, color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' },
+    { label: 'ALERTAS ACTIVAS', value: stats.alerts ?? 1, trend: 'Atención', isUp: false, icon: AlertTriangle, color: '#f87171', bg: 'rgba(248, 113, 113, 0.12)' },
   ];
 
   // Datos de especialidades
@@ -3810,23 +3811,37 @@ export function Reports({ stats = {}, alertsList = [] }) {
     { id: 2, title: 'Documento pendiente de firma médica', scope: 'Consultas', level: 'Media', time: 'Hace 1 hora' },
   ];
 
+  // Directorio de Usuarios
+  const defaultUsers = [
+    { id: 5, username: 'int_test_user', email: '—', role: 'Usuario' },
+    { id: 4, username: 'admin', email: '—', role: 'Administrador' },
+    { id: 1, username: 'admin_user', email: '—', role: 'Administrador' },
+  ];
+
+  const listToDisplay = usersList.length > 0 ? usersList : defaultUsers;
+  const filteredUsers = listToDisplay.filter(u => 
+    u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="reports-container">
       <style>{`
-        .reports-container, .reports-container * {
-          box-sizing: border-box !important;
-        }
-
         .reports-container {
           width: 100%;
           max-width: 1200px;
           margin: 0 auto;
           padding: 1.5rem;
           color: #f8fafc;
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          font-family: system-ui, -apple-system, sans-serif;
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
+          box-sizing: border-box;
+        }
+
+        .reports-container * {
+          box-sizing: border-box;
         }
 
         /* Header Section */
@@ -3836,6 +3851,8 @@ export function Reports({ stats = {}, alertsList = [] }) {
           align-items: flex-start;
           flex-wrap: wrap;
           gap: 1rem;
+          border-bottom: 1px solid #1e293b;
+          padding-bottom: 1rem;
         }
 
         .header-title h1 {
@@ -3872,7 +3889,6 @@ export function Reports({ stats = {}, alertsList = [] }) {
           border-radius: 8px;
           font-size: 0.8rem;
           outline: none;
-          cursor: pointer;
         }
 
         .btn-export {
@@ -3887,18 +3903,14 @@ export function Reports({ stats = {}, alertsList = [] }) {
           align-items: center;
           gap: 0.5rem;
           cursor: pointer;
-          transition: background 0.2s ease;
-        }
-
-        .btn-export:hover {
-          background: #1d4ed8;
         }
 
         /* KPI Grid */
         .kpi-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
           gap: 1rem;
+          width: 100%;
         }
 
         .kpi-card {
@@ -3908,13 +3920,8 @@ export function Reports({ stats = {}, alertsList = [] }) {
           padding: 1.25rem;
           display: flex;
           flex-direction: column;
-          gap: 0.75rem;
-          transition: transform 0.2s ease, border-color 0.2s ease;
-        }
-
-        .kpi-card:hover {
-          border-color: #334155;
-          transform: translateY(-2px);
+          justify-content: space-between;
+          min-height: 120px;
         }
 
         .kpi-header {
@@ -3924,7 +3931,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
         }
 
         .kpi-icon {
-          padding: 0.6rem;
+          padding: 0.5rem;
           border-radius: 10px;
           display: flex;
           align-items: center;
@@ -3937,19 +3944,14 @@ export function Reports({ stats = {}, alertsList = [] }) {
           font-weight: 700;
           color: #64748b;
           letter-spacing: 0.05em;
-        }
-
-        .kpi-value-row {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          margin-top: 0.25rem;
+          margin-top: 0.5rem;
         }
 
         .kpi-value {
-          font-size: 1.8rem;
+          font-size: 1.75rem;
           font-weight: 800;
           color: #ffffff;
+          line-height: 1.2;
         }
 
         .kpi-trend {
@@ -3965,18 +3967,15 @@ export function Reports({ stats = {}, alertsList = [] }) {
         .trend-up { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
         .trend-down { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 
-        /* Main Layout Grid */
-        .main-grid {
+        /* Main Section Grid */
+        .analytics-grid {
           display: grid;
-          grid-template-columns: 2fr 1fr;
+          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
           gap: 1.25rem;
+          width: 100%;
         }
 
-        @media (max-width: 900px) {
-          .main-grid { grid-template-columns: 1fr; }
-        }
-
-        .dashboard-card {
+        .card-box {
           background: #0f172a;
           border: 1px solid #1e293b;
           border-radius: 16px;
@@ -4002,26 +4001,18 @@ export function Reports({ stats = {}, alertsList = [] }) {
           font-weight: 700;
           color: #38bdf8;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
         }
 
-        /* Specialty Progress Bars */
-        .specialty-list {
+        .specialty-list, .alerts-list {
           display: flex;
           flex-direction: column;
-          gap: 1rem;
+          gap: 0.85rem;
         }
 
         .specialty-item {
           display: flex;
           flex-direction: column;
           gap: 0.35rem;
-        }
-
-        .specialty-info {
-          display: flex;
-          justify-content: space-between;
-          font-size: 0.8rem;
         }
 
         .progress-bg {
@@ -4035,14 +4026,6 @@ export function Reports({ stats = {}, alertsList = [] }) {
         .progress-fill {
           height: 100%;
           border-radius: 4px;
-          transition: width 0.5s ease;
-        }
-
-        /* Alerts List */
-        .alerts-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
         }
 
         .alert-item {
@@ -4057,32 +4040,67 @@ export function Reports({ stats = {}, alertsList = [] }) {
 
         .alert-item.medium { border-left-color: #f59e0b; }
 
-        .alert-info h4 {
-          margin: 0;
+        /* Directorio de Usuarios */
+        .users-table-container {
+          width: 100%;
+          overflow-x: auto;
+        }
+
+        .users-table {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
           font-size: 0.85rem;
-          color: #f8fafc;
-          font-weight: 600;
         }
 
-        .alert-info p {
-          margin: 0.2rem 0 0 0;
-          font-size: 0.75rem;
+        .users-table th {
+          padding: 0.75rem 1rem;
           color: #64748b;
-        }
-
-        .badge-level {
-          font-size: 0.65rem;
+          font-size: 0.7rem;
           font-weight: 700;
-          padding: 0.15rem 0.4rem;
-          border-radius: 4px;
           text-transform: uppercase;
+          border-bottom: 1px solid #1e293b;
+          background: #090d16;
         }
 
-        .badge-high { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-        .badge-medium { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .users-table td {
+          padding: 0.85rem 1rem;
+          border-bottom: 1px solid #1e293b;
+        }
+
+        .user-avatar {
+          width: 32px;
+          height: 32px;
+          background: #6366f1;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 0.8rem;
+          color: #ffffff;
+          margin-right: 0.6rem;
+        }
+
+        .search-box {
+          position: relative;
+          width: 100%;
+          max-width: 360px;
+        }
+
+        .search-input {
+          width: 100%;
+          background: #090d16;
+          border: 1px solid #334155;
+          border-radius: 8px;
+          padding: 0.6rem 0.8rem 0.6rem 2.2rem;
+          color: #ffffff;
+          font-size: 0.85rem;
+          outline: none;
+        }
       `}</style>
 
-      {/* HEADER PRINCIPAL */}
+      {/* ENCABEZADO */}
       <div className="header-section">
         <div className="header-title">
           <h1>Hospital TIC</h1>
@@ -4105,7 +4123,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
         </div>
       </div>
 
-      {/* MÉTRICAS KPI */}
+      {/* GRID DE KPIs */}
       <div className="kpi-grid">
         {metrics.map((item, idx) => {
           const Icon = item.icon;
@@ -4113,7 +4131,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
             <div key={idx} className="kpi-card">
               <div className="kpi-header">
                 <div className="kpi-icon" style={{ backgroundColor: item.bg, color: item.color }}>
-                  <Icon size={20} />
+                  <Icon size={18} />
                 </div>
                 <span className={`kpi-trend ${item.isUp ? 'trend-up' : 'trend-down'}`}>
                   {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
@@ -4122,46 +4140,38 @@ export function Reports({ stats = {}, alertsList = [] }) {
               </div>
               <div className="kpi-body">
                 <label>{item.label}</label>
-                <div className="kpi-value-row">
-                  <span className="kpi-value">{item.value}</span>
-                </div>
+                <span className="kpi-value">{item.value}</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* SECCIÓN ANALÍTICA PRINCIPAL */}
-      <div className="main-grid">
-        {/* GRÁFICO / DISTRIBUCIÓN DE CONSULTAS */}
-        <div className="dashboard-card">
+      {/* ANALÍTICA Y ALERTAS */}
+      <div className="analytics-grid">
+        <div className="card-box">
           <div className="card-header">
             <div className="card-title">
-              <BarChart3 size={16} /> Consultas por Especialidad
+              <BarChart3 size={16} /> Atenciones por Especialidad
             </div>
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Total: 14 atenciones</span>
+            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Total: 14</span>
           </div>
-
           <div className="specialty-list">
             {specialties.map((spec, i) => (
               <div key={i} className="specialty-item">
-                <div className="specialty-info">
-                  <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{spec.name}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                  <span style={{ color: '#e2e8f0' }}>{spec.name}</span>
                   <span style={{ color: '#94a3b8', fontWeight: 600 }}>{spec.count} ({spec.percentage}%)</span>
                 </div>
                 <div className="progress-bg">
-                  <div 
-                    className="progress-fill" 
-                    style={{ width: `${spec.percentage}%`, backgroundColor: spec.color }}
-                  />
+                  <div className="progress-fill" style={{ width: `${spec.percentage}%`, backgroundColor: spec.color }} />
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ALERTAS DEL SISTEMA */}
-        <div className="dashboard-card">
+        <div className="card-box">
           <div className="card-header">
             <div className="card-title" style={{ color: '#f87171' }}>
               <ShieldAlert size={16} /> Alertas Críticas
@@ -4170,18 +4180,21 @@ export function Reports({ stats = {}, alertsList = [] }) {
               {activeAlerts.length} Activas
             </span>
           </div>
-
           <div className="alerts-list">
             {activeAlerts.map((alert) => (
-              <div 
-                key={alert.id} 
-                className={`alert-item ${alert.level === 'Media' ? 'medium' : ''}`}
-              >
-                <div className="alert-info">
-                  <h4>{alert.title}</h4>
-                  <p>{alert.scope} • {alert.time}</p>
+              <div key={alert.id} className={`alert-item ${alert.level === 'Media' ? 'medium' : ''}`}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', color: '#f8fafc' }}>{alert.title}</h4>
+                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>{alert.scope} • {alert.time}</p>
                 </div>
-                <span className={`badge-level ${alert.level === 'Alta' ? 'badge-high' : 'badge-medium'}`}>
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  padding: '0.15rem 0.4rem',
+                  borderRadius: '4px',
+                  backgroundColor: alert.level === 'Alta' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                  color: alert.level === 'Alta' ? '#f87171' : '#fbbf24'
+                }}>
                   {alert.level}
                 </span>
               </div>
@@ -4189,6 +4202,61 @@ export function Reports({ stats = {}, alertsList = [] }) {
           </div>
         </div>
       </div>
+
+      {/* DIRECTORIO DE USUARIOS */}
+      <div className="card-box">
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Directorio de Usuarios</h3>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+            {filteredUsers.length} cuentas registradas en el sistema.
+          </p>
+        </div>
+
+        <div className="search-box">
+          <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Buscar por usuario, correo o rol..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="users-table-container">
+          <table className="users-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Correo Electrónico</th>
+                <th>Rol</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((u) => (
+                <tr key={u.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span className="user-avatar">{u.username.charAt(0).toUpperCase()}</span>
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>{u.username}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>ID: #{u.id}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ color: u.email !== '—' ? '#f8fafc' : '#64748b' }}>{u.email}</td>
+                  <td>
+                    <span style={{ background: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', color: '#38bdf8' }}>
+                      {u.role}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   );
 }
