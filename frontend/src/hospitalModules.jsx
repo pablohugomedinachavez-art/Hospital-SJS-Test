@@ -18,9 +18,10 @@ import {
   AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
   FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck,
   FileX, FileSearch, FileEdit,
-  X, Save, Eye, ExternalLink, Download, Search, Filter,
+  X, Save, Eye, ExternalLink, Download, Award,Search, Filter,
   Scale, Ruler, HeartPulse, Pill,
-  AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop, Smartphone, Wifi,
+  AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop,
+   Smartphone, Wifi,
   Layers, ChevronLeft, ChevronRight, Loader2
 } from 'lucide-react';
 
@@ -80,6 +81,41 @@ export function Pagination({ page = 1, perPage = 10, total = 0, onPrev, onNext }
     </div>
   );
 }
+
+
+export const cx = (...values) => values.filter(Boolean).join(' ');
+
+export const fadeInVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: 'easeOut' },
+  },
+  exit: {
+    opacity: 0,
+    y: -20,
+    transition: { duration: 0.2, ease: 'easeIn' },
+  },
+};
+
+export const modalVariants = {
+  hidden: { opacity: 0, scale: 0.95, y: 10 },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15, ease: 'easeIn' } }
+};
+
+export const toastVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.9 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 400, damping: 25 } },
+  exit: { opacity: 0, y: 10, scale: 0.9, transition: { duration: 0.15 } }
+};
+
+export const cardHoverVariants = {
+  hover: { y: -4, transition: { duration: 0.2, ease: 'easeOut' } }
+};
+
+
 
 // ============================================================
 // Configuración y Constantes Auxiliares
@@ -831,7 +867,7 @@ export function DeviceManagementDashboard() {
                 </div>
               )}
               <div className="pt-2">
-                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
               </div>
             </div>
           )}
@@ -1988,159 +2024,166 @@ export function Consultations() {
               {selectedPatient && (
                 <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.4rem 0.6rem', borderRadius: '6px', color: '#38bdf8', fontSize: '0.725rem', display: 'flex', alignItems: 'center', gap: '0.35rem', width: '100%', minWidth: 0 }}>
                   <CheckCircle2 size={13} style={{ flexShrink: 0 }} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Atendiendo a: <strong>{selectedPatient.full_name}</strong></span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Paciente seleccionado: <strong>{selectedPatient.full_name}</strong> (DNI: {selectedPatient.dni || selectedPatient.document_number || 'S/D'})
+                  </span>
                 </div>
               )}
             </div>
 
             {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem' }}>
                 <HeartPulse size={15} color="#38bdf8" />
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y Signos Vitales</h3>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y Constantes Vitales</h3>
               </div>
 
               <div className="grid-form-2col">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
                   <input
                     type="number"
-                    min="0"
                     step="0.1"
                     className="input-mobile"
                     value={form.weight_kg}
                     onChange={e => updateTriage('weight_kg', e.target.value)}
-                    placeholder="70.0"
+                    placeholder="Ej. 70.5"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
                   <input
                     type="number"
-                    min="0"
+                    step="1"
                     className="input-mobile"
                     value={form.height_cm}
                     onChange={e => updateTriage('height_cm', e.target.value)}
-                    placeholder="170"
+                    placeholder="Ej. 175"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>IMC</label>
-                  <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', width: '100%' }}>
-                    <input
-                      className="input-mobile"
-                      style={{ color: '#38bdf8', fontWeight: 700 }}
-                      value={form.bmi}
-                      readOnly
-                      placeholder="0.00"
-                    />
-                    <span className={`badge badge-${bmiState.tone === 'neutral' ? 'info' : bmiState.tone}`} style={{ padding: '0.3rem 0.45rem', borderRadius: '5px', fontSize: '0.68rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      {bmiState.label}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Presión Arterial</label>
                   <input
                     className="input-mobile"
                     value={form.blood_pressure}
                     onChange={e => setForm(p => ({ ...p, blood_pressure: e.target.value }))}
-                    placeholder="120/80"
+                    placeholder="Ej. 120/80"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro Abdominal (cm)</label>
                   <input
                     type="number"
-                    min="0"
-                    step="0.1"
                     className="input-mobile"
                     value={form.abdominal_perimeter_cm}
                     onChange={e => setForm(p => ({ ...p, abdominal_perimeter_cm: e.target.value }))}
-                    placeholder="85"
+                    placeholder="Ej. 85"
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>IMC Calculado</label>
+                  <input
+                    readOnly
+                    className="input-mobile"
+                    style={{ backgroundColor: '#1e293b', cursor: 'not-allowed' }}
+                    value={form.bmi ? `${form.bmi} (${bmiState.label})` : ''}
+                    placeholder="Auto-calculado"
                   />
                 </div>
               </div>
             </div>
 
             {/* SECCIÓN 3: DIAGNÓSTICO Y TRATAMIENTO */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', overflow: 'hidden' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.4rem' }}>
                 <Pill size={15} color="#38bdf8" />
-                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y Tratamiento</h3>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y Prescripción</h3>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico Clínico</label>
-                  <input
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico Médico</label>
+                  <textarea
+                    rows={2}
                     className="input-mobile"
+                    style={{ resize: 'vertical' }}
                     value={form.diagnosis}
                     onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))}
-                    placeholder="Diagnóstico principal o código CIE-10..."
+                    placeholder="Conclusión diagnóstica..."
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Plan de Tratamiento / Indicaciones</label>
-                  <input
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Tratamiento y Plan Médico</label>
+                  <textarea
+                    rows={2}
                     className="input-mobile"
+                    style={{ resize: 'vertical' }}
                     value={form.treatment}
                     onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))}
-                    placeholder="Recomendaciones, dieta o estilo de vida..."
+                    placeholder="Indicaciones y plan de seguimiento..."
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%', minWidth: 0 }}>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>Receta / Medicamentos</label>
                   <textarea
-                    rows={4}
+                    rows={3}
                     className="input-mobile"
                     style={{ resize: 'vertical' }}
                     value={form.prescription}
                     onChange={e => setForm(p => ({ ...p, prescription: e.target.value }))}
-                    placeholder="Detalla los medicamentos prescritos..."
+                    placeholder="Medicamentos, dosis y frecuencia..."
                   />
                 </div>
               </div>
-
-              {/* BOTONES DE ACCIÓN */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', paddingTop: '0.65rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap', width: '100%' }}>
-                <button
-                  type="button"
-                  style={{ backgroundColor: 'transparent', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.55rem 0.85rem', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer', flex: '1 1 90px' }}
-                  onClick={() => setShowForm(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    backgroundColor: '#3b82f6',
-                    border: 'none',
-                    color: '#ffffff',
-                    borderRadius: '8px',
-                    padding: '0.55rem 0.85rem',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.6 : 1,
-                    flex: '1 1 120px'
-                  }}
-                  disabled={submitting}
-                >
-                  {submitting ? 'Guardando...' : 'Guardar Consulta'}
-                </button>
-              </div>
             </div>
 
+            {/* BOTONES DE ACCIÓN */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowForm(false)}
+                style={{
+                  backgroundColor: '#1e293b',
+                  color: '#f8fafc',
+                  border: '1px solid #334155',
+                  padding: '0.55rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                style={{
+                  backgroundColor: '#3b82f6',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '0.55rem 1.25rem',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <Save size={15} />
+                {submitting ? 'Guardando...' : 'Guardar Consulta'}
+              </button>
+            </div>
           </form>
         )}
-
       </div>
     </div>
   );
@@ -4713,15 +4756,139 @@ export function Profile() {
   const [toast, notify, clearToast] = useToast()
 
   useEffect(() => {
-    ; (async () => {
+    let isMounted = true
+
+    const fetchProfile = async () => {
       try {
         const res = await apiFetch('/profile')
         if (!res.ok) throw new Error('No se pudo cargar el perfil')
-        setProfile(await res.json())
-      } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-    })()
+        const data = await res.json()
+        if (isMounted) setProfile(data)
+      } catch (error) {
+        if (isMounted) notify(error.message, 'error')
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    }
+
+    fetchProfile()
+
+    return () => {
+      isMounted = false
+    }
   }, [notify])
 
-  return <PageShell title="Mi perfil" subtitle="Resumen de identidad y actividad dentro del sistema."><Toast toast={toast} onClose={clearToast} />{loading ? <SectionCard><LoadingState label="Cargando perfil…" /></SectionCard> : profile ? <><SectionCard title="Información de cuenta" icon="◎"><div className="profile-hero"><div className="profile-avatar">{(profile.username || user?.email || 'U').charAt(0).toUpperCase()}</div><div><div className="card-kicker">Usuario</div><h2>{profile.username}</h2><span className="badge badge-info">{profile.role_name || profile.role}</span></div></div><div className="profile-grid"><div><span className="meta-label">Rol</span><strong>{profile.role_name || profile.role}</strong></div><div><span className="meta-label">Tenant</span><strong>#{profile.tenant_id}</strong></div><div><span className="meta-label">Alta</span><strong>{formatDate(profile.created_at)}</strong></div><div><span className="meta-label">Permisos</span><strong>{profile.permissions?.length ?? 0}</strong></div></div></SectionCard><div className="stats-grid"><StatCard icon="👥" label="Pacientes" value={profile.counts?.patients ?? 0} /><StatCard icon="🩺" label="Consultas" value={profile.counts?.consultations ?? 0} tone="success" /><StatCard icon="◷" label="Citas" value={profile.counts?.appointments ?? 0} tone="primary" /><StatCard icon="▤" label="Documentos" value={profile.counts?.documents ?? 0} tone="warning" /></div></> : <SectionCard><EmptyState title="No se pudo cargar el perfil" /></SectionCard>}</PageShell>
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A'
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  const avatarInitial = (profile?.username || user?.email || 'U')
+    .charAt(0)
+    .toUpperCase()
+
+  return (
+    <PageShell
+      title="Mi perfil"
+      subtitle="Resumen de identidad y actividad dentro del sistema."
+    >
+      <Toast toast={toast} onClose={clearToast} />
+
+      {loading ? (
+        <SectionCard>
+          <LoadingState label="Cargando perfil…" />
+        </SectionCard>
+      ) : profile ? (
+        <div className="space-y-6">
+          {/* Tarjeta Principal de Información */}
+          <SectionCard title="Información de cuenta" icon="◎">
+            <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-slate-50 border border-slate-100 rounded-xl mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-2xl shadow-sm">
+                {avatarInitial}
+              </div>
+              
+              <div className="text-center sm:text-left space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Usuario
+                </span>
+                <h2 className="text-xl font-bold text-slate-900">
+                  {profile.username || 'Usuario sin nombre'}
+                </h2>
+                <span className="inline-block px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                  {profile.role_name || profile.role || 'Sin rol'}
+                </span>
+              </div>
+            </div>
+
+            {/* Grid de Metadatos */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+              <div className="p-3 bg-white border border-slate-200/80 rounded-lg">
+                <span className="block text-xs font-medium text-slate-400 mb-0.5">Rol</span>
+                <strong className="text-sm font-semibold text-slate-700">
+                  {profile.role_name || profile.role || '-'}
+                </strong>
+              </div>
+
+              <div className="p-3 bg-white border border-slate-200/80 rounded-lg">
+                <span className="block text-xs font-medium text-slate-400 mb-0.5">Tenant</span>
+                <strong className="text-sm font-semibold text-slate-700">
+                  #{profile.tenant_id ?? 'N/A'}
+                </strong>
+              </div>
+
+              <div className="p-3 bg-white border border-slate-200/80 rounded-lg">
+                <span className="block text-xs font-medium text-slate-400 mb-0.5">Alta</span>
+                <strong className="text-sm font-semibold text-slate-700">
+                  {formatDate(profile.created_at)}
+                </strong>
+              </div>
+
+              <div className="p-3 bg-white border border-slate-200/80 rounded-lg">
+                <span className="block text-xs font-medium text-slate-400 mb-0.5">Permisos</span>
+                <strong className="text-sm font-semibold text-slate-700">
+                  {profile.permissions?.length ?? 0} asignados
+                </strong>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Métricas / Estadísticas del Usuario */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              icon="👥"
+              label="Pacientes"
+              value={profile.counts?.patients ?? 0}
+            />
+            <StatCard
+              icon="🩺"
+              label="Consultas"
+              value={profile.counts?.consultations ?? 0}
+              tone="success"
+            />
+            <StatCard
+              icon="◷"
+              label="Citas"
+              value={profile.counts?.appointments ?? 0}
+              tone="primary"
+            />
+            <StatCard
+              icon="▤"
+              label="Documentos"
+              value={profile.counts?.documents ?? 0}
+              tone="warning"
+            />
+          </div>
+        </div>
+      ) : (
+        <SectionCard>
+          <EmptyState title="No se pudo cargar el perfil" />
+        </SectionCard>
+      )}
+    </PageShell>
+  )
 }
 
