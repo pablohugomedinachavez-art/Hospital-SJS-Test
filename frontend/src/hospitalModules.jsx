@@ -4031,8 +4031,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             <thead>
               <tr style={{ background: '#090d16', borderBottom: '1px solid #1e293b' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>USUARIO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight 700 }}>CORREO ELECTRÓNICO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight 700 }}>ROL</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>CORREO ELECTRÓNICO</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>ROL</th>
               </tr>
             </thead>
             <tbody>
