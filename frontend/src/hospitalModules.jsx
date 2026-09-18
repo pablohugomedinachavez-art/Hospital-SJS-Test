@@ -3862,7 +3862,6 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       display: 'flex',
       flexDirection: 'column',
       gap: '1.5rem',
-      position: 'relative',
       boxSizing: 'border-box'
     }}>
 
@@ -3875,8 +3874,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         gap: '1rem',
         borderBottom: '1px solid #1e293b',
         paddingBottom: '1rem',
-        width: '100%',
-        position: 'static'
+        width: '100%'
       }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>Hospital TIC</h1>
@@ -3919,13 +3917,14 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </div>
 
-      {/* MÉTRICAS KPI (GRID TOTALMENTE AISLADO) */}
+      {/* MÉTRICAS KPI (NUEVO CONTEXTO DE APILAMIENTO) */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: '1rem',
         width: '100%',
-        position: 'static'
+        transform: 'translateZ(0)', /* Crea contexto aislado */
+        contain: 'layout style'
       }}>
         {metrics.map((item, idx) => {
           const Icon = item.icon;
@@ -3936,11 +3935,13 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               borderRadius: '14px',
               padding: '1.25rem',
               height: 'auto',
-              minHeight: '110px',
+              maxHeight: '140px', /* Limita altura para que no se estire horizontalmente */
               display: 'flex',
               flexDirection: 'column',
               justify: 'space-between',
-              position: 'static', /* Previene solapamientos flotantes */
+              position: 'relative',
+              top: 0,
+              left: 0,
               boxSizing: 'border-box'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -3981,10 +3982,10 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
         gap: '1.25rem',
         width: '100%',
-        position: 'static'
+        transform: 'translateZ(0)'
       }}>
         {/* Especialidades */}
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static' }}>
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>
               <BarChart3 size={16} /> ATENCIONES POR ESPECIALIDAD
@@ -4007,7 +4008,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
 
         {/* Alertas */}
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static' }}>
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#f87171' }}>
               <ShieldAlert size={16} /> ALERTAS CRÍTICAS
@@ -4036,7 +4037,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       </div>
 
       {/* DIRECTORIO DE USUARIOS */}
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', position: 'static', boxSizing: 'border-box' }}>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', transform: 'translateZ(0)' }}>
         <div style={{ marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Directorio de Usuarios</h3>
           <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>{filteredUsers.length} cuentas registradas en el sistema.</p>
@@ -4112,8 +4113,6 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     </div>
   );
 }
-
-export default Reports;
 
 // ============================================================
 // Dashboard (Con exportación profesional y limpia para PDF)
