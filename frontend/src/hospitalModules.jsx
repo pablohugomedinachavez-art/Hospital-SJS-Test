@@ -4532,8 +4532,9 @@ export function Users() {
 }
 
 
-export function Profile({ user = {}, stats = {} }) {
-  // Datos fallback por si la prop viene vacía
+export function UserProfile({ user = {}, usersList = [] }) {
+  const [searchTerm, setSearchTerm] = useState('');
+
   const userData = {
     username: user.username || user.name || 'admin',
     role: user.role || 'Administrador',
@@ -4542,118 +4543,377 @@ export function Profile({ user = {}, stats = {} }) {
     permissionsCount: user.permissions?.length || 6,
   };
 
-  const statsData = [
-    { label: 'PACIENTES', count: stats.patients ?? 5, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'CONSULTAS', count: stats.consultations ?? 1, icon: Stethoscope, color: 'text-teal-400', bg: 'bg-teal-500/10' },
-    { label: 'CITAS', count: stats.appointments ?? 14, icon: Clock, color: 'text-sky-400', bg: 'bg-sky-500/10' },
-    { label: 'DOCUMENTOS', count: stats.documents ?? 7, icon: FileText, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+  // Datos de ejemplo para la tabla si no vienen por props
+  const defaultUsers = [
+    { id: 5, username: 'int_test_user', email: '—', role: 'Usuario' },
+    { id: 1, username: 'admin', email: 'admin@hospital.com', role: 'Administrador' },
   ];
 
+  const listToDisplay = usersList.length > 0 ? usersList : defaultUsers;
+  const filteredUsers = listToDisplay.filter(u => 
+    u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 text-slate-100 font-sans space-y-6">
-      {/* TÍTULO PRINCIPAL */}
-      <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Hospital TIC</h1>
-        <h2 className="text-lg font-semibold text-slate-300">Mi perfil</h2>
-        <p className="text-xs text-slate-400">Resumen de identidad y actividad dentro del sistema.</p>
+    <div className="profile-container">
+      <style>{`
+        .profile-container, .profile-container * {
+          box-sizing: border-box !important;
+          position: static; /* Evita que divs flotantes tapen el contenido */
+        }
+
+        .profile-container {
+          width: 100%;
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 1.5rem;
+          color: #f8fafc;
+          font-family: system-ui, -apple-system, sans-serif;
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .header-section h1 {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin: 0;
+          color: #fff;
+        }
+
+        .header-section h2 {
+          font-size: 1.1rem;
+          font-weight: 600;
+          margin: 0.2rem 0;
+          color: #cbd5e1;
+        }
+
+        .header-section p {
+          font-size: 0.8rem;
+          color: #94a3b8;
+          margin: 0;
+        }
+
+        /* Banner Azul */
+        .banner-card {
+          background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%);
+          border-radius: 16px;
+          padding: 1.5rem;
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.3);
+        }
+
+        .avatar-box {
+          width: 60px;
+          height: 60px;
+          background: rgba(255, 255, 255, 0.15);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.75rem;
+          font-weight: 800;
+          color: #fff;
+          flex-shrink: 0;
+        }
+
+        .banner-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .badge-tag {
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          color: #bfdbfe;
+          text-transform: uppercase;
+        }
+
+        .banner-info h2 {
+          font-size: 1.5rem;
+          font-weight: 800;
+          margin: 0;
+          color: #fff;
+        }
+
+        .banner-info p {
+          font-size: 0.8rem;
+          color: #e0f2fe;
+          margin: 0;
+        }
+
+        .role-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          background: rgba(255, 255, 255, 0.2);
+          padding: 0.2rem 0.6rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          width: fit-content;
+          margin-top: 0.4rem;
+        }
+
+        /* Grid Información de Cuenta */
+        .account-card {
+          background: #0f172a;
+          border: 1px solid #1e293b;
+          border-radius: 16px;
+          padding: 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .card-title {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.8rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          color: #38bdf8;
+          text-transform: uppercase;
+          border-bottom: 1px solid #1e293b;
+          padding-bottom: 0.75rem;
+        }
+
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 0.85rem;
+        }
+
+        .info-item {
+          background: #090d16;
+          border: 1px solid #1e293b;
+          border-radius: 10px;
+          padding: 0.75rem;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .info-item label {
+          display: block;
+          font-size: 0.65rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+        }
+
+        .info-item span {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #f8fafc;
+        }
+
+        /* Tabla / Directorio */
+        .directory-card {
+          background: #0f172a;
+          border: 1px solid #1e293b;
+          border-radius: 16px;
+          padding: 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .search-box {
+          position: relative;
+          width: 100%;
+          max-width: 360px;
+        }
+
+        .search-box input {
+          width: 100%;
+          background: #090d16;
+          border: 1px solid #334155;
+          border-radius: 8px;
+          padding: 0.6rem 0.8rem 0.6rem 2.2rem;
+          color: #fff;
+          font-size: 0.85rem;
+          outline: none;
+        }
+
+        .search-box svg {
+          position: absolute;
+          left: 0.75rem;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #64748b;
+        }
+
+        .table-responsive {
+          width: 100%;
+          overflow-x: auto;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+          font-size: 0.85rem;
+        }
+
+        th {
+          background: #090d16;
+          padding: 0.75rem 1rem;
+          color: #64748b;
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          border-bottom: 1px solid #1e293b;
+        }
+
+        td {
+          padding: 0.85rem 1rem;
+          border-bottom: 1px solid #1e293b;
+        }
+
+        tr:hover td {
+          background: rgba(30, 41, 59, 0.5);
+        }
+
+        .user-avatar-sm {
+          width: 32px;
+          height: 32px;
+          background: #6366f1;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 0.8rem;
+          color: #fff;
+          margin-right: 0.6rem;
+        }
+      `}</style>
+
+      {/* TITULO */}
+      <div className="header-section">
+        <h1>Hospital TIC</h1>
+        <h2>Mi perfil</h2>
+        <p>Resumen de identidad y actividad dentro del sistema.</p>
       </div>
 
-      {/* BANNER PRINCIPAL DE BIENVENIDA */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 p-6 sm:p-8 shadow-xl">
-        <div className="relative z-10 flex items-center gap-5">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-2xl sm:text-3xl font-bold text-white shadow-inner shrink-0">
-            {userData.username.charAt(0).toUpperCase()}
+      {/* BANNER PRINCIPAL */}
+      <div className="banner-card">
+        <div className="avatar-box">
+          {userData.username.charAt(0).toUpperCase()}
+        </div>
+        <div className="banner-info">
+          <span className="badge-tag">Panel de Usuario</span>
+          <h2>Hola, {userData.username}</h2>
+          <p>Bienvenido a tu resumen general de actividad médica y estado de la cuenta.</p>
+          <div className="role-pill">
+            <Shield size={13} /> {userData.role}
           </div>
-          <div className="space-y-1.5">
-            <span className="text-[11px] font-bold tracking-wider text-blue-200 uppercase bg-blue-900/40 px-2.5 py-0.5 rounded-full border border-blue-400/30">
-              PANEL DE USUARIO
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-              Hola, {userData.username}
-            </h2>
-            <p className="text-xs sm:text-sm text-blue-100/90 max-w-xl">
-              Bienvenido a tu resumen general de actividad médica y estado de la cuenta.
-            </p>
-            <div className="pt-1">
-              <span className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md text-white text-xs font-medium px-3 py-1 rounded-lg border border-white/30">
-                <Shield size={14} />
-                {userData.role}
-              </span>
+        </div>
+      </div>
+
+      {/* INFORMACIÓN DE CUENTA */}
+      <div className="account-card">
+        <div className="card-title">
+          <User size={16} /> Información de cuenta
+        </div>
+        <div className="info-grid">
+          <div className="info-item">
+            <Shield size={18} className="text-slate-400" />
+            <div>
+              <label>ROL</label>
+              <span>{userData.role}</span>
+            </div>
+          </div>
+          <div className="info-item">
+            <User size={18} className="text-slate-400" />
+            <div>
+              <label>TENANT</label>
+              <span>{userData.tenant}</span>
+            </div>
+          </div>
+          <div className="info-item">
+            <Calendar size={18} className="text-slate-400" />
+            <div>
+              <label>FECHA DE ALTA</label>
+              <span>{userData.createdAt}</span>
+            </div>
+          </div>
+          <div className="info-item">
+            <Key size={18} className="text-slate-400" />
+            <div>
+              <label>PERMISOS</label>
+              <span>{userData.permissionsCount} asignados</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* INFORMACIÓN DE CUENTA (GRID DE 2 COLUMNAS) */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 sm:p-6 backdrop-blur-xl shadow-lg space-y-4">
-        <div className="flex items-center gap-2 text-slate-300 border-b border-slate-800/80 pb-3">
-          <User size={18} className="text-cyan-400" />
-          <h3 className="text-sm font-semibold tracking-wide uppercase text-slate-200">Información de cuenta</h3>
+      {/* DIRECTORIO DE USUARIOS (TABLA LIMPIA) */}
+      <div className="directory-card">
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Directorio de Usuarios</h3>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+            {filteredUsers.length} cuentas registradas en el sistema.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-slate-800/60 text-slate-300">
-              <Shield size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">ROL</p>
-              <p className="text-sm font-semibold text-white">{userData.role}</p>
-            </div>
-          </div>
+        <div className="search-box">
+          <Search size={15} />
+          <input
+            type="text"
+            placeholder="Buscar por usuario, correo o rol..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-slate-800/60 text-slate-300">
-              <User size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">TENANT</p>
-              <p className="text-sm font-semibold text-white">{userData.tenant}</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-slate-800/60 text-slate-300">
-              <Calendar size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">FECHA DE ALTA</p>
-              <p className="text-sm font-semibold text-white">{userData.createdAt}</p>
-            </div>
-          </div>
-
-          <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5 flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-slate-800/60 text-slate-300">
-              <Key size={18} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">PERMISOS</p>
-              <p className="text-sm font-semibold text-white">{userData.permissionsCount} asignados</p>
-            </div>
-          </div>
+        <div className="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Correo Electrónico</th>
+                <th>Rol</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((u) => (
+                <tr key={u.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span className="user-avatar-sm">{u.username.charAt(0).toUpperCase()}</span>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{u.username}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>ID: #{u.id}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ color: u.email !== '—' ? '#f8fafc' : '#64748b' }}>{u.email}</td>
+                  <td>
+                    <span style={{
+                      background: '#1e293b',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      color: '#38bdf8'
+                    }}>
+                      {u.role}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* METRICAS Y ESTADÍSTICAS (GRID HORIZONTAL ADAPTATIVO DE 4 COLUMNAS) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statsData.map((item, idx) => {
-          const Icon = item.icon;
-          return (
-            <div 
-              key={idx} 
-              className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 transition-all rounded-2xl p-4 flex items-center gap-4 backdrop-blur-xl shadow-md"
-            >
-              <div className={`p-3 rounded-xl ${item.bg} ${item.color} shrink-0`}>
-                <Icon size={22} />
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-[11px] font-bold tracking-wider text-slate-400 uppercase">{item.label}</p>
-                <p className="text-2xl font-black text-white">{item.count}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
