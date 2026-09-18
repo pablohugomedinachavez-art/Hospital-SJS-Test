@@ -22,7 +22,7 @@ import {
   Scale, Ruler, HeartPulse, Pill,
   AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop,
    Smartphone, Wifi,
-  Layers, ChevronLeft, ChevronRight, Loader2,Users, 
+  Layers, ChevronLeft, ChevronRight, Loader2, 
   TrendingUp, TrendingDown,  BarChart3
 } from 'lucide-react';
 
