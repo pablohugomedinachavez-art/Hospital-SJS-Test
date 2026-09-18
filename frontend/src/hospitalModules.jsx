@@ -4532,7 +4532,7 @@ export function Users() {
 }
 
 
-export function UserProfile({ user = {}, usersList = [] }) {
+export function Profile({ user = {}, usersList = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const userData = {
