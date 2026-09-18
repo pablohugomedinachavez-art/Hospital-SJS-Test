@@ -111,9 +111,7 @@ export const toastVariants = {
   exit: { opacity: 0, y: 10, scale: 0.9, transition: { duration: 0.15 } }
 };
 
-export const cardHoverVariants = {
-  hover: { y: -4, transition: { duration: 0.2, ease: 'easeOut' } }
-};
+
 
 
 
@@ -167,11 +165,7 @@ export const getDocumentUrl = (doc) => {
   return doc.file_url || doc.url || doc.path || '';
 };
 
-export const fadeInVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
-  exit: { opacity: 0, y: -12, transition: { duration: 0.2, ease: 'easeIn' } }
-};
+
 
 export const cardHoverVariants = {
   hover: { scale: 1.015, translateY: -2, transition: { duration: 0.2 } }
@@ -326,14 +320,7 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
   );
 };
 
-export const cx = (...values) => values.filter(Boolean).join(' ');
 
-export const calculateBMI = (weight, height) => {
-  const w = Number.parseFloat(weight);
-  const h = Number.parseFloat(height) / 100;
-  if (!w || !h || h <= 0 || Number.isNaN(w) || Number.isNaN(h)) return '';
-  return (w / (h * h)).toFixed(2);
-};
 
 export const getBMIState = (bmi) => {
   const value = Number.parseFloat(bmi);
