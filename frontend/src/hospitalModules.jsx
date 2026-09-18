@@ -2062,105 +2062,165 @@ export function Locations() {
 
   return (
     <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      
-      {/* MARCO CONTENEDOR PRINCIPAL */}
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%', boxSizing: 'border-box' }}>
-        
-        {/* ENCABEZADO */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
-              Reportes Operativos y Analítica
+
+      {/* MARCO GENERAL ESTILO DOCUMENTO */}
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 3vw, 2.5rem)', width: '100%', boxSizing: 'border-box' }}>
+
+        {/* CABECERA Y ACCIONES */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div style={{ minWidth: 0, flex: '1 1 250px' }}>
+            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em', overflowWrap: 'break-word' }}>
+              Áreas del hospital
             </h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              Indicadores en tiempo real para supervisar la operación médica diaria.
+              Visualiza capacidad operativa, dispositivos y alertas por área.
             </p>
           </div>
-          
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <select style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.875rem' }}>
-              <option>Este mes</option>
-            </select>
-            <button style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '8px', fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer' }}>
-              Exportar Reporte
-            </button>
+
+          <div style={{ flexShrink: 0, width: '100%', maxWidth: 'max-content' }}>
+            {canEdit && (
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%' }}
+                onClick={() => setShowNewArea(v => !v)}
+              >
+                {showNewArea ? 'Cancelar' : '＋ Agregar área'}
+              </button>
+            )}
           </div>
         </div>
 
-        {/* 1. SECCIÓN DE TARJETAS KPI (GRID HORIZONTAL) */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', width: '100%' }}>
-          
-          {/* Tarjeta 1 */}
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ padding: '0.5rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '10px' }}>
-                🩺
-              </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
-                ↘ -5%
-              </span>
-            </div>
+        <Toast toast={toast} onClose={clearToast} />
+
+        {/* FORMULARIO DE NUEVA ÁREA */}
+        {showNewArea && (
+          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
             <div>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Consultas Médicas</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc' }}>1,240</div>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Nueva área</h3>
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Completa la información para registrar una nueva zona.</p>
             </div>
-          </div>
 
-          {/* Tarjeta 2 */}
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ padding: '0.5rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '10px' }}>
-                🕒
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre *</label>
+                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej. UCI, Emergencias…" />
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>
-                ↗ +18%
-              </span>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Descripción</label>
+                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Descripción breve" />
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Tiempo Promedio Atenciones</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc' }}>24 min</div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap' }}>
+              <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', flex: '1 1 100px' }} onClick={() => setShowNewArea(false)}>Cancelar</button>
+              <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1, flex: '1 1 120px' }} disabled={saving}>{saving ? 'Guardando…' : 'Crear área'}</button>
             </div>
+          </form>
+        )}
+
+        {/* MAPA OPERATIVO */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%' }}>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Mapa operativo</h3>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{items.length} áreas disponibles.</p>
           </div>
 
+          {loading ? (
+            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState /></div>
+          ) : items.length === 0 ? (
+            <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '2rem' }}>
+              <EmptyState icon="◈" title="No hay áreas registradas" description="Crea una nueva área para empezar." />
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1.25rem', width: '100%' }}>
+              {items.map(area => {
+                const isSelected = selectedArea === area.id;
+                return (
+                  <button
+                    key={area.id}
+                    type="button"
+                    onClick={() => setSelectedArea(area.id)}
+                    style={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                      border: `1px solid ${isSelected ? '#3b82f6' : '#1e293b'}`,
+                      borderRadius: '16px',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1rem',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      boxShadow: isSelected ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+                      transition: 'all 0.25s ease-in-out',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                    onMouseEnter={e => {
+                      if (!isSelected) {
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)';
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!isSelected) {
+                        e.currentTarget.style.transform = 'translateY(0px)';
+                        e.currentTarget.style.borderColor = '#1e293b';
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', gap: '0.5rem' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Área #{area.id}</div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0', overflowWrap: 'break-word' }}>{area.name}</h3>
+                      </div>
+                      <span className={cx('status-dot', (area.active_alerts ?? 0) > 0 ? 'warning' : 'success')} style={{ width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />
+                    </div>
+
+                    <p style={{ fontSize: '0.825rem', color: '#94a3b8', margin: 0, overflowWrap: 'break-word' }}>{area.description || 'Sin descripción registrada'}</p>
+
+                    <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.75rem', color: '#cbd5e1', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', width: '100%' }}>
+                      <span><strong>{area.device_count ?? 0}</strong> dispositivos</span>
+                      <span><strong>{area.active_alerts ?? 0}</strong> alertas</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* 2. SECCIÓN DE TABLA O DIRECTORIO (DEBAJO DE LAS TARJETAS) */}
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc', margin: '0 0 0.25rem 0' }}>Directorio de Usuarios</h3>
-          <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0 0 1.25rem 0' }}>3 cuentas registradas en el sistema.</p>
+        {/* DETALLE DE ÁREA SELECCIONADA */}
+        {selectedArea && (
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0, overflowWrap: 'break-word' }}>
+                  Detalle · {detail?.name || `Área #${selectedArea}`}
+                </h3>
+              </div>
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
+                onClick={() => { setSelectedArea(null); setDetail(null); }}
+              >
+                Cerrar
+              </button>
+            </div>
 
-          <input 
-            type="text" 
-            placeholder="Buscar por usuario, correo o rol..." 
-            style={{ width: '100%', maxWidth: '360px', padding: '0.6rem 1rem', borderRadius: '8px', border: '1px solid #334155', backgroundColor: '#090d16', color: '#f8fafc', marginBottom: '1.25rem', boxSizing: 'border-box' }}
-          />
-
-          {/* TABLA */}
-          <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #1e293b', color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                  <th style={{ padding: '0.75rem 1rem' }}>USUARIO</th>
-                  <th style={{ padding: '0.75rem 1rem' }}>CORREO ELECTRÓNICO</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '0.75rem 1rem', color: '#f8fafc' }}>int_test_user (ID: #5)</td>
-                  <td style={{ padding: '0.75rem 1rem', color: '#94a3b8' }}>—</td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '0.75rem 1rem', color: '#f8fafc' }}>admin (ID: #4)</td>
-                  <td style={{ padding: '0.75rem 1rem', color: '#94a3b8' }}>—</td>
-                </tr>
-                <tr style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '0.75rem 1rem', color: '#f8fafc' }}>admin_user (ID: #1)</td>
-                  <td style={{ padding: '0.75rem 1rem', color: '#94a3b8' }}>—</td>
-                </tr>
-              </tbody>
-            </table>
+            {loadingDetail ? (
+              <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando detalle…" /></div>
+            ) : detail ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', width: '100%' }}>
+                <StatCard icon="👥" label="Usuarios" value={detail.user_count ?? '—'} tone="primary" />
+                <StatCard icon="📟" label="Dispositivos" value={detail.device_count ?? 0} tone="success" />
+                <StatCard icon="⚠" label="Alertas activas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
+              </div>
+            ) : (
+              <EmptyState title="Sin información de detalle" />
+            )}
           </div>
-        </div>
+        )}
 
       </div>
     </div>
@@ -3799,7 +3859,9 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       padding: '1.5rem',
       color: '#f8fafc',
       fontFamily: 'system-ui, -apple-system, sans-serif',
-      display: 'block',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '1.5rem',
       position: 'relative',
       boxSizing: 'border-box'
     }}>
@@ -3807,13 +3869,14 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       {/* HEADER */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justify: 'space-between',
         alignItems: 'center',
         flexWrap: 'wrap',
         gap: '1rem',
-        marginBottom: '1.5rem',
         borderBottom: '1px solid #1e293b',
-        paddingBottom: '1rem'
+        paddingBottom: '1rem',
+        width: '100%',
+        position: 'static'
       }}>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>Hospital TIC</h1>
@@ -3856,12 +3919,13 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </div>
 
-      {/* MÉTRICAS KPI */}
+      {/* MÉTRICAS KPI (GRID TOTALMENTE AISLADO) */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: '1rem',
-        marginBottom: '1.5rem'
+        width: '100%',
+        position: 'static'
       }}>
         {metrics.map((item, idx) => {
           const Icon = item.icon;
@@ -3875,8 +3939,9 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               minHeight: '110px',
               display: 'flex',
               flexDirection: 'column',
-              justifyContent: 'space-between',
-              position: 'relative'
+              justify: 'space-between',
+              position: 'static', /* Previene solapamientos flotantes */
+              boxSizing: 'border-box'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ padding: '0.5rem', borderRadius: '10px', backgroundColor: item.bg, color: item.color, display: 'flex' }}>
@@ -3915,10 +3980,11 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
         gap: '1.25rem',
-        marginBottom: '1.5rem'
+        width: '100%',
+        position: 'static'
       }}>
         {/* Especialidades */}
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>
               <BarChart3 size={16} /> ATENCIONES POR ESPECIALIDAD
@@ -3941,9 +4007,9 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
 
         {/* Alertas */}
-        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+        <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#f87171' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight 700, color: '#f87171' }}>
               <ShieldAlert size={16} /> ALERTAS CRÍTICAS
             </span>
             <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700 }}>{activeAlerts.length} Activas</span>
@@ -3956,7 +4022,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                 borderRadius: '8px',
                 padding: '0.75rem 1rem',
                 display: 'flex',
-                justifyCallbacks: 'space-between',
+                justifyContent: 'space-between',
                 alignItems: 'flex-start'
               }}>
                 <div>
@@ -3970,7 +4036,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       </div>
 
       {/* DIRECTORIO DE USUARIOS */}
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', position: 'static', boxSizing: 'border-box' }}>
         <div style={{ marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Directorio de Usuarios</h3>
           <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>{filteredUsers.length} cuentas registradas en el sistema.</p>
@@ -3997,13 +4063,13 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           />
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', width: '100%' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ background: '#090d16', borderBottom: '1px solid #1e293b' }}>
                 <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>USUARIO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>CORREO ELECTRÓNICO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>ROL</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight 700 }}>CORREO ELECTRÓNICO</th>
+                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight 700 }}>ROL</th>
               </tr>
             </thead>
             <tbody>
