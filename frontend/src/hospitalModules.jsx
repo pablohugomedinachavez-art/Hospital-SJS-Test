@@ -3789,7 +3789,7 @@ export function Documents() {
 export function Reports({ stats = {}, alertsList = [] }) {
   const [timeRange, setTimeRange] = useState('month');
 
-  // Datos de las métricas principales
+  // Métricas principales con fallbacks dinámicos
   const metrics = [
     { label: 'PACIENTES REGISTRADOS', value: stats.patients ?? 5, trend: '+12%', isUp: true, icon: Users, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.1)' },
     { label: 'CONSULTAS ATENDIDAS', value: stats.consultations ?? 1, trend: '-5%', isUp: false, icon: Stethoscope, color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.1)' },
@@ -3797,14 +3797,14 @@ export function Reports({ stats = {}, alertsList = [] }) {
     { label: 'ALERTAS ACTIVAS', value: stats.alerts ?? 1, trend: 'Atención requerida', isUp: false, icon: AlertTriangle, color: '#f87171', bg: 'rgba(248, 113, 113, 0.1)' },
   ];
 
-  // Datos simulados de especialidades para gráfico visual
+  // Datos de especialidades
   const specialties = [
     { name: 'Medicina General', count: 8, percentage: 57, color: '#3b82f6' },
     { name: 'Pediatría', count: 4, percentage: 28, color: '#10b981' },
     { name: 'Cardiología', count: 2, percentage: 15, color: '#f59e0b' },
   ];
 
-  // Alertas activas detalladas
+  // Alertas dinámicas
   const activeAlerts = alertsList.length > 0 ? alertsList : [
     { id: 1, title: 'Inconsistencia en registro de DNI', scope: 'Módulo Pacientes', level: 'Alta', time: 'Hace 10 min' },
     { id: 2, title: 'Documento pendiente de firma médica', scope: 'Consultas', level: 'Media', time: 'Hace 1 hora' },
@@ -3815,7 +3815,6 @@ export function Reports({ stats = {}, alertsList = [] }) {
       <style>{`
         .reports-container, .reports-container * {
           box-sizing: border-box !important;
-          position: static;
         }
 
         .reports-container {
@@ -3824,13 +3823,13 @@ export function Reports({ stats = {}, alertsList = [] }) {
           margin: 0 auto;
           padding: 1.5rem;
           color: #f8fafc;
-          font-family: system-ui, -apple-system, sans-serif;
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           display: flex;
           flex-direction: column;
           gap: 1.5rem;
         }
 
-        /* Top Header */
+        /* Header Section */
         .header-section {
           display: flex;
           justify-content: space-between;
@@ -3843,7 +3842,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
           font-size: 1.5rem;
           font-weight: 800;
           margin: 0;
-          color: #fff;
+          color: #ffffff;
         }
 
         .header-title h2 {
@@ -3878,7 +3877,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
 
         .btn-export {
           background: #2563eb;
-          color: #fff;
+          color: #ffffff;
           border: none;
           padding: 0.5rem 1rem;
           border-radius: 8px;
@@ -3888,14 +3887,14 @@ export function Reports({ stats = {}, alertsList = [] }) {
           align-items: center;
           gap: 0.5rem;
           cursor: pointer;
-          transition: background 0.2s;
+          transition: background 0.2s ease;
         }
 
         .btn-export:hover {
           background: #1d4ed8;
         }
 
-        /* KPI Cards Grid */
+        /* KPI Grid */
         .kpi-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -3910,7 +3909,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
-          transition: transform 0.2s, border-color 0.2s;
+          transition: transform 0.2s ease, border-color 0.2s ease;
         }
 
         .kpi-card:hover {
@@ -3950,7 +3949,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
         .kpi-value {
           font-size: 1.8rem;
           font-weight: 800;
-          color: #fff;
+          color: #ffffff;
         }
 
         .kpi-trend {
@@ -3966,7 +3965,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
         .trend-up { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
         .trend-down { background: rgba(239, 68, 68, 0.15); color: #f87171; }
 
-        /* Content Grid */
+        /* Main Layout Grid */
         .main-grid {
           display: grid;
           grid-template-columns: 2fr 1fr;
@@ -4106,7 +4105,7 @@ export function Reports({ stats = {}, alertsList = [] }) {
         </div>
       </div>
 
-      {/* MÉTRICAS KPI REGENERADAS */}
+      {/* MÉTRICAS KPI */}
       <div className="kpi-grid">
         {metrics.map((item, idx) => {
           const Icon = item.icon;
@@ -4147,8 +4146,8 @@ export function Reports({ stats = {}, alertsList = [] }) {
             {specialties.map((spec, i) => (
               <div key={i} className="specialty-item">
                 <div className="specialty-info">
-                  <span style={{ color: '#e2e8f0', fontWight: 500 }}>{spec.name}</span>
-                  <span style={{ color: '#94a3b8', fontWight: 600 }}>{spec.count} ({spec.percentage}%)</span>
+                  <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{spec.name}</span>
+                  <span style={{ color: '#94a3b8', fontWeight: 600 }}>{spec.count} ({spec.percentage}%)</span>
                 </div>
                 <div className="progress-bg">
                   <div 
@@ -4193,6 +4192,8 @@ export function Reports({ stats = {}, alertsList = [] }) {
     </div>
   );
 }
+
+export default Reports;
 
 // ============================================================
 // Dashboard (Con exportación profesional y limpia para PDF)
