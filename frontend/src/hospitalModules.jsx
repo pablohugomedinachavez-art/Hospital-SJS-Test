@@ -4792,29 +4792,39 @@ export function Profile() {
       ) : profile ? (
         <div className="space-y-6 text-slate-100">
           
-          {/* Banner Hero Limpio con Avatar a la izquierda */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-700 via-indigo-600 to-cyan-500 p-6 shadow-lg">
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-md text-white flex items-center justify-center font-black text-3xl border border-white/20 shadow-inner shrink-0">
+          {/* Banner Hero Reconstruido */}
+          <div className="w-full rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 p-6 shadow-xl text-white">
+            <div className="flex flex-row items-center gap-5">
+              
+              {/* Avatar independiente sin clases heredadas */}
+              <div 
+                className="w-16 h-16 min-w-[64px] rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center font-extrabold text-3xl text-white shadow-inner"
+                style={{ position: 'static' }}
+              >
                 {avatarInitial}
               </div>
               
-              <div className="flex-1 text-center sm:text-left">
-                <span className="text-xs font-semibold uppercase tracking-widest text-blue-200 block mb-1">
+              {/* Contenido de texto y badge */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-blue-100 opacity-90 m-0">
                   PANEL DE USUARIO
-                </span>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-tight">
+                </p>
+                <h1 className="text-2xl font-black text-white leading-tight m-0 tracking-wide">
                   Hola, {profile.username || 'Usuario'}
                 </h1>
-                <p className="text-sm text-blue-100/90 mt-1 mb-3">
+                <p className="text-xs text-blue-50/80 my-1 truncate">
                   Bienvenido a tu resumen general de actividad médica y estado de la cuenta.
                 </p>
-                <div>
-                  <span className="inline-flex items-center px-3 py-1 text-xs font-semibold bg-white/20 text-white border border-white/30 rounded-full backdrop-blur-md">
+                <div className="mt-2">
+                  <span 
+                    className="inline-block px-3 py-1 text-xs font-semibold text-white bg-black/20 border border-white/20 rounded-full"
+                    style={{ position: 'static' }}
+                  >
                     {profile.role_name || profile.role || 'Sin rol'}
                   </span>
                 </div>
               </div>
+
             </div>
           </div>
 
