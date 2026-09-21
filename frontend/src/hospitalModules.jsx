@@ -4121,13 +4121,6 @@ export function Dashboard() {
   const [selectedDevice, setSelectedDevice] = useState('all');
   const [dateRange, setDateRange] = useState('7d');
   
-// Añade esto fuera de tu componente o antes del return para evitar crash:
-const KPI_TARGETS = { activeDevicesPct: 95, alertResolutionPct: 90 };
-const safeLocations = Array.isArray(locations) ? locations : [];
-const filteredDevices = Array.isArray(devices) ? devices : [];
-const kpiStats = stats || { activeDevPct: 0, activeDevs: 0, totalDevs: 0, alertResolutionPct: 0, unresolvedAlerts: 0, pendingAppointments: 0, totalPatients: 0 };
-
-
   const [locations, setLocations] = useState([]);
   const [devices, setDevices] = useState([]);
   const [alerts, setAlerts] = useState([]);
@@ -4190,304 +4183,240 @@ const [activeTab, setActiveTab] = useState('devices');
 return (
   <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 font-sans antialiased space-y-6">
     
-    {/* CONTENEDOR PRINCIPAL */}
-    <div className="flex flex-col xl:flex-row gap-6 w-full min-w-0 items-start">
-      
-      {/* SECCIÓN PRINCIPAL */}
-      <div className="flex-1 min-w-0 space-y-6 w-full">
-        
-        {/* HEADER BAR */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-md">
-          <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
-                Enterprise Analytics
-              </span>
-              <span className="text-xs text-slate-500">• ISO 27001 & HIPAA Compliant</span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-              Dashboard de Control y Auditoría TI
-            </h1>
-            <p className="text-xs text-slate-400">
-              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
-            </p>
-          </div>
-
-          <button
-            onClick={() => typeof fetchDashboardData === 'function' && fetchDashboardData(true)}
-            disabled={Boolean(refreshing)}
-            className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-all shrink-0"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
-            <span>{refreshing ? 'Actualizando...' : 'Refrescar Datos'}</span>
-          </button>
+    {/* HEADER BAR PRINCIPAL */}
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-md">
+      <div className="space-y-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
+            Enterprise Analytics
+          </span>
+          <span className="text-xs text-slate-500">• ISO 27001 & HIPAA Compliant</span>
         </div>
-
-        {/* FILTROS OPERATIVOS */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
-            <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 pr-4 lg:border-r border-slate-800">
-              <Filter className="w-4 h-4 text-blue-400" />
-              <span>Filtros Operativos:</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-              <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 font-medium block">Sede / Ubicación</label>
-                <select
-                  value={selectedLocation || 'all'}
-                  onChange={(e) => typeof setSelectedLocation === 'function' && setSelectedLocation(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="all">Todas las sedes</option>
-                  {(safeLocations || []).map(loc => (
-                    <option key={loc?.id || loc?.name} value={loc?.id}>{loc?.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 font-medium block">Dispositivo</label>
-                <select
-                  value={selectedDevice || 'all'}
-                  onChange={(e) => typeof setSelectedDevice === 'function' && setSelectedDevice(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="all">Todos los dispositivos</option>
-                  {(filteredDevices || []).map(dev => (
-                    <option key={dev?.id || dev?.name} value={dev?.id}>
-                      {dev?.name} ({dev?.ip_address || 'Sin IP'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 font-medium block">Periodo de Análisis</label>
-                <select
-                  value={dateRange || '7d'}
-                  onChange={(e) => typeof setDateRange === 'function' && setDateRange(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="24h">Últimas 24 Horas</option>
-                  <option value="7d">Últimos 7 Días</option>
-                  <option value="30d">Últimos 30 Días</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* GRID DE KPIS (4 TARJETAS) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-          
-          {/* KPI 1 */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad TI</span>
-              <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                <Monitor className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-white">{kpiStats?.activeDevPct ?? 0}%</span>
-                <span className="text-xs text-slate-400">({kpiStats?.activeDevs ?? 0}/{kpiStats?.totalDevs ?? 0})</span>
-              </div>
-              <div className="mt-2 space-y-1">
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>Meta: {KPI_TARGETS?.activeDevicesPct ?? 95}%</span>
-                  <span className={(kpiStats?.activeDevPct ?? 0) >= (KPI_TARGETS?.activeDevicesPct ?? 95) ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
-                    {(kpiStats?.activeDevPct ?? 0) >= (KPI_TARGETS?.activeDevicesPct ?? 95) ? 'Cumplido' : 'Por debajo'}
-                  </span>
-                </div>
-                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${(kpiStats?.activeDevPct ?? 0) >= (KPI_TARGETS?.activeDevicesPct ?? 95) ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                    style={{ width: `${Math.min(kpiStats?.activeDevPct ?? 0, 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* KPI 2 */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Resolución Alertas</span>
-              <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                <ShieldAlert className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-white">{kpiStats?.alertResolutionPct ?? 0}%</span>
-                <span className="text-xs text-amber-400 font-semibold">{kpiStats?.unresolvedAlerts ?? 0} activas</span>
-              </div>
-              <div className="mt-2 space-y-1">
-                <div className="flex justify-between text-[10px] text-slate-400">
-                  <span>Meta SLA: {KPI_TARGETS?.alertResolutionPct ?? 90}%</span>
-                  <span className={(kpiStats?.alertResolutionPct ?? 0) >= (KPI_TARGETS?.alertResolutionPct ?? 90) ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
-                    {(kpiStats?.alertResolutionPct ?? 0) >= (KPI_TARGETS?.alertResolutionPct ?? 90) ? 'SLA OK' : 'Atención Req.'}
-                  </span>
-                </div>
-                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${(kpiStats?.alertResolutionPct ?? 0) >= (KPI_TARGETS?.alertResolutionPct ?? 90) ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                    style={{ width: `${Math.min(kpiStats?.alertResolutionPct ?? 0, 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* KPI 3 */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Citas Programadas</span>
-              <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-                <Calendar className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-white">{kpiStats?.pendingAppointments ?? 0}</span>
-                <span className="text-xs text-slate-400">en cola</span>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-2">Gestión en tiempo real del módulo de atenciones.</p>
-            </div>
-          </div>
-
-          {/* KPI 4 */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes Registrados</span>
-              <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <Users className="w-4 h-4" />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-white">{kpiStats?.totalPatients ?? 0}</span>
-                <span className="text-xs text-emerald-400 font-semibold">+12% este mes</span>
-              </div>
-              <p className="text-[10px] text-slate-400 mt-2">Base de datos de historias clínicas e identificaciones.</p>
-            </div>
-          </div>
-
-        </div>
-
-        {/* NAVEGACIÓN POR PESTAÑAS */}
-        <div className="flex items-center justify-start gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
-          {[
-            { id: 'devices', label: '1. Dispositivos', icon: Monitor },
-            { id: 'actions', label: '2. Acciones IP', icon: Activity },
-            { id: 'audit', label: '3. Auditoría Global', icon: FileText }
-          ].map(tab => {
-            const Icon = tab.icon;
-            const currentTab = typeof activeTab !== 'undefined' ? activeTab : 'devices';
-            const isActive = currentTab === tab.id;
-
-            return (
-              <button
-                key={tab.id}
-                onClick={() => typeof setActiveTab === 'function' && setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
-                }`}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* VISTAS SEGÚN PESTAÑA */}
-        <div className="w-full">
-          {(typeof activeTab === 'undefined' || activeTab === 'devices') && (
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-              <h2 className="text-lg font-bold text-white mb-4">Gestión de Dispositivos TI</h2>
-            </div>
-          )}
-
-          {activeTab === 'actions' && (
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-              <h2 className="text-lg font-bold text-white mb-4">Monitoreo de Acciones IP</h2>
-            </div>
-          )}
-
-          {activeTab === 'audit' && (
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-              <h2 className="text-lg font-bold text-white mb-4">Registro Global de Auditoría</h2>
-            </div>
-          )}
-        </div>
-
+        <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+          Dashboard de Control y Auditoría TI
+        </h1>
+        <p className="text-xs text-slate-400">
+          Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
+        </p>
       </div>
 
-      {/* DIRECTORIO DE USUARIOS (SIDEBAR) */}
-      <div className="w-full xl:w-80 shrink-0 space-y-4">
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl">
-          <h3 className="text-base font-bold text-white">Directorio de Usuarios</h3>
-          <p className="text-xs text-slate-400 mb-4">Cuentas registradas en el sistema.</p>
-          
-          <div className="relative mb-4">
-            <input
-              type="text"
-              placeholder="Buscar por usuario, correo o rol..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-            />
+      <button
+        onClick={() => fetchDashboardData(true)}
+        disabled={refreshing}
+        className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-all shrink-0"
+      >
+        <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
+        <span>{refreshing ? 'Actualizando...' : 'Refrescar Datos'}</span>
+      </button>
+    </div>
+
+    {/* FILTROS OPERATIVOS */}
+    <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
+      <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
+        <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 pr-4 lg:border-r border-slate-800">
+          <Filter className="w-4 h-4 text-blue-400" />
+          <span>Filtros Operativos:</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-400 font-medium block">Sede / Ubicación</label>
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">Todas las sedes</option>
+              {safeLocations.map(loc => (
+                <option key={loc?.id} value={loc?.id}>{loc?.name}</option>
+              ))}
+            </select>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/50 border border-slate-800/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-600/30 text-purple-400 flex items-center justify-center font-bold text-xs">
-                  I
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white">int_test_user</p>
-                  <p className="text-[10px] text-slate-500">ID: #5</p>
-                </div>
-              </div>
-              <span className="text-xs text-slate-500">—</span>
-            </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-400 font-medium block">Dispositivo</label>
+            <select
+              value={selectedDevice}
+              onChange={(e) => setSelectedDevice(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+            >
+              <option value="all">Todos los dispositivos</option>
+              {filteredDevices.map(dev => (
+                <option key={dev?.id} value={dev?.id}>
+                  {dev?.name} ({dev?.ip_address || 'Sin IP'})
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/50 border border-slate-800/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-600/30 text-purple-400 flex items-center justify-center font-bold text-xs">
-                  A
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white">admin</p>
-                  <p className="text-[10px] text-slate-500">ID: #4</p>
-                </div>
-              </div>
-              <span className="text-xs text-slate-500">—</span>
-            </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-400 font-medium block">Periodo de Análisis</label>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+            >
+              <option value="24h">Últimas 24 Horas</option>
+              <option value="7d">Últimos 7 Días</option>
+              <option value="30d">Últimos 30 Días</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
 
-            <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950/50 border border-slate-800/50">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-600/30 text-purple-400 flex items-center justify-center font-bold text-xs">
-                  A
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white">admin_user</p>
-                  <p className="text-[10px] text-slate-500">ID: #1</p>
-                </div>
-              </div>
-              <span className="text-xs text-slate-500">—</span>
+    {/* GRID DE KPIS (4 TARJETAS) */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      {/* KPI 1 */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad TI</span>
+          <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+            <Monitor className="w-4 h-4" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-white">{kpiStats.activeDevPct}%</span>
+            <span className="text-xs text-slate-400">({kpiStats.activeDevs}/{kpiStats.totalDevs})</span>
+          </div>
+          <div className="mt-2 space-y-1">
+            <div className="flex justify-between text-[10px] text-slate-400">
+              <span>Meta: {KPI_TARGETS.activeDevicesPct}%</span>
+              <span className={kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
+                {kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'Cumplido' : 'Por debajo'}
+              </span>
+            </div>
+            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                style={{ width: `${Math.min(kpiStats.activeDevPct, 100)}%` }}
+              />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* KPI 2 */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Resolución Alertas</span>
+          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+            <ShieldAlert className="w-4 h-4" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-white">{kpiStats.alertResolutionPct}%</span>
+            <span className="text-xs text-amber-400 font-semibold">{kpiStats.unresolvedAlerts} activas</span>
+          </div>
+          <div className="mt-2 space-y-1">
+            <div className="flex justify-between text-[10px] text-slate-400">
+              <span>Meta SLA: {KPI_TARGETS.alertResolutionPct}%</span>
+              <span className={kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
+                {kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'SLA OK' : 'Atención Req.'}
+              </span>
+            </div>
+            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                style={{ width: `${Math.min(kpiStats.alertResolutionPct, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI 3 */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Citas Programadas</span>
+          <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+            <Calendar className="w-4 h-4" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-white">{kpiStats.pendingAppointments}</span>
+            <span className="text-xs text-slate-400">en cola</span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-2">Gestión en tiempo real del módulo de atenciones.</p>
+        </div>
+      </div>
+
+      {/* KPI 4 */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes Registrados</span>
+          <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+            <Users className="w-4 h-4" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-extrabold text-white">{kpiStats.totalPatients}</span>
+            <span className="text-xs text-emerald-400 font-semibold">+12% este mes</span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-2">Base de datos de historias clínicas e identificaciones.</p>
         </div>
       </div>
 
     </div>
+
+    {/* BARRA DE NAVEGACIÓN POR PESTAÑAS */}
+    <div className="flex items-center justify-start gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
+      {[
+        { id: 'devices', label: '1. Dispositivos', icon: Monitor },
+        { id: 'actions', label: '2. Acciones IP', icon: Activity },
+        { id: 'audit', label: '3. Auditoría Global', icon: FileText }
+      ].map(tab => {
+        const Icon = tab.icon;
+        const isActive = activeTab === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+              isActive
+                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
+            }`}
+          >
+            <Icon className="w-4 h-4 shrink-0" />
+            <span>{tab.label}</span>
+          </button>
+        );
+      })}
+    </div>
+
+    {/* CONTENIDO DE LAS PESTAÑAS */}
+    <div className="w-full">
+      {activeTab === 'devices' && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+          <h2 className="text-lg font-bold text-white mb-4">Gestión de Dispositivos TI</h2>
+          {/* Tu tabla o vista de dispositivos */}
+        </div>
+      )}
+
+      {activeTab === 'actions' && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+          <h2 className="text-lg font-bold text-white mb-4">Monitoreo de Acciones IP</h2>
+          {/* Tu vista de acciones IP */}
+        </div>
+      )}
+
+      {activeTab === 'audit' && (
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+          <h2 className="text-lg font-bold text-white mb-4">Registro Global de Auditoría</h2>
+          {/* Tu vista de auditoría */}
+        </div>
+      )}
+    </div>
+
   </div>
 );
+}
 
 
 export function Users() {
