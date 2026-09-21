@@ -4137,7 +4137,7 @@ export function Dashboard() {
     <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 space-y-6">
       
       {/* 1. HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-xl">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-5 rounded-xl shadow-xl">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
@@ -4158,15 +4158,15 @@ export function Dashboard() {
             setRefreshing(true);
             setTimeout(() => setRefreshing(false), 1000);
           }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold self-start sm:self-auto cursor-pointer transition-all"
+          className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold self-start sm:self-auto cursor-pointer transition-all shrink-0"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
           <span>Refrescar Datos</span>
         </button>
-      </div>
+      </header>
 
       {/* 2. FILTROS */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
           <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 lg:border-r border-slate-800 lg:pr-4">
             <Filter className="w-4 h-4 text-blue-400" />
@@ -4175,145 +4175,130 @@ export function Dashboard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1">Sede / Ubicación</label>
+              <label className="text-[10px] text-slate-400 block mb-1 font-medium">Sede / Ubicación</label>
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#070b14] border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="all">Todas las sedes</option>
               </select>
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1">Dispositivo</label>
+              <label className="text-[10px] text-slate-400 block mb-1 font-medium">Dispositivo</label>
               <select
                 value={selectedDevice}
                 onChange={(e) => setSelectedDevice(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#070b14] border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="all">Todos los dispositivos</option>
               </select>
             </div>
 
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1">Periodo de Análisis</label>
+              <label className="text-[10px] text-slate-400 block mb-1 font-medium">Periodo de Análisis</label>
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[#070b14] border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="7d">Últimos 7 Días</option>
               </select>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* 3. GRID DE KPIS (AISLADO CON INLINE GRID Y MIN-HEIGHT) */}
-      <div 
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1rem',
-          width: '100%'
-        }}
-      >
+      {/* 3. GRID DE KPIS (SE EVITA USAR bg-slate-900 Y rounded-2xl JUNTOS PARA PREVENIR EL CSS GLOBAL COLLISION) */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+        
         {/* KPI 1 */}
-        <div 
-          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '110px' }}
-          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4"
-        >
+        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad TI</span>
-            <Monitor className="w-4 h-4 text-blue-400" />
+            <Monitor className="w-4 h-4 text-blue-400 shrink-0" />
           </div>
-          <div>
+          <div className="flex items-baseline justify-between mt-auto">
             <span className="text-2xl font-extrabold text-white">0%</span>
-            <span className="text-xs text-slate-400 ml-2">(0/0)</span>
+            <span className="text-xs text-slate-400 font-medium">(0/0)</span>
           </div>
         </div>
 
         {/* KPI 2 */}
-        <div 
-          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '110px' }}
-          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4"
-        >
+        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Resolución Alertas</span>
-            <ShieldAlert className="w-4 h-4 text-amber-400" />
+            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
           </div>
-          <div>
+          <div className="flex items-baseline justify-between mt-auto">
             <span className="text-2xl font-extrabold text-white">0%</span>
-            <span className="text-xs text-amber-400 font-semibold ml-2">0 activas</span>
+            <span className="text-xs text-amber-400 font-semibold">0 activas</span>
           </div>
         </div>
 
         {/* KPI 3 */}
-        <div 
-          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '110px' }}
-          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4"
-        >
+        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Citas Programadas</span>
-            <Calendar className="w-4 h-4 text-purple-400" />
+            <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
           </div>
-          <div>
+          <div className="flex items-baseline justify-between mt-auto">
             <span className="text-2xl font-extrabold text-white">0</span>
-            <span className="text-xs text-slate-400 ml-2">en cola</span>
+            <span className="text-xs text-slate-400 font-medium">en cola</span>
           </div>
         </div>
 
         {/* KPI 4 */}
-        <div 
-          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '110px' }}
-          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4"
-        >
+        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes Registrados</span>
-            <Users className="w-4 h-4 text-emerald-400" />
+            <Users className="w-4 h-4 text-emerald-400 shrink-0" />
           </div>
-          <div>
+          <div className="flex items-baseline justify-between mt-auto">
             <span className="text-2xl font-extrabold text-white">0</span>
-            <span className="text-xs text-emerald-400 font-semibold ml-2">+12% este mes</span>
+            <span className="text-xs text-emerald-400 font-semibold">+12% este mes</span>
           </div>
         </div>
-      </div>
+
+      </section>
 
       {/* 4. DIRECTORIO DE USUARIOS */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 w-full">
-        <div className="mb-4">
-          <h2 className="text-lg font-bold text-white">Directorio de Usuarios</h2>
-          <p className="text-xs text-slate-400">{filteredUsers.length} cuentas registradas en el sistema</p>
+      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-base font-bold text-white">Directorio de Usuarios</h2>
+            <p className="text-xs text-slate-400">{filteredUsers.length} cuentas registradas en el sistema</p>
+          </div>
+
+          <div className="relative w-full sm:w-72">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Buscar por usuario..."
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              className="w-full bg-[#070b14] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+            />
+          </div>
         </div>
 
-        <div className="relative mb-4 max-w-md">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Buscar por usuario, correo..."
-            value={userSearch}
-            onChange={(e) => setUserSearch(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-          />
-        </div>
-
-        <div className="divide-y divide-slate-800/60 border-t border-slate-800">
+        <div className="divide-y divide-slate-800 border-t border-slate-800">
           {filteredUsers.map((user) => (
             <div key={user.id} className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-purple-600/30 border border-purple-500/40 text-purple-300 font-bold flex items-center justify-center text-sm">
+                <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-xs shrink-0">
                   {user.username.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-100">{user.username}</p>
-                  <p className="text-[11px] text-slate-500">ID: {user.id}</p>
+                  <p className="text-xs font-semibold text-slate-100">{user.username}</p>
+                  <p className="text-[10px] text-slate-500">ID: {user.id}</p>
                 </div>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
     </div>
   );
