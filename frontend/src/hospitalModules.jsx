@@ -4040,10 +4040,18 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
       {/* DIRECTORIO DE USUARIOS */}
       <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', position: 'static', float: 'none', clear: 'both', boxSizing: 'border-box' }}>
-        <div style={{ marginBottom: '1rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Directorio de Usuarios</h3>
-          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>{filteredUsers.length} cuentas registradas en el sistema.</p>
-        </div>
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+  <div>
+    <h3 className="text-lg font-bold text-white">Directorio de Usuarios</h3>
+    <p className="text-xs text-slate-400">3 cuentas registradas en el sistema.</p>
+  </div>
+  <button 
+    className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+  >
+    <span>+</span>
+    <span>Nuevo Usuario</span>
+  </button>
+</div>
 
         <div style={{ position: 'relative', width: '100%', maxWidth: '360px', marginBottom: '1rem' }}>
           <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
@@ -4189,225 +4197,207 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
-export function Dashboard({ usersList = MOCK_USERS }) {
-  const [selectedLocation, setSelectedLocation] = useState('all');
-  const [selectedDevice, setSelectedDevice] = useState('all');
-  const [dateRange, setDateRange] = useState('7d');
-  const [refreshing, setRefreshing] = useState(false);
-  const [userSearch, setUserSearch] = useState('');
-
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
-
-  const filteredUsers = useMemo(() => {
-    const listToFilter = Array.isArray(usersList) && usersList.length > 0 ? usersList : MOCK_USERS;
-    const query = userSearch.toLowerCase().trim();
-    
-    if (!query) return listToFilter;
-    
-    return listToFilter.filter(u => 
-      (u.username && u.username.toLowerCase().includes(query)) || 
-      (u.id && u.id.toString().toLowerCase().includes(query)) ||
-      (u.email && u.email.toLowerCase().includes(query)) ||
-      (u.role && u.role.toLowerCase().includes(query))
-    );
-  }, [userSearch, usersList]);
+export const DashboardGeneral = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [users] = useState([
+    { id: 5, username: 'int_test_user', email: '—', role: 'Usuario' },
+    { id: 4, username: 'admin', email: '—', role: 'Administrador' },
+    { id: 2, username: 'admin_user', email: '—', role: 'Administrador' },
+  ]);
 
   return (
-    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans antialiased overflow-x-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 font-sans">
       
-      {/* BARRA SUPERIOR DE NAVEGACIÓN */}
-      <nav className="w-full bg-[#0f172a]/80 border-b border-slate-800 px-4 sm:px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-          <span className="text-xs font-bold text-white tracking-wide">Panel General</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold text-white">
-            A
+      {/* 1. CABECERA PRINCIPAL */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
+            <span>Enterprise Analytics</span>
+            <span>•</span>
+            <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
           </div>
-          <span className="text-xs font-semibold text-slate-300">admin</span>
+          <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">
+            Dashboard de Control y Auditoría TI
+          </h1>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
+          </p>
         </div>
-      </nav>
-
-      {/* CONTENIDO PRINCIPAL */}
-      <main className="flex-1 p-3 sm:p-6 flex flex-col gap-6 w-full max-w-[1600px] mx-auto">
         
-        {/* 1. ENCABEZADO Y CONTROL */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-4 sm:p-5 rounded-xl shadow-xl w-full">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
-                ENTERPRISE ANALYTICS
-              </span>
-              <span className="text-xs text-slate-500 font-medium">
-                • ISO 27001 & HIPAA Compliant
-              </span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight truncate">
-              Dashboard de Control y Auditoría TI
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
-            </p>
-          </div>
+        <button 
+          onClick={() => window.location.reload()}
+          className="self-start md:self-auto bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-2 transition-colors shrink-0"
+        >
+          <RefreshCw size={14} className="text-blue-400" />
+          <span>Refrescar Datos</span>
+        </button>
+      </div>
 
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold w-full sm:w-auto cursor-pointer transition-all shrink-0 disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
-            <span>Refrescar Datos</span>
-          </button>
-        </header>
-
-        {/* 2. FILTROS OPERATIVOS */}
-        <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md w-full">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
-            <div className="flex items-center gap-2 text-slate-400 font-bold uppercase tracking-wider shrink-0 pb-3 lg:pb-0 border-b lg:border-b-0 lg:border-r border-slate-800 lg:pr-4">
-              <Filter className="w-4 h-4 text-blue-400 shrink-0" />
-              <span>Filtros Operativos:</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
-              <FilterSelect
-                label="Sede / Ubicación"
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                options={LOCATION_OPTIONS}
-              />
-              <FilterSelect
-                label="Dispositivo"
-                value={selectedDevice}
-                onChange={(e) => setSelectedDevice(e.target.value)}
-                options={DEVICE_OPTIONS}
-              />
-              <FilterSelect
-                label="Periodo de Análisis"
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                options={DATE_OPTIONS}
-              />
+      {/* 2. FILTROS OPERATIVOS */}
+      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 mb-6">
+        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <ShieldCheck size={14} className="text-blue-400" />
+          <span>Filtros Operativos:</span>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Sede / Ubicación */}
+          <div className="relative">
+            <label className="block text-[10px] text-slate-400 uppercase mb-1 font-semibold">Sede / Ubicación</label>
+            <div className="relative">
+              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
+                <option>Todas las sedes</option>
+                <option>Sede Central</option>
+                <option>Clínica Norte</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
             </div>
           </div>
-        </section>
 
-        {/* 3. TARJETAS DE MÉTRICAS (KPIs) - AISLADAS EN SU PROPIO GRID DE 4 COLUMNAS */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-          <KpiCard
-            title="Disponibilidad TI"
-            value="0%"
-            subtitle="(0/0)"
-            icon={Monitor}
-            iconColor="text-blue-400"
-          />
-          <KpiCard
-            title="Resolución Alertas"
-            value="0%"
-            subtitle="0 activas"
-            subtitleColor="text-amber-400 font-semibold"
-            icon={ShieldAlert}
-            iconColor="text-amber-400"
-          />
-          <KpiCard
-            title="Citas Programadas"
-            value="0"
-            subtitle="en cola"
-            icon={Calendar}
-            iconColor="text-purple-400"
-          />
-          <KpiCard
-            title="Pacientes Registrados"
-            value="0"
-            subtitle="+12% este mes"
-            subtitleColor="text-emerald-400 font-semibold"
-            icon={Users}
-            iconColor="text-emerald-400"
-          />
-        </section>
-
-        {/* 4. DIRECTORIO DE USUARIOS - SECCIÓN INDEPENDIENTE FUERA DEL GRID */}
-        <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 sm:p-5 w-full shadow-lg">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
-            <div className="min-w-0">
-              <h2 className="text-base font-bold text-white">Directorio de Usuarios</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {filteredUsers.length} {filteredUsers.length === 1 ? 'cuenta registrada' : 'cuentas registradas'} en el sistema
-              </p>
+          {/* Dispositivo */}
+          <div className="relative">
+            <label className="block text-[10px] text-slate-400 uppercase mb-1 font-semibold">Dispositivo</label>
+            <div className="relative">
+              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
+                <option>Todos los dispositivos</option>
+                <option>Estaciones de Trabajo</option>
+                <option>Servidores Core</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
             </div>
+          </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
-              <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Buscar por usuario, correo o rol..."
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  className="w-full bg-[#070b14] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
-                />
+          {/* Periodo de Análisis */}
+          <div className="relative">
+            <label className="block text-[10px] text-slate-400 uppercase mb-1 font-semibold">Periodo de Análisis</label>
+            <div className="relative">
+              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
+                <option>Últimos 7 Días</option>
+                <option>Últimos 30 Días</option>
+                <option>Año Actual</option>
+              </select>
+              <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. GRILLA PRINCIPAL: TARJETAS DE MONITOREO + DIRECTORIO */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        {/* Columna Izquierda/Central: Paneles de Métricas (Ocupa 3 columnas en LG) */}
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          {/* Disponibilidad TI */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between min-h-[260px] shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
+              <Monitor size={16} className="text-blue-400" />
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center my-4">
+              <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
+              <span className="text-xs text-slate-400 mt-1 font-medium">Uptime general operativo</span>
+            </div>
+            <div className="text-[10px] text-slate-500 text-center border-t border-slate-800/80 pt-2">
+              Estado óptimo de servidores
+            </div>
+          </div>
+
+          {/* Resolución Alertas */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between min-h-[260px] shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
+              <AlertTriangle size={16} className="text-amber-400" />
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center my-4">
+              <span className="text-4xl font-black text-amber-400 tracking-tight">12</span>
+              <span className="text-xs text-slate-400 mt-1 font-medium">Alertas bajo revisión</span>
+            </div>
+            <div className="text-[10px] text-slate-500 text-center border-t border-slate-800/80 pt-2">
+              Tiempo medio de respuesta: 14m
+            </div>
+          </div>
+
+          {/* Citas Programadas */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between min-h-[260px] shadow-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Citas Programadas</span>
+              <Calendar size={16} className="text-indigo-400" />
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center my-4">
+              <span className="text-4xl font-black text-indigo-400 tracking-tight">24</span>
+              <span className="text-xs text-slate-400 mt-1 font-medium">Agendadas para hoy</span>
+            </div>
+            <div className="text-[10px] text-slate-500 text-center border-t border-slate-800/80 pt-2">
+              Sincronizado con módulo médico
+            </div>
+          </div>
+
+        </div>
+
+        {/* Columna Derecha: Directorio de Usuarios (Ocupa 1 columna en LG) */}
+        <div className="lg:col-span-1 bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+          <div>
+            {/* Encabezado con ajuste flex-wrap y whitespace-nowrap para evitar corte de texto en el botón */}
+            <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
+                <p className="text-[11px] text-slate-400">3 cuentas registradas.</p>
               </div>
-              
-              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer w-full sm:w-auto">
-                <UserPlus className="w-3.5 h-3.5 shrink-0" />
+              <button className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors shadow-sm">
+                <Plus size={12} />
                 <span>Nuevo Usuario</span>
               </button>
             </div>
+
+            {/* Buscador */}
+            <div className="relative mb-3">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
+              <input
+                type="text"
+                placeholder="Buscar por usuario..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* Tabla con contenedor scrollable horizontal */}
+            <div className="w-full overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-300 min-w-[200px]">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
+                    <th className="pb-2 px-1">Usuario</th>
+                    <th className="pb-2 px-1 whitespace-nowrap">Correo Electrónico</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/50">
+                  {users
+                    .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map((user) => (
+                      <tr key={user.id} className="hover:bg-slate-800/30">
+                        <td className="py-2.5 px-1 flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
+                            {user.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-slate-200 text-xs">{user.username}</div>
+                            <div className="text-[9px] text-slate-500">ID: #{user.id}</div>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-1 text-slate-400 whitespace-nowrap text-xs">{user.email}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
           </div>
+        </div>
 
-          <div className="divide-y divide-slate-800 border-t border-slate-800 w-full">
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => (
-                <div 
-                  key={user.id} 
-                  className="flex flex-col sm:flex-row sm:items-center justify-between py-3 px-2 hover:bg-slate-800/40 rounded-lg transition-colors gap-3 sm:gap-4"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-xs shrink-0 select-none">
-                      {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-slate-100 truncate">
-                        {user.username || 'Sin Nombre'}
-                      </p>
-                      <p className="text-[10px] text-slate-500 font-mono truncate">
-                        {user.email || `ID: ${user.id}`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/50">
-                    {user.role && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700 truncate">
-                        {user.role}
-                      </span>
-                    )}
-                    <div className="flex items-center gap-1 ml-auto sm:ml-0">
-                      <button className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer">
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button className="p-1.5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-colors cursor-pointer">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="py-8 text-center text-xs text-slate-500">
-                No se encontraron usuarios que coincidan con la búsqueda.
-              </div>
-            )}
-          </div>
-        </section>
-
-      </main>
+      </div>
     </div>
   );
-}
+};
 
 
 export function Users() {
