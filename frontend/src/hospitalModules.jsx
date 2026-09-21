@@ -4122,30 +4122,39 @@ export function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [userSearch, setUserSearch] = useState('');
 
-  // Datos mock
-  const users = [
-    { id: '#5', username: 'int_test_user' },
-    { id: '#4', username: 'admin' },
-    { id: '#1', username: 'admin_user' }
-  ];
+  // Handlers memorizados
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1000);
+  }, []);
 
-  const filteredUsers = users.filter(u => 
-    u.username.toLowerCase().includes(userSearch.toLowerCase())
-  );
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserSearch(e.target.value);
+  }, []);
+
+  // Filtrado optimizado de usuarios mediante memoización
+  const filteredUsers = useMemo(() => {
+    const query = userSearch.toLowerCase().trim();
+    if (!query) return MOCK_USERS;
+    return MOCK_USERS.filter(u => 
+      u.username.toLowerCase().includes(query) || 
+      u.id.toLowerCase().includes(query)
+    );
+  }, [userSearch]);
 
   return (
-    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 space-y-6">
+    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 space-y-6 font-sans antialiased">
       
-      {/* 1. HEADER */}
+      {/* 1. HEADER CONTROL BAR */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-5 rounded-xl shadow-xl">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
               Enterprise Analytics
             </span>
             <span className="text-xs text-slate-500">• ISO 27001 & HIPAA Compliant</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
             Dashboard de Control y Auditoría TI
           </h1>
           <p className="text-xs text-slate-400">
@@ -4154,19 +4163,17 @@ export function Dashboard() {
         </div>
 
         <button
-          onClick={() => {
-            setRefreshing(true);
-            setTimeout(() => setRefreshing(false), 1000);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold self-start sm:self-auto cursor-pointer transition-all shrink-0"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold self-start sm:self-auto cursor-pointer transition-all shrink-0 disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
           <span>Refrescar Datos</span>
         </button>
       </header>
 
-      {/* 2. FILTROS */}
-      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4">
+      {/* 2. FILTROS DE BÚSQUEDA */}
+      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
           <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 lg:border-r border-slate-800 lg:pr-4">
             <Filter className="w-4 h-4 text-blue-400" />
@@ -4174,129 +4181,120 @@ export function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
-            <div>
-              <label className="text-[10px] text-slate-400 block mb-1 font-medium">Sede / Ubicación</label>
-              <select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full bg-[#070b14] border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
-              >
-                <option value="all">Todas las sedes</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[10px] text-slate-400 block mb-1 font-medium">Dispositivo</label>
-              <select
-                value={selectedDevice}
-                onChange={(e) => setSelectedDevice(e.target.value)}
-                className="w-full bg-[#070b14] border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
-              >
-                <option value="all">Todos los dispositivos</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-[10px] text-slate-400 block mb-1 font-medium">Periodo de Análisis</label>
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="w-full bg-[#070b14] border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
-              >
-                <option value="7d">Últimos 7 Días</option>
-              </select>
-            </div>
+            <FilterSelect
+              label="Sede / Ubicación"
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              options={LOCATION_OPTIONS}
+            />
+            <FilterSelect
+              label="Dispositivo"
+              value={selectedDevice}
+              onChange={(e) => setSelectedDevice(e.target.value)}
+              options={DEVICE_OPTIONS}
+            />
+            <FilterSelect
+              label="Periodo de Análisis"
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+              options={DATE_OPTIONS}
+            />
           </div>
         </div>
       </section>
 
-      {/* 3. GRID DE KPIS (SE EVITA USAR bg-slate-900 Y rounded-2xl JUNTOS PARA PREVENIR EL CSS GLOBAL COLLISION) */}
+      {/* 3. GRID DE KPIS METRICAS */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        
-        {/* KPI 1 */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad TI</span>
-            <Monitor className="w-4 h-4 text-blue-400 shrink-0" />
-          </div>
-          <div className="flex items-baseline justify-between mt-auto">
-            <span className="text-2xl font-extrabold text-white">0%</span>
-            <span className="text-xs text-slate-400 font-medium">(0/0)</span>
-          </div>
-        </div>
-
-        {/* KPI 2 */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Resolución Alertas</span>
-            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
-          </div>
-          <div className="flex items-baseline justify-between mt-auto">
-            <span className="text-2xl font-extrabold text-white">0%</span>
-            <span className="text-xs text-amber-400 font-semibold">0 activas</span>
-          </div>
-        </div>
-
-        {/* KPI 3 */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Citas Programadas</span>
-            <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
-          </div>
-          <div className="flex items-baseline justify-between mt-auto">
-            <span className="text-2xl font-extrabold text-white">0</span>
-            <span className="text-xs text-slate-400 font-medium">en cola</span>
-          </div>
-        </div>
-
-        {/* KPI 4 */}
-        <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes Registrados</span>
-            <Users className="w-4 h-4 text-emerald-400 shrink-0" />
-          </div>
-          <div className="flex items-baseline justify-between mt-auto">
-            <span className="text-2xl font-extrabold text-white">0</span>
-            <span className="text-xs text-emerald-400 font-semibold">+12% este mes</span>
-          </div>
-        </div>
-
+        <KpiCard
+          title="Disponibilidad TI"
+          value="0%"
+          subtitle="(0/0)"
+          icon={Monitor}
+          iconColor="text-blue-400"
+        />
+        <KpiCard
+          title="Resolución Alertas"
+          value="0%"
+          subtitle="0 activas"
+          subtitleColor="text-amber-400 font-semibold"
+          icon={ShieldAlert}
+          iconColor="text-amber-400"
+        />
+        <KpiCard
+          title="Citas Programadas"
+          value="0"
+          subtitle="en cola"
+          icon={Calendar}
+          iconColor="text-purple-400"
+        />
+        <KpiCard
+          title="Pacientes Registrados"
+          value="0"
+          subtitle="+12% este mes"
+          subtitleColor="text-emerald-400 font-semibold"
+          icon={Users}
+          iconColor="text-emerald-400"
+        />
       </section>
 
       {/* 4. DIRECTORIO DE USUARIOS */}
-      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 w-full">
+      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 w-full shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div>
             <h2 className="text-base font-bold text-white">Directorio de Usuarios</h2>
-            <p className="text-xs text-slate-400">{filteredUsers.length} cuentas registradas en el sistema</p>
+            <p className="text-xs text-slate-400">
+              {filteredUsers.length} {filteredUsers.length === 1 ? 'cuenta registrada' : 'cuentas registradas'} en el sistema
+            </p>
           </div>
 
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Buscar por usuario..."
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-              className="w-full bg-[#070b14] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
-            />
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-72">
+              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar por usuario o ID..."
+                value={userSearch}
+                onChange={handleSearchChange}
+                className="w-full bg-[#070b14] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+            
+            <button className="hidden sm:flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer">
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Nuevo Usuario</span>
+            </button>
           </div>
         </div>
 
         <div className="divide-y divide-slate-800 border-t border-slate-800">
-          {filteredUsers.map((user) => (
-            <div key={user.id} className="flex items-center justify-between py-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-xs shrink-0">
-                  {user.username.charAt(0).toUpperCase()}
+          {filteredUsers.length > 0 ? (
+            filteredUsers.map((user) => (
+              <div 
+                key={user.id} 
+                className="flex items-center justify-between py-3 px-1 hover:bg-slate-800/40 rounded-lg transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-xs shrink-0 select-none">
+                    {user.username.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-100">{user.username}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">ID: {user.id}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-100">{user.username}</p>
-                  <p className="text-[10px] text-slate-500">ID: {user.id}</p>
-                </div>
+
+                {user.role && (
+                  <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                    {user.role}
+                  </span>
+                )}
               </div>
+            ))
+          ) : (
+            <div className="py-8 text-center text-xs text-slate-500">
+              No se encontraron usuarios que coincidan con la búsqueda.
             </div>
-          ))}
+          )}
         </div>
       </section>
 
