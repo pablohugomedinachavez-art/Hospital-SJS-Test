@@ -4116,13 +4116,73 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 // ============================================================
 
 export function Dashboard() {
-  // ... (mantiene los mismos estados y lógica de fetch) ...
+  // --- Estados Iniciales Seguros (Previenen undefined) ---
+  const [selectedLocation, setSelectedLocation] = useState('all');
+  const [selectedDevice, setSelectedDevice] = useState('all');
+  const [dateRange, setDateRange] = useState('7d');
+  
+  const [locations, setLocations] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+  const [patients, setPatients] = useState([]);
+  
+  const [refreshing, setRefreshing] = useState(false);
+
+  // --- Función de Carga de Datos Simulada / Real ---
+  const fetchDashboardData = useCallback(async (isSilent = false) => {
+    if (isSilent) setRefreshing(true);
+    try {
+      // Sustituir por llamadas reales a tu API
+      // const res = await fetch('/api/dashboard');
+    } catch (err) {
+      console.error("Error al refrescar datos:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  // 1. Aseguramos que siempre tengamos arreglos válidos
+  const safeDevices = Array.isArray(devices) ? devices : [];
+  const safeAlerts = Array.isArray(alerts) ? alerts : [];
+  const safeAppointments = Array.isArray(appointments) ? appointments : [];
+  const safePatients = Array.isArray(patients) ? patients : [];
+  const safeLocations = Array.isArray(locations) ? locations : [];
+
+  // 2. Filtros seguros
+  const filteredDevices = safeDevices.filter(d => {
+    return selectedLocation === 'all' || String(d?.location_id) === String(selectedLocation);
+  });
+
+  const filteredAlerts = safeAlerts.filter(a => {
+    return selectedDevice === 'all' || String(a?.device_id) === String(selectedDevice);
+  });
+
+  // 3. Declaración explícita de kpiStats
+  const totalDevs = filteredDevices.length || 1;
+  const activeDevs = filteredDevices.filter(d => d?.status === 'active' || d?.status === 'available').length;
+  const activeDevPct = Number(((activeDevs / totalDevs) * 100).toFixed(1));
+
+  const totalAlertsCount = filteredAlerts.length || 1;
+  const resolvedAlertsCount = filteredAlerts.filter(a => Number(a?.is_resolved) === 1).length;
+  const alertResolutionPct = Number(((resolvedAlertsCount / totalAlertsCount) * 100).toFixed(1));
+
+  const pendingAppointments = safeAppointments.filter(a => a?.status === 'scheduled').length;
+
+  const kpiStats = {
+    activeDevPct,
+    activeDevs,
+    totalDevs,
+    alertResolutionPct,
+    unresolvedAlerts: totalAlertsCount - resolvedAlertsCount,
+    totalPatients: safePatients.length,
+    pendingAppointments
+  };
 
   return (
-    // Se fuerza min-w-0 y w-full para evitar desbordamientos horizontales por componentes vecinos
     <div className="w-full min-w-0 overflow-x-hidden bg-[#070b14] text-slate-100 p-4 lg:p-6 font-sans antialiased space-y-6">
       
-      {/* HEADER BAR - Estructura responsiva aislada */}
+      {/* HEADER BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-md">
         <div className="space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -4149,7 +4209,7 @@ export function Dashboard() {
         </button>
       </div>
 
-      {/* FILTROS - Con flex-wrap dinámico */}
+      {/* FILTROS OPERATIVOS */}
       <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
         <div className="flex flex-wrap items-end gap-4 text-xs">
           <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider pr-2 border-r border-slate-800 pb-2">
@@ -4165,8 +4225,8 @@ export function Dashboard() {
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500"
             >
               <option value="all">Todas las sedes</option>
-              {locations.map(loc => (
-                <option key={loc.id} value={loc.id}>{loc.name}</option>
+              {safeLocations.map(loc => (
+                <option key={loc?.id} value={loc?.id}>{loc?.name}</option>
               ))}
             </select>
           </div>
@@ -4180,7 +4240,9 @@ export function Dashboard() {
             >
               <option value="all">Todos los dispositivos</option>
               {filteredDevices.map(dev => (
-                <option key={dev.id} value={dev.id}>{dev.name} ({dev.ip_address || 'Sin IP'})</option>
+                <option key={dev?.id} value={dev?.id}>
+                  {dev?.name} ({dev?.ip_address || 'Sin IP'})
+                </option>
               ))}
             </select>
           </div>
@@ -4200,10 +4262,10 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* GRID DE KPIS - Corrección de Grid Layout (4 Columnas responsivas con min-h) */}
+      {/* GRID DE KPIS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         
-        {/* KPI 1 */}
+        {/* KPI 1: DISPONIBILIDAD TI */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad TI</span>
@@ -4233,7 +4295,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* KPI 2 */}
+        {/* KPI 2: RESOLUCIÓN DE ALERTAS */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Resolución Alertas</span>
@@ -4263,7 +4325,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* KPI 3 */}
+        {/* KPI 3: CITAS PROGRAMADAS */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Citas Programadas</span>
@@ -4280,7 +4342,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* KPI 4 */}
+        {/* KPI 4: PACIENTES REGISTRADOS */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes Registrados</span>
@@ -4298,12 +4360,11 @@ export function Dashboard() {
         </div>
 
       </div>
-
-      {/* Resto de secciones (Gráficos y Auditoría) */}
-      {/* ... */}
     </div>
   );
 }
+
+
 export function Users() {
   const [users, setUsers] = useState([])
   const [locations, setLocations] = useState([])
