@@ -4283,7 +4283,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
       </section>
 
       {/* 3. GRID DE KPIS Y METRICAS */}
-      <section className="flex flex-col sm:flex-row flex-wrap lg:flex-nowrap gap-4 w-full">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
         <KpiCard
           title="Disponibilidad TI"
           value="0%"
@@ -4362,11 +4362,21 @@ export function Dashboard({ usersList = MOCK_USERS }) {
                   </div>
                 </div>
 
-                {user.role && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
-                    {user.role}
-                  </span>
-                )}
+                <div className="flex items-center gap-3">
+                  {user.role && (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
+                      {user.role}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <button className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg transition-colors">
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button className="p-1.5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
             ))
           ) : (
