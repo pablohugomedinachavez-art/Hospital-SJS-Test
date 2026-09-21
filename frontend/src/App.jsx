@@ -48,7 +48,7 @@ export class ErrorBoundary extends React.Component {
 
 
 <ErrorBoundary>
-  <EnterpriseDashboard />
+  <Dashboard />
 </ErrorBoundary>
 
 // 1. ROUTE MAP DEFINED AT TOP LEVEL
