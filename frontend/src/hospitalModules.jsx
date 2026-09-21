@@ -4113,36 +4113,9 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
 
 // -----------------------------------------------------------------------------
-// TYPES & INTERFACES
-// -----------------------------------------------------------------------------
-interface User {
-  id: string;
-  username: string;
-  email?: string;
-  role?: string;
-}
-
-interface KpiCardProps {
-  title: string;
-  value: string | number;
-  subtitle: string;
-  subtitleColor?: string;
-  icon: LucideIcon;
-  iconColor: string;
-}
-
-interface FilterSelectProps {
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  options: Array<{ value: string; label: string }>;
-}
-
-
-// -----------------------------------------------------------------------------
 // SUBCOMPONENTS
 // -----------------------------------------------------------------------------
-const KpiCard: React.FC<KpiCardProps> = React.memo(({
+const KpiCard = React.memo(({
   title,
   value,
   subtitle,
@@ -4165,7 +4138,7 @@ const KpiCard: React.FC<KpiCardProps> = React.memo(({
 ));
 KpiCard.displayName = 'KpiCard';
 
-const FilterSelect: React.FC<FilterSelectProps> = React.memo(({
+const FilterSelect = React.memo(({
   label,
   value,
   onChange,
@@ -4190,11 +4163,9 @@ const FilterSelect: React.FC<FilterSelectProps> = React.memo(({
 ));
 FilterSelect.displayName = 'FilterSelect';
 
-
-// ============================================================
-// Dashboard (Con exportación profesional y limpia para PDF)
-// ============================================================
-
+// -----------------------------------------------------------------------------
+// MAIN COMPONENT
+// -----------------------------------------------------------------------------
 export function Dashboard() {
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedDevice, setSelectedDevice] = useState('all');
@@ -4202,17 +4173,15 @@ export function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [userSearch, setUserSearch] = useState('');
 
-  // Handlers memorizados
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 1000);
   }, []);
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = useCallback((e) => {
     setUserSearch(e.target.value);
   }, []);
 
-  // Filtrado optimizado de usuarios mediante memoización
   const filteredUsers = useMemo(() => {
     const query = userSearch.toLowerCase().trim();
     if (!query) return MOCK_USERS;
