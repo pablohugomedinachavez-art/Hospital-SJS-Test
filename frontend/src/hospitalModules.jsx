@@ -4197,24 +4197,44 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
-export const Dashboard = () => {
+export const DashboardGeneral = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [users] = useState([
-    { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario' },
-    { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador' },
-    { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador' },
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [users, setUsers] = useState([
+    { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario', status: 'Activo' },
+    { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador', status: 'Activo' },
+    { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador', status: 'Activo' },
   ]);
+
+  // Estado para el formulario de nuevo usuario
+  const [newUser, setNewUser] = useState({ username: '', email: '', role: 'Usuario' });
+
+  const handleAddUser = (e) => {
+    e.preventDefault();
+    if (!newUser.username) return;
+    setUsers([
+      ...users,
+      { id: Date.now(), username: newUser.username, email: newUser.email || '—', role: newUser.role, status: 'Activo' }
+    ]);
+    setNewUser({ username: '', email: '', role: 'Usuario' });
+    setIsModalOpen(false);
+  };
 
   return (
     <div className="app-layout">
       <main className="main-content">
         
-        {/* CABECERA PRINCIPAL CON ACCIÓN DE EXPORTACIÓN */}
+        {/* CABECERA PRINCIPAL CON ESTADO DE RED Y ACCIONES */}
         <header className="app-header">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Panel General de Operaciones</span>
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Sistema Operativo (Ping: 18ms)</span>
+            </div>
+            <span className="hidden md:inline text-slate-500">|</span>
+            <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
           </div>
+
           <div className="user-badge">
             <div className="avatar-circle">A</div>
             <div className="flex flex-col text-left">
@@ -4224,7 +4244,7 @@ export const Dashboard = () => {
           </div>
         </header>
 
-        {/* TÍTULO Y ACCIONES */}
+        {/* TÍTULO Y BOTONERA DE ACCIÓN GLOBAL */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-2">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
@@ -4242,12 +4262,11 @@ export const Dashboard = () => {
           
           <div className="flex items-center gap-2 self-start md:self-auto">
             <button 
-              onClick={() => alert('Exportando reporte de auditoría...')}
-              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3"
-              title="Exportar Reporte"
+              onClick={() => alert('Generando informe de cumplimiento normativo (PDF)...')}
+              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all"
             >
               <Download size={14} className="text-emerald-400" />
-              <span>Exportar</span>
+              <span>Exportar Reporte</span>
             </button>
             <button 
               onClick={() => window.location.reload()}
@@ -4305,61 +4324,64 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* GRILLA PRINCIPAL DE MÉTRICAS Y DIRECTORIO */}
+        {/* GRILLA PRINCIPAL: MÉTRICAS Y DIRECTORIO */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
           {/* Paneles de Métricas (3 Columnas) */}
           <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* Disponibilidad TI */}
-            <div className="card flex flex-col justify-between min-h-[240px]">
+            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
                 <Monitor size={16} className="text-blue-400" />
               </div>
               <div className="flex-1 flex flex-col items-center justify-center my-4">
                 <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
-                <span className="text-xs text-emerald-500 font-semibold mt-1 flex items-center gap-1">
+                <span className="text-xs text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded">
                   <CheckCircle2 size={12} /> +0.2% vs semana anterior
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
                 Estado óptimo de servidores core
               </div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
             </div>
 
             {/* Resolución Alertas */}
-            <div className="card flex flex-col justify-between min-h-[240px]">
+            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden cursor-pointer hover:border-amber-500/40 transition-all" onClick={() => alert('Desplegando detalle de las 12 alertas bajo revisión...')}>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
                 <AlertTriangle size={16} className="text-amber-400" />
               </div>
               <div className="flex-1 flex flex-col items-center justify-center my-4">
                 <span className="text-4xl font-black text-amber-400 tracking-tight">12</span>
-                <span className="text-xs text-amber-500/90 font-semibold mt-1">
+                <span className="text-xs text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded">
                   Atención prioritaria requerida
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
                 Tiempo medio de respuesta: 14m
               </div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
             </div>
 
             {/* Citas Programadas */}
-            <div className="card flex flex-col justify-between min-h-[240px]">
+            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Citas Programadas</span>
                 <Calendar size={16} className="text-indigo-400" />
               </div>
               <div className="flex-1 flex flex-col items-center justify-center my-4">
                 <span className="text-4xl font-black text-indigo-400 tracking-tight">24</span>
-                <span className="text-xs text-indigo-300 font-semibold mt-1">
-                  100% Red de salud sincronizada
+                <span className="text-xs text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded">
+                  100% Red sincronizada
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
                 Sincronizado con módulo médico
               </div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
             </div>
 
           </div>
@@ -4372,7 +4394,10 @@ export const Dashboard = () => {
                   <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
                   <p className="text-[11px] text-slate-400">{users.length} cuentas registradas.</p>
                 </div>
-                <button className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap hover:scale-105 transition-transform"
+                >
                   <Plus size={13} />
                   <span>Nuevo</span>
                 </button>
@@ -4382,24 +4407,24 @@ export const Dashboard = () => {
                 <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Buscar usuario o correo..."
+                  placeholder="Buscar usuario..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="form-control pl-9 text-xs"
                 />
               </div>
 
-              <div className="w-full overflow-x-auto">
+              <div className="w-full overflow-x-auto max-h-[220px] overflow-y-auto">
                 <table className="data-table-container text-xs">
                   <thead>
                     <tr>
                       <th className="pb-2 px-1 text-[10px]">Usuario / Rol</th>
-                      <th className="pb-2 px-1 text-[10px] whitespace-nowrap">Estado</th>
+                      <th className="pb-2 px-1 text-[10px] text-right">Estado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
                     {users
-                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
                       .map((user) => (
                         <tr key={user.id} className="hover:bg-slate-800/30">
                           <td className="py-2.5 px-1 flex items-center gap-2">
@@ -4412,7 +4437,7 @@ export const Dashboard = () => {
                             </div>
                           </td>
                           <td className="py-2.5 px-1 whitespace-nowrap text-right">
-                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" title="Activo"></span>
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
                           </td>
                         </tr>
                       ))}
@@ -4422,11 +4447,85 @@ export const Dashboard = () => {
             </div>
             
             <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
-              Directorio Multi-tenant Activo
+              Multi-tenant • ISO 27001 Secure
             </div>
           </div>
 
         </div>
+
+        {/* MODAL INTERACTIVO PARA NUEVO USUARIO */}
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-2 mb-4 text-blue-400 font-semibold text-sm">
+                <UserCheck size={18} />
+                <span>Registrar Nueva Cuenta de Auditoría</span>
+              </div>
+
+              <form onSubmit={handleAddUser} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Nombre de Usuario</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="Ej. auditor_sec"
+                    value={newUser.username}
+                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                    className="form-control text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Correo Electrónico</label>
+                  <input 
+                    type="email" 
+                    placeholder="correo@hospital.com"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    className="form-control text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Rol Asignado</label>
+                  <select 
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                    className="form-control text-xs"
+                  >
+                    <option value="Usuario">Usuario</option>
+                    <option value="Administrador">Administrador</option>
+                    <option value="Auditor TI">Auditor TI</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsModalOpen(false)}
+                    className="btn btn-secondary text-xs px-4 py-2"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary text-xs px-4 py-2"
+                  >
+                    Guardar Usuario
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );
