@@ -4206,189 +4206,206 @@ export const Dashboard = () => {
   ]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans">
-      
-      {/* 1. CABECERA PRINCIPAL (Con padding superior corregido para evitar cortes) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-5 pt-2">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
-            <span>Enterprise Analytics</span>
-            <span>•</span>
-            <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
-          </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">
-            Dashboard de Control y Auditoría TI
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
-          </p>
-        </div>
+    <div className="app-layout">
+      {/* CONTENEDOR PRINCIPAL */}
+      <main className="main-content">
         
-        <button 
-          onClick={() => window.location.reload()}
-          className="self-start md:self-auto bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors shrink-0 shadow-sm"
-        >
-          <RefreshCw size={14} className="text-blue-400" />
-          <span>Refrescar Datos</span>
-        </button>
-      </div>
-
-      {/* 2. FILTROS OPERATIVOS (Espaciado interno y separación de etiquetas corregidos) */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-5 mb-6 shadow-md">
-        <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-          <ShieldCheck size={15} className="text-blue-400" />
-          <span>Filtros Operativos:</span>
-        </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Sede / Ubicación */}
-          <div>
-            <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
-            <div className="relative">
-              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
-                <option>Todas las sedes</option>
-                <option>Sede Central</option>
-                <option>Clínica Norte</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
-            </div>
+        {/* CABECERA DE LA APLICACIÓN */}
+        <header className="app-header">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+            <span>Panel General</span>
           </div>
-
-          {/* Dispositivo */}
-          <div>
-            <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
-            <div className="relative">
-              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
-                <option>Todos los dispositivos</option>
-                <option>Estaciones de Trabajo</option>
-                <option>Servidores Core</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
-            </div>
+          <div className="user-badge">
+            <div className="avatar-circle">A</div>
+            <span>admin</span>
           </div>
+        </header>
 
-          {/* Periodo de Análisis */}
+        {/* TÍTULO Y ACCIONES DEL DASHBOARD */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-2">
           <div>
-            <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
-            <div className="relative">
-              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
-                <option>Últimos 7 Días</option>
-                <option>Últimos 30 Días</option>
-                <option>Año Actual</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+            <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
+              <span>Enterprise Analytics</span>
+              <span>•</span>
+              <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
             </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Dashboard de Control y Auditoría TI
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
+            </p>
           </div>
-        </div>
-      </div>
-
-      {/* 3. GRILLA PRINCIPAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Paneles de Métricas */}
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between min-h-[240px] shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
-              <Monitor size={16} className="text-blue-400" />
-            </div>
-            <div className="flex-1 flex flex-col items-center justify-center my-4">
-              <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
-              <span className="text-xs text-slate-400 mt-1 font-medium">Uptime general operativo</span>
-            </div>
-            <div className="text-[11px] text-slate-500 text-center border-t border-slate-800/80 pt-3">
-              Estado óptimo de servidores
-            </div>
-          </div>
-
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between min-h-[240px] shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
-              <AlertTriangle size={16} className="text-amber-400" />
-            </div>
-            <div className="flex-1 flex flex-col items-center justify-center my-4">
-              <span className="text-4xl font-black text-amber-400 tracking-tight">12</span>
-              <span className="text-xs text-slate-400 mt-1 font-medium">Alertas bajo revisión</span>
-            </div>
-            <div className="text-[11px] text-slate-500 text-center border-t border-slate-800/80 pt-3">
-              Tiempo medio de respuesta: 14m
-            </div>
-          </div>
-
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between min-h-[240px] shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Citas Programadas</span>
-              <Calendar size={16} className="text-indigo-400" />
-            </div>
-            <div className="flex-1 flex flex-col items-center justify-center my-4">
-              <span className="text-4xl font-black text-indigo-400 tracking-tight">24</span>
-              <span className="text-xs text-slate-400 mt-1 font-medium">Agendadas para hoy</span>
-            </div>
-            <div className="text-[11px] text-slate-500 text-center border-t border-slate-800/80 pt-3">
-              Sincronizado con módulo médico
-            </div>
-          </div>
-
+          <button 
+            onClick={() => window.location.reload()}
+            className="btn btn-secondary self-start md:self-auto flex items-center gap-2 shrink-0"
+          >
+            <RefreshCw size={14} className="text-blue-400" />
+            <span>Refrescar Datos</span>
+          </button>
         </div>
 
-        {/* Directorio de Usuarios (Botón e inputs ajustados) */}
-        <div className="lg:col-span-1 bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between shadow-lg">
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <div>
-                <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
-                <p className="text-[11px] text-slate-400">3 cuentas registradas.</p>
+        {/* FILTROS OPERATIVOS */}
+        <div className="stats-wrapper mb-6">
+          <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <ShieldCheck size={15} className="text-blue-400" />
+            <span>Filtros Operativos:</span>
+          </div>
+          
+          <div className="advanced-filter-grid">
+            {/* Sede / Ubicación */}
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
+              <div className="relative">
+                <select className="form-control appearance-none pr-8">
+                  <option>Todas las sedes</option>
+                  <option>Sede Central</option>
+                  <option>Clínica Norte</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
               </div>
-              <button className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors shadow-sm">
-                <Plus size={13} />
-                <span>Nuevo Usuario</span>
-              </button>
             </div>
 
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
-              <input
-                type="text"
-                placeholder="Buscar por usuario..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-              />
+            {/* Dispositivo */}
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
+              <div className="relative">
+                <select className="form-control appearance-none pr-8">
+                  <option>Todos los dispositivos</option>
+                  <option>Estaciones de Trabajo</option>
+                  <option>Servidores Core</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+              </div>
             </div>
 
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-300 min-w-[200px]">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
-                    <th className="pb-2 px-1">Usuario</th>
-                    <th className="pb-2 px-1 whitespace-nowrap">Correo Electrónico</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/50">
-                  {users
-                    .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
-                    .map((user) => (
-                      <tr key={user.id} className="hover:bg-slate-800/30">
-                        <td className="py-2.5 px-1 flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
-                            {user.username.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-slate-200 text-xs">{user.username}</div>
-                            <div className="text-[9px] text-slate-500">ID: #{user.id}</div>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-1 text-slate-400 whitespace-nowrap text-xs">{user.email}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+            {/* Periodo de Análisis */}
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
+              <div className="relative">
+                <select className="form-control appearance-none pr-8">
+                  <option>Últimos 7 Días</option>
+                  <option>Últimos 30 Días</option>
+                  <option>Año Actual</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
 
-      </div>
+        {/* GRILLA PRINCIPAL DE MÉTRICAS Y DIRECTORIO */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          
+          {/* Paneles de Métricas (Ocupa 3 columnas) */}
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Disponibilidad TI */}
+            <div className="card flex flex-col justify-between min-h-[240px]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
+                <Monitor size={16} className="text-blue-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-4">
+                <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
+                <span className="text-xs text-slate-400 mt-1 font-medium">Uptime general operativo</span>
+              </div>
+              <div className="text-[11px] text-slate-500 text-center border-t border-slate-800 pt-3">
+                Estado óptimo de servidores
+              </div>
+            </div>
+
+            {/* Resolución Alertas */}
+            <div className="card flex flex-col justify-between min-h-[240px]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
+                <AlertTriangle size={16} className="text-amber-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-4">
+                <span className="text-4xl font-black text-amber-400 tracking-tight">12</span>
+                <span className="text-xs text-slate-400 mt-1 font-medium">Alertas bajo revisión</span>
+              </div>
+              <div className="text-[11px] text-slate-500 text-center border-t border-slate-800 pt-3">
+                Tiempo medio de respuesta: 14m
+              </div>
+            </div>
+
+            {/* Citas Programadas */}
+            <div className="card flex flex-col justify-between min-h-[240px]">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Citas Programadas</span>
+                <Calendar size={16} className="text-indigo-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-4">
+                <span className="text-4xl font-black text-indigo-400 tracking-tight">24</span>
+                <span className="text-xs text-slate-400 mt-1 font-medium">Agendadas para hoy</span>
+              </div>
+              <div className="text-[11px] text-slate-500 text-center border-t border-slate-800 pt-3">
+                Sincronizado con módulo médico
+              </div>
+            </div>
+
+          </div>
+
+          {/* Directorio de Usuarios (Ocupa 1 columna) */}
+          <div className="lg:col-span-1 card flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
+                  <p className="text-[11px] text-slate-400">3 cuentas registradas.</p>
+                </div>
+                <button className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap">
+                  <Plus size={13} />
+                  <span>Nuevo Usuario</span>
+                </button>
+              </div>
+
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar por usuario..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="form-control pl-9"
+                />
+              </div>
+
+              <div className="w-full overflow-x-auto">
+                <table className="data-table-container text-xs">
+                  <thead>
+                    <tr>
+                      <th className="pb-2 px-1">Usuario</th>
+                      <th className="pb-2 px-1 whitespace-nowrap">Correo Electrónico</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {users
+                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((user) => (
+                        <tr key={user.id} className="hover:bg-slate-800/30">
+                          <td className="py-2.5 px-1 flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
+                              {user.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-slate-200 text-xs">{user.username}</div>
+                              <div className="text-[9px] text-slate-500">ID: #{user.id}</div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-1 text-slate-400 whitespace-nowrap text-xs">{user.email}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
     </div>
   );
 };
