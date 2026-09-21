@@ -4111,7 +4111,29 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   );
 }
 
+const MOCK_USERS = [
+  { id: '#5', username: 'int_test_user', email: 'test@enterprise.com', role: 'Auditor' },
+  { id: '#4', username: 'admin', email: 'admin@enterprise.com', role: 'Super Admin' },
+  { id: '#1', username: 'admin_user', email: 'user_admin@enterprise.com', role: 'Operator' }
+];
 
+const LOCATION_OPTIONS = [
+  { value: 'all', label: 'Todas las sedes' },
+  { value: 'headquarters', label: 'Sede Principal' },
+  { value: 'branch-a', label: 'Sucursal Norte' }
+];
+
+const DEVICE_OPTIONS = [
+  { value: 'all', label: 'Todos los dispositivos' },
+  { value: 'servers', label: 'Servidores' },
+  { value: 'workstations', label: 'Estaciones de Trabajo' }
+];
+
+const DATE_OPTIONS = [
+  { value: '24h', label: 'Últimas 24 Horas' },
+  { value: '7d', label: 'Últimos 7 Días' },
+  { value: '30d', label: 'Últimos 30 Días' }
+];
 // -----------------------------------------------------------------------------
 // SUBCOMPONENTS
 // -----------------------------------------------------------------------------
