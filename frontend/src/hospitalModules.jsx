@@ -3848,8 +3848,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   const listToDisplay = usersList.length > 0 ? usersList : defaultUsers;
   const filteredUsers = listToDisplay.filter(u => 
     u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.role?.toLowerCase().includes(searchTerm.toLowerCase())
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -3869,7 +3868,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       {/* HEADER */}
       <div style={{
         display: 'flex',
-        justifyContent: 'space-between',
+        justify: 'space-between',
         alignItems: 'center',
         flexWrap: 'wrap',
         gap: '1rem',
@@ -3918,8 +3917,14 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </div>
 
-      {/* MÉTRICAS KPI */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+      {/* MÉTRICAS KPI (CONTENEDOR FLEX BLOQUEADO) */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        width: '100%',
+        clear: 'both'
+      }}>
         {metrics.map((item, idx) => {
           const Icon = item.icon;
           return (
@@ -3934,7 +3939,11 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                 minHeight: '110px',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
+                justify: 'space-between',
+                /* Anulación estricta de CSS global flotante */
+                position: 'static',
+                float: 'none',
+                clear: 'both',
                 boxSizing: 'border-box'
               }}
             >
@@ -3971,9 +3980,15 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       </div>
 
       {/* ANALÍTICA Y ALERTAS */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', width: '100%' }}>
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '1.25rem',
+        width: '100%',
+        clear: 'both'
+      }}>
         {/* Especialidades */}
-        <div style={{ flex: '1 1 300px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+        <div style={{ flex: '1 1 300px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static', float: 'none' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>
               <BarChart3 size={16} /> ATENCIONES POR ESPECIALIDAD
@@ -3996,7 +4011,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
 
         {/* Alertas */}
-        <div style={{ flex: '1 1 300px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem' }}>
+        <div style={{ flex: '1 1 300px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static', float: 'none' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#f87171' }}>
               <ShieldAlert size={16} /> ALERTAS CRÍTICAS
@@ -4025,7 +4040,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       </div>
 
       {/* DIRECTORIO DE USUARIOS */}
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', position: 'static', float: 'none', clear: 'both', boxSizing: 'border-box' }}>
         <div style={{ marginBottom: '1rem' }}>
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Directorio de Usuarios</h3>
           <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>{filteredUsers.length} cuentas registradas en el sistema.</p>
@@ -4077,7 +4092,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                         fontWeight: 700,
                         color: '#ffffff'
                       }}>
-                        {u.username?.charAt(0).toUpperCase()}
+                        {u.username.charAt(0).toUpperCase()}
                       </span>
                       <div>
                         <div style={{ fontWeight: 600, color: '#f8fafc' }}>{u.username}</div>
@@ -4107,196 +4122,296 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 // ============================================================
 
 export function Dashboard() {
-  const [stats, setStats] = useState({
-    patients: 0,
-    consultations: 0,
-    appointments: 0,
-    documents: 0,
-    active_alerts: 0,
-  });
-  const [recentAlerts, setRecentAlerts] = useState([]);
-  const [recentConsultations, setRecentConsultations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [reports, setReports] = useState(null)
+  const [series, setSeries] = useState([])
+  const [metrics, setMetrics] = useState(null)
+  const [areas, setAreas] = useState([])
+  const [days, setDays] = useState(30)
+  const [loading, setLoading] = useState(true)
+  const [toast, notify, clearToast] = useToast()
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    setError(null);
-
-    const token = localStorage.getItem('token');
-    const headers = {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    };
-
+  const load = useCallback(async () => {
+    setLoading(true)
     try {
-      // 1. Obtener métricas generales e información consolidada del reporte
-      const reportsRes = await fetch('/api/reports', { headers });
-      if (!reportsRes.ok) throw new Error('Error al cargar datos del reporte');
-      const reportsData = await reportsRes.json();
+      const [reportsRes, seriesRes, metricsRes, areasRes] = await Promise.all([
+        apiFetch('/reports'),
+        apiFetch(`/reports/series?days=${days}`),
+        apiFetch('/metrics'),
+        apiFetch('/dashboard/areas'),
+      ])
+      if (!reportsRes.ok || !seriesRes.ok || !metricsRes.ok || !areasRes.ok) throw new Error('No se pudieron actualizar todos los indicadores')
+      setReports(await reportsRes.json())
+      setSeries(await seriesRes.json() || [])
+      setMetrics(await metricsRes.json())
+      setAreas(await areasRes.json() || [])
+    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
+  }, [days, notify])
 
-      // 2. Obtener alertas recientes del sistema
-      const alertsRes = await fetch('/api/alerts', { headers });
-      if (!alertsRes.ok) throw new Error('Error al cargar alertas del sistema');
-      const alertsData = await alertsRes.json();
+  useEffect(() => { load() }, [load])
 
-      setStats({
-        patients: reportsData.summary?.patients || 0,
-        consultations: reportsData.summary?.consultations || 0,
-        appointments: reportsData.summary?.appointments || 0,
-        documents: reportsData.summary?.documents || 0,
-        active_alerts: reportsData.summary?.active_alerts || 0,
+  // ============================================================
+  // FUNCIONES DE EXPORTACIÓN
+  // ============================================================
+
+  const exportJSON = () => {
+    try {
+      const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() }
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `dashboard_report_${days}d.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      notify('Exportado a JSON exitosamente', 'success')
+    } catch (e) {
+      notify('Error al exportar en JSON', 'error')
+    }
+  }
+
+  const exportCSV = () => {
+    try {
+      let csvContent = "\uFEFFDía,Pacientes,Consultas\n";
+      series.forEach(row => {
+        csvContent += `"${row.day}","${row.patients}","${row.consultations}"\n`;
+      })
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `tendencia_pacientes_${days}d.csv`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      notify('Exportado a CSV exitosamente', 'success')
+    } catch (e) {
+      notify('Error al exportar en CSV', 'error')
+    }
+  }
+
+  const exportExcel = async () => {
+    try {
+      const currentToken = localStorage.getItem('token') || '';
+
+      const res = await apiFetch('/dashboard/export/excel', {
+        headers: {
+          'Authorization': `Bearer ${currentToken}`
+        }
       });
 
-      setRecentConsultations(reportsData.recent_consultations || []);
-      setRecentAlerts(alertsData.slice(0, 5)); // Mostrar solo las 5 más recientes
-    } catch (err) {
-      console.error('[DASHBOARD FETCH ERROR]:', err);
-      setError(err.message || 'No se pudo conectar con el servidor');
-    } finally {
-      setLoading(false);
+      if (!res.ok) throw new Error('Error al generar el archivo Excel en el servidor');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard_reporte_${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      notify('Archivo Excel (XLSX) del dashboard generado correctamente', 'success');
+    } catch (e) {
+      notify(e.message || 'Error al exportar a Excel', 'error');
     }
   };
 
-  if (loading) {
-    return (
-      <div className="page-shell flex items-center justify-center p-8">
-        <LoadingState label="Cargando panel de control..." />
-      </div>
-    );
-  }
+  const exportPDF = () => {
+    try {
+      const styleId = 'pdf-print-styles';
+      let styleElement = document.getElementById(styleId);
+
+      if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+      }
+
+      styleElement.innerHTML = `
+        @media (max-width: 640px) {
+          .dashboard-wrapper {
+            padding: 0.5rem !important;
+          }
+          .printable-container {
+            padding: 1rem !important;
+            border-radius: 16px !important;
+            gap: 1.25rem !important;
+          }
+          .dashboard-title {
+            font-size: 1.35rem !important;
+          }
+          .kpi-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 0.5rem !important;
+          }
+          .charts-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .actions-bar {
+            width: 100% !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+          }
+          .export-buttons-group {
+            width: 100% !important;
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 0.35rem !important;
+          }
+          .export-buttons-group button {
+            width: 100% !important;
+            padding: 0.5rem 0.2rem !important;
+            font-size: 0.75rem !important;
+            text-align: center !important;
+          }
+        }
+
+        @media print {
+          body * { visibility: hidden; }
+          #printable-dashboard, #printable-dashboard * { visibility: visible; }
+          #printable-dashboard {
+            position: absolute; left: 0; top: 0;
+            width: 100% !important;
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            padding: 1rem !important;
+          }
+          .no-print { display: none !important; }
+          .print-card {
+            background-color: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            margin-bottom: 1.5rem !important;
+            box-shadow: none !important;
+          }
+        }
+      `;
+
+      window.print();
+      notify('Reporte PDF listo para guardar o imprimir', 'success');
+    } catch (e) {
+      notify('Error al preparar el reporte PDF', 'error');
+    }
+  };
 
   return (
-    <div className="page-shell main-content">
-      {/* Encabezado Principal */}
-      <div className="card-header-row mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-100">Panel de Control General</h1>
-          <p className="text-sm text-slate-400">
-            Resumen estadístico del estado del sistema e historial asistencial.
-          </p>
-        </div>
-        <button className="button secondary" onClick={fetchDashboardData}>
-          Actualizar Datos
-        </button>
-      </div>
+    <div className="dashboard-wrapper p-3 sm:p-6 lg:p-10" style={{ backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div id="printable-dashboard" className="printable-container p-4 sm:p-6 lg:p-8" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-      {error && (
-        <div className="p-4 mb-4 text-sm text-red-400 bg-red-950/40 border border-red-800/50 rounded-xl">
-          {error}
-        </div>
-      )}
-
-      {/* Grilla de Tarjetas Estadísticas KPI (Reutilizando StatCard) */}
-      <div className="stats-grid">
-        <StatCard
-          icon={<StatIcons.Patients />}
-          label="Pacientes Registrados"
-          value={stats.patients}
-          hint="Total en base de datos"
-          tone="primary"
-        />
-        <StatCard
-          icon={<StatIcons.Consultations />}
-          label="Consultas Médicas"
-          value={stats.consultations}
-          hint="Atenciones registradas"
-          tone="success"
-        />
-        <StatCard
-          icon={<StatIcons.Time />}
-          label="Citas Pendientes"
-          value={stats.appointments}
-          hint="Programadas en agenda"
-          tone="primary"
-        />
-        <StatCard
-          icon={<StatIcons.Users />}
-          label="Alertas Activas"
-          value={stats.active_alerts}
-          hint="Atención requerida"
-          tone={stats.active_alerts > 0 ? 'warning' : 'success'}
-        />
-      </div>
-
-      {/* Contenido en 2 Columnas: Consultas Recientes vs Alertas del Sistema */}
-      <div className="grid-2">
-        {/* Tabla / Lista de Consultas Recientes */}
-        <div className="section-card flex flex-col gap-4">
-          <div className="card-header-row">
-            <h2 className="text-lg font-semibold text-slate-100">Consultas Recientes</h2>
-            <span className="collection-count">{recentConsultations.length} Recientes</span>
+        {/* CABECERA Y FILTROS */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div style={{ maxWidth: '100%' }}>
+            <h1 className="dashboard-title text-xl sm:text-2xl font-bold" style={{ color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>Dashboard Gerencial</h1>
+            <p style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>Visión rápida del desempeño clínico y operativo en tiempo real.</p>
           </div>
 
-          {recentConsultations.length === 0 ? (
-            <p className="text-sm text-slate-500 py-4">No se registran consultas médicas recientes.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="data-table-container">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Motivo</th>
-                    <th>Diagnóstico</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentConsultations.map((c) => (
-                    <tr key={c.id}>
-                      <td className="text-xs text-slate-400">
-                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="font-medium text-slate-200">{c.reason || 'Consulta General'}</td>
-                      <td>
-                        <span className="badge medium">{c.diagnosis || 'Sin Diagnóstico'}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="no-print actions-bar" style={{ display: 'flex', alignItems: 'stretch', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: '1 1 100%' }}>
+              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Día(s)</label>
+              <select
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, outline: 'none', cursor: 'pointer', width: '100%' }}
+                value={days}
+                onChange={e => setDays(Number(e.target.value))}
+              >
+                <option value={7}>Últimos 7 días</option>
+                <option value={14}>Últimos 14 días</option>
+                <option value={30}>Últimos 30 días</option>
+              </select>
             </div>
-          )}
+
+            {/* BOTONES DE EXPORTACIÓN */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exportar</label>
+              <div className="export-buttons-group" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', width: '100%' }}>
+                <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }} onClick={exportCSV}>CSV</button>
+                <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }} onClick={exportExcel}>Excel</button>
+                <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }} onClick={exportPDF}>PDF</button>
+                <button title="Exportar a JSON" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '10px', padding: '0.5rem 0.25rem', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }} onClick={exportJSON}>JSON</button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+              <button
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%' }}
+                onClick={load}
+                disabled={loading}
+              >
+                <span className={cx(loading && "animate-spin")}>↻</span> Actualizar
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Panel de Alertas y Monitoreo */}
-        <div className="section-card flex flex-col gap-4">
-          <div className="card-header-row">
-            <h2 className="text-lg font-semibold text-slate-100">Alertas de Dispositivos</h2>
-            <span className="collection-count">{recentAlerts.length} Recientes</span>
-          </div>
+        <Toast toast={toast} onClose={clearToast} />
 
-          {recentAlerts.length === 0 ? (
-            <p className="text-sm text-slate-500 py-4">No hay alertas activas registradas en el sistema.</p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {recentAlerts.map((alert) => (
-                <div key={alert.id} className="item-card">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="text-xs font-semibold uppercase text-slate-400">
-                        {alert.device_name || `Dispositivo #${alert.device_id}`}
-                      </span>
-                      <p className="text-sm font-medium text-slate-200 mt-1">{alert.message}</p>
-                    </div>
-                    <span className={`badge ${alert.severity === 'high' ? 'high' : alert.severity === 'warning' ? 'medium' : 'low'}`}>
-                      {alert.severity || 'info'}
-                    </span>
-                  </div>
-                  <div className="text-xs text-slate-500 mt-2">
-                    {alert.created_at ? new Date(alert.created_at).toLocaleString() : ''}
-                  </div>
+        {loading ? (
+          <div style={{ padding: '4rem 0', textAlign: 'center' }}><LoadingState label="Actualizando indicadores del sistema…" /></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
+
+            {/* GRILLA DE KPI */}
+            <div className="print-card kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', width: '100%' }}>
+              <StatCard icon={<StatIcons.Patients />} label="Pacientes" value={reports?.summary?.patients ?? 0} hint="Total registrado" tone="primary" />
+              <StatCard icon={<StatIcons.Consultations />} label="Consultas" value={reports?.summary?.consultations ?? 0} hint={`Últimos ${days} días`} tone="success" />
+              <StatCard icon={<StatIcons.Users />} label="Usuarios activos" value={metrics?.active_users ?? 0} hint="Sesiones recientes" tone="primary" />
+              <StatCard icon={<StatIcons.Time />} label="Sesión promedio" value={`${Math.round(metrics?.avg_session_seconds || 0)}s`} hint="Duración media" tone="warning" />
+              <StatCard icon={<StatIcons.Time />} label="Próxima sesión" value="0s" hint="Predicción" tone="primary" />
+            </div>
+
+            {/* GRILLA INFERIOR DE GRÁFICOS */}
+            <div className="charts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', width: '100%', paddingTop: '0.5rem' }}>
+
+              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Tendencia de pacientes / consultas</h3>
+                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Evolución diaria de atención</p>
                 </div>
-              ))}
+                <div style={{ paddingTop: '0.5rem' }}>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <LineChart data={series}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
+                      <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={3} dot={false} name="Pacientes" />
+                      <Line type="monotone" dataKey="consultations" stroke="#10b981" strokeWidth={3} dot={false} name="Consultas" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Dispositivos y alertas por área</h3>
+                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Distribución operativa del sistema</p>
+                </div>
+                <div style={{ paddingTop: '0.5rem' }}>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={areas} margin={{ left: 0, right: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={56} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
+                      <Bar dataKey="device_count" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Dispositivos" />
+                      <Bar dataKey="active_alerts" fill="#ef4444" radius={[6, 6, 0, 0]} name="Alertas activas" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
             </div>
-          )}
-        </div>
+
+          </div>
+        )}
+
       </div>
+
     </div>
-  );
+  )
 }
 
 export function Users() {
