@@ -1938,26 +1938,29 @@ export function Consultations() {
             </div>
 
             {/* BOTONES DE ACCIÓN */}
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-slate-800">
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
-                className="px-5 py-2.5 rounded-lg border border-slate-800 text-slate-300 bg-slate-900 hover:bg-slate-800 text-sm font-medium transition-all cursor-pointer"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg px-5 py-2.5 text-sm font-semibold transition-all disabled:opacity-50"
+                onClick={() => {
+                  setShowForm(false);
+                  setForm(INITIAL_CONSULTATION);
+                }}
+                disabled={submitting}
               >
                 Cancelar
               </button>
               <button
                 type="submit"
+                className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-6 py-2.5 text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50"
                 disabled={submitting}
-                className="px-6 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold flex items-center gap-2 shadow-lg shadow-blue-600/20 transition-all cursor-pointer disabled:opacity-50"
               >
-                <Save size={16} /> {submitting ? 'Guardando...' : 'Guardar Consulta'}
+                <Save size={16} />
+                {submitting ? 'Guardando...' : 'Guardar Consulta'}
               </button>
             </div>
-
           </form>
         )}
-
       </div>
     </div>
   );
