@@ -1,10 +1,10 @@
 import { apiFetch } from './api.js'; // Asegúrate de que la ruta coincida con la ubicación de tu archivo api.js
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {ar,BarChart,UserPlus,CartesianGrid,Line,LineChart,ResponsiveContainer,Tooltip,XAxis,YAxis, AreaChart, Area,PieChart, Pie, Cell
+import {ar,BarChart,CartesianGrid,Line,LineChart,ResponsiveContainer,Tooltip,XAxis,YAxis, AreaChart, Area,PieChart, Pie, Cell
 } from 'recharts';
 import { useAuth } from './AuthContext';
-import {User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck,FileX, FileSearch, FileEdit,X, Save, Eye, ExternalLink, Download, Award,Search, Filter,Scale, Ruler, HeartPulse, Pill,AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop,Smartphone, Wifi,Layers, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown,  BarChart3, HardDrive,RefreshCw, Building2,Sliders,  ArrowUpRight, ArrowDownRight, 
+import {User, Mail, UserPlus,Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck,FileX, FileSearch, FileEdit,X, Save, Eye, ExternalLink, Download, Award,Search, Filter,Scale, Ruler, HeartPulse, Pill,AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop,Smartphone, Wifi,Layers, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown,  BarChart3, HardDrive,RefreshCw, Building2,Sliders,  ArrowUpRight, ArrowDownRight, 
 } from 'lucide-react';
 
 
