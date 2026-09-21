@@ -4179,189 +4179,189 @@ export function Dashboard() {
     pendingAppointments
   };
 
-  return (
-    <div className="w-full min-w-0 overflow-x-hidden bg-[#070b14] text-slate-100 p-4 lg:p-6 font-sans antialiased space-y-6">
-      
-      {/* HEADER BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-md">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
-              Enterprise Analytics
-            </span>
-            <span className="text-xs text-slate-500">• ISO 27001 & HIPAA Compliant</span>
-          </div>
-          <h1 className="text-xl lg:text-2xl font-extrabold text-white tracking-tight">
-            Dashboard de Control y Auditoría TI
-          </h1>
-          <p className="text-xs text-slate-400">
-            Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
-          </p>
+return (
+  <div className="w-full max-w-full overflow-x-hidden bg-[#070b14] text-slate-100 p-3 sm:p-4 lg:p-6 font-sans antialiased space-y-6">
+    
+    {/* HEADER BAR */}
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xl backdrop-blur-md w-full max-w-full overflow-hidden">
+      <div className="space-y-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
+            Enterprise Analytics
+          </span>
+          <span className="text-xs text-slate-500 hidden sm:inline">• ISO 27001 & HIPAA Compliant</span>
         </div>
-
-        <button
-          onClick={() => fetchDashboardData(true)}
-          disabled={refreshing}
-          className="self-start sm:self-auto flex items-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-all shrink-0"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
-          {refreshing ? 'Actualizando...' : 'Refrescar Datos'}
-        </button>
+        <h1 className="text-lg sm:text-xl lg:text-2xl font-extrabold text-white tracking-tight truncate">
+          Dashboard de Control y Auditoría TI
+        </h1>
+        <p className="text-xs text-slate-400 break-words">
+          Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
+        </p>
       </div>
 
-      {/* FILTROS OPERATIVOS */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
-        <div className="flex flex-wrap items-end gap-4 text-xs">
-          <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider pr-2 border-r border-slate-800 pb-2">
-            <Filter className="w-4 h-4 text-blue-400" />
-            <span>Filtros Operativos:</span>
-          </div>
+      <button
+        onClick={() => fetchDashboardData(true)}
+        disabled={refreshing}
+        className="self-start sm:self-auto flex items-center justify-center gap-2 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-all shrink-0 w-full sm:w-auto"
+      >
+        <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
+        <span>{refreshing ? 'Actualizando...' : 'Refrescar Datos'}</span>
+      </button>
+    </div>
 
-          <div className="flex-1 min-w-[150px] space-y-1">
-            <label className="text-[10px] text-slate-400 font-medium block">Sede / Ubicación</label>
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">Todas las sedes</option>
-              {safeLocations.map(loc => (
-                <option key={loc?.id} value={loc?.id}>{loc?.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-1 min-w-[180px] space-y-1">
-            <label className="text-[10px] text-slate-400 font-medium block">Dispositivo</label>
-            <select
-              value={selectedDevice}
-              onChange={(e) => setSelectedDevice(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500"
-            >
-              <option value="all">Todos los dispositivos</option>
-              {filteredDevices.map(dev => (
-                <option key={dev?.id} value={dev?.id}>
-                  {dev?.name} ({dev?.ip_address || 'Sin IP'})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-1 min-w-[130px] space-y-1">
-            <label className="text-[10px] text-slate-400 font-medium block">Periodo de Análisis</label>
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500"
-            >
-              <option value="24h">Últimas 24 Horas</option>
-              <option value="7d">Últimos 7 Días</option>
-              <option value="30d">Últimos 30 Días</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* GRID DE KPIS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        
-        {/* KPI 1: DISPONIBILIDAD TI */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad TI</span>
-            <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
-              <Monitor className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">{kpiStats.activeDevPct}%</span>
-              <span className="text-xs text-slate-400">({kpiStats.activeDevs}/{kpiStats.totalDevs})</span>
-            </div>
-            <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>Meta: {KPI_TARGETS.activeDevicesPct}%</span>
-                <span className={kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
-                  {kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'Cumplido' : 'Por debajo'}
-                </span>
-              </div>
-              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                  style={{ width: `${Math.min(kpiStats.activeDevPct, 100)}%` }}
-                />
-              </div>
-            </div>
-          </div>
+    {/* FILTROS OPERATIVOS */}
+    <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-lg backdrop-blur-sm w-full max-w-full">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-4 text-xs">
+        <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider pr-2 sm:border-r border-slate-800 pb-2 sm:pb-0">
+          <Filter className="w-4 h-4 text-blue-400 shrink-0" />
+          <span>Filtros Operativos:</span>
         </div>
 
-        {/* KPI 2: RESOLUCIÓN DE ALERTAS */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Resolución Alertas</span>
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">{kpiStats.alertResolutionPct}%</span>
-              <span className="text-xs text-amber-400 font-semibold">{kpiStats.unresolvedAlerts} activas</span>
-            </div>
-            <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>Meta SLA: {KPI_TARGETS.alertResolutionPct}%</span>
-                <span className={kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
-                  {kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'SLA OK' : 'Atención Req.'}
-                </span>
-              </div>
-              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                  style={{ width: `${Math.min(kpiStats.alertResolutionPct, 100)}%` }}
-                />
-              </div>
-            </div>
-          </div>
+        <div className="flex-1 min-w-[200px] space-y-1">
+          <label className="text-[10px] text-slate-400 font-medium block">Sede / Ubicación</label>
+          <select
+            value={selectedLocation}
+            onChange={(e) => setSelectedLocation(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500 truncate"
+          >
+            <option value="all">Todas las sedes</option>
+            {safeLocations.map(loc => (
+              <option key={loc?.id} value={loc?.id}>{loc?.name}</option>
+            ))}
+          </select>
         </div>
 
-        {/* KPI 3: CITAS PROGRAMADAS */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Citas Programadas</span>
-            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-              <Calendar className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">{kpiStats.pendingAppointments}</span>
-              <span className="text-xs text-slate-400">en cola</span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-2">Gestión en tiempo real del módulo de atenciones.</p>
-          </div>
+        <div className="flex-1 min-w-[200px] space-y-1">
+          <label className="text-[10px] text-slate-400 font-medium block">Dispositivo</label>
+          <select
+            value={selectedDevice}
+            onChange={(e) => setSelectedDevice(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500 truncate"
+          >
+            <option value="all">Todos los dispositivos</option>
+            {filteredDevices.map(dev => (
+              <option key={dev?.id} value={dev?.id}>
+                {dev?.name} ({dev?.ip_address || 'Sin IP'})
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* KPI 4: PACIENTES REGISTRADOS */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes Registrados</span>
-            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-              <Users className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">{kpiStats.totalPatients}</span>
-              <span className="text-xs text-emerald-400 font-semibold">+12% este mes</span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-2">Base de datos de historias clínicas e identificaciones.</p>
-          </div>
+        <div className="flex-1 min-w-[150px] space-y-1">
+          <label className="text-[10px] text-slate-400 font-medium block">Periodo de Análisis</label>
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500 truncate"
+          >
+            <option value="24h">Últimas 24 Horas</option>
+            <option value="7d">Últimos 7 Días</option>
+            <option value="30d">Últimos 30 Días</option>
+          </select>
         </div>
-
       </div>
     </div>
-  );
+
+    {/* GRID DE KPIS */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+      
+      {/* KPI 1: DISPONIBILIDAD TI */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px] w-full min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Disponibilidad TI</span>
+          <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 shrink-0">
+            <Monitor className="w-4 h-4" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-2xl font-extrabold text-white">{kpiStats.activeDevPct}%</span>
+            <span className="text-xs text-slate-400">({kpiStats.activeDevs}/{kpiStats.totalDevs})</span>
+          </div>
+          <div className="mt-2 space-y-1">
+            <div className="flex justify-between text-[10px] text-slate-400">
+              <span>Meta: {KPI_TARGETS.activeDevicesPct}%</span>
+              <span className={kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
+                {kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'Cumplido' : 'Por debajo'}
+              </span>
+            </div>
+            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                style={{ width: `${Math.min(kpiStats.activeDevPct, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI 2: RESOLUCIÓN DE ALERTAS */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px] w-full min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Resolución Alertas</span>
+          <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0">
+            <ShieldAlert className="w-4 h-4" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-2xl font-extrabold text-white">{kpiStats.alertResolutionPct}%</span>
+            <span className="text-xs text-amber-400 font-semibold">{kpiStats.unresolvedAlerts} activas</span>
+          </div>
+          <div className="mt-2 space-y-1">
+            <div className="flex justify-between text-[10px] text-slate-400">
+              <span>Meta SLA: {KPI_TARGETS.alertResolutionPct}%</span>
+              <span className={kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
+                {kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'SLA OK' : 'Atención Req.'}
+              </span>
+            </div>
+            <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                style={{ width: `${Math.min(kpiStats.alertResolutionPct, 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI 3: CITAS PROGRAMADAS */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px] w-full min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Citas Programadas</span>
+          <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">
+            <Calendar className="w-4 h-4" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-2xl font-extrabold text-white">{kpiStats.pendingAppointments}</span>
+            <span className="text-xs text-slate-400">en cola</span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-2">Gestión en tiempo real del módulo de atenciones.</p>
+        </div>
+      </div>
+
+      {/* KPI 4: PACIENTES REGISTRADOS */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px] w-full min-w-0">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">Pacientes Registrados</span>
+          <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0">
+            <Users className="w-4 h-4" />
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-2xl font-extrabold text-white">{kpiStats.totalPatients}</span>
+            <span className="text-xs text-emerald-400 font-semibold">+12% este mes</span>
+          </div>
+          <p className="text-[10px] text-slate-400 mt-2">Base de datos de historias clínicas e identificaciones.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+);
 }
 
 
