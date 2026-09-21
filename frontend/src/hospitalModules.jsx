@@ -4111,6 +4111,86 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   );
 }
 
+
+// -----------------------------------------------------------------------------
+// TYPES & INTERFACES
+// -----------------------------------------------------------------------------
+interface User {
+  id: string;
+  username: string;
+  email?: string;
+  role?: string;
+}
+
+interface KpiCardProps {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  subtitleColor?: string;
+  icon: LucideIcon;
+  iconColor: string;
+}
+
+interface FilterSelectProps {
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  options: Array<{ value: string; label: string }>;
+}
+
+
+// -----------------------------------------------------------------------------
+// SUBCOMPONENTS
+// -----------------------------------------------------------------------------
+const KpiCard: React.FC<KpiCardProps> = React.memo(({
+  title,
+  value,
+  subtitle,
+  subtitleColor = 'text-slate-400',
+  icon: Icon,
+  iconColor
+}) => (
+  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32 transition-all hover:border-slate-700">
+    <div className="flex items-center justify-between">
+      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider select-none">
+        {title}
+      </span>
+      <Icon className={`w-4 h-4 ${iconColor} shrink-0`} />
+    </div>
+    <div className="flex items-baseline justify-between mt-auto">
+      <span className="text-2xl font-extrabold text-white font-mono">{value}</span>
+      <span className={`text-xs font-medium ${subtitleColor}`}>{subtitle}</span>
+    </div>
+  </div>
+));
+KpiCard.displayName = 'KpiCard';
+
+const FilterSelect: React.FC<FilterSelectProps> = React.memo(({
+  label,
+  value,
+  onChange,
+  options
+}) => (
+  <div>
+    <label className="text-[10px] text-slate-400 block mb-1 font-medium select-none">
+      {label}
+    </label>
+    <select
+      value={value}
+      onChange={onChange}
+      className="w-full bg-[#070b14] border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  </div>
+));
+FilterSelect.displayName = 'FilterSelect';
+
+
 // ============================================================
 // Dashboard (Con exportación profesional y limpia para PDF)
 // ============================================================
