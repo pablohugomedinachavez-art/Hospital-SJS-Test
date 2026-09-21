@@ -4206,90 +4206,89 @@ export const Dashboard = () => {
   ]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-6 font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-6 font-sans">
       
-      {/* 1. CABECERA PRINCIPAL */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-4">
+      {/* 1. CABECERA PRINCIPAL (Con padding superior corregido para evitar cortes) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b border-slate-800 pb-5 pt-2">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
             <span>Enterprise Analytics</span>
             <span>•</span>
             <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
           </div>
-          <h1 className="text-xl md:text-2xl font-black text-white tracking-tight">
+          <h1 className="text-2xl font-black text-white tracking-tight">
             Dashboard de Control y Auditoría TI
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-400 mt-1">
             Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
           </p>
         </div>
         
         <button 
           onClick={() => window.location.reload()}
-          className="self-start md:self-auto bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-2 transition-colors shrink-0"
+          className="self-start md:self-auto bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-2 transition-colors shrink-0 shadow-sm"
         >
           <RefreshCw size={14} className="text-blue-400" />
           <span>Refrescar Datos</span>
         </button>
       </div>
 
-      {/* 2. FILTROS OPERATIVOS */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4 mb-6">
-        <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-          <ShieldCheck size={14} className="text-blue-400" />
+      {/* 2. FILTROS OPERATIVOS (Espaciado interno y separación de etiquetas corregidos) */}
+      <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-5 mb-6 shadow-md">
+        <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <ShieldCheck size={15} className="text-blue-400" />
           <span>Filtros Operativos:</span>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Sede / Ubicación */}
-          <div className="relative">
-            <label className="block text-[10px] text-slate-400 uppercase mb-1 font-semibold">Sede / Ubicación</label>
+          <div>
+            <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
             <div className="relative">
-              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
+              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
                 <option>Todas las sedes</option>
                 <option>Sede Central</option>
                 <option>Clínica Norte</option>
               </select>
-              <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
+              <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
             </div>
           </div>
 
           {/* Dispositivo */}
-          <div className="relative">
-            <label className="block text-[10px] text-slate-400 uppercase mb-1 font-semibold">Dispositivo</label>
+          <div>
+            <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
             <div className="relative">
-              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
+              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
                 <option>Todos los dispositivos</option>
                 <option>Estaciones de Trabajo</option>
                 <option>Servidores Core</option>
               </select>
-              <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
+              <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
             </div>
           </div>
 
           {/* Periodo de Análisis */}
-          <div className="relative">
-            <label className="block text-[10px] text-slate-400 uppercase mb-1 font-semibold">Periodo de Análisis</label>
+          <div>
+            <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
             <div className="relative">
-              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
+              <select className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-xs text-slate-200 appearance-none focus:outline-none focus:border-blue-500">
                 <option>Últimos 7 Días</option>
                 <option>Últimos 30 Días</option>
                 <option>Año Actual</option>
               </select>
-              <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
+              <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. GRILLA PRINCIPAL: TARJETAS DE MONITOREO + DIRECTORIO */}
+      {/* 3. GRILLA PRINCIPAL */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         
-        {/* Columna Izquierda/Central: Paneles de Métricas (Ocupa 3 columnas en LG) */}
+        {/* Paneles de Métricas */}
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {/* Disponibilidad TI */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between min-h-[260px] shadow-lg">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between min-h-[240px] shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
               <Monitor size={16} className="text-blue-400" />
@@ -4298,13 +4297,12 @@ export const Dashboard = () => {
               <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
               <span className="text-xs text-slate-400 mt-1 font-medium">Uptime general operativo</span>
             </div>
-            <div className="text-[10px] text-slate-500 text-center border-t border-slate-800/80 pt-2">
+            <div className="text-[11px] text-slate-500 text-center border-t border-slate-800/80 pt-3">
               Estado óptimo de servidores
             </div>
           </div>
 
-          {/* Resolución Alertas */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between min-h-[260px] shadow-lg">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between min-h-[240px] shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
               <AlertTriangle size={16} className="text-amber-400" />
@@ -4313,13 +4311,12 @@ export const Dashboard = () => {
               <span className="text-4xl font-black text-amber-400 tracking-tight">12</span>
               <span className="text-xs text-slate-400 mt-1 font-medium">Alertas bajo revisión</span>
             </div>
-            <div className="text-[10px] text-slate-500 text-center border-t border-slate-800/80 pt-2">
+            <div className="text-[11px] text-slate-500 text-center border-t border-slate-800/80 pt-3">
               Tiempo medio de respuesta: 14m
             </div>
           </div>
 
-          {/* Citas Programadas */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between min-h-[260px] shadow-lg">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between min-h-[240px] shadow-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Citas Programadas</span>
               <Calendar size={16} className="text-indigo-400" />
@@ -4328,41 +4325,38 @@ export const Dashboard = () => {
               <span className="text-4xl font-black text-indigo-400 tracking-tight">24</span>
               <span className="text-xs text-slate-400 mt-1 font-medium">Agendadas para hoy</span>
             </div>
-            <div className="text-[10px] text-slate-500 text-center border-t border-slate-800/80 pt-2">
+            <div className="text-[11px] text-slate-500 text-center border-t border-slate-800/80 pt-3">
               Sincronizado con módulo médico
             </div>
           </div>
 
         </div>
 
-        {/* Columna Derecha: Directorio de Usuarios (Ocupa 1 columna en LG) */}
-        <div className="lg:col-span-1 bg-slate-900/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+        {/* Directorio de Usuarios (Botón e inputs ajustados) */}
+        <div className="lg:col-span-1 bg-slate-900/80 border border-slate-800 rounded-xl p-5 flex flex-col justify-between shadow-lg">
           <div>
-            {/* Encabezado con ajuste flex-wrap y whitespace-nowrap para evitar corte de texto en el botón */}
-            <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
+            <div className="flex items-center justify-between gap-2 mb-4">
               <div>
                 <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
                 <p className="text-[11px] text-slate-400">3 cuentas registradas.</p>
               </div>
-              <button className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors shadow-sm">
-                <Plus size={12} />
+              <button className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1 whitespace-nowrap shrink-0 transition-colors shadow-sm">
+                <Plus size={13} />
                 <span>Nuevo Usuario</span>
               </button>
             </div>
 
-            {/* Buscador */}
             <div className="relative mb-3">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
+              <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
               <input
                 type="text"
                 placeholder="Buscar por usuario..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
             </div>
 
-            {/* Tabla con contenedor scrollable horizontal */}
             <div className="w-full overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-300 min-w-[200px]">
                 <thead>
