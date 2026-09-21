@@ -4187,7 +4187,7 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
-export default function Dashboard({ usersList = MOCK_USERS }) {
+export function Dashboard({ usersList = MOCK_USERS }) {
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedDevice, setSelectedDevice] = useState('all');
   const [dateRange, setDateRange] = useState('7d');
