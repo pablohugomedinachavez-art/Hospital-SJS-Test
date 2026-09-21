@@ -4197,7 +4197,7 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
-export const Dashboard = () => {
+export const DashboardGeneral = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [users, setUsers] = useState([
@@ -4206,7 +4206,6 @@ export const Dashboard = () => {
     { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador', status: 'Activo' },
   ]);
 
-  // Estado para el formulario de nuevo usuario
   const [newUser, setNewUser] = useState({ username: '', email: '', role: 'Usuario' });
 
   const handleAddUser = (e) => {
@@ -4224,14 +4223,14 @@ export const Dashboard = () => {
     <div className="app-layout">
       <main className="main-content">
         
-        {/* CABECERA PRINCIPAL CON ESTADO DE RED Y ACCIONES */}
+        {/* CABECERA SUPERIOR CON ESTADO EN VIVO */}
         <header className="app-header">
           <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
             <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Sistema Operativo (Ping: 18ms)</span>
             </div>
-            <span className="hidden md:inline text-slate-500">|</span>
+            <span className="hidden md:inline text-slate-600">|</span>
             <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
           </div>
 
@@ -4263,14 +4262,14 @@ export const Dashboard = () => {
           <div className="flex items-center gap-2 self-start md:self-auto">
             <button 
               onClick={() => alert('Generando informe de cumplimiento normativo (PDF)...')}
-              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all"
+              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer"
             >
               <Download size={14} className="text-emerald-400" />
               <span>Exportar Reporte</span>
             </button>
             <button 
               onClick={() => window.location.reload()}
-              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3"
+              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 cursor-pointer"
             >
               <RefreshCw size={14} className="text-blue-400" />
               <span>Refrescar</span>
@@ -4289,7 +4288,7 @@ export const Dashboard = () => {
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
               <div className="relative">
-                <select className="form-control appearance-none pr-8">
+                <select className="form-control appearance-none pr-8 cursor-pointer">
                   <option>Todas las sedes</option>
                   <option>Sede Central</option>
                   <option>Clínica Norte</option>
@@ -4301,7 +4300,7 @@ export const Dashboard = () => {
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
               <div className="relative">
-                <select className="form-control appearance-none pr-8">
+                <select className="form-control appearance-none pr-8 cursor-pointer">
                   <option>Todos los dispositivos</option>
                   <option>Estaciones de Trabajo</option>
                   <option>Servidores Core</option>
@@ -4313,7 +4312,7 @@ export const Dashboard = () => {
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
               <div className="relative">
-                <select className="form-control appearance-none pr-8">
+                <select className="form-control appearance-none pr-8 cursor-pointer">
                   <option>Últimos 7 Días</option>
                   <option>Últimos 30 Días</option>
                   <option>Año Actual</option>
@@ -4331,7 +4330,7 @@ export const Dashboard = () => {
           <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* Disponibilidad TI */}
-            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden">
+            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden group hover:border-slate-700 transition-all">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
                 <Monitor size={16} className="text-blue-400" />
@@ -4349,14 +4348,17 @@ export const Dashboard = () => {
             </div>
 
             {/* Resolución Alertas */}
-            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden cursor-pointer hover:border-amber-500/40 transition-all" onClick={() => alert('Desplegando detalle de las 12 alertas bajo revisión...')}>
+            <div 
+              className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden cursor-pointer group hover:border-amber-500/50 transition-all" 
+              onClick={() => alert('Desplegando detalle analítico de las 12 alertas bajo revisión...')}
+            >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
                 <AlertTriangle size={16} className="text-amber-400" />
               </div>
               <div className="flex-1 flex flex-col items-center justify-center my-4">
                 <span className="text-4xl font-black text-amber-400 tracking-tight">12</span>
-                <span className="text-xs text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded">
+                <span className="text-xs text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded group-hover:bg-amber-500/20 transition-colors">
                   Atención prioritaria requerida
                 </span>
               </div>
@@ -4367,7 +4369,7 @@ export const Dashboard = () => {
             </div>
 
             {/* Citas Programadas */}
-            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden">
+            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden group hover:border-slate-700 transition-all">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Citas Programadas</span>
                 <Calendar size={16} className="text-indigo-400" />
@@ -4396,7 +4398,7 @@ export const Dashboard = () => {
                 </div>
                 <button 
                   onClick={() => setIsModalOpen(true)}
-                  className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap hover:scale-105 transition-transform"
+                  className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap hover:scale-105 transition-transform cursor-pointer"
                 >
                   <Plus size={13} />
                   <span>Nuevo</span>
@@ -4414,8 +4416,8 @@ export const Dashboard = () => {
                 />
               </div>
 
-              <div className="w-full overflow-x-auto max-h-[220px] overflow-y-auto">
-                <table className="data-table-container text-xs">
+              <div className="w-full overflow-x-auto max-h-[220px] overflow-y-auto pr-1">
+                <table className="data-table-container text-xs w-full">
                   <thead>
                     <tr>
                       <th className="pb-2 px-1 text-[10px]">Usuario / Rol</th>
@@ -4426,7 +4428,7 @@ export const Dashboard = () => {
                     {users
                       .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
                       .map((user) => (
-                        <tr key={user.id} className="hover:bg-slate-800/30">
+                        <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
                           <td className="py-2.5 px-1 flex items-center gap-2">
                             <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
                               {user.username.charAt(0).toUpperCase()}
@@ -4459,7 +4461,7 @@ export const Dashboard = () => {
             <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white"
+                className="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -4498,7 +4500,7 @@ export const Dashboard = () => {
                   <select 
                     value={newUser.role}
                     onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    className="form-control text-xs"
+                    className="form-control text-xs cursor-pointer"
                   >
                     <option value="Usuario">Usuario</option>
                     <option value="Administrador">Administrador</option>
@@ -4510,13 +4512,13 @@ export const Dashboard = () => {
                   <button 
                     type="button" 
                     onClick={() => setIsModalOpen(false)}
-                    className="btn btn-secondary text-xs px-4 py-2"
+                    className="btn btn-secondary text-xs px-4 py-2 cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button 
                     type="submit" 
-                    className="btn btn-primary text-xs px-4 py-2"
+                    className="btn btn-primary text-xs px-4 py-2 cursor-pointer"
                   >
                     Guardar Usuario
                   </button>
