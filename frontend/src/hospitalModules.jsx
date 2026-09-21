@@ -4200,28 +4200,31 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 export const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [users] = useState([
-    { id: 5, username: 'int_test_user', email: '—', role: 'Usuario' },
-    { id: 4, username: 'admin', email: '—', role: 'Administrador' },
-    { id: 2, username: 'admin_user', email: '—', role: 'Administrador' },
+    { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario' },
+    { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador' },
+    { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador' },
   ]);
 
   return (
     <div className="app-layout">
-      {/* CONTENEDOR PRINCIPAL */}
       <main className="main-content">
         
-        {/* CABECERA DE LA APLICACIÓN */}
+        {/* CABECERA PRINCIPAL CON ACCIÓN DE EXPORTACIÓN */}
         <header className="app-header">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-            <span>Panel General</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Panel General de Operaciones</span>
           </div>
           <div className="user-badge">
             <div className="avatar-circle">A</div>
-            <span>admin</span>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold leading-none text-white">admin</span>
+              <span className="text-[10px] text-slate-400">Auditor TI Senior</span>
+            </div>
           </div>
         </header>
 
-        {/* TÍTULO Y ACCIONES DEL DASHBOARD */}
+        {/* TÍTULO Y ACCIONES */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-2">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
@@ -4233,28 +4236,37 @@ export const Dashboard = () => {
               Dashboard de Control y Auditoría TI
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
+              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros de seguridad.
             </p>
           </div>
           
-          <button 
-            onClick={() => window.location.reload()}
-            className="btn btn-secondary self-start md:self-auto flex items-center gap-2 shrink-0"
-          >
-            <RefreshCw size={14} className="text-blue-400" />
-            <span>Refrescar Datos</span>
-          </button>
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button 
+              onClick={() => alert('Exportando reporte de auditoría...')}
+              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3"
+              title="Exportar Reporte"
+            >
+              <Download size={14} className="text-emerald-400" />
+              <span>Exportar</span>
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3"
+            >
+              <RefreshCw size={14} className="text-blue-400" />
+              <span>Refrescar</span>
+            </button>
+          </div>
         </div>
 
         {/* FILTROS OPERATIVOS */}
         <div className="stats-wrapper mb-6">
           <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
             <ShieldCheck size={15} className="text-blue-400" />
-            <span>Filtros Operativos:</span>
+            <span>Filtros Operativos Activos:</span>
           </div>
           
           <div className="advanced-filter-grid">
-            {/* Sede / Ubicación */}
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
               <div className="relative">
@@ -4267,7 +4279,6 @@ export const Dashboard = () => {
               </div>
             </div>
 
-            {/* Dispositivo */}
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
               <div className="relative">
@@ -4280,7 +4291,6 @@ export const Dashboard = () => {
               </div>
             </div>
 
-            {/* Periodo de Análisis */}
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
               <div className="relative">
@@ -4298,7 +4308,7 @@ export const Dashboard = () => {
         {/* GRILLA PRINCIPAL DE MÉTRICAS Y DIRECTORIO */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
-          {/* Paneles de Métricas (Ocupa 3 columnas) */}
+          {/* Paneles de Métricas (3 Columnas) */}
           <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* Disponibilidad TI */}
@@ -4309,10 +4319,12 @@ export const Dashboard = () => {
               </div>
               <div className="flex-1 flex flex-col items-center justify-center my-4">
                 <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
-                <span className="text-xs text-slate-400 mt-1 font-medium">Uptime general operativo</span>
+                <span className="text-xs text-emerald-500 font-semibold mt-1 flex items-center gap-1">
+                  <CheckCircle2 size={12} /> +0.2% vs semana anterior
+                </span>
               </div>
-              <div className="text-[11px] text-slate-500 text-center border-t border-slate-800 pt-3">
-                Estado óptimo de servidores
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
+                Estado óptimo de servidores core
               </div>
             </div>
 
@@ -4324,9 +4336,11 @@ export const Dashboard = () => {
               </div>
               <div className="flex-1 flex flex-col items-center justify-center my-4">
                 <span className="text-4xl font-black text-amber-400 tracking-tight">12</span>
-                <span className="text-xs text-slate-400 mt-1 font-medium">Alertas bajo revisión</span>
+                <span className="text-xs text-amber-500/90 font-semibold mt-1">
+                  Atención prioritaria requerida
+                </span>
               </div>
-              <div className="text-[11px] text-slate-500 text-center border-t border-slate-800 pt-3">
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
                 Tiempo medio de respuesta: 14m
               </div>
             </div>
@@ -4339,26 +4353,28 @@ export const Dashboard = () => {
               </div>
               <div className="flex-1 flex flex-col items-center justify-center my-4">
                 <span className="text-4xl font-black text-indigo-400 tracking-tight">24</span>
-                <span className="text-xs text-slate-400 mt-1 font-medium">Agendadas para hoy</span>
+                <span className="text-xs text-indigo-300 font-semibold mt-1">
+                  100% Red de salud sincronizada
+                </span>
               </div>
-              <div className="text-[11px] text-slate-500 text-center border-t border-slate-800 pt-3">
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
                 Sincronizado con módulo médico
               </div>
             </div>
 
           </div>
 
-          {/* Directorio de Usuarios (Ocupa 1 columna) */}
+          {/* Directorio de Usuarios (1 Columna) */}
           <div className="lg:col-span-1 card flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div>
                   <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
-                  <p className="text-[11px] text-slate-400">3 cuentas registradas.</p>
+                  <p className="text-[11px] text-slate-400">{users.length} cuentas registradas.</p>
                 </div>
                 <button className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap">
                   <Plus size={13} />
-                  <span>Nuevo Usuario</span>
+                  <span>Nuevo</span>
                 </button>
               </div>
 
@@ -4366,10 +4382,10 @@ export const Dashboard = () => {
                 <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Buscar por usuario..."
+                  placeholder="Buscar usuario o correo..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="form-control pl-9"
+                  className="form-control pl-9 text-xs"
                 />
               </div>
 
@@ -4377,30 +4393,36 @@ export const Dashboard = () => {
                 <table className="data-table-container text-xs">
                   <thead>
                     <tr>
-                      <th className="pb-2 px-1">Usuario</th>
-                      <th className="pb-2 px-1 whitespace-nowrap">Correo Electrónico</th>
+                      <th className="pb-2 px-1 text-[10px]">Usuario / Rol</th>
+                      <th className="pb-2 px-1 text-[10px] whitespace-nowrap">Estado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
                     {users
-                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()))
                       .map((user) => (
                         <tr key={user.id} className="hover:bg-slate-800/30">
                           <td className="py-2.5 px-1 flex items-center gap-2">
                             <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
                               {user.username.charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                              <div className="font-semibold text-slate-200 text-xs">{user.username}</div>
-                              <div className="text-[9px] text-slate-500">ID: #{user.id}</div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
+                              <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
                             </div>
                           </td>
-                          <td className="py-2.5 px-1 text-slate-400 whitespace-nowrap text-xs">{user.email}</td>
+                          <td className="py-2.5 px-1 whitespace-nowrap text-right">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" title="Activo"></span>
+                          </td>
                         </tr>
                       ))}
                   </tbody>
                 </table>
               </div>
+            </div>
+            
+            <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
+              Directorio Multi-tenant Activo
             </div>
           </div>
 
