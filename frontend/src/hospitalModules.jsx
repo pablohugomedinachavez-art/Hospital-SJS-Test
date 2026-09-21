@@ -4113,7 +4113,6 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   );
 }
 
-// --- DATOS MOCK & OPCIONES ---
 const MOCK_USERS = [
   { id: 1, username: 'int_test_user', email: 'test@enterprise.com', role: 'Auditor' },
   { id: 2, username: 'admin', email: 'admin@enterprise.com', role: 'Super Admin' },
@@ -4158,7 +4157,7 @@ function FilterSelect({ label, value, onChange, options }) {
             </option>
           ))}
         </select>
-        <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-3 pointer-events-none" />
+        <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-2.5 pointer-events-none" />
       </div>
     </div>
   );
@@ -4166,7 +4165,7 @@ function FilterSelect({ label, value, onChange, options }) {
 
 function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", icon: Icon, iconColor = "text-blue-400" }) {
   return (
-    <div className="relative bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-md overflow-hidden min-h-[105px]">
+    <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-md h-full min-h-[110px] w-full">
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
           {title}
@@ -4214,7 +4213,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
   }, [userSearch, usersList]);
 
   return (
-    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans antialiased">
+    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans antialiased overflow-x-hidden">
       
       {/* BARRA SUPERIOR DE NAVEGACIÓN */}
       <nav className="w-full bg-[#0f172a]/80 border-b border-slate-800 px-4 sm:px-6 py-3 flex items-center justify-between">
@@ -4231,10 +4230,10 @@ export function Dashboard({ usersList = MOCK_USERS }) {
       </nav>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="flex-1 p-3 sm:p-6 flex flex-col gap-5 max-w-[1600px] w-full mx-auto">
+      <main className="flex-1 p-3 sm:p-6 flex flex-col gap-6 w-full max-w-[1600px] mx-auto">
         
         {/* 1. ENCABEZADO Y CONTROL */}
-        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-4 sm:p-5 rounded-xl shadow-xl">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-4 sm:p-5 rounded-xl shadow-xl w-full">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
@@ -4263,7 +4262,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
         </header>
 
         {/* 2. FILTROS OPERATIVOS */}
-        <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md">
+        <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md w-full">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
             <div className="flex items-center gap-2 text-slate-400 font-bold uppercase tracking-wider shrink-0 pb-3 lg:pb-0 border-b lg:border-b-0 lg:border-r border-slate-800 lg:pr-4">
               <Filter className="w-4 h-4 text-blue-400 shrink-0" />
@@ -4293,7 +4292,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
           </div>
         </section>
 
-        {/* 3. TARJETAS DE MÉTRICAS (GRID DE 4 COLUMNAS) */}
+        {/* 3. TARJETAS DE MÉTRICAS (KPIs) - AISLADAS EN SU PROPIO GRID DE 4 COLUMNAS */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
           <KpiCard
             title="Disponibilidad TI"
@@ -4327,18 +4326,18 @@ export function Dashboard({ usersList = MOCK_USERS }) {
           />
         </section>
 
-        {/* 4. DIRECTORIO DE USUARIOS */}
+        {/* 4. DIRECTORIO DE USUARIOS - SECCIÓN INDEPENDIENTE FUERA DEL GRID */}
         <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 sm:p-5 w-full shadow-lg">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-            <div>
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
+            <div className="min-w-0">
               <h2 className="text-base font-bold text-white">Directorio de Usuarios</h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 {filteredUsers.length} {filteredUsers.length === 1 ? 'cuenta registrada' : 'cuentas registradas'} en el sistema
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-              <div className="relative w-full sm:w-72">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+              <div className="relative w-full sm:w-80">
                 <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
@@ -4349,14 +4348,14 @@ export function Dashboard({ usersList = MOCK_USERS }) {
                 />
               </div>
               
-              <button className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer w-full sm:w-auto">
-                <UserPlus className="w-3.5 h-3.5" />
+              <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer w-full sm:w-auto">
+                <UserPlus className="w-3.5 h-3.5 shrink-0" />
                 <span>Nuevo Usuario</span>
               </button>
             </div>
           </div>
 
-          <div className="divide-y divide-slate-800 border-t border-slate-800">
+          <div className="divide-y divide-slate-800 border-t border-slate-800 w-full">
             {filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
                 <div 
