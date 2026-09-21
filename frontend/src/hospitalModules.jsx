@@ -4106,7 +4106,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 // Dashboard (Con exportación profesional y limpia para PDF)
 // ============================================================
 
-export default function Dashboard() {
+export function Dashboard() {
   const [stats, setStats] = useState({
     patients: 0,
     consultations: 0,
