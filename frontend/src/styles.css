@@ -787,7 +787,7 @@ div[class*="flex flex-col min-w-0"] > span:last-child {
   .form-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
-}
+
 
 /* Spaciado superior del contenido principal */
 .main-content {
