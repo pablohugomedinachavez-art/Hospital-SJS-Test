@@ -4119,16 +4119,10 @@ export function Dashboard() {
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedDevice, setSelectedDevice] = useState('all');
   const [dateRange, setDateRange] = useState('7d');
-  const [activeTab, setActiveTab] = useState('devices');
   const [refreshing, setRefreshing] = useState(false);
   const [userSearch, setUserSearch] = useState('');
 
-  // Datos mock / props de tu app
-  const locations = [];
-  const devices = [];
-  const alerts = [];
-  const appointments = [];
-  const patients = [];
+  // Datos mock
   const users = [
     { id: '#5', username: 'int_test_user' },
     { id: '#4', username: 'admin' },
@@ -4140,8 +4134,7 @@ export function Dashboard() {
   );
 
   return (
-    /* CONTENEDOR PRINCIPAL: Asegura flujo vertical puro */
-    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 space-y-6 block">
+    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 space-y-6">
       
       {/* 1. HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-xl">
@@ -4161,8 +4154,11 @@ export function Dashboard() {
         </div>
 
         <button
-          onClick={() => setRefreshing(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold self-start sm:self-auto"
+          onClick={() => {
+            setRefreshing(true);
+            setTimeout(() => setRefreshing(false), 1000);
+          }}
+          className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold self-start sm:self-auto cursor-pointer transition-all"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
           <span>Refrescar Datos</span>
@@ -4183,7 +4179,7 @@ export function Dashboard() {
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="all">Todas las sedes</option>
               </select>
@@ -4194,7 +4190,7 @@ export function Dashboard() {
               <select
                 value={selectedDevice}
                 onChange={(e) => setSelectedDevice(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="all">Todos los dispositivos</option>
               </select>
@@ -4205,7 +4201,7 @@ export function Dashboard() {
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
               >
                 <option value="7d">Últimos 7 Días</option>
               </select>
@@ -4214,12 +4210,22 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* 3. GRID DE KPIS (4 COLUMNAS LIMPIAS Y UNIFORMES) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+      {/* 3. GRID DE KPIS (AISLADO CON INLINE GRID Y MIN-HEIGHT) */}
+      <div 
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '1rem',
+          width: '100%'
+        }}
+      >
         {/* KPI 1 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[130px]">
+        <div 
+          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '110px' }}
+          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Disponibilidad TI</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad TI</span>
             <Monitor className="w-4 h-4 text-blue-400" />
           </div>
           <div>
@@ -4229,9 +4235,12 @@ export function Dashboard() {
         </div>
 
         {/* KPI 2 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[130px]">
+        <div 
+          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '110px' }}
+          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Resolución Alertas</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Resolución Alertas</span>
             <ShieldAlert className="w-4 h-4 text-amber-400" />
           </div>
           <div>
@@ -4241,9 +4250,12 @@ export function Dashboard() {
         </div>
 
         {/* KPI 3 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[130px]">
+        <div 
+          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '110px' }}
+          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Citas Programadas</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Citas Programadas</span>
             <Calendar className="w-4 h-4 text-purple-400" />
           </div>
           <div>
@@ -4253,9 +4265,12 @@ export function Dashboard() {
         </div>
 
         {/* KPI 4 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[130px]">
+        <div 
+          style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '110px' }}
+          className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4"
+        >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase">Pacientes Registrados</span>
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes Registrados</span>
             <Users className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
@@ -4265,7 +4280,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* 4. DIRECTORIO DE USUARIOS (APILADO ABAJO EN SU PROPIA SECCIÓN) */}
+      {/* 4. DIRECTORIO DE USUARIOS */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 w-full">
         <div className="mb-4">
           <h2 className="text-lg font-bold text-white">Directorio de Usuarios</h2>
