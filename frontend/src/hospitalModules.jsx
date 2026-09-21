@@ -4116,81 +4116,43 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 // ============================================================
 
 export function Dashboard() {
-  // --- Estados Iniciales ---
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedDevice, setSelectedDevice] = useState('all');
   const [dateRange, setDateRange] = useState('7d');
-  
-  const [locations, setLocations] = useState([]);
-  const [devices, setDevices] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [appointments, setAppointments] = useState([]);
-  const [patients, setPatients] = useState([]);
   const [activeTab, setActiveTab] = useState('devices');
   const [refreshing, setRefreshing] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
 
-  // --- Función de Carga ---
-  const fetchDashboardData = useCallback(async (isSilent = false) => {
-    if (isSilent) setRefreshing(true);
-    try {
-      // Llamadas a tu API
-    } catch (err) {
-      console.error("Error al refrescar datos:", err);
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
+  // Datos mock / props de tu app
+  const locations = [];
+  const devices = [];
+  const alerts = [];
+  const appointments = [];
+  const patients = [];
+  const users = [
+    { id: '#5', username: 'int_test_user' },
+    { id: '#4', username: 'admin' },
+    { id: '#1', username: 'admin_user' }
+  ];
 
-  // --- Normalización de arreglos ---
-  const safeDevices = Array.isArray(devices) ? devices : [];
-  const safeAlerts = Array.isArray(alerts) ? alerts : [];
-  const safeAppointments = Array.isArray(appointments) ? appointments : [];
-  const safePatients = Array.isArray(patients) ? patients : [];
-  const safeLocations = Array.isArray(locations) ? locations : [];
-
-  // --- Filtros ---
-  const filteredDevices = safeDevices.filter(d => 
-    selectedLocation === 'all' || String(d?.location_id) === String(selectedLocation)
+  const filteredUsers = users.filter(u => 
+    u.username.toLowerCase().includes(userSearch.toLowerCase())
   );
-
-  const filteredAlerts = safeAlerts.filter(a => 
-    selectedDevice === 'all' || String(a?.device_id) === String(selectedDevice)
-  );
-
-  // --- KPIs ---
-  const totalDevs = filteredDevices.length || 0;
-  const activeDevs = filteredDevices.filter(d => d?.status === 'active' || d?.status === 'available').length;
-  const activeDevPct = totalDevs > 0 ? Number(((activeDevs / totalDevs) * 100).toFixed(1)) : 0;
-
-  const totalAlertsCount = filteredAlerts.length || 0;
-  const resolvedAlertsCount = filteredAlerts.filter(a => Number(a?.is_resolved) === 1).length;
-  const alertResolutionPct = totalAlertsCount > 0 ? Number(((resolvedAlertsCount / totalAlertsCount) * 100).toFixed(1)) : 0;
-
-  const pendingAppointments = safeAppointments.filter(a => a?.status === 'scheduled').length;
-
-  const kpiStats = {
-    activeDevPct,
-    activeDevs,
-    totalDevs,
-    alertResolutionPct,
-    unresolvedAlerts: totalAlertsCount - resolvedAlertsCount,
-    totalPatients: safePatients.length,
-    pendingAppointments
-  };
 
   return (
-    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 font-sans antialiased space-y-6 overflow-x-hidden">
+    /* CONTENEDOR PRINCIPAL: Asegura flujo vertical puro */
+    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 space-y-6 block">
       
-      {/* HEADER BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-md">
-        <div className="space-y-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
+      {/* 1. HEADER */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-xl">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
               Enterprise Analytics
             </span>
             <span className="text-xs text-slate-500">• ISO 27001 & HIPAA Compliant</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-white">
             Dashboard de Control y Auditoría TI
           </h1>
           <p className="text-xs text-slate-400">
@@ -4199,214 +4161,143 @@ export function Dashboard() {
         </div>
 
         <button
-          onClick={() => fetchDashboardData(true)}
-          disabled={refreshing}
-          className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-all shrink-0"
+          onClick={() => setRefreshing(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold self-start sm:self-auto"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
-          <span>{refreshing ? 'Actualizando...' : 'Refrescar Datos'}</span>
+          <span>Refrescar Datos</span>
         </button>
       </div>
 
-      {/* FILTROS OPERATIVOS */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-lg backdrop-blur-sm">
+      {/* 2. FILTROS */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
-          <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 pr-4 lg:border-r border-slate-800">
+          <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 lg:border-r border-slate-800 lg:pr-4">
             <Filter className="w-4 h-4 text-blue-400" />
             <span>Filtros Operativos:</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
-            <div className="space-y-1">
-              <label className="text-[10px] text-slate-400 font-medium block">Sede / Ubicación</label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Sede / Ubicación</label>
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none"
               >
                 <option value="all">Todas las sedes</option>
-                {safeLocations.map(loc => (
-                  <option key={loc?.id} value={loc?.id}>{loc?.name}</option>
-                ))}
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] text-slate-400 font-medium block">Dispositivo</label>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Dispositivo</label>
               <select
                 value={selectedDevice}
                 onChange={(e) => setSelectedDevice(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none"
               >
                 <option value="all">Todos los dispositivos</option>
-                {filteredDevices.map(dev => (
-                  <option key={dev?.id} value={dev?.id}>
-                    {dev?.name} ({dev?.ip_address || 'Sin IP'})
-                  </option>
-                ))}
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] text-slate-400 font-medium block">Periodo de Análisis</label>
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">Periodo de Análisis</label>
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500"
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none"
               >
-                <option value="24h">Últimas 24 Horas</option>
                 <option value="7d">Últimos 7 Días</option>
-                <option value="30d">Últimos 30 Días</option>
               </select>
             </div>
           </div>
         </div>
       </div>
 
-      {/* GRID DE KPIS - 4 COLUMNAS LIMPIAS */}
+      {/* 3. GRID DE KPIS (4 COLUMNAS LIMPIAS Y UNIFORMES) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-        
         {/* KPI 1 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[130px]">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Disponibilidad TI</span>
-            <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
-              <Monitor className="w-4 h-4" />
-            </div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase">Disponibilidad TI</span>
+            <Monitor className="w-4 h-4 text-blue-400" />
           </div>
           <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">{kpiStats.activeDevPct}%</span>
-              <span className="text-xs text-slate-400">({kpiStats.activeDevs}/{kpiStats.totalDevs})</span>
-            </div>
-            <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>Meta: {KPI_TARGETS.activeDevicesPct}%</span>
-                <span className={kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'text-emerald-400 font-semibold' : 'text-amber-400 font-semibold'}>
-                  {kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'Cumplido' : 'Por debajo'}
-                </span>
-              </div>
-              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${kpiStats.activeDevPct >= KPI_TARGETS.activeDevicesPct ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                  style={{ width: `${Math.min(kpiStats.activeDevPct, 100)}%` }}
-                />
-              </div>
-            </div>
+            <span className="text-2xl font-extrabold text-white">0%</span>
+            <span className="text-xs text-slate-400 ml-2">(0/0)</span>
           </div>
         </div>
 
         {/* KPI 2 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[130px]">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Resolución Alertas</span>
-            <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-              <ShieldAlert className="w-4 h-4" />
-            </div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase">Resolución Alertas</span>
+            <ShieldAlert className="w-4 h-4 text-amber-400" />
           </div>
           <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">{kpiStats.alertResolutionPct}%</span>
-              <span className="text-xs text-amber-400 font-semibold">{kpiStats.unresolvedAlerts} activas</span>
-            </div>
-            <div className="mt-2 space-y-1">
-              <div className="flex justify-between text-[10px] text-slate-400">
-                <span>Meta SLA: {KPI_TARGETS.alertResolutionPct}%</span>
-                <span className={kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
-                  {kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'SLA OK' : 'Atención Req.'}
-                </span>
-              </div>
-              <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${kpiStats.alertResolutionPct >= KPI_TARGETS.alertResolutionPct ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                  style={{ width: `${Math.min(kpiStats.alertResolutionPct, 100)}%` }}
-                />
-              </div>
-            </div>
+            <span className="text-2xl font-extrabold text-white">0%</span>
+            <span className="text-xs text-amber-400 font-semibold ml-2">0 activas</span>
           </div>
         </div>
 
         {/* KPI 3 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[130px]">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Citas Programadas</span>
-            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
-              <Calendar className="w-4 h-4" />
-            </div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase">Citas Programadas</span>
+            <Calendar className="w-4 h-4 text-purple-400" />
           </div>
           <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">{kpiStats.pendingAppointments}</span>
-              <span className="text-xs text-slate-400">en cola</span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-2">Gestión en tiempo real del módulo de atenciones.</p>
+            <span className="text-2xl font-extrabold text-white">0</span>
+            <span className="text-xs text-slate-400 ml-2">en cola</span>
           </div>
         </div>
 
         {/* KPI 4 */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between space-y-3 min-h-[140px]">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[130px]">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes Registrados</span>
-            <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-              <Users className="w-4 h-4" />
-            </div>
+            <span className="text-[11px] font-bold text-slate-400 uppercase">Pacientes Registrados</span>
+            <Users className="w-4 h-4 text-emerald-400" />
           </div>
           <div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-white">{kpiStats.totalPatients}</span>
-              <span className="text-xs text-emerald-400 font-semibold">+12% este mes</span>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-2">Base de datos de historias clínicas e identificaciones.</p>
+            <span className="text-2xl font-extrabold text-white">0</span>
+            <span className="text-xs text-emerald-400 font-semibold ml-2">+12% este mes</span>
           </div>
         </div>
-
       </div>
 
-      {/* BARRA DE PESTAÑAS DE NAVEGACIÓN */}
-      <div className="flex items-center justify-start gap-2 border-b border-slate-800 pb-3 overflow-x-auto">
-        {[
-          { id: 'devices', label: '1. Dispositivos', icon: Monitor },
-          { id: 'actions', label: '2. Acciones IP', icon: Activity },
-          { id: 'audit', label: '3. Auditoría Global', icon: FileText }
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
-                isActive
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                  : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 border border-slate-800'
-              }`}
-            >
-              <Icon className="w-4 h-4 shrink-0" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* 4. DIRECTORIO DE USUARIOS (APILADO ABAJO EN SU PROPIA SECCIÓN) */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 w-full">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-white">Directorio de Usuarios</h2>
+          <p className="text-xs text-slate-400">{filteredUsers.length} cuentas registradas en el sistema</p>
+        </div>
 
-      {/* VISTAS DE PESTAÑAS */}
-      <div className="w-full">
-        {activeTab === 'devices' && (
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-            <h2 className="text-lg font-bold text-white mb-4">Gestión de Dispositivos TI</h2>
-          </div>
-        )}
+        <div className="relative mb-4 max-w-md">
+          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+          <input
+            type="text"
+            placeholder="Buscar por usuario, correo..."
+            value={userSearch}
+            onChange={(e) => setUserSearch(e.target.value)}
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
+          />
+        </div>
 
-        {activeTab === 'actions' && (
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-            <h2 className="text-lg font-bold text-white mb-4">Monitoreo de Acciones IP</h2>
-          </div>
-        )}
-
-        {activeTab === 'audit' && (
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
-            <h2 className="text-lg font-bold text-white mb-4">Registro Global de Auditoría</h2>
-          </div>
-        )}
+        <div className="divide-y divide-slate-800/60 border-t border-slate-800">
+          {filteredUsers.map((user) => (
+            <div key={user.id} className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-purple-600/30 border border-purple-500/40 text-purple-300 font-bold flex items-center justify-center text-sm">
+                  {user.username.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-100">{user.username}</p>
+                  <p className="text-[11px] text-slate-500">ID: {user.id}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
     </div>
