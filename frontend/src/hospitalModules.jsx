@@ -4113,85 +4113,81 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   );
 }
 
+// --- DATOS MOCK & OPCIONES ---
 const MOCK_USERS = [
-  { id: '#5', username: 'int_test_user', email: 'test@enterprise.com', role: 'Auditor' },
-  { id: '#4', username: 'admin', email: 'admin@enterprise.com', role: 'Super Admin' },
-  { id: '#1', username: 'admin_user', email: 'user_admin@enterprise.com', role: 'Operator' }
+  { id: 1, username: 'int_test_user', email: 'test@enterprise.com', role: 'Auditor' },
+  { id: 2, username: 'admin', email: 'admin@enterprise.com', role: 'Super Admin' },
+  { id: 3, username: 'admin_user', email: 'user_admin@enterprise.com', role: 'Operator' }
 ];
 
 const LOCATION_OPTIONS = [
   { value: 'all', label: 'Todas las sedes' },
-  { value: 'headquarters', label: 'Sede Principal' },
-  { value: 'branch-a', label: 'Sucursal Norte' }
+  { value: 'central', label: 'Sede Central' },
+  { value: 'norte', label: 'Sede Norte' }
 ];
 
 const DEVICE_OPTIONS = [
   { value: 'all', label: 'Todos los dispositivos' },
   { value: 'servers', label: 'Servidores' },
-  { value: 'workstations', label: 'Estaciones de Trabajo' }
+  { value: 'workstations', label: 'Estaciones de trabajo' }
 ];
 
 const DATE_OPTIONS = [
-  { value: '24h', label: 'Últimas 24 Horas' },
   { value: '7d', label: 'Últimos 7 Días' },
-  { value: '30d', label: 'Últimos 30 Días' }
+  { value: '30d', label: 'Últimos 30 Días' },
+  { value: '90d', label: 'Últimos 90 Días' }
 ];
 
-// -----------------------------------------------------------------------------
-// SUBCOMPONENTES DE INTERFAZ
-// -----------------------------------------------------------------------------
-const KpiCard = React.memo(({
-  title,
-  value,
-  subtitle,
-  subtitleColor = 'text-slate-400',
-  icon: Icon,
-  iconColor
-}) => (
-  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32 w-full transition-all hover:border-slate-700">
-    <div className="flex items-center justify-between">
-      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider select-none">
-        {title}
-      </span>
-      {Icon && <Icon className={`w-4 h-4 ${iconColor} shrink-0`} />}
-    </div>
-    <div className="flex items-baseline justify-between mt-auto">
-      <span className="text-2xl font-extrabold text-white font-mono">{value}</span>
-      <span className={`text-xs font-medium ${subtitleColor}`}>{subtitle}</span>
-    </div>
-  </div>
-));
-KpiCard.displayName = 'KpiCard';
+// --- SUBCOMPONENTES DE APOYO ---
 
-const FilterSelect = React.memo(({
-  label,
-  value,
-  onChange,
-  options = []
-}) => (
-  <div className="flex flex-col w-full">
-    <label className="text-[10px] text-slate-400 block mb-1 font-medium select-none">
-      {label}
-    </label>
-    <select
-      value={value}
-      onChange={onChange}
-      className="w-full bg-[#070b14] border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
-  </div>
-));
-FilterSelect.displayName = 'FilterSelect';
+function FilterSelect({ label, value, onChange, options }) {
+  return (
+    <div className="flex flex-col gap-1 w-full min-w-0">
+      <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+        {label}
+      </label>
+      <div className="relative w-full">
+        <select
+          value={value}
+          onChange={onChange}
+          className="w-full appearance-none bg-[#070b14] border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 pr-8 focus:outline-none focus:border-blue-500 cursor-pointer truncate"
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-3 pointer-events-none" />
+      </div>
+    </div>
+  );
+}
 
-// -----------------------------------------------------------------------------
-// COMPONENTE PRINCIPAL (DASHBOARD)
-// -----------------------------------------------------------------------------
-export function Dashboard({ usersList = MOCK_USERS }) {
+function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", icon: Icon, iconColor = "text-blue-400" }) {
+  return (
+    <div className="relative bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-md overflow-hidden min-h-[105px]">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
+          {title}
+        </span>
+        {Icon && <Icon className={`w-4 h-4 ${iconColor} shrink-0`} />}
+      </div>
+      <div className="flex items-baseline justify-between gap-2 mt-auto">
+        <span className="text-2xl font-black text-white tracking-tight">{value}</span>
+        {subtitle && (
+          <span className={`text-xs ${subtitleColor} truncate`}>
+            {subtitle}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- COMPONENTE PRINCIPAL DASHBOARD ---
+
+export default function Dashboard({ usersList = MOCK_USERS }) {
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedDevice, setSelectedDevice] = useState('all');
   const [dateRange, setDateRange] = useState('7d');
@@ -4200,11 +4196,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
-
-  const handleSearchChange = useCallback((e) => {
-    setUserSearch(e.target.value);
+    setTimeout(() => setRefreshing(false), 800);
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -4222,179 +4214,195 @@ export function Dashboard({ usersList = MOCK_USERS }) {
   }, [userSearch, usersList]);
 
   return (
-    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-3 sm:p-6 flex flex-col gap-5 sm:gap-6 font-sans antialiased overflow-x-hidden">
+    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans antialiased">
       
-      {/* 1. HEADER CONTROL BAR */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-4 sm:p-5 rounded-xl shadow-xl w-full">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
-              Enterprise Analytics
-            </span>
-            <span className="text-[11px] sm:text-xs text-slate-500 font-medium">
-              • ISO 27001 & HIPAA Compliant
-            </span>
-          </div>
-          <h1 className="text-lg sm:text-2xl font-extrabold text-white tracking-tight truncate">
-            Dashboard de Control y Auditoría TI
-          </h1>
-          <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-            Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
-          </p>
+      {/* BARRA SUPERIOR DE NAVEGACIÓN */}
+      <nav className="w-full bg-[#0f172a]/80 border-b border-slate-800 px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+          <span className="text-xs font-bold text-white tracking-wide">Panel General</span>
         </div>
-
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold w-full sm:w-auto cursor-pointer transition-all shrink-0 disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
-          <span>Refrescar Datos</span>
-        </button>
-      </header>
-
-      {/* 2. FILTROS DE BÚSQUEDA */}
-      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md w-full">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
-          <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 pb-3 lg:pb-0 border-b lg:border-b-0 lg:border-r border-slate-800 lg:pr-4">
-            <Filter className="w-4 h-4 text-blue-400 shrink-0" />
-            <span>Filtros Operativos:</span>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold text-white">
+            A
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full">
-            <FilterSelect
-              label="Sede / Ubicación"
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              options={LOCATION_OPTIONS}
-            />
-            <FilterSelect
-              label="Dispositivo"
-              value={selectedDevice}
-              onChange={(e) => setSelectedDevice(e.target.value)}
-              options={DEVICE_OPTIONS}
-            />
-            <FilterSelect
-              label="Periodo de Análisis"
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              options={DATE_OPTIONS}
-            />
-          </div>
+          <span className="text-xs font-semibold text-slate-300">admin</span>
         </div>
-      </section>
+      </nav>
 
-      {/* 3. GRID DE KPIS Y METRICAS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
-        <KpiCard
-          title="Disponibilidad TI"
-          value="0%"
-          subtitle="(0/0)"
-          icon={Monitor}
-          iconColor="text-blue-400"
-        />
-        <KpiCard
-          title="Resolución Alertas"
-          value="0%"
-          subtitle="0 activas"
-          subtitleColor="text-amber-400 font-semibold"
-          icon={ShieldAlert}
-          iconColor="text-amber-400"
-        />
-        <KpiCard
-          title="Citas Programadas"
-          value="0"
-          subtitle="en cola"
-          icon={Calendar}
-          iconColor="text-purple-400"
-        />
-        <KpiCard
-          title="Pacientes Registrados"
-          value="0"
-          subtitle="+12% este mes"
-          subtitleColor="text-emerald-400 font-semibold"
-          icon={Users}
-          iconColor="text-emerald-400"
-        />
-      </section>
-
-      {/* 4. DIRECTORIO DE USUARIOS */}
-      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 sm:p-5 w-full shadow-lg">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-base font-bold text-white">Directorio de Usuarios</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {filteredUsers.length} {filteredUsers.length === 1 ? 'cuenta registrada' : 'cuentas registradas'} en el sistema
+      {/* CONTENIDO PRINCIPAL */}
+      <main className="flex-1 p-3 sm:p-6 flex flex-col gap-5 max-w-[1600px] w-full mx-auto">
+        
+        {/* 1. ENCABEZADO Y CONTROL */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-4 sm:p-5 rounded-xl shadow-xl">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
+                ENTERPRISE ANALYTICS
+              </span>
+              <span className="text-xs text-slate-500 font-medium">
+                • ISO 27001 & HIPAA Compliant
+              </span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight truncate">
+              Dashboard de Control y Auditoría TI
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Buscar por usuario, correo o rol..."
-                value={userSearch}
-                onChange={handleSearchChange}
-                className="w-full bg-[#070b14] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold w-full sm:w-auto cursor-pointer transition-all shrink-0 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
+            <span>Refrescar Datos</span>
+          </button>
+        </header>
+
+        {/* 2. FILTROS OPERATIVOS */}
+        <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
+            <div className="flex items-center gap-2 text-slate-400 font-bold uppercase tracking-wider shrink-0 pb-3 lg:pb-0 border-b lg:border-b-0 lg:border-r border-slate-800 lg:pr-4">
+              <Filter className="w-4 h-4 text-blue-400 shrink-0" />
+              <span>Filtros Operativos:</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
+              <FilterSelect
+                label="Sede / Ubicación"
+                value={selectedLocation}
+                onChange={(e) => setSelectedLocation(e.target.value)}
+                options={LOCATION_OPTIONS}
+              />
+              <FilterSelect
+                label="Dispositivo"
+                value={selectedDevice}
+                onChange={(e) => setSelectedDevice(e.target.value)}
+                options={DEVICE_OPTIONS}
+              />
+              <FilterSelect
+                label="Periodo de Análisis"
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+                options={DATE_OPTIONS}
               />
             </div>
-            
-            <button className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer w-full sm:w-auto">
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Nuevo Usuario</span>
-            </button>
           </div>
-        </div>
+        </section>
 
-        <div className="divide-y divide-slate-800 border-t border-slate-800">
-          {filteredUsers.length > 0 ? (
-            filteredUsers.map((user) => (
-              <div 
-                key={user.id} 
-                className="flex flex-col sm:flex-row sm:items-center justify-between py-3 px-2 hover:bg-slate-800/40 rounded-lg transition-colors gap-3 sm:gap-4"
-              >
-                {/* Nombre de usuario e Identificador */}
-                <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                  <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-xs shrink-0 select-none">
-                    {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-slate-100 truncate">
-                      {user.username || 'Sin Nombre'}
-                    </p>
-                    <p className="text-[10px] text-slate-500 font-mono truncate">
-                      {user.email || `ID: ${user.id}`}
-                    </p>
-                  </div>
-                </div>
+        {/* 3. TARJETAS DE MÉTRICAS (GRID DE 4 COLUMNAS) */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+          <KpiCard
+            title="Disponibilidad TI"
+            value="0%"
+            subtitle="(0/0)"
+            icon={Monitor}
+            iconColor="text-blue-400"
+          />
+          <KpiCard
+            title="Resolución Alertas"
+            value="0%"
+            subtitle="0 activas"
+            subtitleColor="text-amber-400 font-semibold"
+            icon={ShieldAlert}
+            iconColor="text-amber-400"
+          />
+          <KpiCard
+            title="Citas Programadas"
+            value="0"
+            subtitle="en cola"
+            icon={Calendar}
+            iconColor="text-purple-400"
+          />
+          <KpiCard
+            title="Pacientes Registrados"
+            value="0"
+            subtitle="+12% este mes"
+            subtitleColor="text-emerald-400 font-semibold"
+            icon={Users}
+            iconColor="text-emerald-400"
+          />
+        </section>
 
-                {/* Rol y Botones de Acción */}
-                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/50">
-                  {user.role && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800/80 text-slate-300 border border-slate-700/80 truncate">
-                      {user.role}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-1 ml-auto sm:ml-0">
-                    <button className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer">
-                      <Edit3 className="w-3.5 h-3.5" />
-                    </button>
-                    <button className="p-1.5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-colors cursor-pointer">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="py-8 text-center text-xs text-slate-500">
-              No se encontraron usuarios que coincidan con la búsqueda.
+        {/* 4. DIRECTORIO DE USUARIOS */}
+        <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 sm:p-5 w-full shadow-lg">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-base font-bold text-white">Directorio de Usuarios</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                {filteredUsers.length} {filteredUsers.length === 1 ? 'cuenta registrada' : 'cuentas registradas'} en el sistema
+              </p>
             </div>
-          )}
-        </div>
-      </section>
 
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Buscar por usuario, correo o rol..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  className="w-full bg-[#070b14] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+              
+              <button className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer w-full sm:w-auto">
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Nuevo Usuario</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="divide-y divide-slate-800 border-t border-slate-800">
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => (
+                <div 
+                  key={user.id} 
+                  className="flex flex-col sm:flex-row sm:items-center justify-between py-3 px-2 hover:bg-slate-800/40 rounded-lg transition-colors gap-3 sm:gap-4"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-xs shrink-0 select-none">
+                      {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-slate-100 truncate">
+                        {user.username || 'Sin Nombre'}
+                      </p>
+                      <p className="text-[10px] text-slate-500 font-mono truncate">
+                        {user.email || `ID: ${user.id}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/50">
+                    {user.role && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700 truncate">
+                        {user.role}
+                      </span>
+                    )}
+                    <div className="flex items-center gap-1 ml-auto sm:ml-0">
+                      <button className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer">
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button className="p-1.5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-colors cursor-pointer">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-8 text-center text-xs text-slate-500">
+                No se encontraron usuarios que coincidan con la búsqueda.
+              </div>
+            )}
+          </div>
+        </section>
+
+      </main>
     </div>
   );
 }
