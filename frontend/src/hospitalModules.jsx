@@ -4222,21 +4222,23 @@ export function Dashboard({ usersList = MOCK_USERS }) {
   }, [userSearch, usersList]);
 
   return (
-    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 flex flex-col gap-6 font-sans antialiased overflow-x-hidden">
+    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-3 sm:p-6 flex flex-col gap-5 sm:gap-6 font-sans antialiased overflow-x-hidden">
       
       {/* 1. HEADER CONTROL BAR */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-5 rounded-xl shadow-xl w-full">
-        <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-4 sm:p-5 rounded-xl shadow-xl w-full">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
               Enterprise Analytics
             </span>
-            <span className="text-xs text-slate-500">• ISO 27001 & HIPAA Compliant</span>
+            <span className="text-[11px] sm:text-xs text-slate-500 font-medium">
+              • ISO 27001 & HIPAA Compliant
+            </span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+          <h1 className="text-lg sm:text-2xl font-extrabold text-white tracking-tight truncate">
             Dashboard de Control y Auditoría TI
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-400 mt-1 leading-relaxed">
             Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
           </p>
         </div>
@@ -4244,7 +4246,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
         <button
           onClick={handleRefresh}
           disabled={refreshing}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold self-start sm:self-auto cursor-pointer transition-all shrink-0 disabled:opacity-50"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-900 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold w-full sm:w-auto cursor-pointer transition-all shrink-0 disabled:opacity-50"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
           <span>Refrescar Datos</span>
@@ -4254,12 +4256,12 @@ export function Dashboard({ usersList = MOCK_USERS }) {
       {/* 2. FILTROS DE BÚSQUEDA */}
       <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md w-full">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
-          <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 lg:border-r border-slate-800 lg:pr-4">
-            <Filter className="w-4 h-4 text-blue-400" />
+          <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 pb-3 lg:pb-0 border-b lg:border-b-0 lg:border-r border-slate-800 lg:pr-4">
+            <Filter className="w-4 h-4 text-blue-400 shrink-0" />
             <span>Filtros Operativos:</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 w-full">
             <FilterSelect
               label="Sede / Ubicación"
               value={selectedLocation}
@@ -4283,7 +4285,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
       </section>
 
       {/* 3. GRID DE KPIS Y METRICAS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
         <KpiCard
           title="Disponibilidad TI"
           value="0%"
@@ -4317,16 +4319,16 @@ export function Dashboard({ usersList = MOCK_USERS }) {
       </section>
 
       {/* 4. DIRECTORIO DE USUARIOS */}
-      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 w-full shadow-lg">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 sm:p-5 w-full shadow-lg">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div>
             <h2 className="text-base font-bold text-white">Directorio de Usuarios</h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 mt-0.5">
               {filteredUsers.length} {filteredUsers.length === 1 ? 'cuenta registrada' : 'cuentas registradas'} en el sistema
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
             <div className="relative w-full sm:w-72">
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
               <input
@@ -4338,7 +4340,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
               />
             </div>
             
-            <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer">
+            <button className="flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer w-full sm:w-auto">
               <UserPlus className="w-3.5 h-3.5" />
               <span>Nuevo Usuario</span>
             </button>
@@ -4350,29 +4352,35 @@ export function Dashboard({ usersList = MOCK_USERS }) {
             filteredUsers.map((user) => (
               <div 
                 key={user.id} 
-                className="flex items-center justify-between py-3 px-2 hover:bg-slate-800/40 rounded-lg transition-colors gap-4"
+                className="flex flex-col sm:flex-row sm:items-center justify-between py-3 px-2 hover:bg-slate-800/40 rounded-lg transition-colors gap-3 sm:gap-4"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                {/* Nombre de usuario e Identificador */}
+                <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
                   <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-xs shrink-0 select-none">
                     {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <div className="truncate">
-                    <p className="text-xs font-semibold text-slate-100 truncate">{user.username || 'Sin Nombre'}</p>
-                    <p className="text-[10px] text-slate-500 font-mono">ID: {user.id}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-slate-100 truncate">
+                      {user.username || 'Sin Nombre'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-mono truncate">
+                      {user.email || `ID: ${user.id}`}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                {/* Rol y Botones de Acción */}
+                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800/50">
                   {user.role && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800/80 text-slate-300 border border-slate-700/80 truncate">
                       {user.role}
                     </span>
                   )}
-                  <div className="flex items-center gap-1">
-                    <button className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg transition-colors">
+                  <div className="flex items-center gap-1 ml-auto sm:ml-0">
+                    <button className="p-1.5 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer">
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
-                    <button className="p-1.5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-colors">
+                    <button className="p-1.5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-colors cursor-pointer">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
