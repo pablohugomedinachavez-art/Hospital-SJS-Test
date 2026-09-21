@@ -8,7 +8,9 @@ function ensureContainer() {
   }
   return c;
 }
-const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api';
+
+export const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api';
+
 export function showToast(message, type = 'success', title = '') {
   try {
     const container = ensureContainer();
@@ -46,6 +48,18 @@ export function showToast(message, type = 'success', title = '') {
     // fallback: console
     console.warn('showToast error', err);
   }
+}
+
+// Helper genérico para realizar peticiones HTTP al backend usando API_URL
+export async function apiFetch(endpoint, options = {}) {
+  const token = localStorage.getItem('token') || '';
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  return fetch(`${API_URL}${endpoint}`, { ...options, headers });
 }
 
 export default showToast;
