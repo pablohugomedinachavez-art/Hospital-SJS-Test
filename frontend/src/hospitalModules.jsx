@@ -4259,7 +4259,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
             <span>Filtros Operativos:</span>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
             <FilterSelect
               label="Sede / Ubicación"
               value={selectedLocation}
@@ -4338,7 +4338,7 @@ export function Dashboard({ usersList = MOCK_USERS }) {
               />
             </div>
             
-            <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer">
+            <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer">
               <UserPlus className="w-3.5 h-3.5" />
               <span>Nuevo Usuario</span>
             </button>
@@ -4362,9 +4362,9 @@ export function Dashboard({ usersList = MOCK_USERS }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 shrink-0">
                   {user.role && (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
                       {user.role}
                     </span>
                   )}
