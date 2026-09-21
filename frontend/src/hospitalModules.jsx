@@ -1,10 +1,12 @@
 import { apiFetch } from './api.js'; // Asegúrate de que la ruta coincida con la ubicación de tu archivo api.js
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {ar,BarChart,CartesianGrid,Line,LineChart,ResponsiveContainer,Tooltip,XAxis,YAxis, AreaChart, Area,PieChart, Pie, Cell
+import {
+  ar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import { useAuth } from './AuthContext';
-import {User, Mail, UserPlus,Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck,FileX, FileSearch, FileEdit,X, Save, Eye, ExternalLink, Download, Award,Search, Filter,Scale, Ruler, HeartPulse, Pill,AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop,Smartphone, Wifi,Layers, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown,  BarChart3, HardDrive,RefreshCw, Building2,Sliders,  ArrowUpRight, ArrowDownRight, 
+import {
+  User, Mail, UserPlus, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2, AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock, FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit, X, Save, Eye, ExternalLink, Download, Award, Search, Filter, Scale, Ruler, HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 
 
@@ -659,8 +661,8 @@ export function DeviceManagementDashboard() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${isActive
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
                       }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
@@ -757,8 +759,8 @@ export function DeviceManagementDashboard() {
                         render: (d) => (
                           <div className="py-2">
                             <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${d.status === 'active'
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                               }`}>
                               <span className={`w-2 h-2 rounded-full ${d.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                               {d.status}
@@ -1977,7 +1979,7 @@ export function Locations() {
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [saving, setSaving] = useState(false);
-  
+
   const { user } = useAuth();
   const [toast, notify, clearToast] = useToast();
   const canEdit = isAdminUser(user);
@@ -1988,7 +1990,7 @@ export function Locations() {
       const res = await apiFetch('/locations');
       if (!res.ok) throw new Error('No se pudieron cargar las áreas');
       const data = await res.json();
-      
+
       // Asegura que siempre sea un array
       if (Array.isArray(data)) {
         setItems(data);
@@ -2002,8 +2004,8 @@ export function Locations() {
     } catch (error) {
       notify(error.message, 'error');
       setItems([]);
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
   }, [notify]);
 
@@ -2016,17 +2018,17 @@ export function Locations() {
       setDetail(data);
     } catch (error) {
       notify(error.message, 'error');
-    } finally { 
-      setLoadingDetail(false); 
+    } finally {
+      setLoadingDetail(false);
     }
   }, [notify]);
 
-  useEffect(() => { 
-    load(); 
+  useEffect(() => {
+    load();
   }, [load]);
 
-  useEffect(() => { 
-    if (selectedArea) loadDetail(selectedArea); 
+  useEffect(() => {
+    if (selectedArea) loadDetail(selectedArea);
   }, [selectedArea, loadDetail]);
 
   const submit = async (event) => {
@@ -2034,23 +2036,23 @@ export function Locations() {
     if (!newName.trim()) return notify('Ingresa un nombre para el área.', 'error');
     setSaving(true);
     try {
-      const res = await apiFetch('/locations', { 
-        method: 'POST', 
-        body: JSON.stringify({ name: newName.trim(), description: newDescription.trim() }) 
+      const res = await apiFetch('/locations', {
+        method: 'POST',
+        body: JSON.stringify({ name: newName.trim(), description: newDescription.trim() })
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.message || 'No se pudo crear el área');
-      
+
       notify('Área creada correctamente.', 'success');
-      setNewName(''); 
-      setNewDescription(''); 
+      setNewName('');
+      setNewDescription('');
       setShowNewArea(false);
       await load();
       if (json.id) setSelectedArea(json.id);
     } catch (error) {
       notify(error.message, 'error');
-    } finally { 
-      setSaving(false); 
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -2581,7 +2583,7 @@ export function Appointments() {
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, notify, clearToast] = useToast()
-  
+
   // Vistas de calendario: 'month' | 'week' | 'day'
   const [calendarView, setCalendarView] = useState('month')
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -3840,7 +3842,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   ];
 
   const listToDisplay = usersList.length > 0 ? usersList : defaultUsers;
-  const filteredUsers = listToDisplay.filter(u => 
+  const filteredUsers = listToDisplay.filter(u =>
     u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -3876,8 +3878,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Indicadores en tiempo real para supervisar la operación médica diaria.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <select 
-            value={timeRange} 
+          <select
+            value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
             style={{
               background: '#0f172a',
@@ -3922,8 +3924,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         {metrics.map((item, idx) => {
           const Icon = item.icon;
           return (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               style={{
                 flex: '1 1 220px',
                 background: '#0f172a',
@@ -4134,8 +4136,9 @@ const DATE_OPTIONS = [
   { value: '7d', label: 'Últimos 7 Días' },
   { value: '30d', label: 'Últimos 30 Días' }
 ];
+
 // -----------------------------------------------------------------------------
-// SUBCOMPONENTS
+// SUBCOMPONENTES DE INTERFAZ
 // -----------------------------------------------------------------------------
 const KpiCard = React.memo(({
   title,
@@ -4145,12 +4148,12 @@ const KpiCard = React.memo(({
   icon: Icon,
   iconColor
 }) => (
-  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32 transition-all hover:border-slate-700">
+  <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between h-32 w-full transition-all hover:border-slate-700">
     <div className="flex items-center justify-between">
       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider select-none">
         {title}
       </span>
-      <Icon className={`w-4 h-4 ${iconColor} shrink-0`} />
+      {Icon && <Icon className={`w-4 h-4 ${iconColor} shrink-0`} />}
     </div>
     <div className="flex items-baseline justify-between mt-auto">
       <span className="text-2xl font-extrabold text-white font-mono">{value}</span>
@@ -4164,9 +4167,9 @@ const FilterSelect = React.memo(({
   label,
   value,
   onChange,
-  options
+  options = []
 }) => (
-  <div>
+  <div className="flex flex-col w-full">
     <label className="text-[10px] text-slate-400 block mb-1 font-medium select-none">
       {label}
     </label>
@@ -4186,9 +4189,9 @@ const FilterSelect = React.memo(({
 FilterSelect.displayName = 'FilterSelect';
 
 // -----------------------------------------------------------------------------
-// MAIN COMPONENT
+// COMPONENTE PRINCIPAL (DASHBOARD)
 // -----------------------------------------------------------------------------
-export function Dashboard() {
+export function Dashboard({ usersList = MOCK_USERS }) {
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedDevice, setSelectedDevice] = useState('all');
   const [dateRange, setDateRange] = useState('7d');
@@ -4205,21 +4208,26 @@ export function Dashboard() {
   }, []);
 
   const filteredUsers = useMemo(() => {
+    const listToFilter = Array.isArray(usersList) && usersList.length > 0 ? usersList : MOCK_USERS;
     const query = userSearch.toLowerCase().trim();
-    if (!query) return MOCK_USERS;
-    return MOCK_USERS.filter(u => 
-      u.username.toLowerCase().includes(query) || 
-      u.id.toLowerCase().includes(query)
+    
+    if (!query) return listToFilter;
+    
+    return listToFilter.filter(u => 
+      (u.username && u.username.toLowerCase().includes(query)) || 
+      (u.id && u.id.toString().toLowerCase().includes(query)) ||
+      (u.email && u.email.toLowerCase().includes(query)) ||
+      (u.role && u.role.toLowerCase().includes(query))
     );
-  }, [userSearch]);
+  }, [userSearch, usersList]);
 
   return (
-    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 space-y-6 font-sans antialiased">
+    <div className="w-full min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 flex flex-col gap-6 font-sans antialiased overflow-x-hidden">
       
       {/* 1. HEADER CONTROL BAR */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-5 rounded-xl shadow-xl">
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0f172a] border border-slate-800 p-5 rounded-xl shadow-xl w-full">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase tracking-wide">
               Enterprise Analytics
             </span>
@@ -4228,7 +4236,7 @@ export function Dashboard() {
           <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
             Dashboard de Control y Auditoría TI
           </h1>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 mt-1">
             Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros.
           </p>
         </div>
@@ -4244,14 +4252,14 @@ export function Dashboard() {
       </header>
 
       {/* 2. FILTROS DE BÚSQUEDA */}
-      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md">
+      <section className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 shadow-md w-full">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 text-xs">
           <div className="flex items-center gap-2 text-slate-400 font-semibold uppercase tracking-wider shrink-0 lg:border-r border-slate-800 lg:pr-4">
             <Filter className="w-4 h-4 text-blue-400" />
             <span>Filtros Operativos:</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+          <div className="flex flex-col sm:flex-row gap-4 w-full">
             <FilterSelect
               label="Sede / Ubicación"
               value={selectedLocation}
@@ -4274,8 +4282,8 @@ export function Dashboard() {
         </div>
       </section>
 
-      {/* 3. GRID DE KPIS METRICAS */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+      {/* 3. GRID DE KPIS Y METRICAS */}
+      <section className="flex flex-col sm:flex-row flex-wrap lg:flex-nowrap gap-4 w-full">
         <KpiCard
           title="Disponibilidad TI"
           value="0%"
@@ -4318,19 +4326,19 @@ export function Dashboard() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
             <div className="relative w-full sm:w-72">
               <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Buscar por usuario o ID..."
+                placeholder="Buscar por usuario, correo o rol..."
                 value={userSearch}
                 onChange={handleSearchChange}
                 className="w-full bg-[#070b14] border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
               />
             </div>
             
-            <button className="hidden sm:flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer">
+            <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold shrink-0 transition-colors cursor-pointer">
               <UserPlus className="w-3.5 h-3.5" />
               <span>Nuevo Usuario</span>
             </button>
@@ -4342,20 +4350,20 @@ export function Dashboard() {
             filteredUsers.map((user) => (
               <div 
                 key={user.id} 
-                className="flex items-center justify-between py-3 px-1 hover:bg-slate-800/40 rounded-lg transition-colors"
+                className="flex items-center justify-between py-3 px-2 hover:bg-slate-800/40 rounded-lg transition-colors gap-4"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-purple-600/20 border border-purple-500/30 text-purple-300 font-bold flex items-center justify-center text-xs shrink-0 select-none">
-                    {user.username.charAt(0).toUpperCase()}
+                    {user.username ? user.username.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-100">{user.username}</p>
+                  <div className="truncate">
+                    <p className="text-xs font-semibold text-slate-100 truncate">{user.username || 'Sin Nombre'}</p>
                     <p className="text-[10px] text-slate-500 font-mono">ID: {user.id}</p>
                   </div>
                 </div>
 
                 {user.role && (
-                  <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-400 border border-slate-700 shrink-0">
                     {user.role}
                   </span>
                 )}
@@ -4814,7 +4822,7 @@ export function Profile({ user = {}, usersList = [] }) {
   ];
 
   const listToDisplay = usersList.length > 0 ? usersList : defaultUsers;
-  const filteredUsers = listToDisplay.filter(u => 
+  const filteredUsers = listToDisplay.filter(u =>
     u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
