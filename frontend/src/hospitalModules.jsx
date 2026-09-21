@@ -4197,7 +4197,7 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
-export const DashboardGeneral = () => {
+export const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [users, setUsers] = useState([
