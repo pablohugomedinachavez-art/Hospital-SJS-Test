@@ -4106,139 +4106,195 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 // Dashboard (Con exportación profesional y limpia para PDF)
 // ============================================================
 
-export function Dashboard() {
-  const [reports, setReports] = useState(null);
-  const [series, setSeries] = useState([]);
-  const [metrics, setMetrics] = useState(null);
-  const [areas, setAreas] = useState([]);
-  const [days, setDays] = useState(30);
+export default function Dashboard() {
+  const [stats, setStats] = useState({
+    patients: 0,
+    consultations: 0,
+    appointments: 0,
+    documents: 0,
+    active_alerts: 0,
+  });
+  const [recentAlerts, setRecentAlerts] = useState([]);
+  const [recentConsultations, setRecentConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
     setLoading(true);
+    setError(null);
+
+    const token = localStorage.getItem('token');
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+
     try {
-      const [reportsRes, seriesRes, metricsRes, areasRes] = await Promise.all([
-        apiFetch('/reports'),
-        apiFetch(`/reports/series?days=${days}`),
-        apiFetch('/metrics'),
-        apiFetch('/dashboard/areas'),
-      ]);
+      // 1. Obtener métricas generales e información consolidada del reporte
+      const reportsRes = await fetch('/api/reports', { headers });
+      if (!reportsRes.ok) throw new Error('Error al cargar datos del reporte');
+      const reportsData = await reportsRes.json();
 
-      if (!reportsRes.ok || !seriesRes.ok || !metricsRes.ok || !areasRes.ok) {
-        throw new Error('No se pudieron obtener todos los datos');
-      }
+      // 2. Obtener alertas recientes del sistema
+      const alertsRes = await fetch('/api/alerts', { headers });
+      if (!alertsRes.ok) throw new Error('Error al cargar alertas del sistema');
+      const alertsData = await alertsRes.json();
 
-      setReports(await reportsRes.json());
-      setSeries((await seriesRes.json()) || []);
-      setMetrics(await metricsRes.json());
-      setAreas((await areasRes.json()) || []);
-    } catch (error) {
-      // Datos de prueba / Fallback
-      setReports({ summary: { patients: 28, consultations: 42 } });
-      setSeries([
-        { day: 'Día 1', patients: 5, consultations: 8 },
-        { day: 'Día 2', patients: 9, consultations: 12 },
-        { day: 'Día 3', patients: 14, consultations: 22 },
-      ]);
-      setMetrics({ active_users: 6, avg_session_seconds: 320 });
-      setAreas([
-        { name: 'Triaje', device_count: 5, active_alerts: 1 },
-        { name: 'Consultorios', device_count: 12, active_alerts: 0 },
-        { name: 'Farmacia', device_count: 4, active_alerts: 2 },
-      ]);
-      showToast('Cargado en modo demostración/local', 'info', 'Aviso');
+      setStats({
+        patients: reportsData.summary?.patients || 0,
+        consultations: reportsData.summary?.consultations || 0,
+        appointments: reportsData.summary?.appointments || 0,
+        documents: reportsData.summary?.documents || 0,
+        active_alerts: reportsData.summary?.active_alerts || 0,
+      });
+
+      setRecentConsultations(reportsData.recent_consultations || []);
+      setRecentAlerts(alertsData.slice(0, 5)); // Mostrar solo las 5 más recientes
+    } catch (err) {
+      console.error('[DASHBOARD FETCH ERROR]:', err);
+      setError(err.message || 'No se pudo conectar con el servidor');
     } finally {
       setLoading(false);
     }
-  }, [days]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Exportar a JSON
-  const exportJSON = () => {
-    try {
-      const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() };
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dashboard_report_${days}d.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast('Datos exportados en formato JSON', 'success', 'Exportación exitosa');
-    } catch (e) {
-      showToast('Error al procesar la exportación JSON', 'error', 'Error');
-    }
   };
 
-  // Exportar a CSV
-  const exportCSV = () => {
-    try {
-      let csvContent = '\uFEFFDía,Pacientes,Consultas\n';
-      series.forEach((row) => {
-        csvContent += `"${row.day}","${row.patients}","${row.consultations}"\n`;
-      });
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `tendencia_pacientes_${days}d.csv`);
-      link.click();
-      showToast('Archivo CSV generado correctamente', 'success', 'Exportación exitosa');
-    } catch (e) {
-      showToast('Error al exportar a CSV', 'error', 'Error');
-    }
-  };
-
-  // Exportar a Excel a través de Flask API
-  const exportExcel = async () => {
-    try {
-      const res = await apiFetch('/dashboard/export/excel');
-      if (!res.ok) throw new Error('Servidor devolvió error al generar Excel');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `reporte_hospital_${Date.now()}.xlsx`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      showToast('Reporte XLSX descargado correctamente', 'success', 'Excel');
-    } catch (e) {
-      showToast(e.message || 'No se pudo descargar el archivo Excel', 'error', 'Error de Exportación');
-    }
-  };
-
-  // Impresión / Guardar PDF
-  const exportPDF = () => {
-    showToast('Abriendo ventana de impresión / guardado PDF...', 'info', 'Impresión');
-    window.print();
-  };
+  if (loading) {
+    return (
+      <div className="page-shell flex items-center justify-center p-8">
+        <LoadingState label="Cargando panel de control..." />
+      </div>
+    );
+  }
 
   return (
-    <div style={{ backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Dashboard Gerencial</h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={exportCSV} style={{ padding: '0.5rem 0.75rem', background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '8px', cursor: 'pointer' }}>CSV</button>
-          <button onClick={exportExcel} style={{ padding: '0.5rem 0.75rem', background: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '8px', cursor: 'pointer' }}>Excel</button>
-          <button onClick={exportPDF} style={{ padding: '0.5rem 0.75rem', background: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '8px', cursor: 'pointer' }}>PDF</button>
-          <button onClick={exportJSON} style={{ padding: '0.5rem 0.75rem', background: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '8px', cursor: 'pointer' }}>JSON</button>
+    <div className="page-shell main-content">
+      {/* Encabezado Principal */}
+      <div className="card-header-row mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100">Panel de Control General</h1>
+          <p className="text-sm text-slate-400">
+            Resumen estadístico del estado del sistema e historial asistencial.
+          </p>
         </div>
+        <button className="button secondary" onClick={fetchDashboardData}>
+          Actualizar Datos
+        </button>
       </div>
 
-      {loading ? (
-        <LoadingState label="Cargando Dashboard..." />
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <StatCard icon={<StatIcons.Patients />} label="Pacientes" value={reports?.summary?.patients ?? 0} hint="Total" tone="primary" />
-          <StatCard icon={<StatIcons.Consultations />} label="Consultas" value={reports?.summary?.consultations ?? 0} hint={`Últimos ${days} días`} tone="success" />
-          <StatCard icon={<StatIcons.Users />} label="Usuarios" value={metrics?.active_users ?? 0} hint="Activos" tone="primary" />
-          <StatCard icon={<StatIcons.Time />} label="Sesión promedio" value={`${Math.round(metrics?.avg_session_seconds || 0)}s`} hint="Tiempo" tone="warning" />
+      {error && (
+        <div className="p-4 mb-4 text-sm text-red-400 bg-red-950/40 border border-red-800/50 rounded-xl">
+          {error}
         </div>
       )}
+
+      {/* Grilla de Tarjetas Estadísticas KPI (Reutilizando StatCard) */}
+      <div className="stats-grid">
+        <StatCard
+          icon={<StatIcons.Patients />}
+          label="Pacientes Registrados"
+          value={stats.patients}
+          hint="Total en base de datos"
+          tone="primary"
+        />
+        <StatCard
+          icon={<StatIcons.Consultations />}
+          label="Consultas Médicas"
+          value={stats.consultations}
+          hint="Atenciones registradas"
+          tone="success"
+        />
+        <StatCard
+          icon={<StatIcons.Time />}
+          label="Citas Pendientes"
+          value={stats.appointments}
+          hint="Programadas en agenda"
+          tone="primary"
+        />
+        <StatCard
+          icon={<StatIcons.Users />}
+          label="Alertas Activas"
+          value={stats.active_alerts}
+          hint="Atención requerida"
+          tone={stats.active_alerts > 0 ? 'warning' : 'success'}
+        />
+      </div>
+
+      {/* Contenido en 2 Columnas: Consultas Recientes vs Alertas del Sistema */}
+      <div className="grid-2">
+        {/* Tabla / Lista de Consultas Recientes */}
+        <div className="section-card flex flex-col gap-4">
+          <div className="card-header-row">
+            <h2 className="text-lg font-semibold text-slate-100">Consultas Recientes</h2>
+            <span className="collection-count">{recentConsultations.length} Recientes</span>
+          </div>
+
+          {recentConsultations.length === 0 ? (
+            <p className="text-sm text-slate-500 py-4">No se registran consultas médicas recientes.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table-container">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Motivo</th>
+                    <th>Diagnóstico</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentConsultations.map((c) => (
+                    <tr key={c.id}>
+                      <td className="text-xs text-slate-400">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="font-medium text-slate-200">{c.reason || 'Consulta General'}</td>
+                      <td>
+                        <span className="badge medium">{c.diagnosis || 'Sin Diagnóstico'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Panel de Alertas y Monitoreo */}
+        <div className="section-card flex flex-col gap-4">
+          <div className="card-header-row">
+            <h2 className="text-lg font-semibold text-slate-100">Alertas de Dispositivos</h2>
+            <span className="collection-count">{recentAlerts.length} Recientes</span>
+          </div>
+
+          {recentAlerts.length === 0 ? (
+            <p className="text-sm text-slate-500 py-4">No hay alertas activas registradas en el sistema.</p>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {recentAlerts.map((alert) => (
+                <div key={alert.id} className="item-card">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-xs font-semibold uppercase text-slate-400">
+                        {alert.device_name || `Dispositivo #${alert.device_id}`}
+                      </span>
+                      <p className="text-sm font-medium text-slate-200 mt-1">{alert.message}</p>
+                    </div>
+                    <span className={`badge ${alert.severity === 'high' ? 'high' : alert.severity === 'warning' ? 'medium' : 'low'}`}>
+                      {alert.severity || 'info'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-slate-500 mt-2">
+                    {alert.created_at ? new Date(alert.created_at).toLocaleString() : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
