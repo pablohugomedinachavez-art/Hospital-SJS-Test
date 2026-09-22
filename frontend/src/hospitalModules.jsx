@@ -4145,25 +4145,7 @@ export const Dashboard = () => {
     <div className="app-layout">
       <main className="main-content">
         
-        {/* CABECERA SUPERIOR CON ESTADO EN VIVO */}
-        <header className="app-header">
-          <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
-            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Sistema Operativo (Ping: 18ms)</span>
-            </div>
-            <span className="hidden md:inline text-slate-600">|</span>
-            <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
-          </div>
-
-          <div className="user-badge">
-            <div className="avatar-circle">A</div>
-            <div className="flex flex-col text-left">
-              <span className="text-xs font-bold leading-none text-white">admin</span>
-              <span className="text-[10px] text-slate-400">Auditor TI Senior</span>
-            </div>
-          </div>
-        </header>
+        
 
         {/* TÍTULO Y BOTONERA DE ACCIÓN GLOBAL */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-2">
@@ -4179,79 +4161,6 @@ export const Dashboard = () => {
             <p className="text-xs text-slate-400 mt-1">
               Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros de seguridad.
             </p>
-          </div>
-          
-          {/* Botonera de Acción Global con Chat y Alertas (Red Bubbles) */}
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            
-            {/* Chat TI Button with Badge */}
-            <div className="relative">
-              <button 
-                onClick={() => alert('Abriendo centro de chat con soporte médico y TI...')}
-                className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer relative"
-              >
-                <MessageSquare size={14} className="text-cyan-400" />
-                <span>Chat TI</span>
-              </button>
-              {unreadMessagesCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
-                  {unreadMessagesCount}
-                </span>
-              )}
-            </div>
-
-            {/* Alertas Button with Dropdown & Red Bubble */}
-            <div className="relative">
-              <button 
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-amber-500/50 transition-all cursor-pointer relative"
-              >
-                <Bell size={14} className="text-amber-400" />
-                <span>Alertas</span>
-              </button>
-              {unreadAlertsCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19]">
-                  {unreadAlertsCount}
-                </span>
-              )}
-
-              {/* Popup de Alertas */}
-              {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-[#111827] border border-slate-700 rounded-xl shadow-2xl z-50 p-4 text-left">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">Centro de Alertas TI</h3>
-                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-medium">3 Nuevas</span>
-                  </div>
-                  <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-                    <div className="p-2.5 bg-red-950/30 border border-red-900/50 rounded-lg text-xs">
-                      <p className="font-semibold text-red-300">Falla de Servidor - Rayos X</p>
-                      <p className="text-slate-400 mt-0.5 text-[11px]">Sede Central - Nodo 04 desconectado por timeout.</p>
-                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 4 minutos</span>
-                    </div>
-                    <div className="p-2.5 bg-yellow-950/30 border border-yellow-900/50 rounded-lg text-xs">
-                      <p className="font-semibold text-yellow-300">Alto uso de CPU (92%)</p>
-                      <p className="text-slate-400 mt-0.5 text-[11px]">Servidor de Historias Clínicas Electrónicas.</p>
-                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 15 minutos</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <button 
-              onClick={() => alert('Generando informe de cumplimiento normativo (PDF)...')}
-              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer"
-            >
-              <Download size={14} className="text-emerald-400" />
-              <span>Exportar Reporte</span>
-            </button>
-            <button 
-              onClick={() => window.location.reload()}
-              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 cursor-pointer"
-            >
-              <RefreshCw size={14} className="text-blue-400" />
-              <span>Refrescar</span>
-            </button>
           </div>
         </div>
 
