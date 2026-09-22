@@ -66,6 +66,7 @@ const ROUTES_MAP = {
   '/users': Users,
   '/reports': Reports,
   '/profile': Profile,
+  '/dashboard2': dashboard2,
 }
 
 // 2. DEFAULT PANEL DEFINED AT TOP LEVEL

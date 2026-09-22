@@ -5176,3 +5176,98 @@ export function Profile({ user = {}, usersList = [] }) {
     </div>
   );
 }
+
+
+export  function dashboard2() {
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const unreadAlertsCount = 3;
+  const unreadMessagesCount = 2;
+
+  return (
+    <div className="min-h-screen bg-[#0B0F19] text-gray-100 p-6 font-sans">
+      
+      {/* HEADER WITH NOTIFICATIONS & CHAT */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-gray-800 gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-cyan-400 uppercase mb-1">
+            <span>Enterprise Analytics</span>
+            <span>•</span>
+            <span className="flex items-center gap-1 text-emerald-400">
+              <ShieldCheck size={14} /> ISO 27001 & HIPAA Compliant
+            </span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
+            Dashboard de Control y Auditoría TI
+          </h1>
+          <p className="text-sm text-gray-400 mt-1">
+            Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros de seguridad.
+          </p>
+        </div>
+
+        {/* Action Buttons & Notification Hub */}
+        <div className="flex items-center gap-3">
+          
+          {/* Chat Messages Button with Red Badge */}
+          <div className="relative">
+            <button className="flex items-center gap-2 bg-[#1E293B] hover:bg-[#334155] border border-gray-700 px-3 py-2 rounded-lg text-sm transition">
+              <MessageSquare size={16} className="text-cyan-400" />
+              <span className="hidden sm:inline">Chat TI</span>
+            </button>
+            {unreadMessagesCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#0B0F19] animate-pulse">
+                {unreadMessagesCount}
+              </span>
+            )}
+          </div>
+
+          {/* Notifications Dropdown Toggle with Red Bubble */}
+          <div className="relative">
+            <button 
+              onClick={() => setNotificationsOpen(!notificationsOpen)}
+              className="relative flex items-center gap-2 bg-[#1E293B] hover:bg-[#334155] border border-gray-700 px-3 py-2 rounded-lg text-sm transition"
+            >
+              <Bell size={16} className="text-yellow-400" />
+              <span className="hidden sm:inline">Alertas</span>
+            </button>
+            {unreadAlertsCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#0B0F19]">
+                {unreadAlertsCount}
+              </span>
+            )}
+
+            {/* Notification List Dropdown Popup */}
+            {notificationsOpen && (
+              <div className="absolute right-0 mt-2 w-80 bg-[#111827] border border-gray-700 rounded-xl shadow-2xl z-50 p-4">
+                <div className="flex justify-between items-center pb-3 border-b border-gray-800 mb-3">
+                  <h3 className="text-sm font-semibold text-white">Centro de Alertas TI</h3>
+                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-medium">3 Nuevas</span>
+                </div>
+                <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                  <div className="p-2.5 bg-red-950/30 border border-red-900/50 rounded-lg text-xs">
+                    <p className="font-semibold text-red-300">Falla de Servidor - Rayos X</p>
+                    <p className="text-gray-400 mt-0.5">Sede Central - Nodo 04 desconectado por timeout.</p>
+                    <span className="text-[10px] text-gray-500 mt-1 block">Hace 4 minutos</span>
+                  </div>
+                  <div className="p-2.5 bg-yellow-950/30 border border-yellow-900/50 rounded-lg text-xs">
+                    <p className="font-semibold text-yellow-300">Alto uso de CPU (92%)</p>
+                    <p className="text-gray-400 mt-0.5">Servidor de Historias Clínicas Electrónicas.</p>
+                    <span className="text-[10px] text-gray-500 mt-1 block">Hace 15 minutos</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button className="flex items-center gap-2 bg-[#1E293B] hover:bg-[#334155] border border-gray-700 px-3 py-2 rounded-lg text-sm transition text-gray-200">
+            <Download size={16} /> Exportar Reporte
+          </button>
+          
+          <button className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-2 rounded-lg text-sm transition font-medium shadow-lg shadow-cyan-900/20">
+            <RefreshCw size={16} /> Refrescar
+          </button>
+        </div>
+      </header>
+
+    </div>
+  );
+}
