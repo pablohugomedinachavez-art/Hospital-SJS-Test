@@ -4154,37 +4154,13 @@ export const Dashboard = () => {
             <h1 className="text-2xl font-black text-white tracking-tight">
               Dashboard de Control y Auditoría TI
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
-              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros de seguridad.
-            </p>
-          
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            <div className="relative">
-              
-              {unreadMessagesCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
-                  {unreadMessagesCount}
-                </span>
-              )}
-            </div>
-
-            <div className="relative">
-              
-              {unreadAlertsCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19]">
-                  {unreadAlertsCount}
-                </span>
-              )}
-            </div>
-
+          <div className="flex items-center gap-2 self-start md:self-auto">      
             <button 
               onClick={() => alert('Generando informe...')}
-              className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-blue-500/50 cursor-pointer"
-            >
+              className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-blue-500/50 cursor-pointer">
               <Download size={14} className="text-emerald-400" />
               <span>Exportar Reporte</span>
             </button>
-            
           </div>
         </div>
 
