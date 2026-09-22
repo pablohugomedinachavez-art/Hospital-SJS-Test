@@ -4161,12 +4161,20 @@ export const Dashboard = () => {
           <div className="flex items-center gap-2 self-start md:self-auto">
             <div className="relative">
               
-              
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
+                  {unreadMessagesCount}
+                </span>
+              )}
             </div>
 
             <div className="relative">
               
-              
+              {unreadAlertsCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19]">
+                  {unreadAlertsCount}
+                </span>
+              )}
             </div>
 
             <button 
