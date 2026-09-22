@@ -1175,7 +1175,9 @@ export function Patients() {
             <button
               onClick={openCreate}
               className="btn-interactive"
-              style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+              style={{ backgroundColor: theme.accent, border: 'none',
+                 color: '#ffffff', borderRadius: '8px', padding: '0.55rem 1.25rem', 
+                 fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
             >
               <Plus size={16} /> Nuevo paciente
             </button>
@@ -4109,7 +4111,7 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
-export const Dashboard = () => {
+const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [users, setUsers] = useState([
@@ -4379,6 +4381,7 @@ export const Dashboard = () => {
     </div>
   );
 };
+export { Dashboard };
 
 
 export function Users() {
