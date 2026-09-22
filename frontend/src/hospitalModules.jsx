@@ -4313,13 +4313,6 @@ export const Dashboard = () => {
                   <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
                   <p className="text-[11px] text-slate-400">{users.length} cuentas registradas.</p>
                 </div>
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap hover:scale-105 transition-transform cursor-pointer"
-                >
-                  <Plus size={13} />
-                  <span>Nuevo</span>
-                </button>
               </div>
 
               <div className="relative mb-3">
