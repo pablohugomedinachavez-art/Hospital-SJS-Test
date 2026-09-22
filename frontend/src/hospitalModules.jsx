@@ -4117,6 +4117,11 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 export const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  
+  const unreadAlertsCount = 3;
+  const unreadMessagesCount = 2;
+
   const [users, setUsers] = useState([
     { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario', status: 'Activo' },
     { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador', status: 'Activo' },
@@ -4176,7 +4181,63 @@ export const Dashboard = () => {
             </p>
           </div>
           
+          {/* Botonera de Acción Global con Chat y Alertas (Red Bubbles) */}
           <div className="flex items-center gap-2 self-start md:self-auto">
+            
+            {/* Chat TI Button with Badge */}
+            <div className="relative">
+              <button 
+                onClick={() => alert('Abriendo centro de chat con soporte médico y TI...')}
+                className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer relative"
+              >
+                <MessageSquare size={14} className="text-cyan-400" />
+                <span>Chat TI</span>
+              </button>
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </div>
+
+            {/* Alertas Button with Dropdown & Red Bubble */}
+            <div className="relative">
+              <button 
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-amber-500/50 transition-all cursor-pointer relative"
+              >
+                <Bell size={14} className="text-amber-400" />
+                <span>Alertas</span>
+              </button>
+              {unreadAlertsCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19]">
+                  {unreadAlertsCount}
+                </span>
+              )}
+
+              {/* Popup de Alertas */}
+              {notificationsOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-[#111827] border border-slate-700 rounded-xl shadow-2xl z-50 p-4 text-left">
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">Centro de Alertas TI</h3>
+                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-medium">3 Nuevas</span>
+                  </div>
+                  <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                    <div className="p-2.5 bg-red-950/30 border border-red-900/50 rounded-lg text-xs">
+                      <p className="font-semibold text-red-300">Falla de Servidor - Rayos X</p>
+                      <p className="text-slate-400 mt-0.5 text-[11px]">Sede Central - Nodo 04 desconectado por timeout.</p>
+                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 4 minutos</span>
+                    </div>
+                    <div className="p-2.5 bg-yellow-950/30 border border-yellow-900/50 rounded-lg text-xs">
+                      <p className="font-semibold text-yellow-300">Alto uso de CPU (92%)</p>
+                      <p className="text-slate-400 mt-0.5 text-[11px]">Servidor de Historias Clínicas Electrónicas.</p>
+                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 15 minutos</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button 
               onClick={() => alert('Generando informe de cumplimiento normativo (PDF)...')}
               className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer"
@@ -4319,7 +4380,7 @@ export const Dashboard = () => {
                 <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="     Buscar usuario..."
+                  placeholder="    Buscar usuario..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="form-control pl-9 text-xs"
