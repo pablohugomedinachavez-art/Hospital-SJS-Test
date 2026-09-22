@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import './styles.css'
-import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile, DeviceManagementDashboard } from './hospitalModules'
+import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile, DeviceManagementDashboard, dashboard2 } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
