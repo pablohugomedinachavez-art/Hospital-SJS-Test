@@ -1175,9 +1175,7 @@ export function Patients() {
             <button
               onClick={openCreate}
               className="btn-interactive"
-              style={{ backgroundColor: theme.accent, border: 'none',
-                 color: '#ffffff', borderRadius: '8px', padding: '0.55rem 1.25rem', 
-                 fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
+              style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
             >
               <Plus size={16} /> Nuevo paciente
             </button>
@@ -3917,8 +3915,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           </button>
         </div>
       </div>
-      </div>
-      )
+
       {/* MÉTRICAS KPI (CONTENEDOR FLEX BLOQUEADO) */}
       <div style={{
         display: 'flex',
@@ -4040,9 +4037,15 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      
-
+const MOCK_USERS = [
+  { id: 1, username: 'int_test_user', email: 'test@enterprise.com', role: 'Auditor' },
+  { id: 2, username: 'admin', email: 'admin@enterprise.com', role: 'Super Admin' },
+  { id: 3, username: 'admin_user', email: 'user_admin@enterprise.com', role: 'Operator' }
+];
 
 const LOCATION_OPTIONS = [
   { value: 'all', label: 'Todas las sedes' },
@@ -4111,7 +4114,7 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
-const Dashboard = () => {
+export const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [users, setUsers] = useState([
@@ -4301,87 +4304,76 @@ const Dashboard = () => {
             </div>
 
           </div>
-        </div>
-          
 
-        {/* MODAL INTERACTIVO PARA NUEVO USUARIO */}
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
-              <button 
-                onClick={() => setIsModalOpen(false)}
-                className="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="flex items-center gap-2 mb-4 text-blue-400 font-semibold text-sm">
-                <UserCheck size={18} />
-                <span>Registrar Nueva Cuenta de Auditoría</span>
+          {/* Directorio de Usuarios (1 Columna) */}
+          <div className="lg:col-span-1 card flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
+                  <p className="text-[11px] text-slate-400">{users.length} cuentas registradas.</p>
+                </div>
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap hover:scale-105 transition-transform cursor-pointer"
+                >
+                  <Plus size={13} />
+                  <span>Nuevo</span>
+                </button>
               </div>
 
-              <form onSubmit={handleAddUser} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Nombre de Usuario</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="Ej. auditor_sec"
-                    value={newUser.username}
-                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
-                    className="form-control text-xs"
-                  />
-                </div>
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar usuario..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="form-control pl-9 text-xs"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Correo Electrónico</label>
-                  <input 
-                    type="email" 
-                    placeholder="correo@hospital.com"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                    className="form-control text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Rol Asignado</label>
-                  <select 
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    className="form-control text-xs cursor-pointer"
-                  >
-                    <option value="Usuario">Usuario</option>
-                    <option value="Administrador">Administrador</option>
-                    <option value="Auditor TI">Auditor TI</option>
-                  </select>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsModalOpen(false)}
-                    className="btn btn-secondary text-xs px-4 py-2 cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary text-xs px-4 py-2 cursor-pointer"
-                  >
-                    Guardar Usuario
-                  </button>
-                </div>
-              </form>
+              <div className="w-full overflow-x-auto max-h-[220px] overflow-y-auto pr-1">
+                <table className="data-table-container text-xs w-full">
+                  <thead>
+                    <tr>
+                      <th className="pb-2 px-1 text-[10px]">Usuario / Rol</th>
+                      <th className="pb-2 px-1 text-[10px] text-right">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {users
+                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((user) => (
+                        <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="py-2.5 px-1 flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
+                              {user.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
+                              <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-1 whitespace-nowrap text-right">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
+              Multi-tenant • ISO 27001 Secure
             </div>
           </div>
-        )}
-
+        </div>
       </main>
     </div>
   );
 };
-export { Dashboard };
 
 
 export function Users() {
@@ -5190,4 +5182,4 @@ export function Profile({ user = {}, usersList = [] }) {
 
     </div>
   );
-}}
+}
