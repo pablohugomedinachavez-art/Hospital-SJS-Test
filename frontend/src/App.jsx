@@ -449,7 +449,10 @@ function AppHeader() {
           </div>
         
 
-        {/* Botonera de Acción Global con Chat y Alertas (Red Bubbles) */}
+        
+
+      </div>
+      {/* Botonera de Acción Global con Chat y Alertas (Red Bubbles) */}
           <div className="flex items-center gap-2 self-start md:self-auto">
             
             {/* Chat TI Button with Badge */}
@@ -514,8 +517,6 @@ function AppHeader() {
               <span>Exportar Reporte</span>
             </button>
           </div>
-
-      </div>
       {user && (
         <div className="user-badge">
           <div className="avatar-circle">{(user.username || user.email || 'U')[0].toUpperCase()}</div>
