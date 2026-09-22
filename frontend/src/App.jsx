@@ -431,6 +431,9 @@ function Alerts() {
 
 function AppHeader() {
   const { user } = useAuth()
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const unreadAlertsCount = 3;
+  const unreadMessagesCount = 2;
   return (
     <header className="app-header">
       <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
