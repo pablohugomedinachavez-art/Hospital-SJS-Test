@@ -3915,7 +3915,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           </button>
         </div>
       </div>
-
+      </div>
+      )
       {/* MÉTRICAS KPI (CONTENEDOR FLEX BLOQUEADO) */}
       <div style={{
         display: 'flex',
@@ -4038,97 +4039,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </div>
 
-      {/* DIRECTORIO DE USUARIOS */}
-      <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', width: '100%', position: 'static', float: 'none', clear: 'both', boxSizing: 'border-box' }}>
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-  <div>
-    <h3 className="text-lg font-bold text-white">Directorio de Usuarios</h3>
-    <p className="text-xs text-slate-400">3 cuentas registradas en el sistema.</p>
-  </div>
-  <button 
-    className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
-  >
-    <span>+</span>
-    <span>Nuevo Usuario</span>
-  </button>
-</div>
+      
 
-        <div style={{ position: 'relative', width: '100%', maxWidth: '360px', marginBottom: '1rem' }}>
-          <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
-          <input
-            type="text"
-            placeholder="Buscar por usuario, correo o rol..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%',
-              background: '#090d16',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              padding: '0.6rem 0.8rem 0.6rem 2.2rem',
-              color: '#ffffff',
-              fontSize: '0.85rem',
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
-          />
-        </div>
-
-        <div style={{ overflowX: 'auto', width: '100%' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ background: '#090d16', borderBottom: '1px solid #1e293b' }}>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>USUARIO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>CORREO ELECTRÓNICO</th>
-                <th style={{ padding: '0.75rem 1rem', color: '#64748b', fontSize: '0.7rem', fontWeight: 700 }}>ROL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((u) => (
-                <tr key={u.id} style={{ borderBottom: '1px solid #1e293b' }}>
-                  <td style={{ padding: '0.85rem 1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <span style={{
-                        width: '32px',
-                        height: '32px',
-                        background: '#6366f1',
-                        borderRadius: '50%',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        color: '#ffffff'
-                      }}>
-                        {u.username.charAt(0).toUpperCase()}
-                      </span>
-                      <div>
-                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>{u.username}</div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>ID: #{u.id}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem', color: u.email !== '—' ? '#f8fafc' : '#64748b' }}>{u.email}</td>
-                  <td style={{ padding: '0.85rem 1rem' }}>
-                    <span style={{ background: '#1e293b', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', color: '#38bdf8' }}>
-                      {u.role}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-  );
-}
-
-const MOCK_USERS = [
-  { id: 1, username: 'int_test_user', email: 'test@enterprise.com', role: 'Auditor' },
-  { id: 2, username: 'admin', email: 'admin@enterprise.com', role: 'Super Admin' },
-  { id: 3, username: 'admin_user', email: 'user_admin@enterprise.com', role: 'Operator' }
-];
 
 const LOCATION_OPTIONS = [
   { value: 'all', label: 'Todas las sedes' },
@@ -4387,73 +4299,8 @@ export const Dashboard = () => {
             </div>
 
           </div>
-
-          {/* Directorio de Usuarios (1 Columna) */}
-          <div className="lg:col-span-1 card flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div>
-                  <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
-                  <p className="text-[11px] text-slate-400">{users.length} cuentas registradas.</p>
-                </div>
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1 shrink-0 whitespace-nowrap hover:scale-105 transition-transform cursor-pointer"
-                >
-                  <Plus size={13} />
-                  <span>Nuevo</span>
-                </button>
-              </div>
-
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="Buscar usuario..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="form-control pl-9 text-xs"
-                />
-              </div>
-
-              <div className="w-full overflow-x-auto max-h-[220px] overflow-y-auto pr-1">
-                <table className="data-table-container text-xs w-full">
-                  <thead>
-                    <tr>
-                      <th className="pb-2 px-1 text-[10px]">Usuario / Rol</th>
-                      <th className="pb-2 px-1 text-[10px] text-right">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {users
-                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
-                      .map((user) => (
-                        <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
-                          <td className="py-2.5 px-1 flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
-                              {user.username.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
-                              <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-1 whitespace-nowrap text-right">
-                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            
-            <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
-              Multi-tenant • ISO 27001 Secure
-            </div>
-          </div>
-
         </div>
+          
 
         {/* MODAL INTERACTIVO PARA NUEVO USUARIO */}
         {isModalOpen && (
@@ -5340,4 +5187,4 @@ export function Profile({ user = {}, usersList = [] }) {
 
     </div>
   );
-}
+}}
