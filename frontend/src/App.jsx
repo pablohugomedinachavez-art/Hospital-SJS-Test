@@ -439,7 +439,6 @@ function AppHeader() {
       <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <span style={{ color: 'var(--primary)' }}>•</span> Panel General
         {/* CABECERA SUPERIOR CON ESTADO EN VIVO */}
-        <header className="app-header">
           <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
             <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -448,15 +447,7 @@ function AppHeader() {
             <span className="hidden md:inline text-slate-600">|</span>
             <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
           </div>
-
-          <div className="user-badge">
-            <div className="avatar-circle">A</div>
-            <div className="flex flex-col text-left">
-              <span className="text-xs font-bold leading-none text-white">admin</span>
-              <span className="text-[10px] text-slate-400">Auditor TI Senior</span>
-            </div>
-          </div>
-        </header>
+        
 
         {/* Botonera de Acción Global con Chat y Alertas (Red Bubbles) */}
           <div className="flex items-center gap-2 self-start md:self-auto">
@@ -521,13 +512,6 @@ function AppHeader() {
             >
               <Download size={14} className="text-emerald-400" />
               <span>Exportar Reporte</span>
-            </button>
-            <button 
-              onClick={() => window.location.reload()}
-              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 cursor-pointer"
-            >
-              <RefreshCw size={14} className="text-blue-400" />
-              <span>Refrescar</span>
             </button>
           </div>
 
