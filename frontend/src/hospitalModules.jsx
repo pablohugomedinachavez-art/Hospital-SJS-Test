@@ -4161,6 +4161,13 @@ export const Dashboard = () => {
             <p className="text-xs text-slate-400 mt-1">
               Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros de seguridad.
             </p>
+            <button 
+              onClick={() => alert('Generando informe de cumplimiento normativo (PDF)...')}
+              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer"
+            >
+              <Download size={14} className="text-emerald-400" />
+              <span>Exportar Reporte</span>
+            </button>
           </div>
         </div>
 

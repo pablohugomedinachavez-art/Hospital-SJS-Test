@@ -512,14 +512,6 @@ function AppHeader() {
                 </div>
               )}
             </div>
-
-            <button 
-              onClick={() => alert('Generando informe de cumplimiento normativo (PDF)...')}
-              className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer"
-            >
-              <Download size={14} className="text-emerald-400" />
-              <span>Exportar Reporte</span>
-            </button>
           </div>
           <div className="avatar-circle">{(user.username || user.email || 'U')[0].toUpperCase()}</div>
           <span>{user.username || user.email}</span>
