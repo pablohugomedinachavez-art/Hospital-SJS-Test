@@ -5149,95 +5149,270 @@ export function Profile({ user = {}, usersList = [] }) {
 
 
 export  function dashboard2() {
+  const [searchTerm, setSearchTerm] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  
   const unreadAlertsCount = 3;
   const unreadMessagesCount = 2;
 
+  const [users] = useState([
+    { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario', status: 'Activo' },
+    { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador', status: 'Activo' },
+    { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador', status: 'Activo' },
+  ]);
+
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-gray-100 p-6 font-sans">
-      
-      {/* HEADER WITH NOTIFICATIONS & CHAT */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-gray-800 gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-cyan-400 uppercase mb-1">
-            <span>Enterprise Analytics</span>
-            <span>•</span>
-            <span className="flex items-center gap-1 text-emerald-400">
-              <ShieldCheck size={14} /> ISO 27001 & HIPAA Compliant
-            </span>
+    <div className="app-layout">
+      <main className="main-content">
+        
+        {/* CABECERA SUPERIOR */}
+        <header className="app-header">
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Sistema Operativo (Ping: 18ms)</span>
+            </div>
+            <span className="hidden md:inline text-slate-600">|</span>
+            <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">
-            Dashboard de Control y Auditoría TI
-          </h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros de seguridad.
-          </p>
+
+          <div className="user-badge flex items-center gap-2">
+            <div className="avatar-circle">A</div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold leading-none text-white">admin</span>
+              <span className="text-[10px] text-slate-400">Auditor TI Senior</span>
+            </div>
+          </div>
+        </header>
+
+        {/* TÍTULO Y ACCIONES */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-2">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
+              <span>Enterprise Analytics</span>
+              <span>•</span>
+              <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Dashboard de Control y Auditoría TI
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros de seguridad.
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <div className="relative">
+              <button 
+                onClick={() => alert('Abriendo centro de chat...')}
+                className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-blue-500/50 cursor-pointer relative"
+              >
+                <MessageSquare size={14} className="text-cyan-400" />
+                <span>Chat TI</span>
+              </button>
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </div>
+
+            <div className="relative">
+              <button 
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-amber-500/50 cursor-pointer relative"
+              >
+                <Bell size={14} className="text-amber-400" />
+                <span>Alertas</span>
+              </button>
+              {unreadAlertsCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19]">
+                  {unreadAlertsCount}
+                </span>
+              )}
+            </div>
+
+            <button 
+              onClick={() => alert('Generando informe...')}
+              className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-blue-500/50 cursor-pointer"
+            >
+              <Download size={14} className="text-emerald-400" />
+              <span>Exportar Reporte</span>
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 cursor-pointer"
+            >
+              <RefreshCw size={14} className="text-blue-400" />
+              <span>Refrescar</span>
+            </button>
+          </div>
         </div>
 
-        {/* Action Buttons & Notification Hub */}
-        <div className="flex items-center gap-3">
+        {/* FILTROS OPERATIVOS */}
+        <div className="stats-wrapper mb-6">
+          <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <ShieldCheck size={15} className="text-blue-400" />
+            <span>Filtros Operativos Activos:</span>
+          </div>
           
-          {/* Chat Messages Button with Red Badge */}
-          <div className="relative">
-            <button className="flex items-center gap-2 bg-[#1E293B] hover:bg-[#334155] border border-gray-700 px-3 py-2 rounded-lg text-sm transition">
-              <MessageSquare size={16} className="text-cyan-400" />
-              <span className="hidden sm:inline">Chat TI</span>
-            </button>
-            {unreadMessagesCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#0B0F19] animate-pulse">
-                {unreadMessagesCount}
-              </span>
-            )}
+          <div className="advanced-filter-grid grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
+              <div className="relative">
+                <select className="form-control w-full appearance-none pr-8 cursor-pointer bg-[#111827] text-slate-200 border border-slate-700 rounded p-2 text-xs">
+                  <option>Todas las sedes</option>
+                  <option>Sede Central</option>
+                  <option>Clínica Norte</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
+              <div className="relative">
+                <select className="form-control w-full appearance-none pr-8 cursor-pointer bg-[#111827] text-slate-200 border border-slate-700 rounded p-2 text-xs">
+                  <option>Todos los dispositivos</option>
+                  <option>Estaciones de Trabajo</option>
+                  <option>Servidores Core</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
+              <div className="relative">
+                <select className="form-control w-full appearance-none pr-8 cursor-pointer bg-[#111827] text-slate-200 border border-slate-700 rounded p-2 text-xs">
+                  <option>Últimos 7 Días</option>
+                  <option>Últimos 30 Días</option>
+                  <option>Año Actual</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* GRILLA DE MÉTRICAS AMPLIADA PARA MANAGEMENT */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+          
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Disponibilidad TI */}
+            <div className="card flex flex-col justify-between min-h-[220px] relative overflow-hidden bg-[#111827] border border-slate-800 p-4 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
+                <Monitor size={16} className="text-blue-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-2">
+                <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
+                <span className="text-xs text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded">
+                  <CheckCircle2 size={12} /> +0.2% vs semana anterior
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
+                Estado óptimo de servidores core
+              </div>
+            </div>
+
+            {/* Ocupación de Camas (NUEVO) */}
+            <div className="card flex flex-col justify-between min-h-[220px] relative overflow-hidden bg-[#111827] border border-slate-800 p-4 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Ocupación de Camas</span>
+                <Bed size={16} className="text-indigo-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-2">
+                <span className="text-4xl font-black text-indigo-400 tracking-tight">84.2%</span>
+                <span className="text-xs text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded">
+                  342 / 406 camas ocupadas
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
+                Alta demanda en área de hospitalización
+              </div>
+            </div>
+
+            {/* Tiempo de Espera en ER (NUEVO) */}
+            <div className="card flex flex-col justify-between min-h-[220px] relative overflow-hidden bg-[#111827] border border-slate-800 p-4 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Espera Promedio ER</span>
+                <Clock size={16} className="text-amber-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-2">
+                <span className="text-4xl font-black text-amber-400 tracking-tight">18 min</span>
+                <span className="text-xs text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded">
+                  Triage óptimo activo
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
+                Tiempo de atención en urgencias
+              </div>
+            </div>
+
           </div>
 
-          {/* Notifications Dropdown Toggle with Red Bubble */}
-          <div className="relative">
-            <button 
-              onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className="relative flex items-center gap-2 bg-[#1E293B] hover:bg-[#334155] border border-gray-700 px-3 py-2 rounded-lg text-sm transition"
-            >
-              <Bell size={16} className="text-yellow-400" />
-              <span className="hidden sm:inline">Alertas</span>
-            </button>
-            {unreadAlertsCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#0B0F19]">
-                {unreadAlertsCount}
-              </span>
-            )}
-
-            {/* Notification List Dropdown Popup */}
-            {notificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 bg-[#111827] border border-gray-700 rounded-xl shadow-2xl z-50 p-4">
-                <div className="flex justify-between items-center pb-3 border-b border-gray-800 mb-3">
-                  <h3 className="text-sm font-semibold text-white">Centro de Alertas TI</h3>
-                  <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-medium">3 Nuevas</span>
-                </div>
-                <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                  <div className="p-2.5 bg-red-950/30 border border-red-900/50 rounded-lg text-xs">
-                    <p className="font-semibold text-red-300">Falla de Servidor - Rayos X</p>
-                    <p className="text-gray-400 mt-0.5">Sede Central - Nodo 04 desconectado por timeout.</p>
-                    <span className="text-[10px] text-gray-500 mt-1 block">Hace 4 minutos</span>
-                  </div>
-                  <div className="p-2.5 bg-yellow-950/30 border border-yellow-900/50 rounded-lg text-xs">
-                    <p className="font-semibold text-yellow-300">Alto uso de CPU (92%)</p>
-                    <p className="text-gray-400 mt-0.5">Servidor de Historias Clínicas Electrónicas.</p>
-                    <span className="text-[10px] text-gray-500 mt-1 block">Hace 15 minutos</span>
-                  </div>
+          {/* Directorio de Usuarios */}
+          <div className="lg:col-span-1 card flex flex-col justify-between bg-[#111827] border border-slate-800 p-4 rounded-xl">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
+                  <p className="text-[11px] text-slate-400">{users.length} cuentas registradas.</p>
                 </div>
               </div>
-            )}
+
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar usuario..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="form-control w-full pl-9 bg-[#0B0F19] text-xs text-slate-200 border border-slate-700 rounded p-2"
+                />
+              </div>
+
+              <div className="w-full overflow-x-auto max-h-[160px] overflow-y-auto pr-1">
+                <table className="data-table-container text-xs w-full">
+                  <thead>
+                    <tr>
+                      <th className="pb-2 px-1 text-[10px] text-left text-slate-400">Usuario / Rol</th>
+                      <th className="pb-2 px-1 text-[10px] text-right text-slate-400">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {users
+                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((user) => (
+                        <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="py-2.5 px-1 flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
+                              {user.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
+                              <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-1 whitespace-nowrap text-right">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
+              Multi-tenant • ISO 27001 Secure
+            </div>
           </div>
-
-          <button className="flex items-center gap-2 bg-[#1E293B] hover:bg-[#334155] border border-gray-700 px-3 py-2 rounded-lg text-sm transition text-gray-200">
-            <Download size={16} /> Exportar Reporte
-          </button>
-          
-          <button className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-2 rounded-lg text-sm transition font-medium shadow-lg shadow-cyan-900/20">
-            <RefreshCw size={16} /> Refrescar
-          </button>
         </div>
-      </header>
 
+      </main>
     </div>
   );
-}
+};
