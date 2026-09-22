@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react'
+
 import './styles.css'
-import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile, DeviceManagementDashboard, dashboard2 } from './hospitalModules'
+import { Patients, Consultations, Appointments, Documents, Reports, Locations, 
+  Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
+  dashboard2 } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
 import {
-  User,MessageSquare,Bell, ChevronDown,Mail,ShieldCheck,Shiel,  UserPlus, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2, AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock, FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit, X, Save, Eye, ExternalLink, Download, Award, Search, Filter, Scale, Ruler, HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, ArrowUpRight, ArrowDownRight,
-} from 'lucide-react';
+  User,MessageSquare,MessagesCount,Bell, 
+  ChevronDown,Mail,ShieldCheck,Shiel,  UserPlus, Shield, MapPin, Key, ArrowLeft,
+   Plus, Edit3, Trash2, AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, 
+   Clock, FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, 
+   FileX, FileSearch, FileEdit, X, Save, Eye, ExternalLink, Download, Award, Search,
+    Filter, Scale, Ruler, HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, 
+    Monitor, Server, Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, 
+    TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, ArrowUpRight, 
+    ArrowDownRight,} from 'lucide-react';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
