@@ -2,7 +2,7 @@ import { apiFetch } from './api.js'; // Asegúrate de que la ruta coincida con l
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, Area, PieChart, Pie, Cell
+  Bar,ar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import { useAuth } from './AuthContext';
 import {
