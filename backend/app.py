@@ -1596,41 +1596,51 @@ def metrics():
     tenant_id = claims.get('tenant_id')
     device_id = request.args.get('device_id')
 
-    query = '''
-        SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
-        FROM metrics
-        WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
-    '''
-    params = [tenant_id]
-
-    if device_id:
-        query += " AND device_id = %s"
-        params.append(device_id)
-
-    query += " GROUP BY metric_type, component_name, unit"
-    
-    summary = db_query(query, tuple(params), fetchall=True)
-    return jsonify(summary), 200
     try:
-        # Active users: distinct user_id in sessions last 24h
-        # CÓDIGO CORREGIDO
-        active_users = (db_query("SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id ="" %s AND last_seen >= NOW() - INTERVAL '1 day'",(tenant_id,),fetchone=True,)or {}).get("count", 0)
-        # Average session duration (seconds) across sessions with last_seen
-        avg_row = db_query("SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", (tenant_id,), fetchone=True) or {'avg_seconds': None}
+        # 1. Métricas de dispositivos / hardware
+        query = '''
+            SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
+            FROM metrics
+            WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
+        '''
+        params = [tenant_id]
+
+        if device_id:
+            query += " AND device_id = %s"
+            params.append(device_id)
+
+        query += " GROUP BY metric_type, component_name, unit"
+        summary = db_query(query, tuple(params), fetchall=True) or []
+
+        # 2. Métricas de usuarios y sesiones
+        active_users_row = db_query(
+            "SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'",
+            (tenant_id,),
+            fetchone=True
+        ) or {}
+        active_users = active_users_row.get("count", 0)
+
+        avg_row = db_query(
+            "SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", 
+            (tenant_id,), 
+            fetchone=True
+        ) or {'avg_seconds': None}
         avg_seconds = avg_row.get('avg_seconds') or 0
 
-        # Simple time-series prediction: get daily avg durations for last 7 days and perform linear trend
-        series = db_query("SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", (tenant_id,), fetchall=True) or []
-        # Build arrays for regression
-        xs = []
-        ys = []
+        # Serie temporal de duraciones
+        series = db_query(
+            "SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", 
+            (tenant_id,), 
+            fetchall=True
+        ) or []
+
+        xs, ys = [], []
         for i, row in enumerate(series):
             xs.append(i)
             ys.append(row.get('avg_seconds') or 0)
 
         pred = None
         if len(xs) >= 2:
-            # Simple linear regression y = a + b*x
             n = len(xs)
             sum_x = sum(xs)
             sum_y = sum(ys)
@@ -1638,21 +1648,23 @@ def metrics():
             sum_xy = sum(x*y for x,y in zip(xs,ys))
             denom = (n*sum_xx - sum_x*sum_x)
             if denom != 0:
-                b = (n*sum_xy - sum_x*sum_y) / denom
-                a = (sum_y - b*sum_x) / n
+                b_reg = (n*sum_xy - sum_x*sum_y) / denom
+                a_reg = (sum_y - b_reg*sum_x) / n
                 next_x = n
-                pred = max(0, a + b*next_x)
+                pred = max(0, a_reg + b_reg*next_x)
 
-        # return metrics
+        # Respuesta unificada que satisface tanto el dashboard como las métricas de dispositivos
         return jsonify({
+            'hardware_metrics': summary,
             'active_users': active_users,
             'avg_session_seconds': avg_seconds,
             'session_duration_prediction_seconds': pred,
             'series': series
-        })
+        }), 200
+
     except Exception as e:
         print(f"[METRICS ERROR]: {e}")
-        return jsonify({'message': 'Error generating metrics'}), 500
+        return jsonify({'message': 'Error generating metrics', 'details': str(e)}), 500
 
 
 @app.route('/api/users', methods=['GET'])
