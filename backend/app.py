@@ -1590,56 +1590,93 @@ def reports_series():
         return jsonify({'message': 'Error generating series'}), 500
 
 
-@app.route('/api/metrics')
+@app.route('/api/metrics', methods=['GET', 'POST', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH', 'TRACE', 'CONNECT'])
 @token_required
 def metrics():
-    tenant_id = claims.get('tenant_id')
-    device_id = request.args.get('device_id')
-
     try:
-        # 1. Métricas de dispositivos / hardware
-        query = '''
-            SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
-            FROM metrics
-            WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
-        '''
-        params = [tenant_id]
+        # Obtener tenant_id de forma segura desde el request inyectado por el decorador
+        tenant_id = None
+        if hasattr(request, 'claims') and isinstance(request.claims, dict):
+            tenant_id = request.claims.get('tenant_id')
+        elif hasattr(request, 'user') and isinstance(request.user, dict):
+            tenant_id = request.user.get('tenant_id')
+        
+        # Si por alguna razón tu decorador pasa los claims como argumento global o local:
+        if not tenant_id:
+            try:
+                # Intento alternativo si tu estructura usa una variable global o de contexto
+                if 'claims' in globals() and isinstance(claims, dict):
+                    tenant_id = claims.get('tenant_id')
+            except NameError:
+                pass
 
-        if device_id:
-            query += " AND device_id = %s"
-            params.append(device_id)
+        device_id = request.args.get('device_id')
 
-        query += " GROUP BY metric_type, component_name, unit"
-        summary = db_query(query, tuple(params), fetchall=True) or []
+        # 1. Hardware metrics con manejo seguro
+        summary = []
+        if tenant_id:
+            query = '''
+                SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
+                FROM metrics
+                WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
+            '''
+            params = [tenant_id]
 
-        # 2. Métricas de usuarios y sesiones
-        active_users_row = db_query(
-            "SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'",
-            (tenant_id,),
-            fetchone=True
-        ) or {}
-        active_users = active_users_row.get("count", 0)
+            if device_id:
+                query += " AND device_id = %s"
+                params.append(device_id)
 
-        avg_row = db_query(
-            "SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", 
-            (tenant_id,), 
-            fetchone=True
-        ) or {'avg_seconds': None}
-        avg_seconds = avg_row.get('avg_seconds') or 0
+            query += " GROUP BY metric_type, component_name, unit"
+            try:
+                summary = db_query(query, tuple(params), fetchall=True) or []
+            except Exception as db_err:
+                print(f"[DB METRICS ERROR]: {db_err}")
+                summary = []
 
-        # Serie temporal de duraciones
-        series = db_query(
-            "SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", 
-            (tenant_id,), 
-            fetchall=True
-        ) or []
+        # 2. Métricas de sesiones con valores por defecto seguros
+        active_users = 0
+        avg_seconds = 0
+        series = []
 
+        if tenant_id:
+            try:
+                active_res = db_query(
+                    "SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'",
+                    (tenant_id,),
+                    fetchone=True
+                )
+                if active_res and isinstance(active_res, dict):
+                    active_users = active_res.get("count", 0) or 0
+            except Exception as e:
+                print(f"[DB SESSIONS ACTIVE ERROR]: {e}")
+
+            try:
+                avg_row = db_query(
+                    "SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", 
+                    (tenant_id,), 
+                    fetchone=True
+                )
+                if avg_row and isinstance(avg_row, dict):
+                    avg_seconds = avg_row.get('avg_seconds') or 0
+            except Exception as e:
+                print(f"[DB SESSIONS AVG ERROR]: {e}")
+
+            try:
+                series = db_query(
+                    "SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", 
+                    (tenant_id,), 
+                    fetchall=True
+                ) or []
+            except Exception as e:
+                print(f"[DB SESSIONS SERIES ERROR]: {e}")
+
+        # Regresión lineal segura
         xs, ys = [], []
-        for i, row in enumerate(series):
+        for i, row in enumerate(series or []):
             xs.append(i)
             ys.append(row.get('avg_seconds') or 0)
 
-        pred = None
+        pred = 0
         if len(xs) >= 2:
             n = len(xs)
             sum_x = sum(xs)
@@ -1650,21 +1687,21 @@ def metrics():
             if denom != 0:
                 b_reg = (n*sum_xy - sum_x*sum_y) / denom
                 a_reg = (sum_y - b_reg*sum_x) / n
-                next_x = n
-                pred = max(0, a_reg + b_reg*next_x)
+                pred = max(0, a_reg + b_reg * n)
 
-        # Respuesta unificada que satisface tanto el dashboard como las métricas de dispositivos
         return jsonify({
             'hardware_metrics': summary,
             'active_users': active_users,
-            'avg_session_seconds': avg_seconds,
-            'session_duration_prediction_seconds': pred,
+            'avg_session_seconds': float(avg_seconds) if avg_seconds else 0,
+            'session_duration_prediction_seconds': float(pred),
             'series': series
         }), 200
 
     except Exception as e:
-        print(f"[METRICS ERROR]: {e}")
-        return jsonify({'message': 'Error generating metrics', 'details': str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        print(f"[FATAL METRICS ERROR]: {str(e)}")
+        return jsonify({'error': 'Internal Server Error', 'message': str(e)}), 500
 
 
 @app.route('/api/users', methods=['GET'])
