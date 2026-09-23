@@ -1592,83 +1592,89 @@ def reports_series():
 
 @app.route('/api/metrics', methods=['GET', 'POST', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH', 'TRACE', 'CONNECT'])
 @token_required
-def metrics():
+def metrics(*args, **kwargs):
     try:
-        # Obtener tenant_id de forma segura desde el request inyectado por el decorador
-        tenant_id = None
-        if hasattr(request, 'claims') and isinstance(request.claims, dict):
-            tenant_id = request.claims.get('tenant_id')
-        elif hasattr(request, 'user') and isinstance(request.user, dict):
-            tenant_id = request.user.get('tenant_id')
+        # 1. Extracción unificada de claims (soporta kwargs del decorador, request, g o globales)
+        claims = (
+            kwargs.get('claims') or 
+            kwargs.get('user') or 
+            getattr(request, 'claims', None) or 
+            getattr(request, 'user', None) or 
+            getattr(g, 'claims', None) or 
+            {}
+        )
         
-        # Si por alguna razón tu decorador pasa los claims como argumento global o local:
+        tenant_id = claims.get('tenant_id') if isinstance(claims, dict) else None
+
+        # Fallback opcional por compatibilidad si usas variables globales
         if not tenant_id:
             try:
-                # Intento alternativo si tu estructura usa una variable global o de contexto
-                if 'claims' in globals() and isinstance(claims, dict):
-                    tenant_id = claims.get('tenant_id')
-            except NameError:
+                if 'claims' in globals() and isinstance(globals().get('claims'), dict):
+                    tenant_id = globals()['claims'].get('tenant_id')
+            except Exception:
                 pass
+
+        if not tenant_id:
+            return jsonify({'error': 'Unauthorized', 'message': 'Missing or invalid tenant_id in claims'}), 401
 
         device_id = request.args.get('device_id')
 
-        # 1. Hardware metrics con manejo seguro
+        # 2. Hardware metrics con manejo seguro
         summary = []
-        if tenant_id:
-            query = '''
-                SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
-                FROM metrics
-                WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
-            '''
-            params = [tenant_id]
+        query = '''
+            SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
+            FROM metrics
+            WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
+        '''
+        params = [tenant_id]
 
-            if device_id:
-                query += " AND device_id = %s"
-                params.append(device_id)
+        if device_id:
+            query += " AND device_id = %s"
+            params.append(device_id)
 
-            query += " GROUP BY metric_type, component_name, unit"
-            try:
-                summary = db_query(query, tuple(params), fetchall=True) or []
-            except Exception as db_err:
-                print(f"[DB METRICS ERROR]: {db_err}")
-                summary = []
+        query += " GROUP BY metric_type, component_name, unit"
+        
+        try:
+            summary = db_query(query, tuple(params), fetchall=True) or []
+        except Exception as db_err:
+            print(f"[DB METRICS ERROR]: {db_err}")
+            summary = []
 
-        # 2. Métricas de sesiones con valores por defecto seguros
+        # 3. Métricas de sesiones con valores por defecto seguros
         active_users = 0
         avg_seconds = 0
         series = []
 
-        if tenant_id:
-            try:
-                active_res = db_query(
-                    "SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'",
-                    (tenant_id,),
-                    fetchone=True
-                )
-                if active_res and isinstance(active_res, dict):
-                    active_users = active_res.get("count", 0) or 0
-            except Exception as e:
-                print(f"[DB SESSIONS ACTIVE ERROR]: {e}")
+        try:
+            active_res = db_query(
+                "SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'",
+                (tenant_id,),
+                fetchone=True
+            )
+            if active_res and isinstance(active_res, dict):
+                active_users = active_res.get("count", 0) or 0
+        except Exception as e:
+            print(f"[DB SESSIONS ACTIVE ERROR]: {e}")
 
-            try:
-                avg_row = db_query(
-                    "SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", 
-                    (tenant_id,), 
-                    fetchone=True
-                )
-                if avg_row and isinstance(avg_row, dict):
-                    avg_seconds = avg_row.get('avg_seconds') or 0
-            except Exception as e:
-                print(f"[DB SESSIONS AVG ERROR]: {e}")
+        try:
+            avg_row = db_query(
+                "SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", 
+                (tenant_id,), 
+                fetchone=True
+            )
+            if avg_row and isinstance(avg_row, dict):
+                avg_seconds = avg_row.get('avg_seconds') or 0
+        except Exception as e:
+            print(f"[DB SESSIONS AVG ERROR]: {e}")
 
-            try:
-                series = db_query(
-                    "SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", 
-                    (tenant_id,), 
-                    fetchall=True
-                ) or []
-            except Exception as e:
-                print(f"[DB SESSIONS SERIES ERROR]: {e}")
+        try:
+            series = db_query(
+                "SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", 
+                (tenant_id,), 
+                fetchall=True
+            ) or []
+        except Exception as e:
+            print(f"[DB SESSIONS SERIES ERROR]: {e}")
 
         # Regresión lineal segura
         xs, ys = [], []
