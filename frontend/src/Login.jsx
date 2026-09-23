@@ -82,7 +82,7 @@ export function Login() {
           /* Transición suave y continua sin saltos */
           @keyframes ecgContinuousLine {
             0% {
-              stroke-dashoffset: 1600;
+              stroke-dashoffset: 2600;
             }
             100% {
               stroke-dashoffset: 0;
@@ -97,7 +97,7 @@ export function Login() {
 
           /* Interacciones y animaciones en Inputs */
           .custom-input {
-            transition: all 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
           }
           .custom-input:hover {
             border-color: #3b82f6 !important;
