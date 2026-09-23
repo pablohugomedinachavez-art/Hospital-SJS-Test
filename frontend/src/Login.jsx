@@ -82,7 +82,7 @@ export function Login() {
           /* Transición suave y continua sin saltos */
           @keyframes ecgContinuousLine {
             0% {
-              stroke-dashoffset: 2600;
+              stroke-dashoffset: 2000;
             }
             100% {
               stroke-dashoffset: 0;
@@ -92,12 +92,12 @@ export function Login() {
           .single-ecg-path {
             /* Trazado: Tamaño visible del segmento y espacio de ciclo perfecto */
             stroke-dasharray: 400 1200;
-            animation: ecgContinuousLine 0.5s linear infinite;
+            animation: ecgContinuousLine 3.5s linear infinite;
           }
 
           /* Interacciones y animaciones en Inputs */
           .custom-input {
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 3.5s cubic-bezier(0.4, 0, 0.2, 1);
           }
           .custom-input:hover {
             border-color: #3b82f6 !important;
