@@ -4114,230 +4114,464 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
-export const Dashboard = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  
-  const unreadAlertsCount = 3;
-  const unreadMessagesCount = 2;
+export function Dashboard() {
+  // State from old component
+  const [reports, setReports] = useState(null);
+  const [series, setSeries] = useState([]);
+  const [metrics, setMetrics] = useState(null);
+  const [areas, setAreas] = useState([]);
+  const [days, setDays] = useState(30);
+  const [loading, setLoading] = useState(true);
+  const [toast, notify, clearToast] = useToast();
 
+  // State & mock data from new component
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('Todas las sedes');
+  const [selectedDevice, setSelectedDevice] = useState('Todos los dispositivos');
+  
   const [users, setUsers] = useState([
     { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario', status: 'Activo' },
     { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador', status: 'Activo' },
     { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador', status: 'Activo' },
   ]);
 
-  const [newUser, setNewUser] = useState({ username: '', email: '', role: 'Usuario' });
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [reportsRes, seriesRes, metricsRes, areasRes] = await Promise.all([
+        apiFetch('/reports'),
+        apiFetch(`/reports/series?days=${days}`),
+        apiFetch('/metrics'),
+        apiFetch('/dashboard/areas'),
+      ]);
+      if (!reportsRes.ok || !seriesRes.ok || !metricsRes.ok || !areasRes.ok) {
+        throw new Error('No se pudieron actualizar todos los indicadores');
+      }
+      setReports(await reportsRes.json());
+      setSeries(await seriesRes.json() || []);
+      setMetrics(await metricsRes.json());
+      setAreas(await areasRes.json() || []);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [days, notify]);
 
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    if (!newUser.username) return;
-    setUsers([
-      ...users,
-      { id: Date.now(), username: newUser.username, email: newUser.email || '—', role: newUser.role, status: 'Activo' }
-    ]);
-    setNewUser({ username: '', email: '', role: 'Usuario' });
-    setIsModalOpen(false);
+  useEffect(() => { load(); }, [load]);
+
+  // ============================================================
+  // FUNCIONES DE EXPORTACIÓN (Old + New visual triggers)
+  // ============================================================
+
+  const exportJSON = () => {
+    try {
+      const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard_report_${days}d.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      notify('Exportado a JSON exitosamente', 'success');
+    } catch (e) {
+      notify('Error al exportar en JSON', 'error');
+    }
+  };
+
+  const exportCSV = () => {
+    try {
+      let csvContent = "\uFEFFDía,Pacientes,Consultas\n";
+      series.forEach(row => {
+        csvContent += `"${row.day}","${row.patients}","${row.consultations}"\n`;
+      });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `tendencia_pacientes_${days}d.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      notify('Exportado a CSV exitosamente', 'success');
+    } catch (e) {
+      notify('Error al exportar en CSV', 'error');
+    }
+  };
+
+  const exportExcel = async () => {
+    try {
+      const currentToken = localStorage.getItem('token') || '';
+      const res = await apiFetch('/dashboard/export/excel', {
+        headers: { 'Authorization': `Bearer ${currentToken}` }
+      });
+      if (!res.ok) throw new Error('Error al generar el archivo Excel en el servidor');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard_reporte_${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      notify('Archivo Excel (XLSX) del dashboard generado correctamente', 'success');
+    } catch (e) {
+      notify(e.message || 'Error al exportar a Excel', 'error');
+    }
+  };
+
+  const exportPDF = () => {
+    try {
+      const styleId = 'pdf-print-styles';
+      let styleElement = document.getElementById(styleId);
+
+      if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = styleId;
+        document.head.appendChild(styleElement);
+      }
+
+      styleElement.innerHTML = `
+        @media print {
+          body * { visibility: hidden; }
+          #printable-dashboard, #printable-dashboard * { visibility: visible; }
+          #printable-dashboard {
+            position: absolute; left: 0; top: 0;
+            width: 100% !important;
+            background-color: #090d16 !important;
+            color: #f8fafc !important;
+            padding: 1rem !important;
+          }
+          .no-print { display: none !important; }
+        }
+      `;
+
+      window.print();
+      notify('Reporte PDF listo para guardar o imprimir', 'success');
+    } catch (e) {
+      notify('Error al preparar el reporte PDF', 'error');
+    }
   };
 
   return (
-    <div className="app-layout">
-      <main className="main-content">
-        {/* TÍTULO Y ACCIONES */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-2">
+    <div className="dashboard-wrapper min-h-screen w-full bg-[#090d16] text-slate-100 p-4 sm:p-6 lg:p-8 box-border">
+      <div 
+        id="printable-dashboard" 
+        className="printable-container p-4 sm:p-6 lg:p-8 bg-[#0f172a]/45 border border-slate-800 rounded-3xl shadow-2xl flex flex-col gap-6"
+      >
+        
+        {/* CABECERA Y METADATOS COMPLIANT */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
               <span>Enterprise Analytics</span>
               <span>•</span>
               <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               Dashboard de Control y Auditoría TI
             </h1>
-          <div className="flex items-center gap-2 self-start md:self-auto">      
-            <button 
-              onClick={() => alert('Generando informe...')}
-              className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-blue-500/50 cursor-pointer">
-              <Download size={14} className="text-emerald-400" />
-              <span>Exportar Reporte</span>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Visión integral del desempeño clínico, operativo y de infraestructura en tiempo real.
+            </p>
+          </div>
+
+          {/* BARRA DE ACCIONES Y EXPORTACIÓN */}
+          <div className="no-print flex items-center gap-3 flex-wrap">
+            <div className="export-buttons-group flex items-center gap-1.5 bg-slate-900/80 p-1.5 border border-slate-800 rounded-xl">
+              <button title="Exportar a CSV" onClick={exportCSV} className="px-3 py-1.5 text-xs font-semibold text-sky-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">CSV</button>
+              <button title="Exportar a Excel" onClick={exportExcel} className="px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">Excel</button>
+              <button title="Exportar a PDF" onClick={exportPDF} className="px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">PDF</button>
+              <button title="Exportar a JSON" onClick={exportJSON} className="px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">JSON</button>
+            </div>
+
+            <button
+              onClick={load}
+              disabled={loading}
+              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 rounded-xl py-2 px-4 text-xs font-medium flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+            >
+              <span className={loading ? "animate-spin" : ""}>↻</span> Actualizar
             </button>
           </div>
         </div>
 
-
-        {/* FILTROS OPERATIVOS */}
-        <div className="stats-wrapper mb-6">
+        {/* FILTROS OPERATIVOS AVANZADOS */}
+        <div className="no-print bg-slate-900/40 border border-slate-800/80 p-4 rounded-2xl">
           <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
             <ShieldCheck size={15} className="text-blue-400" />
             <span>Filtros Operativos Activos:</span>
           </div>
           
-          <div className="advanced-filter-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
               <div className="relative">
-                <select className="form-control appearance-none pr-8 cursor-pointer">
+                <select 
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
+                >
                   <option>Todas las sedes</option>
                   <option>Sede Central</option>
                   <option>Clínica Norte</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
               <div className="relative">
-                <select className="form-control appearance-none pr-8 cursor-pointer">
+                <select 
+                  value={selectedDevice}
+                  onChange={(e) => setSelectedDevice(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
+                >
                   <option>Todos los dispositivos</option>
                   <option>Estaciones de Trabajo</option>
                   <option>Servidores Core</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
               <div className="relative">
-                <select className="form-control appearance-none pr-8 cursor-pointer">
-                  <option>Últimos 7 Días</option>
-                  <option>Últimos 30 Días</option>
-                  <option>Año Actual</option>
+                <select
+                  value={days}
+                  onChange={e => setDays(Number(e.target.value))}
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
+                >
+                  <option value={7}>Últimos 7 días</option>
+                  <option value={14}>Últimos 14 días</option>
+                  <option value={30}>Últimos 30 días</option>
                 </select>
-                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* GRILLA PRINCIPAL: MÉTRICAS Y DIRECTORIO */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          
-          {/* Paneles de Métricas (3 Columnas) */}
-          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-            
-            {/* Disponibilidad TI */}
-            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden group hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
-                <Monitor size={16} className="text-blue-400" />
-              </div>
-              <div className="flex-1 flex flex-col items-center justify-center my-4">
-                <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
-                <span className="text-xs text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded">
-                  <CheckCircle2 size={12} /> +0.2% vs semana anterior
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
-                Estado óptimo de servidores core
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
-            </div>
+        {/* NOTIFICACIÓN TOAST */}
+        <Toast toast={toast} onClose={clearToast} />
 
-            {/* Resolución Alertas */}
-            <div 
-              className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden cursor-pointer group hover:border-amber-500/50 transition-all" 
-              onClick={() => alert('Desplegando detalle analítico de las 12 alertas bajo revisión...')}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
-                <AlertTriangle size={16} className="text-amber-400" />
-              </div>
-              <div className="flex-1 flex flex-col items-center justify-center my-4">
-                <span className="text-4xl font-black text-amber-400 tracking-tight">12</span>
-                <span className="text-xs text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded group-hover:bg-amber-500/20 transition-colors">
-                  Atención prioritaria requerida
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
-                Tiempo medio de respuesta: 14m
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
-            </div>
-
-            {/* Citas Programadas */}
-            <div className="card flex flex-col justify-between min-h-[240px] relative overflow-hidden group hover:border-slate-700 transition-all">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Citas Programadas</span>
-                <Calendar size={16} className="text-indigo-400" />
-              </div>
-              <div className="flex-1 flex flex-col items-center justify-center my-4">
-                <span className="text-4xl font-black text-indigo-400 tracking-tight">24</span>
-                <span className="text-xs text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded">
-                  100% Red sincronizada
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
-                Sincronizado con módulo médico
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
-            </div>
-
+        {loading ? (
+          <div className="py-16 text-center text-slate-400 text-sm">
+            Actualizando indicadores del sistema…
           </div>
+        ) : (
+          <div className="flex flex-col gap-6 w-full">
 
-          {/* Directorio de Usuarios (1 Columna) */}
-          <div className="lg:col-span-1 card flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-4">
+            {/* GRILLA SUPERIOR DE MÉTRICAS / KPIS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              
+              {/* Disponibilidad TI */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
+                  <Monitor size={16} className="text-blue-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-emerald-400 tracking-tight">99.8%</span>
+                  <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
+                    <CheckCircle2 size={10} /> +0.2% vs sem. previa
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Estado óptimo de servidores
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
+              </div>
+
+              {/* Resolución Alertas */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/40 transition-all cursor-pointer" onClick={() => alert('Detalle de alertas bajo revisión')}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
+                  <AlertTriangle size={16} className="text-amber-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-amber-400 tracking-tight">12</span>
+                  <div className="text-[10px] text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
+                    Atención prioritaria
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Media de respuesta: 14m
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
+              </div>
+
+              {/* Citas Programadas */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Citas / Consultas</span>
+                  <CalendarIcon size={16} className="text-indigo-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-indigo-400 tracking-tight">{reports?.summary?.consultations ?? 0}</span>
+                  <div className="text-[10px] text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
+                    Últimos {days} días
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Total pacientes: {reports?.summary?.patients ?? 0}
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
+              </div>
+
+              {/* Usuarios Activos */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
+                  <Monitor size={16} className="text-sky-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-sky-400 tracking-tight">{metrics?.active_users ?? 0}</span>
+                  <div className="text-[10px] text-sky-300 font-semibold mt-1 bg-sky-500/10 px-2 py-0.5 rounded w-fit">
+                    Sesiones recientes
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Sesión media: {Math.round(metrics?.avg_session_seconds || 0)}s
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500/40"></div>
+              </div>
+
+              {/* Métrica predictiva / adicional */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Predicción Carga</span>
+                  <ShieldCheck size={16} className="text-purple-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-purple-400 tracking-tight">Estable</span>
+                  <div className="text-[10px] text-purple-300 font-semibold mt-1 bg-purple-500/10 px-2 py-0.5 rounded w-fit">
+                    IA Monitor
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Sin anomalías de red
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500/40"></div>
+              </div>
+
+            </div>
+
+            {/* SECCIÓN INTERMEDIA: GRÁFICOS Y DIRECTORIO DE USUARIOS */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              {/* GRÁFICO 1: TENDENCIA DE PACIENTES Y CONSULTAS */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-sm">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
-                  <p className="text-[11px] text-slate-400">{users.length} cuentas registradas.</p>
+                  <h3 className="text-sm font-bold text-white">Tendencia de Pacientes / Consultas</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Evolución diaria de atención clínica</p>
+                </div>
+                <div className="pt-2">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <LineChart data={series}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 10 }} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 10 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', fontSize: '12px' }} />
+                      <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={2.5} dot={false} name="Pacientes" />
+                      <Line type="monotone" dataKey="consultations" stroke="#10b981" strokeWidth={2.5} dot={false} name="Consultas" />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
-                <input
-                  type="text"
-                  placeholder="    Buscar usuario..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="form-control pl-9 text-xs"
-                />
+              {/* GRÁFICO 2: DISPOSITIVOS Y ALERTAS POR ÁREA */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-sm">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Dispositivos y Alertas por Área</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Distribución operativa de infraestructura</p>
+                </div>
+                <div className="pt-2">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={areas} margin={{ left: -15, right: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={45} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 10 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', fontSize: '12px' }} />
+                      <Bar dataKey="device_count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Dispositivos" />
+                      <Bar dataKey="active_alerts" fill="#ef4444" radius={[4, 4, 0, 0]} name="Alertas" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
 
-              <div className="w-full overflow-x-auto max-h-[220px] overflow-y-auto pr-1">
-                <table className="data-table-container text-xs w-full">
-                  <thead>
-                    <tr>
-                      <th className="pb-2 px-1 text-[10px]">Usuario / Rol</th>
-                      <th className="pb-2 px-1 text-[10px] text-right">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800">
-                    {users
-                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
-                      .map((user) => (
-                        <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
-                          <td className="py-2.5 px-1 flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
-                              {user.username.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
-                              <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-1 whitespace-nowrap text-right">
-                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
-                          </td>
+              {/* DIRECTORIO DE USUARIOS INTEGRADO */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
+                      <p className="text-[11px] text-slate-400">{users.length} cuentas con acceso activo.</p>
+                    </div>
+                  </div>
+
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Buscar usuario..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="w-full overflow-y-auto max-h-[175px] pr-1">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400 text-[10px] uppercase">
+                          <th className="pb-2 text-left">Usuario / Rol</th>
+                          <th className="pb-2 text-right">Estado</th>
                         </tr>
-                      ))}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {users
+                          .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+                          .map((user) => (
+                            <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
+                              <td className="py-2 flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
+                                  {user.username.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
+                                  <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
+                                </div>
+                              </td>
+                              <td className="py-2 text-right whitespace-nowrap">
+                                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                
+                <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
+                  Multi-tenant • ISO 27001 Secure
+                </div>
               </div>
+
             </div>
-            
-            <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
-              Multi-tenant • ISO 27001 Secure
-            </div>
+
           </div>
-        </div>
-      </main>
+        )}
+
+      </div>
     </div>
   );
-};
+}
 
 
 export function Users() {
