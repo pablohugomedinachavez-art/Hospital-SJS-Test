@@ -82,7 +82,7 @@ export function Login() {
           /* Transición suave y continua sin saltos */
           @keyframes ecgContinuousLine {
             0% {
-              stroke-dashoffset: 1600;
+              stroke-dashoffset: 2600;
             }
             100% {
               stroke-dashoffset: 0;
