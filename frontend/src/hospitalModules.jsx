@@ -102,6 +102,7 @@ export const toastVariants = {
 // ============================================================
 // Configuración y Constantes Auxiliares
 // ============================================================
+const CalendarIcon = Calendar;
 
 export const INITIAL_PATIENT = {
   document_type: 'dni',
