@@ -92,12 +92,12 @@ export function Login() {
           .single-ecg-path {
             /* Trazado: Tamaño visible del segmento y espacio de ciclo perfecto */
             stroke-dasharray: 400 1200;
-            animation: ecgContinuousLine 4.5s linear infinite;
+            animation: ecgContinuousLine 0.5s linear infinite;
           }
 
           /* Interacciones y animaciones en Inputs */
           .custom-input {
-            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 1.8s cubic-bezier(0.4, 0, 0.2, 1);
           }
           .custom-input:hover {
             border-color: #3b82f6 !important;
