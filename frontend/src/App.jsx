@@ -1,10 +1,69 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
+
 import './styles.css'
-import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile, DeviceManagementDashboard } from './hospitalModules'
+import { Patients, Consultations, Appointments, Documents, Reports, Locations, 
+  Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
+  dashboard2 } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
-import { supabase } from '.lib/supabaseClient.js'
+import {
+  User,MessageSquare,MessagesCount,Bell, 
+  ChevronDown,Mail,ShieldCheck,Shiel,  UserPlus, Shield, MapPin, Key, ArrowLeft,
+   Plus, Edit3, Trash2, AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, 
+   Clock, FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, 
+   FileX, FileSearch, FileEdit, X, Save, Eye, ExternalLink, Download, Award, Search,
+    Filter, Scale, Ruler, HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, 
+    Monitor, Server, Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, 
+    TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, ArrowUpRight, 
+    ArrowDownRight,} from 'lucide-react';
+
+export class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error(" Error capturado por ErrorBoundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-full text-red-400">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold">Ocurrió un error al cargar este módulo</h2>
+          <p className="text-xs text-slate-400 max-w-md">
+            {this.state.error?.message || "Se produjo una excepción inesperada durante el renderizado."}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-xs font-semibold rounded-xl transition-all"
+          >
+            Recargar Página
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+
+<ErrorBoundary>
+  <Dashboard />
+</ErrorBoundary>
+
 // 1. ROUTE MAP DEFINED AT TOP LEVEL
 const ROUTES_MAP = {
   '/dashboard': Dashboard,
@@ -20,6 +79,7 @@ const ROUTES_MAP = {
   '/users': Users,
   '/reports': Reports,
   '/profile': Profile,
+  '/dashboard2': dashboard2,
 }
 
 // 2. DEFAULT PANEL DEFINED AT TOP LEVEL
@@ -59,7 +119,7 @@ function Sidebar({ currentRoute }) {
   }
 
   const navGroups = [
-    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' }] },
+    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' },{ label: 'dashboard2', path: '/dashboard2' }] },
     {
       key: 'clinical', title: 'Gestión clínica', icon: <Icons.Clinical />,
       items: [
@@ -371,13 +431,88 @@ function Alerts() {
 
 function AppHeader() {
   const { user } = useAuth()
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const unreadAlertsCount = 3;
+  const unreadMessagesCount = 2;
   return (
     <header className="app-header">
       <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <span style={{ color: 'var(--primary)' }}>•</span> Panel General
+        {/* CABECERA SUPERIOR CON ESTADO EN VIVO */}
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Sistema Operativo (Ping: 18ms)</span>
+            </div>
+            <span className="hidden md:inline text-slate-600">|</span>
+            <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
+          </div>
+        
+
+        
+
       </div>
+      
       {user && (
+        
         <div className="user-badge">
+          {/* Botonera de Acción Global con Chat y Alertas (Red Bubbles) */}
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            
+            {/* Chat TI Button with Badge */}
+            <div className="relative">
+              <button 
+                onClick={() => alert('Abriendo centro de chat con soporte médico y TI...')}
+                className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer relative"
+              >
+                <MessageSquare size={14} className="text-cyan-400" />
+                <span>Chat TI</span>
+              </button>
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </div>
+
+            {/* Alertas Button with Dropdown & Red Bubble */}
+            <div className="relative">
+              <button 
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-amber-500/50 transition-all cursor-pointer relative"
+              >
+                <Bell size={14} className="text-amber-400" />
+                <span>Alertas</span>
+              </button>
+              {unreadAlertsCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19]">
+                  {unreadAlertsCount}
+                </span>
+              )}
+
+              {/* Popup de Alertas */}
+              {notificationsOpen && (
+                <div className="absolute right-0 mt-2 w-80 bg-[#111827] border border-slate-700 rounded-xl shadow-2xl z-50 p-4 text-left">
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">Centro de Alertas TI</h3>
+                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-medium">3 Nuevas</span>
+                  </div>
+                  <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                    <div className="p-2.5 bg-red-950/30 border border-red-900/50 rounded-lg text-xs">
+                      <p className="font-semibold text-red-300">Falla de Servidor - Rayos X</p>
+                      <p className="text-slate-400 mt-0.5 text-[11px]">Sede Central - Nodo 04 desconectado por timeout.</p>
+                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 4 minutos</span>
+                    </div>
+                    <div className="p-2.5 bg-yellow-950/30 border border-yellow-900/50 rounded-lg text-xs">
+                      <p className="font-semibold text-yellow-300">Alto uso de CPU (92%)</p>
+                      <p className="text-slate-400 mt-0.5 text-[11px]">Servidor de Historias Clínicas Electrónicas.</p>
+                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 15 minutos</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="avatar-circle">{(user.username || user.email || 'U')[0].toUpperCase()}</div>
           <span>{user.username || user.email}</span>
         </div>

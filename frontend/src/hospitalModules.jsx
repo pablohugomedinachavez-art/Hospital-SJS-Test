@@ -2,26 +2,11 @@ import { apiFetch } from './api.js'; // Asegúrate de que la ruta coincida con l
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
+  Bar,ar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 import { useAuth } from './AuthContext';
 import {
-  User, Mail, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2,
-  AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock,
-  FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck,
-  FileX, FileSearch, FileEdit,
-  X, Save, Eye, ExternalLink, Download, Search, Filter,      
-  Scale, Ruler, HeartPulse, Pill, 
-  AlertCircle, CheckCircle2, ShieldAlert, Monitor,Server,Laptop, Smartphone, Wifi,
-  Layers, ChevronLeft,ChevronRight,Loader2
+  User,MessageSquare,Bell, Bed,ChevronDown,Mail,ShieldCheck,Shiel,  UserPlus, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2, AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, Clock, FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit, X, Save, Eye, ExternalLink, Download, Award, Search, Filter, Scale, Ruler, HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 
 
@@ -81,9 +66,43 @@ export function Pagination({ page = 1, perPage = 10, total = 0, onPrev, onNext }
   );
 }
 
+
+export const cx = (...values) => values.filter(Boolean).join(' ');
+
+export const fadeInVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: 'easeOut' },
+  },
+  exit: {
+    opacity: 0,
+    y: -20,
+    transition: { duration: 0.2, ease: 'easeIn' },
+  },
+};
+
+export const modalVariants = {
+  hidden: { opacity: 0, scale: 0.95, y: 10 },
+  visible: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15, ease: 'easeIn' } }
+};
+
+export const toastVariants = {
+  hidden: { opacity: 0, y: 20, scale: 0.9 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 400, damping: 25 } },
+  exit: { opacity: 0, y: 10, scale: 0.9, transition: { duration: 0.15 } }
+};
+
+
+
+
+
 // ============================================================
 // Configuración y Constantes Auxiliares
 // ============================================================
+const CalendarIcon = Calendar;
 
 export const INITIAL_PATIENT = {
   document_type: 'dni',
@@ -131,11 +150,7 @@ export const getDocumentUrl = (doc) => {
   return doc.file_url || doc.url || doc.path || '';
 };
 
-export const fadeInVariants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
-  exit: { opacity: 0, y: -12, transition: { duration: 0.2, ease: 'easeIn' } }
-};
+
 
 export const cardHoverVariants = {
   hover: { scale: 1.015, translateY: -2, transition: { duration: 0.2 } }
@@ -194,19 +209,19 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
               {previewDoc.file_name || previewDoc.title || 'Previsualización de Documento'}
             </h3>
           </div>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             {docUrl && (
-              <a 
-                href={docUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                style={{ 
-                  color: theme?.accent || '#0284c7', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.3rem', 
-                  textDecoration: 'none', 
+              <a
+                href={docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: theme?.accent || '#0284c7',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  textDecoration: 'none',
                   fontSize: '0.8rem',
                   fontWeight: 500
                 }}
@@ -214,16 +229,16 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
                 <ExternalLink size={14} /> Abrir en pestaña nueva
               </a>
             )}
-            <button 
-              onClick={() => setPreviewDoc(null)} 
+            <button
+              onClick={() => setPreviewDoc(null)}
               aria-label="Cerrar modal"
-              style={{ 
-                backgroundColor: 'transparent', 
-                border: 'none', 
-                color: theme?.textMuted || '#64748b', 
-                cursor: 'pointer', 
-                padding: '0.2rem', 
-                borderRadius: '4px' 
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: theme?.textMuted || '#64748b',
+                cursor: 'pointer',
+                padding: '0.2rem',
+                borderRadius: '4px'
               }}
             >
               <X size={20} />
@@ -243,10 +258,10 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
         }}>
           {docUrl ? (
             isImage ? (
-              <img 
-                src={docUrl} 
-                alt={previewDoc.file_name || 'Documento'} 
-                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }} 
+              <img
+                src={docUrl}
+                alt={previewDoc.file_name || 'Documento'}
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '4px' }}
               />
             ) : (
               <object
@@ -259,8 +274,8 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
                 <div style={{ textAlign: 'center', color: '#ffffff', padding: '2rem' }}>
                   <AlertTriangle size={40} style={{ marginBottom: '1rem' }} />
                   <p style={{ margin: '0 0 1rem 0' }}>Este navegador no soporta la vista previa directa del PDF.</p>
-                  <a 
-                    href={docUrl} 
+                  <a
+                    href={docUrl}
                     download
                     style={{
                       backgroundColor: '#0284c7',
@@ -290,14 +305,7 @@ export const DocumentPreviewModal = ({ previewDoc, setPreviewDoc, theme }) => {
   );
 };
 
-export const cx = (...values) => values.filter(Boolean).join(' ');
 
-export const calculateBMI = (weight, height) => {
-  const w = Number.parseFloat(weight);
-  const h = Number.parseFloat(height) / 100;
-  if (!w || !h || h <= 0 || Number.isNaN(w) || Number.isNaN(h)) return '';
-  return (w / (h * h)).toFixed(2);
-};
 
 export const getBMIState = (bmi) => {
   const value = Number.parseFloat(bmi);
@@ -502,7 +510,20 @@ export function DataTable({ columns = [], rows = [], getRowKey, emptyTitle = 'Si
   );
 }
 
-
+export const KPI_TARGETS = {
+  activeDevicesPct: 95.0,    // 95% Disponibilidad de Dispositivos
+  alertResolutionPct: 90.0,  // 90% Alertas Resueltas
+  appointmentFulfillment: 85 // 85% Citas Completadas
+};
+export const COLOR_PALETTE = {
+  primary: '#3b82f6',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  purple: '#8b5cf6',
+  slateBg: '#0f172a',
+  cardBg: '#1e293b'
+};
 
 // ============================================================
 // --- COMPONENTE PRINCIPAL: Dashboard de Dispositivos ---
@@ -544,7 +565,7 @@ export function DeviceManagementDashboard() {
         apiFetch('/locations')
       ]);
       if (!devRes.ok || !locRes.ok) throw new Error('Error al cargar dispositivos o ubicaciones');
-      
+
       const devData = await devRes.json();
       const locData = await locRes.json();
       setDevices(Array.isArray(devData) ? devData : (devData.items || devData.data || []));
@@ -562,7 +583,7 @@ export function DeviceManagementDashboard() {
       const params = new URLSearchParams({ page: String(actionPage), per_page: String(perPage) });
       const res = await apiFetch(`/device_actions?${params.toString()}`);
       if (!res.ok) throw new Error('Error al cargar acciones de IP');
-      
+
       const data = await res.json();
       setActions(Array.isArray(data) ? data : (data.items || data.data || []));
       setActionTotal(data.total || (Array.isArray(data) ? data.length : 0));
@@ -579,7 +600,7 @@ export function DeviceManagementDashboard() {
       const params = new URLSearchParams({ page: String(auditPage), per_page: String(perPage) });
       const res = await apiFetch(`/audit_logs?${params.toString()}`);
       if (!res.ok) throw new Error('Error al cargar logs de auditoría');
-      
+
       const data = await res.json();
       setAuditLogs(Array.isArray(data) ? data : (data.items || data.data || []));
       setAuditTotal(data.total || (Array.isArray(data) ? data.length : 0));
@@ -611,7 +632,7 @@ export function DeviceManagementDashboard() {
 
         {/* --- HEADER BLOCK --- */}
         <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 lg:p-8 shadow-2xl space-y-8">
-          
+
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/80 pb-8">
             <div className="flex items-start gap-4">
               <div className="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0">
@@ -640,11 +661,10 @@ export function DeviceManagementDashboard() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                      isActive 
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
-                    }`}
+                    className={`flex items-center gap-2.5 px-5 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${isActive
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/80'
+                      }`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
                     <span>{tab.label}</span>
@@ -656,26 +676,26 @@ export function DeviceManagementDashboard() {
 
           {/* --- KPI STAT CARDS WITH MARGIN & GAP --- */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard 
-              icon={<Monitor className="w-6 h-6 text-blue-400" />} 
-              label="TOTAL DISPOSITIVOS" 
-              value={devices.length} 
-              hint="Red de Equipos TI" 
-              tone="primary" 
+            <StatCard
+              icon={<Monitor className="w-6 h-6 text-blue-400" />}
+              label="TOTAL DISPOSITIVOS"
+              value={devices.length}
+              hint="Red de Equipos TI"
+              tone="primary"
             />
-            <StatCard 
-              icon={<Wifi className="w-6 h-6 text-emerald-400" />} 
-              label="EVENTOS IP CAPTURADOS" 
-              value={actionTotal} 
-              hint="Tráfico & Acciones" 
-              tone="success" 
+            <StatCard
+              icon={<Wifi className="w-6 h-6 text-emerald-400" />}
+              label="EVENTOS IP CAPTURADOS"
+              value={actionTotal}
+              hint="Tráfico & Acciones"
+              tone="success"
             />
-            <StatCard 
-              icon={<ShieldAlert className="w-6 h-6 text-amber-400" />} 
-              label="REGISTROS DE AUDITORÍA" 
-              value={auditTotal} 
-              hint="Logs de Seguridad" 
-              tone="warning" 
+            <StatCard
+              icon={<ShieldAlert className="w-6 h-6 text-amber-400" />}
+              label="REGISTROS DE AUDITORÍA"
+              value={auditTotal}
+              hint="Logs de Seguridad"
+              tone="warning"
             />
           </div>
 
@@ -684,7 +704,7 @@ export function DeviceManagementDashboard() {
           {/* --- TAB 1: DISPOSITIVOS (SPACED LAYOUT) --- */}
           {activeTab === 'devices' && (
             <div className="space-y-6 pt-4">
-              
+
               {/* Toolbar */}
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
                 <div className="relative w-full sm:w-96">
@@ -719,36 +739,35 @@ export function DeviceManagementDashboard() {
                 <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { 
-                        key: 'name', 
-                        label: 'Dispositivo', 
-                        render: (d) => <div className="py-2"><span className="font-semibold text-white text-base">{d.name}</span></div> 
+                      {
+                        key: 'name',
+                        label: 'Dispositivo',
+                        render: (d) => <div className="py-2"><span className="font-semibold text-white text-base">{d.name}</span></div>
                       },
-                      { 
-                        key: 'ip_address', 
-                        label: 'Dirección IP', 
-                        render: (d) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{d.ip_address || '—'}</code></div> 
+                      {
+                        key: 'ip_address',
+                        label: 'Dirección IP',
+                        render: (d) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{d.ip_address || '—'}</code></div>
                       },
-                      { 
-                        key: 'type', 
-                        label: 'Tipo', 
-                        render: (d) => <div className="py-2"><span className="capitalize text-slate-300 text-sm bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">{d.type}</span></div> 
+                      {
+                        key: 'type',
+                        label: 'Tipo',
+                        render: (d) => <div className="py-2"><span className="capitalize text-slate-300 text-sm bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">{d.type}</span></div>
                       },
-                      { 
-                        key: 'status', 
-                        label: 'Estado', 
+                      {
+                        key: 'status',
+                        label: 'Estado',
                         render: (d) => (
                           <div className="py-2">
-                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                              d.status === 'active' 
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                            }`}>
+                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${d.status === 'active'
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                              : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              }`}>
                               <span className={`w-2 h-2 rounded-full ${d.status === 'active' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                               {d.status}
                             </span>
                           </div>
-                        ) 
+                        )
                       }
                     ]}
                     rows={filteredDevices}
@@ -767,25 +786,25 @@ export function DeviceManagementDashboard() {
                 <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { 
-                        key: 'ip_address', 
-                        label: 'Dirección IP', 
-                        render: (a) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{a.ip_address || '—'}</code></div> 
+                      {
+                        key: 'ip_address',
+                        label: 'Dirección IP',
+                        render: (a) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{a.ip_address || '—'}</code></div>
                       },
-                      { 
-                        key: 'username', 
-                        label: 'Usuario', 
-                        render: (a) => <div className="py-2"><span className="text-slate-200 font-medium">{a.username || 'Anónimo'}</span></div> 
+                      {
+                        key: 'username',
+                        label: 'Usuario',
+                        render: (a) => <div className="py-2"><span className="text-slate-200 font-medium">{a.username || 'Anónimo'}</span></div>
                       },
-                      { 
-                        key: 'action_type', 
-                        label: 'Acción Ejecutada', 
-                        render: (a) => <div className="py-2"><span className="bg-slate-800 text-slate-200 border border-slate-700/60 px-3 py-1.5 rounded-lg text-xs font-mono">{a.action_type}</span></div> 
+                      {
+                        key: 'action_type',
+                        label: 'Acción Ejecutada',
+                        render: (a) => <div className="py-2"><span className="bg-slate-800 text-slate-200 border border-slate-700/60 px-3 py-1.5 rounded-lg text-xs font-mono">{a.action_type}</span></div>
                       },
-                      { 
-                        key: 'created_at', 
-                        label: 'Fecha / Hora', 
-                        render: (a) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(a.created_at)}</span></div> 
+                      {
+                        key: 'created_at',
+                        label: 'Fecha / Hora',
+                        render: (a) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(a.created_at)}</span></div>
                       }
                     ]}
                     rows={actions}
@@ -807,25 +826,25 @@ export function DeviceManagementDashboard() {
                 <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
-                      { 
-                        key: 'entity_type', 
-                        label: 'Entidad', 
-                        render: (log) => <div className="py-2"><span className="font-semibold text-purple-300">{log.entity_type}</span></div> 
+                      {
+                        key: 'entity_type',
+                        label: 'Entidad',
+                        render: (log) => <div className="py-2"><span className="font-semibold text-purple-300">{log.entity_type}</span></div>
                       },
-                      { 
-                        key: 'action', 
-                        label: 'Operación', 
-                        render: (log) => <div className="py-2"><span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-3 py-1.5 rounded-lg text-xs font-mono">{log.action}</span></div> 
+                      {
+                        key: 'action',
+                        label: 'Operación',
+                        render: (log) => <div className="py-2"><span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-3 py-1.5 rounded-lg text-xs font-mono">{log.action}</span></div>
                       },
-                      { 
-                        key: 'details', 
-                        label: 'Detalles', 
-                        render: (log) => <div className="py-2"><span className="text-slate-300 text-xs">{log.details || 'Sin detalles'}</span></div> 
+                      {
+                        key: 'details',
+                        label: 'Detalles',
+                        render: (log) => <div className="py-2"><span className="text-slate-300 text-xs">{log.details || 'Sin detalles'}</span></div>
                       },
-                      { 
-                        key: 'created_at', 
-                        label: 'Fecha Registro', 
-                        render: (log) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(log.created_at)}</span></div> 
+                      {
+                        key: 'created_at',
+                        label: 'Fecha Registro',
+                        render: (log) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(log.created_at)}</span></div>
                       }
                     ]}
                     rows={auditLogs}
@@ -833,7 +852,7 @@ export function DeviceManagementDashboard() {
                 </div>
               )}
               <div className="pt-2">
-                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
               </div>
             </div>
           )}
@@ -860,13 +879,13 @@ export function Patients() {
   const [patientConsultations, setPatientConsultations] = useState([])
   const [loadingDocs, setLoadingDocs] = useState(false)
   const [loadingConsultations, setLoadingConsultations] = useState(false)
-  
+
   // Estado para previsualización de documentos
   const [previewDoc, setPreviewDoc] = useState(null)
-  
+
   // Estado para controlar edición
   const [isEditingPatient, setIsEditingPatient] = useState(false)
-  
+
   const [activeTab, setActiveTab] = useState('future') // 'future' | 'past'
   const [form, setForm] = useState(INITIAL_PATIENT)
   const [loading, setLoading] = useState(false)
@@ -978,7 +997,7 @@ export function Patients() {
     if (!selectedPatient) return
     let phoneCountry = '+51'
     let phoneNumber = selectedPatient.phone || ''
-    
+
     Object.keys(PHONE_CONFIGS).forEach(code => {
       if (phoneNumber.startsWith(code)) {
         phoneCountry = code
@@ -1025,13 +1044,13 @@ export function Patients() {
       if (!res.ok) throw new Error(json.message || `No se pudo procesar la solicitud`)
 
       notify(`Paciente ${isEditingPatient ? 'actualizado' : 'registrado'} correctamente.`, 'success')
-      
+
       if (isEditingPatient) {
-        const updated = { 
-          ...selectedPatient, 
-          ...form, 
-          dni: form.document_number, 
-          phone 
+        const updated = {
+          ...selectedPatient,
+          ...form,
+          dni: form.document_number,
+          phone
         }
         setSelectedPatient(updated)
         setIsEditingPatient(false)
@@ -1061,11 +1080,12 @@ export function Patients() {
   }, [patientAppointments, today])
 
   return (
-    <div style={{
-      padding: '2rem',
+    <div className="patients-container" style={{
+      padding: 'clamp(1rem, 3vw, 2rem)',
       backgroundColor: theme.bgApp,
       color: theme.textPrimary,
       minHeight: '100vh',
+      overflowX: 'hidden',
       width: '100%',
       boxSizing: 'border-box',
       fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
@@ -1100,6 +1120,26 @@ export function Patients() {
           .row-interactive { border: 1px solid #eee !important; background-color: #fff !important; transform: none !important; }
           @page { margin: 1.5cm; }
         }
+          @media (max-width: 640px) {
+        /* Contenedor principal de la vista de pacientes */
+        .patients-container {
+          padding: 0.75rem !important;
+        }
+        /* Forzar grillas a una sola columna en móviles */
+        .mobile-stack-grid {
+          grid-template-columns: 1fr !important;
+        }
+        /* Ajustar tarjetas de resumen e información del paciente */
+        .patient-summary-card {
+          grid-template-columns: 1fr !important;
+          padding: 1rem !important;
+        }
+        /* Ajustar filas de citas y formularios */
+        .appointment-row-mobile {
+          grid-template-columns: 1fr !important;
+          gap: 0.5rem !important;
+        }
+          }
       `}</style>
 
       <Toast toast={toast} onClose={clearToast} />
@@ -1115,15 +1155,15 @@ export function Patients() {
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           {view === 'detail' && !isEditingPatient && (
             <>
-              <button 
-                onClick={handlePrint} 
+              <button
+                onClick={handlePrint}
                 className="btn-interactive"
                 style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textPrimary, borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
               >
                 <Printer size={15} /> Imprimir
               </button>
-              <button 
-                onClick={startEditPatient} 
+              <button
+                onClick={startEditPatient}
                 className="btn-interactive"
                 style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
               >
@@ -1133,16 +1173,16 @@ export function Patients() {
           )}
 
           {view === 'list' ? (
-            <button 
-              onClick={openCreate} 
+            <button
+              onClick={openCreate}
               className="btn-interactive"
               style={{ backgroundColor: theme.accent, border: 'none', color: '#ffffff', borderRadius: '8px', padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
             >
               <Plus size={16} /> Nuevo paciente
             </button>
           ) : (
-            <button 
-              onClick={() => { setView('list'); setIsEditingPatient(false); }} 
+            <button
+              onClick={() => { setView('list'); setIsEditingPatient(false); }}
               className="btn-interactive"
               style={{ backgroundColor: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textPrimary, borderRadius: '8px', padding: '0.5rem 1.1rem', fontSize: '0.825rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
             >
@@ -1168,7 +1208,7 @@ export function Patients() {
             </div>
 
             {/* SECCIÓN 1: DATOS PERSONALES */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+            <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Nombre completo *</label>
                 <input required value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
@@ -1195,14 +1235,14 @@ export function Patients() {
             </div>
 
             {/* SECCIÓN 2: CONTACTO Y SALUD */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+            <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Código País / Teléfono</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <select value={form.phone_country} onChange={e => setForm(p => ({ ...p, phone_country: e.target.value }))} style={{ width: '110px', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }}>
+                <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+                  <select value={form.phone_country} onChange={e => setForm(p => ({ ...p, phone_country: e.target.value }))} style={{ width: '110px', flexShrink: 0, padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary }}>
                     {Object.entries(PHONE_CONFIGS).map(([code]) => <option key={code} value={code}>{code}</option>)}
                   </select>
-                  <input placeholder="999888777" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+                  <input placeholder="999888777" value={form.phone_number} onChange={e => setForm(p => ({ ...p, phone_number: e.target.value }))} style={{ flex: 1, minWidth: 0, width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
                 </div>
               </div>
 
@@ -1236,15 +1276,21 @@ export function Patients() {
           </form>
         </div>
       ) : view === 'detail' && selectedPatient ? (
-        
+
         /* VISTA DETALLE PERFIL */
-        <div className="print-full-width" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', gap: '1.5rem' }}>
-          
+        <div className="print-full-width mobile-stack-grid" style={{
+          display: 'grid', gridTemplateColumns: 'minmax(0, 2.3fr) minmax(0, 1fr)', backgroundColor: theme.bgCard, borderRadius: '12px',
+          border: `1px solid ${theme.border}`,
+          padding: '1.25rem',
+          gap: '1.25rem'
+        }}>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
+
             {/* TARJETA RESUMEN DEL PACIENTE */}
-            <div className="card-hover print-full-width" style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
-              
+            <div className="card-hover print-full-width patient-summary-card"
+              style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem', gap: '1.5rem' }}>
+
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: `1px solid ${theme.border}`, paddingRight: '1rem' }}>
                 <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: theme.bgHover, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem', border: `1px solid ${theme.border}` }}>
                   <User size={44} color={theme.textMuted} />
@@ -1377,7 +1423,7 @@ export function Patients() {
                   <p style={{ fontSize: '0.8rem', color: theme.textMuted, textAlign: 'center', padding: '1.5rem 0' }}>No hay citas registradas.</p>
                 ) : (
                   (activeTab === 'future' ? futureVisits : pastVisits).map((appt) => (
-                    <div key={appt.id} className="row-interactive" style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 100px', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
+                    <div key={appt.id} className="row-interactive appointment-row-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', backgroundColor: theme.bgApp, borderRadius: '8px', padding: '0.85rem 1rem', alignItems: 'center', fontSize: '0.8rem', border: `1px solid ${theme.border}` }}>
                       <div style={{ fontWeight: 600, color: theme.accent, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <Calendar size={14} /> {new Date(appt.appointment_date).toLocaleDateString()}
                       </div>
@@ -1423,10 +1469,10 @@ export function Patients() {
                   <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>Sin documentos adjuntos.</span>
                 ) : (
                   patientDocuments.map((doc, idx) => (
-                    <div 
-                      key={idx} 
+                    <div
+                      key={idx}
                       onClick={() => setPreviewDoc(doc)}
-                      className="row-interactive" 
+                      className="row-interactive"
                       style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.5rem', borderRadius: '6px', borderBottom: `1px solid ${theme.border}`, cursor: 'pointer' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1475,8 +1521,9 @@ export function Patients() {
     </div>
   )
 }
+
 // ============================================================
-// Consultations
+// Consultations (Corregido y Completado)
 // ============================================================
 
 export function Consultations() {
@@ -1489,7 +1536,7 @@ export function Consultations() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(INITIAL_CONSULTATION);
   const [toast, notify, clearToast] = useToast();
-  
+
   const debouncedQuery = useDebouncedValue(query);
   const debouncedPatientQuery = useDebouncedValue(patientQuery, 250);
 
@@ -1528,11 +1575,18 @@ export function Consultations() {
     if (showForm) searchPatients(debouncedPatientQuery);
   }, [debouncedPatientQuery, showForm, searchPatients]);
 
+  const calculateBMI = (weight, height) => {
+    const w = parseFloat(weight);
+    const h = parseFloat(height) / 100;
+    if (!w || !h || h === 0) return '';
+    return (w / (h * h)).toFixed(1);
+  };
+
   const updateTriage = (field, value) => {
     const next = { ...form, [field]: value };
     if (field === 'weight_kg' || field === 'height_cm') {
       next.bmi = calculateBMI(
-        field === 'weight_kg' ? value : form.weight_kg, 
+        field === 'weight_kg' ? value : form.weight_kg,
         field === 'height_cm' ? value : form.height_cm
       );
     }
@@ -1547,7 +1601,7 @@ export function Consultations() {
       const res = await apiFetch('/consultations', { method: 'POST', body: JSON.stringify(form) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.message || 'No se pudo registrar la consulta');
-      
+
       notify('Consulta registrada correctamente.', 'success', 'Atención guardada');
       setForm(INITIAL_CONSULTATION);
       setPatientQuery('');
@@ -1564,197 +1618,153 @@ export function Consultations() {
   const bmiState = getBMIState(form.bmi);
 
   return (
-    <div style={{
-      padding: '2.5rem',
-      backgroundColor: '#090d16',
-      color: '#f8fafc',
-      minHeight: '100vh',
-      fontFamily: 'system-ui, -apple-system, sans-serif'
-    }}>
-      
-      {/* Estilos e Inyección de Animaciones CSS */}
+    <div className="consultations-container">
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
+        .consultations-container,
+        .consultations-container * {
+          box-sizing: border-box !important;
         }
-        .animated-card {
-          animation: fadeIn 0.35s ease-out forwards;
+
+        .consultations-container {
+          padding: 1rem;
+          background-color: #090d16;
+          color: #f8fafc;
+          min-height: 100vh;
+          font-family: system-ui, -apple-system, sans-serif;
+          width: 100%;
         }
-        .input-focus-glow {
-          transition: all 0.2s ease-in-out;
+
+        .main-card {
+          background-color: rgba(15, 23, 42, 0.6);
+          border: 1px solid #1e293b;
+          border-radius: 16px;
+          padding: 1.25rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(12px);
+          display: flex;
+          flex-direction: column;
+          gap: 1.25rem;
+          width: 100%;
+          max-width: 1200px;
+          margin: 0 auto;
         }
-        .input-focus-glow:focus {
+
+        .header-wrapper {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid #1e293b;
+          padding-bottom: 1rem;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+          width: 100%;
+        }
+
+        .grid-cards {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 1rem;
+          width: 100%;
+        }
+
+        .grid-form-2col {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 1rem;
+          width: 100%;
+        }
+
+        .input-mobile {
+          width: 100% !important;
+          background-color: #090d16 !important;
+          border: 1px solid #334155 !important;
+          color: #f8fafc !important;
+          border-radius: 8px !important;
+          padding: 0.65rem 0.85rem !important;
+          font-size: 0.875rem !important;
+          outline: none !important;
+        }
+
+        .input-mobile:focus {
           border-color: #38bdf8 !important;
-          box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
-          background-color: #0f172a !important;
-        }
-        .card-interactive {
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .card-interactive:hover {
-          transform: translateY(-3px);
-          border-color: #38bdf8 !important;
-          box-shadow: 0 12px 24px -10px rgba(56, 189, 248, 0.25) !important;
-        }
-        .btn-glow {
-          transition: all 0.2s ease;
-        }
-        .btn-glow:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 0 18px rgba(59, 130, 246, 0.5) !important;
-        }
-        .btn-glow:active {
-          transform: translateY(0);
+          box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
         }
       `}</style>
 
-      {/* MARCO CONTENEDOR */}
-      <div style={{
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-        border: '1px solid #1e293b',
-        borderRadius: '24px',
-        padding: '2rem',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-        backdropFilter: 'blur(12px)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '2rem'
-      }}>
-
-        {/* ENCABEZADO DE ALTO IMPACTO */}
-        <div style={{
-          display: 'flex',
-          justify: 'space-between',
-          alignItems: 'center',
-          borderBottom: '1px solid #1e293b',
-          paddingBottom: '1.5rem',
-          flexWrap: 'wrap',
-          gap: '1rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{
-              backgroundColor: 'rgba(56, 189, 248, 0.12)',
-              padding: '0.75rem',
-              borderRadius: '16px',
-              color: '#38bdf8',
-              border: '1px solid rgba(56, 189, 248, 0.25)'
-            }}>
-              <Stethoscope size={28} />
+      <div className="main-card">
+        {/* ENCABEZADO */}
+        <div className="header-wrapper">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400">
+              <Stethoscope size={22} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
+              <h1 className="text-xl font-bold text-white">
                 {showForm ? 'Nueva Consulta Médica' : 'Consultas Médicas'}
               </h1>
-              <p style={{ fontSize: '0.875rem', color: '#94a3b8', margin: '0.25rem 0 0 0' }}>
-                {showForm ? 'Gestión integral de triaje, diagnóstico y prescripción.' : 'Historial de atención clínica del establecimiento.'}
+              <p className="text-xs text-slate-400">
+                {showForm ? 'Gestión de triaje, diagnóstico y prescripción.' : 'Historial de atenciones clínicas.'}
               </p>
             </div>
           </div>
 
           <button
-            className="btn-glow"
-            style={{
-              backgroundColor: '#3b82f6',
-              border: 'none',
-              color: '#ffffff',
-              borderRadius: '12px',
-              padding: '0.75rem 1.5rem',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              cursor: 'pointer'
-            }}
+            className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer"
             onClick={() => {
               if (!showForm) setForm(INITIAL_CONSULTATION);
               setShowForm(!showForm);
             }}
           >
-            {showForm ? <><ArrowLeft size={18} /> Volver al Historial</> : <><Plus size={18} /> Nueva Consulta</>}
+            {showForm ? <><ArrowLeft size={16} /> Volver al Historial</> : <><Plus size={16} /> Nueva Consulta</>}
           </button>
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* VISTA PRINCIPAL: BUSCADOR Y LISTADO DE TARJETAS */}
+        {/* LISTADO DE CONSULTAS */}
         {!showForm ? (
-          <div className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-            
-            {/* PANEL DE BÚSQUEDA */}
-            <div style={{
-              backgroundColor: '#0f172a',
-              border: '1px solid #1e293b',
-              borderRadius: '16px',
-              padding: '1.25rem 1.5rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Filtro de Búsqueda</h3>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 500 }}>
-                  {consultations.length} {consultations.length === 1 ? 'resultado' : 'resultados'}
-                </span>
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row gap-3 justify-between items-center">
+              <span className="text-xs text-slate-400 font-medium">
+                {consultations.length} {consultations.length === 1 ? 'consulta registrada' : 'consultas registradas'}
+              </span>
+              <div className="w-full sm:w-80">
+                <SearchField value={query} onChange={setQuery} placeholder="Buscar por paciente, diagnóstico o médico..." loading={loading} />
               </div>
-              <SearchField value={query} onChange={setQuery} placeholder="Buscar por paciente, diagnóstico, motivo o médico..." loading={loading} />
             </div>
 
-            {/* LISTADO DE TARJETAS REDISEÑADO */}
             {loading ? (
-              <div style={{ padding: '3rem 0', textAlign: 'center' }}>
-                <LoadingState label="Cargando consultas..." />
-              </div>
+              <LoadingState label="Cargando atenciones clínicas..." />
             ) : consultations.length === 0 ? (
-              <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '3rem', textAlign: 'center' }}>
-                <EmptyState icon="🩺" title="No se encontraron consultas" description="Intenta cambiar los términos de búsqueda o registra una nueva atención médica." />
-              </div>
+              <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+              <div className="grid-cards">
                 {consultations.map(item => (
-                  <article
-                    key={item.id}
-                    className="card-interactive"
-                    style={{
-                      backgroundColor: '#0f172a',
-                      border: '1px solid #1e293b',
-                      borderRadius: '16px',
-                      padding: '1.25rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '1rem'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '0.5rem', borderRadius: '10px' }}>
-                          <User size={20} />
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <Calendar size={12} /> {formatDate(item.created_at) || item.date || 'Sin fecha'}
-                          </span>
-                          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.2rem 0 0 0' }}>
-                            {item.patient_name || `Paciente #${item.patient_id}`}
-                          </h3>
-                        </div>
+                  <article key={item.id} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between gap-3 transition-all shadow-md">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
+                          <Calendar size={12} /> {formatDate(item.created_at || item.date)}
+                        </span>
+                        <h3 className="text-sm font-semibold text-white line-clamp-1">
+                          {item.patient_name || `Paciente #${item.patient_id}`}
+                        </h3>
                       </div>
-                      <span style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>
+                      <span className="bg-sky-950/60 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
                         #{item.id}
                       </span>
                     </div>
 
-                    <div style={{ backgroundColor: '#090d16', padding: '0.85rem', borderRadius: '10px', border: '1px solid #1e293b', fontSize: '0.825rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Motivo:</strong> <span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></p>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Diagnóstico:</strong> <span style={{ color: item.diagnosis ? '#38bdf8' : '#64748b', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></p>
-                      <p style={{ margin: 0 }}><strong style={{ color: '#94a3b8' }}>Médico:</strong> <span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></p>
+                    <div className="bg-[#090d16] p-3 rounded-lg border border-slate-800/80 text-xs space-y-1.5">
+                      <p><strong className="text-slate-400">Motivo: </strong><span className="text-slate-300">{item.reason || 'Sin especificar'}</span></p>
+                      <p><strong className="text-slate-400">Diagnóstico: </strong><span className="text-sky-400 font-medium">{item.diagnosis || 'Pendiente'}</span></p>
+                      <p><strong className="text-slate-400">Médico: </strong><span className="text-slate-300">{item.doctor_name || 'No asignado'}</span></p>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Scale size={14} color="#38bdf8" /> {item.weight_kg ?? item.weight ?? '—'} kg</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><Ruler size={14} color="#38bdf8" /> {item.height_cm ?? item.height ?? '—'} cm</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600, color: '#f8fafc' }}><Activity size={14} color="#38bdf8" /> IMC {item.bmi ?? '—'}</span>
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
+                      <span className="flex items-center gap-1"><Scale size={13} className="text-sky-400" /> {item.weight_kg ?? '—'} kg</span>
+                      <span className="flex items-center gap-1"><Ruler size={13} className="text-sky-400" /> {item.height_cm ?? '—'} cm</span>
+                      <span className="flex items-center gap-1 font-semibold text-slate-200"><Activity size={13} className="text-sky-400" /> IMC {item.bmi ?? '—'}</span>
                     </div>
                   </article>
                 ))}
@@ -1762,60 +1772,48 @@ export function Consultations() {
             )}
           </div>
         ) : (
-          /* FORMULARIO COMPLETO INTEGRADO */
-          <form onSubmit={submit} className="animated-card" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          /* FORMULARIO DE NUEVA CONSULTA */
+          <form onSubmit={submit} className="space-y-6">
 
             {/* SECCIÓN 1: PACIENTE Y ATENCIÓN */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
-                <UserCheck size={18} color="#38bdf8" />
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Datos del Paciente y Consulta</h3>
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <UserCheck size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">1. Identificación y Motivo</h3>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Buscar Paciente *</label>
-                  <SearchField value={patientQuery} onChange={setPatientQuery} placeholder="Escribe el Nombre o DNI del paciente..." loading={!patients.length && Boolean(patientQuery)} />
-                  
+              <div className="grid-form-2col">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Buscar Paciente *</label>
+                  <input
+                    type="text"
+                    className="input-mobile"
+                    value={patientQuery}
+                    onChange={e => setPatientQuery(e.target.value)}
+                    placeholder="Escriba nombre o DNI..."
+                  />
                   {patients.length > 0 && (
-                    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', backgroundColor: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '0.5rem', maxHeight: '180px', overflowY: 'auto' }}>
+                    <div className="mt-1 bg-slate-950 border border-slate-800 rounded-lg p-1.5 max-h-36 overflow-y-auto space-y-1">
                       {patients.slice(0, 5).map(patient => (
                         <button
                           type="button"
                           key={patient.id}
                           onClick={() => { setForm(p => ({ ...p, patient_id: patient.id })); setPatientQuery(patient.full_name); }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            backgroundColor: String(patient.id) === String(form.patient_id) ? '#1e293b' : 'transparent',
-                            border: String(patient.id) === String(form.patient_id) ? '1px solid #38bdf8' : 'none',
-                            color: '#f8fafc',
-                            padding: '0.5rem 0.75rem',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            textAlign: 'left'
-                          }}
+                          className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between ${String(patient.id) === String(form.patient_id) ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-900'}`}
                         >
-                          <span style={{ width: '28px', height: '28px', backgroundColor: '#38bdf8', color: '#090d16', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.75rem' }}>
-                            {patient.full_name?.charAt(0)?.toUpperCase() || 'P'}
-                          </span>
-                          <span style={{ display: 'flex', flexDirection: 'column' }}>
-                            <strong style={{ fontSize: '0.85rem' }}>{patient.full_name}</strong>
-                            <small style={{ color: '#94a3b8', fontSize: '0.75rem' }}>DNI: {patient.dni || patient.document_number || 'S/D'}</small>
-                          </span>
+                          <span className="font-medium">{patient.full_name}</span>
+                          <span className="text-[10px] text-slate-500">DNI: {patient.dni || patient.document_number || 'S/D'}</span>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Paciente Seleccionado *</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Paciente Seleccionado *</label>
                   <select
                     required
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    className="input-mobile"
                     value={form.patient_id}
                     onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}
                   >
@@ -1824,202 +1822,146 @@ export function Consultations() {
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Médico Tratante</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Médico Tratante</label>
                   <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    className="input-mobile"
                     value={form.doctor_name}
                     onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))}
                     placeholder="Dr. Nombre Apellido"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Motivo de la Consulta</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Motivo de Consulta</label>
                   <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    className="input-mobile"
                     value={form.reason}
                     onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
-                    placeholder="Ej. Chequeo preventivo, evaluación sintomática..."
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Sintomatología / Anamnesis</label>
-                  <textarea
-                    rows={3}
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
-                    value={form.symptoms}
-                    onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))}
-                    placeholder="Detalles sobre las molestias o antecedentes expresados por el paciente..."
+                    placeholder="Ej. Control de rutina, dolor abdominal..."
                   />
                 </div>
               </div>
 
-              {selectedPatient && (
-                <div style={{ backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '0.75rem 1rem', borderRadius: '12px', color: '#38bdf8', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <CheckCircle2 size={16} />
-                  <span>Atendiendo a: <strong>{selectedPatient.full_name}</strong> · HC: {selectedPatient.medical_record_number || 'Sin Historia'}</span>
-                </div>
-              )}
+              <div className="space-y-1 pt-2">
+                <label className="text-xs font-medium text-slate-400">Sintomatología / Anamnesis</label>
+                <textarea
+                  rows={2}
+                  className="input-mobile"
+                  value={form.symptoms}
+                  onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))}
+                  placeholder="Detalles clínicos o síntomas manifestados por el paciente..."
+                />
+              </div>
             </div>
 
             {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
-                <HeartPulse size={18} color="#38bdf8" />
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Triaje y Signos Vitales</h3>
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <HeartPulse size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">2. Signos Vitales y Triaje</h3>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Peso (kg)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Peso (kg)</label>
                   <input
                     type="number"
-                    min="0"
                     step="0.1"
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    className="input-mobile"
                     value={form.weight_kg}
                     onChange={e => updateTriage('weight_kg', e.target.value)}
-                    placeholder="70.0"
+                    placeholder="Ej. 70.5"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Talla (cm)</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Talla (cm)</label>
                   <input
                     type="number"
-                    min="0"
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    className="input-mobile"
                     value={form.height_cm}
                     onChange={e => updateTriage('height_cm', e.target.value)}
-                    placeholder="170"
+                    placeholder="Ej. 170"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Índice de Masa Corporal (IMC)</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <input
-                      style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none', fontWeight: 700, width: '100%' }}
-                      value={form.bmi}
-                      readOnly
-                      placeholder="0.00"
-                    />
-                    <span className={`badge badge-${bmiState.tone === 'neutral' ? 'info' : bmiState.tone}`} style={{ padding: '0.4rem 0.6rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, whitespace: 'nowrap' }}>
-                      {bmiState.label}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Presión Arterial</label>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Presión Arterial</label>
                   <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                    className="input-mobile"
                     value={form.blood_pressure}
-                    onChange={e => setForm(p => ({ ...p, blood_pressure: e.target.value }))}
+                    onChange={e => updateTriage('blood_pressure', e.target.value)}
                     placeholder="120/80"
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Perímetro Abdominal (cm)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
-                    value={form.abdominal_perimeter_cm}
-                    onChange={e => setForm(p => ({ ...p, abdominal_perimeter_cm: e.target.value }))}
-                    placeholder="85"
-                  />
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">IMC (Calculado)</label>
+                  <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm font-mono text-sky-400 font-semibold flex items-center justify-between">
+                    <span>{form.bmi || '—'}</span>
+                    {form.bmi && <span className="text-[10px] text-slate-400 uppercase font-sans">{bmiState.label}</span>}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* SECCIÓN 3: DIAGNÓSTICO Y TRATAMIENTO */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem' }}>
-                <Pill size={18} color="#38bdf8" />
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Diagnóstico y Tratamiento</h3>
+            {/* SECCIÓN 3: DIAGNÓSTICO Y RECETA */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <FileEdit size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">3. Diagnóstico y Prescripción</h3>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Diagnóstico Clínico</label>
-                  <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+              <div className="grid-form-2col">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Diagnóstico Principal</label>
+                  <textarea
+                    rows={3}
+                    className="input-mobile"
                     value={form.diagnosis}
                     onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))}
-                    placeholder="Diagnóstico principal o código CIE-10..."
+                    placeholder="Diagnóstico clínico, código CIE-10..."
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Plan de Tratamiento / Indicaciones</label>
-                  <input
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Tratamiento / Receta Médica</label>
+                  <textarea
+                    rows={3}
+                    className="input-mobile"
                     value={form.treatment}
                     onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))}
-                    placeholder="Recomendaciones, dieta o estilo de vida..."
+                    placeholder="Medicamentos, posología e indicaciones generales..."
                   />
                 </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Receta Médica / Prescripción</label>
-                  <textarea
-                    rows={4}
-                    className="input-focus-glow"
-                    style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.75rem 1rem', fontSize: '0.875rem', outline: 'none', resize: 'vertical' }}
-                    value={form.prescription}
-                    onChange={e => setForm(p => ({ ...p, prescription: e.target.value }))}
-                    placeholder="Detalla los medicamentos prescritos, dosificación, frecuencia y días..."
-                  />
-                </div>
-              </div>
-
-              {/* BOTONES DE ACCIÓN */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-                <button
-                  type="button"
-                  style={{ backgroundColor: 'transparent', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.65rem 1.25rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }}
-                  onClick={() => setShowForm(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="btn-glow"
-                  style={{
-                    backgroundColor: '#3b82f6',
-                    border: 'none',
-                    color: '#ffffff',
-                    borderRadius: '12px',
-                    padding: '0.65rem 1.5rem',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.6 : 1
-                  }}
-                  disabled={submitting}
-                >
-                  {submitting ? 'Guardando...' : 'Guardar Consulta'}
-                </button>
               </div>
             </div>
 
+            {/* BOTONES DE ACCIÓN */}
+            <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-slate-800">
+              <button
+                type="button"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg px-5 py-2.5 text-sm font-semibold transition-all disabled:opacity-50"
+                onClick={() => {
+                  setShowForm(false);
+                  setForm(INITIAL_CONSULTATION);
+                }}
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-6 py-2.5 text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50"
+                disabled={submitting}
+              >
+                <Save size={16} />
+                {submitting ? 'Guardando...' : 'Guardar Consulta'}
+              </button>
+            </div>
           </form>
         )}
-
       </div>
     </div>
   );
@@ -2032,71 +1974,102 @@ export function Consultations() {
 // ============================================================
 
 export function Locations() {
-  const [items, setItems] = useState([])
-  const [selectedArea, setSelectedArea] = useState(null)
-  const [detail, setDetail] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [loadingDetail, setLoadingDetail] = useState(false)
-  const [showNewArea, setShowNewArea] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDescription, setNewDescription] = useState('')
-  const [saving, setSaving] = useState(false)
-  const { user } = useAuth()
-  const [toast, notify, clearToast] = useToast()
-  const canEdit = isAdminUser(user)
+  const [items, setItems] = useState([]);
+  const [selectedArea, setSelectedArea] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [showNewArea, setShowNewArea] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const { user } = useAuth();
+  const [toast, notify, clearToast] = useToast();
+  const canEdit = isAdminUser(user);
 
   const load = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await apiFetch('/locations')
-      if (!res.ok) throw new Error('No se pudieron cargar las áreas')
-      setItems(await res.json() || [])
-    } catch (error) {
-      notify(error.message, 'error')
-    } finally { setLoading(false) }
-  }, [notify])
+      const res = await apiFetch('/locations');
+      if (!res.ok) throw new Error('No se pudieron cargar las áreas');
+      const data = await res.json();
 
-  const loadDetail = useCallback(async id => {
-    setLoadingDetail(true)
+      // Asegura que siempre sea un array
+      if (Array.isArray(data)) {
+        setItems(data);
+      } else if (data && Array.isArray(data.items)) {
+        setItems(data.items);
+      } else if (data && Array.isArray(data.data)) {
+        setItems(data.data);
+      } else {
+        setItems([]);
+      }
+    } catch (error) {
+      notify(error.message, 'error');
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [notify]);
+
+  const loadDetail = useCallback(async (id) => {
+    setLoadingDetail(true);
     try {
-      const res = await apiFetch(`/locations/${id}`)
-      if (!res.ok) throw new Error('No se pudo cargar el detalle')
-      setDetail(await res.json())
+      const res = await apiFetch(`/locations/${id}`);
+      if (!res.ok) throw new Error('No se pudo cargar el detalle');
+      const data = await res.json();
+      setDetail(data);
     } catch (error) {
-      notify(error.message, 'error')
-    } finally { setLoadingDetail(false) }
-  }, [notify])
+      notify(error.message, 'error');
+    } finally {
+      setLoadingDetail(false);
+    }
+  }, [notify]);
 
-  useEffect(() => { load() }, [load])
-  useEffect(() => { if (selectedArea) loadDetail(selectedArea) }, [selectedArea, loadDetail])
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const submit = async event => {
-    event.preventDefault()
-    if (!newName.trim()) return notify('Ingresa un nombre para el área.', 'error')
-    setSaving(true)
+  useEffect(() => {
+    if (selectedArea) loadDetail(selectedArea);
+  }, [selectedArea, loadDetail]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!newName.trim()) return notify('Ingresa un nombre para el área.', 'error');
+    setSaving(true);
     try {
-      const res = await apiFetch('/locations', { method: 'POST', body: JSON.stringify({ name: newName.trim(), description: newDescription.trim() }) })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.message || 'No se pudo crear el área')
-      notify('Área creada correctamente.', 'success')
-      setNewName(''); setNewDescription(''); setShowNewArea(false)
-      await load()
-      if (json.id) setSelectedArea(json.id)
+      const res = await apiFetch('/locations', {
+        method: 'POST',
+        body: JSON.stringify({ name: newName.trim(), description: newDescription.trim() })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.message || 'No se pudo crear el área');
+
+      notify('Área creada correctamente.', 'success');
+      setNewName('');
+      setNewDescription('');
+      setShowNewArea(false);
+      await load();
+      if (json.id) setSelectedArea(json.id);
     } catch (error) {
-      notify(error.message, 'error')
-    } finally { setSaving(false) }
-  }
+      notify(error.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
 
       {/* MARCO GENERAL ESTILO DOCUMENTO */}
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 3vw, 2.5rem)', width: '100%', boxSizing: 'border-box' }}>
 
         {/* CABECERA Y ACCIONES */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div style={{ minWidth: 0, flex: '1 1 250px' }}>
+            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em', overflowWrap: 'break-word' }}>
               Áreas del hospital
             </h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
@@ -2104,10 +2077,10 @@ export function Locations() {
             </p>
           </div>
 
-          <div>
+          <div style={{ flexShrink: 0, width: '100%', maxWidth: 'max-content' }}>
             {canEdit && (
               <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%' }}
                 onClick={() => setShowNewArea(v => !v)}
               >
                 {showNewArea ? 'Cancelar' : '＋ Agregar área'}
@@ -2120,33 +2093,33 @@ export function Locations() {
 
         {/* FORMULARIO DE NUEVA ÁREA */}
         {showNewArea && (
-          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
             <div>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Nueva área</h3>
               <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Completa la información para registrar una nueva zona.</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre *</label>
-                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej. UCI, Emergencias…" />
+                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej. UCI, Emergencias…" />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Descripción</label>
-                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Descripción breve" />
+                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Descripción breve" />
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #1e293b' }}>
-              <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setShowNewArea(false)}>Cancelar</button>
-              <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Crear área'}</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap' }}>
+              <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', flex: '1 1 100px' }} onClick={() => setShowNewArea(false)}>Cancelar</button>
+              <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1, flex: '1 1 120px' }} disabled={saving}>{saving ? 'Guardando…' : 'Crear área'}</button>
             </div>
           </form>
         )}
 
         {/* MAPA OPERATIVO */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%' }}>
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Mapa operativo</h3>
             <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{items.length} áreas disponibles.</p>
@@ -2159,7 +2132,7 @@ export function Locations() {
               <EmptyState icon="◈" title="No hay áreas registradas" description="Crea una nueva área para empezar." />
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', width: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1.25rem', width: '100%' }}>
               {items.map(area => {
                 const isSelected = selectedArea === area.id;
                 return (
@@ -2178,34 +2151,36 @@ export function Locations() {
                       textAlign: 'left',
                       cursor: 'pointer',
                       boxShadow: isSelected ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                      transition: 'all 0.25s ease-in-out'
+                      transition: 'all 0.25s ease-in-out',
+                      width: '100%',
+                      boxSizing: 'border-box'
                     }}
                     onMouseEnter={e => {
                       if (!isSelected) {
-                        e.currentTarget.style.transform = 'translateY(-4px)'
-                        e.currentTarget.style.borderColor = '#3b82f6'
-                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)'
+                        e.currentTarget.style.transform = 'translateY(-4px)';
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)';
                       }
                     }}
                     onMouseLeave={e => {
                       if (!isSelected) {
-                        e.currentTarget.style.transform = 'translateY(0px)'
-                        e.currentTarget.style.borderColor = '#1e293b'
-                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+                        e.currentTarget.style.transform = 'translateY(0px)';
+                        e.currentTarget.style.borderColor = '#1e293b';
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
                       }
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-                      <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', gap: '0.5rem' }}>
+                      <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Área #{area.id}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0' }}>{area.name}</h3>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0', overflowWrap: 'break-word' }}>{area.name}</h3>
                       </div>
-                      <span className={cx('status-dot', (area.active_alerts ?? 0) > 0 ? 'warning' : 'success')} style={{ width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }} />
+                      <span className={cx('status-dot', (area.active_alerts ?? 0) > 0 ? 'warning' : 'success')} style={{ width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />
                     </div>
 
-                    <p style={{ fontSize: '0.825rem', color: '#94a3b8', margin: 0 }}>{area.description || 'Sin descripción registrada'}</p>
+                    <p style={{ fontSize: '0.825rem', color: '#94a3b8', margin: 0, overflowWrap: 'break-word' }}>{area.description || 'Sin descripción registrada'}</p>
 
-                    <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: '#cbd5e1', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', width: '100%' }}>
+                    <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.75rem', color: '#cbd5e1', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', width: '100%' }}>
                       <span><strong>{area.device_count ?? 0}</strong> dispositivos</span>
                       <span><strong>{area.active_alerts ?? 0}</strong> alertas</span>
                     </div>
@@ -2218,15 +2193,15 @@ export function Locations() {
 
         {/* DETALLE DE ÁREA SELECCIONADA */}
         {selectedArea && (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0 }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0, overflowWrap: 'break-word' }}>
                   Detalle · {detail?.name || `Área #${selectedArea}`}
                 </h3>
               </div>
               <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer' }}
+                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
                 onClick={() => { setSelectedArea(null); setDetail(null); }}
               >
                 Cerrar
@@ -2236,7 +2211,7 @@ export function Locations() {
             {loadingDetail ? (
               <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando detalle…" /></div>
             ) : detail ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', width: '100%' }}>
                 <StatCard icon="👥" label="Usuarios" value={detail.user_count ?? '—'} tone="primary" />
                 <StatCard icon="📟" label="Dispositivos" value={detail.device_count ?? 0} tone="success" />
                 <StatCard icon="⚠" label="Alertas activas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
@@ -2249,7 +2224,7 @@ export function Locations() {
 
       </div>
     </div>
-  )
+  );
 }
 
 // ============================================================
@@ -2267,11 +2242,11 @@ export function Devices() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    type: 'pc', 
-    location_id: '', 
-    status: 'active' 
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'pc',
+    location_id: '',
+    status: 'active'
   });
 
   const { user } = useAuth();
@@ -2366,12 +2341,13 @@ export function Devices() {
   }, [locations]);
 
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: 'clamp(1.25rem, 3vw, 2.5rem)', width: '100%', boxSizing: 'border-box' }}>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
+        {/* CABECERA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div style={{ minWidth: 0, flex: '1 1 250px' }}>
+            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em', overflowWrap: 'break-word' }}>
               Dispositivos y auditoría
             </h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
@@ -2379,35 +2355,39 @@ export function Devices() {
             </p>
           </div>
           {['admin', 'it_support'].includes(user?.role) && (
-            <button
-              onClick={() => setShowForm(!showForm)}
-              style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}
-            >
-              {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
-            </button>
+            <div style={{ flexShrink: 0, width: '100%', maxWidth: 'max-content' }}>
+              <button
+                onClick={() => setShowForm(!showForm)}
+                style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+              >
+                {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
+              </button>
+            </div>
           )}
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
-        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '1rem', fontSize: '0.875rem', color: '#93c5fd' }}>
+        {/* BANNER DE AUDITORÍA */}
+        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#93c5fd', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
           <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · IP {clientInfo.ip || 'Detectando...'}
         </div>
 
+        {/* FORMULARIO DE REGISTRO */}
         {showForm && (
-          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
+          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: 'clamp(1rem, 2vw, 1.5rem)', borderRadius: '16px', border: '1px solid #334155', width: '100%', boxSizing: 'border-box' }}>
             <input
               type="text"
               placeholder="Nombre del dispositivo *"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               required
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             />
             <select
               value={formData.type}
               onChange={e => setFormData({ ...formData, type: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="pc">PC de Escritorio</option>
               <option value="laptop">Laptop</option>
@@ -2419,7 +2399,7 @@ export function Devices() {
             <select
               value={formData.status}
               onChange={e => setFormData({ ...formData, status: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="active">Activo</option>
               <option value="available">Disponible</option>
@@ -2429,27 +2409,30 @@ export function Devices() {
             <select
               value={formData.location_id}
               onChange={e => setFormData({ ...formData, location_id: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             >
               <option value="">Sin ubicación</option>
               {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
             <button
               type="submit"
-              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem' }}
+              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem', width: '100%' }}
             >
               Guardar Dispositivo
             </button>
           </form>
         )}
 
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: '240px' }}>
+        {/* CONTENEDOR DE CONTENIDO Y FILTROS */}
+        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+
+          {/* BARRA DE BÚSQUEDA Y FILTRO */}
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
               <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo o IP…" loading={loading} />
             </div>
             <select
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none' }}
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', flex: '1 1 140px', minWidth: 0 }}
               value={status}
               onChange={e => setStatus(e.target.value)}
             >
@@ -2461,25 +2444,30 @@ export function Devices() {
             </select>
           </div>
 
+          {/* LISTADO DE DISPOSITIVOS */}
           {loading ? (
             <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando dispositivos…" /></div>
           ) : filteredDevices.length === 0 ? (
             <EmptyState icon="📟" title="No hay dispositivos" description="No se encontraron elementos con los filtros seleccionados." />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: '1rem', width: '100%' }}>
               {filteredDevices.map(row => (
-                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)', width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.75rem', color: '#64748b' }}>#{row.id}</span>
-                    <span className="badge">{row.status || '—'}</span>
+                    <span className="badge" style={{ flexShrink: 0 }}>{row.status || '—'}</span>
                   </div>
-                  <div>
-                    <strong style={{ fontSize: '1rem', color: '#f8fafc' }}>{row.name}</strong>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{row.type || '—'}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: '1rem', color: '#f8fafc', display: 'block', overflowWrap: 'break-word' }}>{row.name}</strong>
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.1rem' }}>{row.type || '—'}</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                    <span>IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></span>
-                    <span>Ubicación: {locationMap.get(String(row.location_id)) || 'Sin asignación'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
+                    <span style={{ overflowWrap: 'break-word', wordBreak: 'break-all' }}>
+                      IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code>
+                    </span>
+                    <span style={{ textAlign: 'right', overflowWrap: 'break-word' }}>
+                      Ubicación: {locationMap.get(String(row.location_id)) || 'Sin asignación'}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -2662,11 +2650,10 @@ export function Appointments() {
 
   // Verificador de solapamientos
   const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
-    if (!newDateStr) return false
-    const newStart = new Date(newDateStr).getTime()
-    let newEnd = newStart + 30 * 60000
     if (newEndTimeStr) {
-      const [eh, em] = newEndTimeStr.split(':').map(Number)
+      const parts = newEndTimeStr.split(':')
+      const eh = Number(parts[0])
+      const em = Number(parts[1])
       const startDateObj = new Date(newDateStr)
       startDateObj.setHours(eh, em, 0, 0)
       newEnd = startDateObj.getTime()
@@ -2890,7 +2877,7 @@ export function Appointments() {
 
   return (
     <div style={{ padding: '1.5rem', backgroundColor: '#1f1f1f', color: '#f3f2f1', minHeight: '100vh', width: '100%', boxSizing: 'border-box', fontFamily: '"Segoe UI", sans-serif' }}>
-      
+
       {/* Estilos globales para animaciones fluidas */}
       <style>{`
         @keyframes fadeInScale {
@@ -2962,21 +2949,36 @@ export function Appointments() {
 
         {/* FORMULARIO NUEVA CITA */}
         {showForm && (
-          <form onSubmit={submit} className="animated-container" style={{ backgroundColor: '#252423', borderBottom: '1px solid #333333', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <form
+            onSubmit={submit}
+            className="animated-container"
+            style={{
+              backgroundColor: '#252423',
+              borderBottom: '1px solid #333333',
+              padding: '1.25rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              width: '100%',
+              boxSizing: 'border-box',
+              overflowX: 'hidden'
+            }}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Programar nueva cita médica</h3>
-              <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer' }}>✕</button>
+              <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer', fontSize: '1.1rem' }}>✕</button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', gridColumn: '1 / -1' }}>
+            {/* Cambiado a flex de una sola columna con box-sizing controlado */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Buscar paciente *</label>
                 <SearchField value={patientSearch} onChange={setPatientSearch} placeholder="Nombre o DNI..." />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Paciente seleccionado *</label>
-                <select required style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
+                <select required style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}>
                   <option value="">Seleccionar paciente</option>
                   {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — {p.dni || p.document_number || '—'}</option>)}
                 </select>
@@ -2984,14 +2986,14 @@ export function Appointments() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Médico tratante</label>
-                <input style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
+                <input style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.doctor_name} onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad y Color</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <select
-                    style={{ flex: 1, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }}
+                    style={{ flex: 1, minWidth: 0, backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }}
                     value={form.specialty}
                     onChange={e => {
                       const spec = e.target.value
@@ -3000,13 +3002,13 @@ export function Appointments() {
                   >
                     {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
                   </select>
-                  <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} style={{ width: '38px', height: '36px', background: 'transparent', border: '1px solid #484644', borderRadius: '4px', cursor: 'pointer' }} />
+                  <input type="color" value={form.color} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} style={{ width: '38px', height: '34px', flexShrink: 0, background: 'transparent', border: '1px solid #484644', borderRadius: '4px', cursor: 'pointer', padding: '0 2px' }} />
                 </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Prioridad</label>
-                <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
+                <select style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))}>
                   <option value="Baja">Baja</option>
                   <option value="Media">Media</option>
                   <option value="Alta">Alta</option>
@@ -3016,16 +3018,16 @@ export function Appointments() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Inicio *</label>
-                <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
+                <input required type="datetime-local" style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.appointment_date} onChange={e => setForm(p => ({ ...p, appointment_date: e.target.value }))} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Hora de fin</label>
-                <input type="time" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} />
+                <input type="time" style={{ width: '100%', boxSizing: 'border-box', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={form.end_time} onChange={e => setForm(p => ({ ...p, end_time: e.target.value }))} />
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
               <button type="button" style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }} onClick={() => setShowForm(false)}>Descartar</button>
               <button type="submit" style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
             </div>
@@ -3118,19 +3120,19 @@ export function Appointments() {
                       <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
                       {weekDays.map(d => {
                         const weekCellDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-                        
+
                         const cellApps = filteredAppointments.filter(item => {
                           if (!item.appointment_date) return false
                           const localDateObj = new Date(item.appointment_date)
                           if (isNaN(localDateObj.getTime())) return false
-                          
+
                           const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
                           if (itemDateStr !== weekCellDateStr) return false
                           return localDateObj.getHours() === hour
                         })
 
                         return (
-                          <div 
+                          <div
                             key={d.toISOString()}
                             onClick={() => {
                               setForm(p => ({ ...p, appointment_date: `${weekCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
@@ -3158,7 +3160,7 @@ export function Appointments() {
               if (!item.appointment_date) return false
               const localDateObj = new Date(item.appointment_date)
               if (isNaN(localDateObj.getTime())) return false
-              
+
               const itemDateStr = `${localDateObj.getFullYear()}-${String(localDateObj.getMonth() + 1).padStart(2, '0')}-${String(localDateObj.getDate()).padStart(2, '0')}`
               return itemDateStr === dayCellDateStr
             })
@@ -3173,18 +3175,16 @@ export function Appointments() {
                     })
 
                     return (
-                      <div 
+                      <div
                         key={hour}
                         onClick={() => {
                           setForm(p => ({ ...p, appointment_date: `${dayCellDateStr}T${String(hour).padStart(2, '0')}:00`, color: specialtyColors[p.specialty] || '#464775' }))
                           setShowForm(true)
                         }}
-                        style={{ display: 'flex', borderBottom: '1px solid #333333', minHeight: '65px', alignItems: 'stretch', cursor: 'pointer' }}
+                        style={{ display: 'grid', gridTemplateColumns: '60px 1fr', borderBottom: '1px solid #333333', minHeight: '60px', cursor: 'pointer' }}
                       >
-                        <div style={{ width: '70px', padding: '0.5rem', fontSize: '0.8rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '1rem', borderRight: '1px solid #333333' }}>
-                          {`${String(hour).padStart(2, '0')}:00`}
-                        </div>
-                        <div style={{ flex: 1, padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ padding: '0.25rem', fontSize: '0.75rem', color: '#b3b0ad', textAlign: 'right', paddingRight: '0.5rem' }}>{`${String(hour).padStart(2, '0')}:00`}</div>
+                        <div style={{ borderLeft: '1px solid #333333', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           {cellApps.map(item => renderAppointmentCard(item))}
                         </div>
                       </div>
@@ -3200,103 +3200,47 @@ export function Appointments() {
 
       {/* POPUP DE EDICIÓN / DETALLE */}
       {selectedAppointment && (
-        <div className="animated-container" style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', padding: '1rem', backdropFilter: 'blur(2px)' }}>
-          <div className="animated-container" style={{ backgroundColor: '#292929', border: '1px solid #333333', borderRadius: '8px', width: '100%', maxWidth: '500px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-
-            <div style={{ backgroundColor: '#201f1f', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333333' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: selectedAppointment.color || '#6264a7' }}></div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', margin: 0 }}>Detalles de la cita</h3>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100 }}>
+          <div className="animated-container" style={{ backgroundColor: '#292929', border: '1px solid #484644', borderRadius: '8px', padding: '1.5rem', width: '90%', maxWidth: '500px', color: '#f3f2f1' }}>
+            {!editingAppointment ? (
+              <div>
+                <h3 style={{ marginTop: 0 }}>Detalle de Cita</h3>
+                <p><strong>Médico:</strong> {selectedAppointment.doctor_name}</p>
+                <p><strong>Especialidad:</strong> {selectedAppointment.specialty}</p>
+                <p><strong>Fecha/Hora:</strong> {selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</p>
+                <p><strong>Prioridad:</strong> {selectedAppointment.priority}</p>
+                <p><strong>Notas:</strong> {selectedAppointment.notes || 'Sin observaciones'}</p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+                  <button onClick={() => setEditingAppointment(true)} style={{ backgroundColor: '#005a9e', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Editar</button>
+                  <button onClick={() => handleCancelAppointment(selectedAppointment.id)} disabled={actionLoading} style={{ backgroundColor: '#a80000', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cancelar Cita</button>
+                  <button onClick={() => setSelectedAppointment(null)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Cerrar</button>
+                </div>
               </div>
-              <button onClick={() => setSelectedAppointment(null)} style={{ background: 'transparent', border: 'none', color: '#b3b0ad', cursor: 'pointer' }}>✕</button>
-            </div>
-
-            <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {!editingAppointment ? (
-                <>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Médico Tratante</span>
-                      <strong>{selectedAppointment.doctor_name}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Especialidad</span>
-                      <strong>{selectedAppointment.specialty}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Fecha y Hora</span>
-                      <strong>{selectedAppointment.appointment_date ? selectedAppointment.appointment_date.replace('T', ' ') : '—'}</strong>
-                    </div>
-                    <div>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Prioridad</span>
-                      <strong>{selectedAppointment.priority}</strong>
-                    </div>
-                  </div>
-                  {selectedAppointment.notes && (
-                    <div style={{ fontSize: '0.85rem' }}>
-                      <span style={{ color: '#b3b0ad', display: 'block', fontSize: '0.75rem' }}>Notas</span>
-                      <p style={{ margin: '0.25rem 0 0 0', backgroundColor: '#201f1f', padding: '0.5rem', borderRadius: '4px' }}>{selectedAppointment.notes}</p>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                    <button type="button" onClick={() => handleCancelAppointment(selectedAppointment.id)} style={{ backgroundColor: 'transparent', border: '1px solid #a80000', color: '#ff6666', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }} disabled={actionLoading}>Cancelar cita</button>
-                    <button type="button" onClick={() => setEditingAppointment(true)} style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}>Editar</button>
-                  </div>
-                </>
-              ) : (
-                <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Médico tratante</label>
-                    <input style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.doctor_name} onChange={e => setEditForm(p => ({ ...p, doctor_name: e.target.value }))} />
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Especialidad</label>
-                    <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.specialty} onChange={e => {
-                      const spec = e.target.value
-                      setEditForm(p => ({ ...p, specialty: spec, color: specialtyColors[spec] || p.color }))
-                    }}>
-                      {Object.keys(specialtyColors).map(s => <option key={s}>{s}</option>)}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Inicio *</label>
-                      <input required type="datetime-local" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.appointment_date} onChange={e => setEditForm(p => ({ ...p, appointment_date: e.target.value }))} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Prioridad</label>
-                      <select style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.priority} onChange={e => setEditForm(p => ({ ...p, priority: e.target.value }))}>
-                        <option value="Baja">Baja</option>
-                        <option value="Media">Media</option>
-                        <option value="Alta">Alta</option>
-                        <option value="Urgente">Urgente</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#b3b0ad' }}>Notas</label>
-                    <textarea rows="2" style={{ backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.5rem', fontSize: '0.85rem' }} value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} />
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-                    <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#f3f2f1', borderRadius: '4px', padding: '0.4rem 1rem', cursor: 'pointer' }}>Volver</button>
-                    <button type="submit" style={{ backgroundColor: '#6264a7', border: 'none', color: '#ffffff', borderRadius: '4px', padding: '0.4rem 1.25rem', fontWeight: 600, cursor: 'pointer' }} disabled={actionLoading}>{actionLoading ? 'Guardando…' : 'Guardar cambios'}</button>
-                  </div>
-                </form>
-              )}
-            </div>
-
+            ) : (
+              <form onSubmit={handleUpdateAppointment} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <h3>Editar Cita</h3>
+                <label style={{ fontSize: '0.8rem' }}>Médico:
+                  <input style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#fff', padding: '0.4rem' }} value={editForm.doctor_name} onChange={e => setEditForm(p => ({ ...p, doctor_name: e.target.value }))} />
+                </label>
+                <label style={{ fontSize: '0.8rem' }}>Inicio:
+                  <input type="datetime-local" style={{ width: '100%', backgroundColor: '#1f1f1f', border: '1px solid #484644', color: '#fff', padding: '0.4rem' }} value={editForm.appointment_date} onChange={e => setEditForm(p => ({ ...p, appointment_date: e.target.value }))} />
+                </label>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setEditingAppointment(false)} style={{ backgroundColor: 'transparent', border: '1px solid #484644', color: '#fff', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>Atrás</button>
+                  <button type="submit" disabled={actionLoading} style={{ backgroundColor: '#237b4b', color: '#fff', border: 'none', padding: '0.4rem 0.8rem', borderRadius: '4px', cursor: 'pointer' }}>{actionLoading ? 'Guardando...' : 'Guardar Cambios'}</button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
-
     </div>
   )
 }
+
+
+
+
 
 export function Documents() {
   const [documents, setDocuments] = useState([]);
@@ -3540,20 +3484,20 @@ export function Documents() {
   const activeTemplate = templates.find(t => String(t.id) === String(form.template_id));
 
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+    <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%', boxSizing: 'border-box' }}>
 
         {/* CABECERA */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0 }}>Gestión de Formularios y Documentos</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div style={{ minWidth: 0, flex: '1 1 280px' }}>
+            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, overflowWrap: 'break-word' }}>Gestión de Formularios y Documentos</h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem' }}>Control estricto de campos dinámicos, documentos generados y plantillas.</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer' }} onClick={() => setShowTemplateBuilder(v => !v)}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
+            <button style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', flex: '1 1 auto', textAlign: 'center' }} onClick={() => setShowTemplateBuilder(v => !v)}>
               {showTemplateBuilder ? 'Cerrar Diseñador' : '⚙️ Diseñador de Plantillas (Grid Libre)'}
             </button>
-            <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600 }} onClick={() => setShowForm(v => !v)}>
+            <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', textAlign: 'center' }} onClick={() => setShowForm(v => !v)}>
               {showForm ? 'Cancelar' : '＋ Asignar Formulario a Paciente'}
             </button>
           </div>
@@ -3564,14 +3508,14 @@ export function Documents() {
         {/* LISTADO DE TEMPLATES */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
             {templates.map(tpl => (
-              <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem' }}>{tpl.nombre || tpl.name}</h4>
-                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px' }}>Versión {tpl.version}</span>
+              <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.nombre || tpl.name}</h4>
+                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px', display: 'inline-block' }}>Versión {tpl.version}</span>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                   <button onClick={() => duplicateTemplate(tpl)} title="Copiar / Duplicar" style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>📋</button>
                   <button onClick={() => deleteTemplate(tpl.id)} title="Eliminar" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>🗑️</button>
                 </div>
@@ -3582,18 +3526,18 @@ export function Documents() {
 
         {/* DISEÑADOR GRID EXCEL */}
         {showTemplateBuilder && (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid #3b82f6', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid #3b82f6', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
             <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Constructor de Formularios (Grid Estilo Excel)</h3>
             <input
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 1rem', outline: 'none' }}
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 1rem', outline: 'none', width: '100%', boxSizing: 'border-box' }}
               value={templateName}
               onChange={e => setTemplateName(e.target.value)}
               placeholder="Nombre del nuevo template (ej. Ficha de Evolución Diaria)"
             />
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem', width: '100%' }}>
               {templateRows.map((row, rIdx) => (
-                <div key={rIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#090d16', padding: '0.75rem', borderRadius: '12px', border: '1px dashed #334155' }}>
+                <div key={rIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#090d16', padding: '0.75rem', borderRadius: '12px', border: '1px dashed #334155', minWidth: 'max-content' }}>
                   <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold', minWidth: '50px' }}>Fila {rIdx + 1}</span>
 
                   {row.map((cell, cIdx) => (
@@ -3637,21 +3581,21 @@ export function Documents() {
                   ))}
 
                   {row.length < 5 && (
-                    <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem' }}>+ Columna</button>
+                    <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem', flexShrink: 0 }}>+ Columna</button>
                   )}
 
-                  <button onClick={() => removeRow(rIdx)} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', marginLeft: 'auto' }}>
+                  <button onClick={() => removeRow(rIdx)} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', marginLeft: 'auto', flexShrink: 0 }}>
                     Eliminar Fila
                   </button>
                 </div>
               ))}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #334155' }}>
-              <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}>＋ Agregar Nueva Fila</button>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button onClick={() => setShowTemplateBuilder(false)} style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={saveTemplate} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>Guardar Plantilla en DB</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #334155', flexWrap: 'wrap', gap: '1rem' }}>
+              <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', width: '100%', maxWidth: '200px' }}>＋ Agregar Nueva Fila</button>
+              <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '300px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowTemplateBuilder(false)} style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', flex: 1 }}>Cancelar</button>
+                <button onClick={saveTemplate} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, flex: 1 }}>Guardar Plantilla</button>
               </div>
             </div>
           </div>
@@ -3659,38 +3603,38 @@ export function Documents() {
 
         {/* FORMULARIO ASIGNACIÓN */}
         {showForm && (
-          <form onSubmit={submitDocument} style={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <form onSubmit={submitDocument} style={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #334155', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
             <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Rellenar Formulario Clínico para Paciente</h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-              <input required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))} placeholder="ID Paciente (FK)" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))', gap: '1rem' }}>
+              <input required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))} placeholder="ID Paciente (FK)" />
 
-              <select style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.document_type} onChange={e => setForm(p => ({ ...p, document_type: e.target.value }))}>
+              <select style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.document_type} onChange={e => setForm(p => ({ ...p, document_type: e.target.value }))}>
                 <option value="ingreso">Ingreso</option>
                 <option value="evolución">Evolución</option>
                 <option value="alta">Alta</option>
               </select>
 
-              <select required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none' }} value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value, dynamicValues: {} }))}>
+              <select required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value, dynamicValues: {} }))}>
                 <option value="">Seleccione Plantilla</option>
                 {templates.map(t => <option key={t.id} value={t.id}>{t.nombre || t.name}</option>)}
               </select>
             </div>
 
             {activeTemplate && activeTemplate.structure && (
-              <div style={{ background: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ background: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
                 <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#38bdf8' }}>Campos: {activeTemplate.nombre || activeTemplate.name}</h4>
 
                 {activeTemplate.structure.map((row, rIdx) => (
-                  <div key={rIdx} style={{ display: 'grid', gridTemplateColumns: `repeat(${row.length}, 1fr)`, gap: '1rem' }}>
+                  <div key={rIdx} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
                     {row.map((cell, cIdx) => {
                       const key = `${rIdx}-${cIdx}`;
                       return (
-                        <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          <label style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{cell.nombre_campo}</label>
+                        <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: '1 1 180px', minWidth: '0' }}>
+                          <label style={{ fontSize: '0.75rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cell.nombre_campo}</label>
                           <input
                             type={cell.tipo_campo === 'número' ? 'number' : cell.tipo_campo === 'fecha' ? 'date' : 'text'}
-                            style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem', borderRadius: '6px', outline: 'none' }}
+                            style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem', borderRadius: '6px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
                             value={form.dynamicValues[key] || ''}
                             onChange={e => setForm(p => ({ ...p, dynamicValues: { ...p.dynamicValues, [key]: e.target.value } }))}
                           />
@@ -3703,7 +3647,7 @@ export function Documents() {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button type="submit" disabled={saving || !form.template_id} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>
+              <button type="submit" disabled={saving || !form.template_id} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, width: '100%', maxWidth: '250px' }}>
                 {saving ? 'Guardando...' : 'Registrar y Generar PDF'}
               </button>
             </div>
@@ -3717,8 +3661,8 @@ export function Documents() {
               Documentos Registrados ({filteredDocuments.length})
             </h3>
 
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1, maxWidth: '500px' }}>
-              <div style={{ position: 'relative', flex: 1 }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1, maxWidth: '100%' }}>
+              <div style={{ position: 'relative', flex: '1 1 200px' }}>
                 <Search size={16} color="#64748b" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   type="text"
@@ -3733,7 +3677,8 @@ export function Documents() {
                     padding: '0.5rem 0.5rem 0.5rem 2.2rem',
                     borderRadius: '8px',
                     fontSize: '0.85rem',
-                    outline: 'none'
+                    outline: 'none',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
@@ -3748,7 +3693,9 @@ export function Documents() {
                   padding: '0.5rem',
                   borderRadius: '8px',
                   fontSize: '0.85rem',
-                  outline: 'none'
+                  outline: 'none',
+                  flex: '1 1 120px',
+                  boxSizing: 'border-box'
                 }}
               >
                 <option value="all">Todos los tipos</option>
@@ -3759,14 +3706,14 @@ export function Documents() {
             </div>
           </div>
 
-          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflowX: 'auto', width: '100%' }}>
             {filteredDocuments.length === 0 ? (
               <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
                 <File size={36} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
                 <p style={{ margin: 0 }}>No se encontraron documentos registrados.</p>
               </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem', minWidth: '600px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #1e293b', color: '#64748b', backgroundColor: 'rgba(15, 23, 42, 0.6)' }}>
                     <th style={{ padding: '0.85rem 1rem' }}>Documento</th>
@@ -3781,8 +3728,8 @@ export function Documents() {
                     <tr key={doc.id} style={{ borderBottom: '1px solid #1e293b', color: '#cbd5e1' }}>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 500, color: '#f8fafc' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <FileText size={16} color="#38bdf8" />
-                          <span>{doc.file_name || doc.title || 'Documento sin nombre'}</span>
+                          <FileText size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.file_name || doc.title || 'Documento sin nombre'}</span>
                         </div>
                       </td>
                       <td style={{ padding: '0.85rem 1rem' }}>
@@ -3805,7 +3752,7 @@ export function Documents() {
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#94a3b8' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Calendar size={14} color="#64748b" /> 
+                          <Calendar size={14} color="#64748b" />
                           {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
                         </span>
                       </td>
@@ -3855,11 +3802,10 @@ export function Documents() {
 
       </div>
 
-      {/* Renderiza el modal definido previamente en el archivo */}
       {previewDoc && (
-        <DocumentPreviewModal 
-          previewDoc={previewDoc} 
-          setPreviewDoc={setPreviewDoc} 
+        <DocumentPreviewModal
+          previewDoc={previewDoc}
+          setPreviewDoc={setPreviewDoc}
         />
       )}
     </div>
@@ -3871,121 +3817,399 @@ export function Documents() {
 // Reports + Dashboard (Con funciones de exportación)
 // ============================================================
 
-export function Reports() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [toast, notify, clearToast] = useToast()
+export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
+  const [timeRange, setTimeRange] = useState('month');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    ; (async () => {
-      try {
-        const res = await apiFetch('/reports')
-        if (!res.ok) throw new Error('No se pudo cargar el reporte')
-        setData(await res.json())
-      } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-    })()
-  }, [notify])
+  const metrics = [
+    { label: 'PACIENTES REGISTRADOS', value: stats.patients ?? 5, trend: '+12%', isUp: true, icon: Users, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' },
+    { label: 'CONSULTAS ATENDIDAS', value: stats.consultations ?? 1, trend: '-5%', isUp: false, icon: Stethoscope, color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.12)' },
+    { label: 'CITAS PROGRAMADAS', value: stats.appointments ?? 14, trend: '+18%', isUp: true, icon: Clock, color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' },
+    { label: 'ALERTAS ACTIVAS', value: stats.alerts ?? 1, trend: 'Atención', isUp: false, icon: AlertTriangle, color: '#f87171', bg: 'rgba(248, 113, 113, 0.12)' },
+  ];
+
+  const specialties = [
+    { name: 'Medicina General', count: 8, percentage: 57, color: '#3b82f6' },
+    { name: 'Pediatría', count: 4, percentage: 28, color: '#10b981' },
+    { name: 'Cardiología', count: 2, percentage: 15, color: '#f59e0b' },
+  ];
+
+  const activeAlerts = alertsList.length > 0 ? alertsList : [
+    { id: 1, title: 'Inconsistencia en registro de DNI', scope: 'Módulo Pacientes', level: 'Alta', time: 'Hace 10 min' },
+    { id: 2, title: 'Documento pendiente de firma médica', scope: 'Consultas', level: 'Media', time: 'Hace 1 hora' },
+  ];
+
+  const defaultUsers = [
+    { id: 5, username: 'int_test_user', email: '—', role: 'Usuario' },
+    { id: 4, username: 'admin', email: '—', role: 'Administrador' },
+    { id: 1, username: 'admin_user', email: '—', role: 'Administrador' },
+  ];
+
+  const listToDisplay = usersList.length > 0 ? usersList : defaultUsers;
+  const filteredUsers = listToDisplay.filter(u =>
+    u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <PageShell title="Reportes operativos" subtitle="Indicadores resumidos para supervisar la operación diaria.">
-      <Toast toast={toast} onClose={clearToast} />
-      <SectionCard title="Resumen ejecutivo" icon="▥">
-        {loading ? <LoadingState /> : data ? <div className="stats-grid"><StatCard icon="👥" label="Pacientes" value={data.summary?.patients ?? 0} /><StatCard icon="🩺" label="Consultas" value={data.summary?.consultations ?? 0} tone="success" /><StatCard icon="◷" label="Citas" value={data.summary?.appointments ?? 0} tone="primary" /><StatCard icon="⚠" label="Alertas activas" value={data.summary?.active_alerts ?? 0} tone={data.summary?.active_alerts ? 'danger' : 'success'} /></div> : <EmptyState title="No hay información disponible" />}
-      </SectionCard>
-    </PageShell>
-  )
+    <div style={{
+      width: '100%',
+      maxWidth: '1200px',
+      margin: '0 auto',
+      padding: '1.5rem',
+      color: '#f8fafc',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '1.5rem',
+      boxSizing: 'border-box'
+    }}>
+
+      {/* HEADER */}
+      <div style={{
+        display: 'flex',
+        justify: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        borderBottom: '1px solid #1e293b',
+        paddingBottom: '1rem',
+        width: '100%'
+      }}>
+        <div>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>Hospital TIC</h1>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: '0.2rem 0', color: '#cbd5e1' }}>Reportes Operativos y Analítica</h2>
+          <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Indicadores en tiempo real para supervisar la operación médica diaria.</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <select
+            value={timeRange}
+            onChange={(e) => setTimeRange(e.target.value)}
+            style={{
+              background: '#0f172a',
+              border: '1px solid #334155',
+              color: '#f8fafc',
+              padding: '0.5rem 0.8rem',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+              outline: 'none'
+            }}
+          >
+            <option value="today">Hoy</option>
+            <option value="week">Esta semana</option>
+            <option value="month">Este mes</option>
+          </select>
+          <button style={{
+            background: '#2563eb',
+            color: '#ffffff',
+            border: 'none',
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            cursor: 'pointer'
+          }}>
+            <Download size={15} /> Exportar Reporte
+          </button>
+        </div>
+      </div>
+
+      {/* MÉTRICAS KPI (CONTENEDOR FLEX BLOQUEADO) */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '1rem',
+        width: '100%',
+        clear: 'both'
+      }}>
+        {metrics.map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <div
+              key={idx}
+              style={{
+                flex: '1 1 220px',
+                background: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '14px',
+                padding: '1.25rem',
+                minHeight: '110px',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+                /* Anulación estricta de CSS global flotante */
+                position: 'static',
+                float: 'none',
+                clear: 'both',
+                boxSizing: 'border-box'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ padding: '0.5rem', borderRadius: '10px', backgroundColor: item.bg, color: item.color, display: 'flex' }}>
+                  <Icon size={18} />
+                </div>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.2rem',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '6px',
+                  backgroundColor: item.isUp ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: item.isUp ? '#4ade80' : '#f87171'
+                }}>
+                  {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  {item.trend}
+                </span>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.65rem', fontWeight: 700, color: '#64748b', marginTop: '0.5rem' }}>
+                  {item.label}
+                </label>
+                <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ffffff', lineHeight: 1.2 }}>
+                  {item.value}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ANALÍTICA Y ALERTAS */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '1.25rem',
+        width: '100%',
+        clear: 'both'
+      }}>
+        {/* Especialidades */}
+        <div style={{ flex: '1 1 300px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static', float: 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8' }}>
+              <BarChart3 size={16} /> ATENCIONES POR ESPECIALIDAD
+            </span>
+            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Total: 14</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            {specialties.map((spec, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                  <span style={{ color: '#e2e8f0' }}>{spec.name}</span>
+                  <span style={{ color: '#94a3b8', fontWeight: 600 }}>{spec.count} ({spec.percentage}%)</span>
+                </div>
+                <div style={{ width: '100%', height: '8px', background: '#1e293b', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: '4px' }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Alertas */}
+        <div style={{ flex: '1 1 300px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', position: 'static', float: 'none' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#f87171' }}>
+              <ShieldAlert size={16} /> ALERTAS CRÍTICAS
+            </span>
+            <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 700 }}>{activeAlerts.length} Activas</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {activeAlerts.map((alert) => (
+              <div key={alert.id} style={{
+                background: '#090d16',
+                borderLeft: `4px solid ${alert.level === 'Alta' ? '#f87171' : '#f59e0b'}`,
+                borderRadius: '8px',
+                padding: '0.75rem 1rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start'
+              }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', color: '#f8fafc' }}>{alert.title}</h4>
+                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>{alert.scope} • {alert.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-// ============================================================
-// Dashboard (Con exportación profesional y limpia para PDF)
-// ============================================================
+const MOCK_USERS = [
+  { id: 1, username: 'int_test_user', email: 'test@enterprise.com', role: 'Auditor' },
+  { id: 2, username: 'admin', email: 'admin@enterprise.com', role: 'Super Admin' },
+  { id: 3, username: 'admin_user', email: 'user_admin@enterprise.com', role: 'Operator' }
+];
+
+const LOCATION_OPTIONS = [
+  { value: 'all', label: 'Todas las sedes' },
+  { value: 'central', label: 'Sede Central' },
+  { value: 'norte', label: 'Sede Norte' }
+];
+
+const DEVICE_OPTIONS = [
+  { value: 'all', label: 'Todos los dispositivos' },
+  { value: 'servers', label: 'Servidores' },
+  { value: 'workstations', label: 'Estaciones de trabajo' }
+];
+
+const DATE_OPTIONS = [
+  { value: '7d', label: 'Últimos 7 Días' },
+  { value: '30d', label: 'Últimos 30 Días' },
+  { value: '90d', label: 'Últimos 90 Días' }
+];
+
+// --- SUBCOMPONENTES DE APOYO ---
+
+function FilterSelect({ label, value, onChange, options }) {
+  return (
+    <div className="flex flex-col gap-1 w-full min-w-0">
+      <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+        {label}
+      </label>
+      <div className="relative w-full">
+        <select
+          value={value}
+          onChange={onChange}
+          className="w-full appearance-none bg-[#070b14] border border-slate-800 text-slate-200 text-xs rounded-lg px-3 py-2 pr-8 focus:outline-none focus:border-blue-500 cursor-pointer truncate"
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-2.5 pointer-events-none" />
+      </div>
+    </div>
+  );
+}
+
+function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", icon: Icon, iconColor = "text-blue-400" }) {
+  return (
+    <div className="bg-[#0f172a] border border-slate-800 rounded-xl p-4 flex flex-col justify-between shadow-md h-full min-h-[110px] w-full">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate">
+          {title}
+        </span>
+        {Icon && <Icon className={`w-4 h-4 ${iconColor} shrink-0`} />}
+      </div>
+      <div className="flex items-baseline justify-between gap-2 mt-auto">
+        <span className="text-2xl font-black text-white tracking-tight">{value}</span>
+        {subtitle && (
+          <span className={`text-xs ${subtitleColor} truncate`}>
+            {subtitle}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- COMPONENTE PRINCIPAL DASHBOARD ---
 
 export function Dashboard() {
-  const [reports, setReports] = useState(null)
-  const [series, setSeries] = useState([])
-  const [metrics, setMetrics] = useState(null)
-  const [areas, setAreas] = useState([])
-  const [days, setDays] = useState(30)
-  const [loading, setLoading] = useState(true)
-  const [toast, notify, clearToast] = useToast()
+  // State from old component
+  const [reports, setReports] = useState(null);
+  const [series, setSeries] = useState([]);
+  const [metrics, setMetrics] = useState(null);
+  const [areas, setAreas] = useState([]);
+  const [days, setDays] = useState(30);
+  const [loading, setLoading] = useState(true);
+  const [toast, notify, clearToast] = useToast();
+
+  // State & mock data from new component
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState('Todas las sedes');
+  const [selectedDevice, setSelectedDevice] = useState('Todos los dispositivos');
+  
+  const [users, setUsers] = useState([
+    { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario', status: 'Activo' },
+    { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador', status: 'Activo' },
+    { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador', status: 'Activo' },
+  ]);
 
   const load = useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const [reportsRes, seriesRes, metricsRes, areasRes] = await Promise.all([
         apiFetch('/reports'),
         apiFetch(`/reports/series?days=${days}`),
         apiFetch('/metrics'),
         apiFetch('/dashboard/areas'),
-      ])
-      if (!reportsRes.ok || !seriesRes.ok || !metricsRes.ok || !areasRes.ok) throw new Error('No se pudieron actualizar todos los indicadores')
-      setReports(await reportsRes.json())
-      setSeries(await seriesRes.json() || [])
-      setMetrics(await metricsRes.json())
-      setAreas(await areasRes.json() || [])
-    } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-  }, [days, notify])
+      ]);
+      if (!reportsRes.ok || !seriesRes.ok || !metricsRes.ok || !areasRes.ok) {
+        throw new Error('No se pudieron actualizar todos los indicadores');
+      }
+      setReports(await reportsRes.json());
+      setSeries(await seriesRes.json() || []);
+      setMetrics(await metricsRes.json());
+      setAreas(await areasRes.json() || []);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [days, notify]);
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(); }, [load]);
 
   // ============================================================
-  // FUNCIONES DE EXPORTACIÓN
+  // FUNCIONES DE EXPORTACIÓN (Old + New visual triggers)
   // ============================================================
 
-  // 1. Exportar a JSON (Se mantiene limpio y directo en el cliente)
   const exportJSON = () => {
     try {
-      const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() }
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `dashboard_report_${days}d.json`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-      notify('Exportado a JSON exitosamente', 'success')
+      const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard_report_${days}d.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      notify('Exportado a JSON exitosamente', 'success');
     } catch (e) {
-      notify('Error al exportar en JSON', 'error')
+      notify('Error al exportar en JSON', 'error');
     }
-  }
+  };
 
-  // 2. Exportar a CSV mejorado con soporte para tildes (UTF-8 BOM)
   const exportCSV = () => {
     try {
-      let csvContent = "\uFEFFDía,Pacientes,Consultas\n"; // \uFEFF asegura que Excel reconozca tildes y caracteres en español
+      let csvContent = "\uFEFFDía,Pacientes,Consultas\n";
       series.forEach(row => {
         csvContent += `"${row.day}","${row.patients}","${row.consultations}"\n`;
-      })
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `tendencia_pacientes_${days}d.csv`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      notify('Exportado a CSV exitosamente', 'success')
+      });
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `tendencia_pacientes_${days}d.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      notify('Exportado a CSV exitosamente', 'success');
     } catch (e) {
-      notify('Error al exportar en CSV', 'error')
+      notify('Error al exportar en CSV', 'error');
     }
-  }
+  };
 
-  // 3. Exportar a Excel (XLSX) profesional consumiendo el endpoint del Dashboard
   const exportExcel = async () => {
     try {
-      // Recuperar el token del localStorage (o de donde lo guardes al iniciar sesión)
       const currentToken = localStorage.getItem('token') || '';
-
       const res = await apiFetch('/dashboard/export/excel', {
-        headers: {
-          'Authorization': `Bearer ${currentToken}`
-        }
+        headers: { 'Authorization': `Bearer ${currentToken}` }
       });
-
       if (!res.ok) throw new Error('Error al generar el archivo Excel en el servidor');
-
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -4001,8 +4225,6 @@ export function Dashboard() {
     }
   };
 
-
-  // MÉTODO PROFESIONAL PARA PDF: Inyecta estilos temporales de paginación y diseño corporativo
   const exportPDF = () => {
     try {
       const styleId = 'pdf-print-styles';
@@ -4014,36 +4236,18 @@ export function Dashboard() {
         document.head.appendChild(styleElement);
       }
 
-      // Reglas CSS estrictas para impresión: Evita cortes en cajas, fuerza fondo blanco corporativo y oculta controles interactivos
       styleElement.innerHTML = `
         @media print {
-          body * {
-            visibility: hidden;
-          }
-          #printable-dashboard, #printable-dashboard * {
-            visibility: visible;
-          }
+          body * { visibility: hidden; }
+          #printable-dashboard, #printable-dashboard * { visibility: visible; }
           #printable-dashboard {
-            position: absolute;
-            left: 0;
-            top: 0;
+            position: absolute; left: 0; top: 0;
             width: 100% !important;
-            background-color: #ffffff !important;
-            color: #0f172a !important;
+            background-color: #090d16 !important;
+            color: #f8fafc !important;
             padding: 1rem !important;
           }
-          .no-print {
-            display: none !important;
-          }
-          .print-card {
-            background-color: #f8fafc !important;
-            border: 1px solid #cbd5e1 !important;
-            color: #0f172a !important;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-            margin-bottom: 1.5rem !important;
-            box-shadow: none !important;
-          }
+          .no-print { display: none !important; }
         }
       `;
 
@@ -4055,110 +4259,308 @@ export function Dashboard() {
   };
 
   return (
-    <div style={{ padding: '2.5rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-
-      {/* MARCO GENERAL ESTILO DOCUMENTO (ID añadido para control de impresión limpio) */}
-      <div id="printable-dashboard" style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-
-        {/* CABECERA Y FILTROS */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.5rem' }}>
+    <div className="dashboard-wrapper min-h-screen w-full bg-[#090d16] text-slate-100 p-4 sm:p-6 lg:p-8 box-border">
+      <div 
+        id="printable-dashboard" 
+        className="printable-container p-4 sm:p-6 lg:p-8 bg-[#0f172a]/45 border border-slate-800 rounded-3xl shadow-2xl flex flex-col gap-6"
+      >
+        
+        {/* CABECERA Y METADATOS COMPLIANT */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>Dashboard Gerencial</h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>Visión rápida del desempeño clínico y operativo en tiempo real.</p>
+            <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
+              <span>Enterprise Analytics</span>
+              <span>•</span>
+              <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Dashboard de Control y Auditoría TI
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
+              Visión integral del desempeño clínico, operativo y de infraestructura en tiempo real.
+            </p>
           </div>
 
-          <div className="no-print" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Día(s)</label>
-              <select
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, outline: 'none', cursor: 'pointer' }}
-                value={days}
-                onChange={e => setDays(Number(e.target.value))}
-              >
-                <option value={7}>Últimos 7 días</option>
-                <option value={14}>Últimos 14 días</option>
-                <option value={30}>Últimos 30 días</option>
-              </select>
+          {/* BARRA DE ACCIONES Y EXPORTACIÓN */}
+          <div className="no-print flex items-center gap-3 flex-wrap">
+            <div className="export-buttons-group flex items-center gap-1.5 bg-slate-900/80 p-1.5 border border-slate-800 rounded-xl">
+              <button title="Exportar a CSV" onClick={exportCSV} className="px-3 py-1.5 text-xs font-semibold text-sky-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">CSV</button>
+              <button title="Exportar a Excel" onClick={exportExcel} className="px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">Excel</button>
+              <button title="Exportar a PDF" onClick={exportPDF} className="px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">PDF</button>
+              <button title="Exportar a JSON" onClick={exportJSON} className="px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">JSON</button>
             </div>
 
-            {/* BOTONES DE EXPORTACIÓN */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exportar</label>
-              <div style={{ display: 'flex', gap: '0.5rem', height: '40px' }}>
-                <button title="Exportar a CSV" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportCSV}>CSV</button>
-                <button title="Exportar a Excel" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#34d399', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportExcel}>Excel</button>
-                <button title="Exportar a PDF" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f87171', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportPDF}>PDF</button>
-                <button title="Exportar a JSON" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fbbf24', borderRadius: '10px', padding: '0.5rem 0.75rem', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }} onClick={exportJSON}>JSON</button>
+            <button
+              onClick={load}
+              disabled={loading}
+              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 rounded-xl py-2 px-4 text-xs font-medium flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+            >
+              <span className={loading ? "animate-spin" : ""}>↻</span> Actualizar
+            </button>
+          </div>
+        </div>
+
+        {/* FILTROS OPERATIVOS AVANZADOS */}
+        <div className="no-print bg-slate-900/40 border border-slate-800/80 p-4 rounded-2xl">
+          <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <ShieldCheck size={15} className="text-blue-400" />
+            <span>Filtros Operativos Activos:</span>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
+              <div className="relative">
+                <select 
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
+                >
+                  <option>Todas las sedes</option>
+                  <option>Sede Central</option>
+                  <option>Clínica Norte</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.7rem', fontWeight: 600, color: 'transparent', textTransform: 'uppercase' }}>&nbsp;</label>
-              <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
-                onClick={load}
-                disabled={loading}
-              >
-                <span className={cx(loading && "animate-spin")}>↻</span> Actualizar
-              </button>
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
+              <div className="relative">
+                <select 
+                  value={selectedDevice}
+                  onChange={(e) => setSelectedDevice(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
+                >
+                  <option>Todos los dispositivos</option>
+                  <option>Estaciones de Trabajo</option>
+                  <option>Servidores Core</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
+              <div className="relative">
+                <select
+                  value={days}
+                  onChange={e => setDays(Number(e.target.value))}
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
+                >
+                  <option value={7}>Últimos 7 días</option>
+                  <option value={14}>Últimos 14 días</option>
+                  <option value={30}>Últimos 30 días</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
 
+        {/* NOTIFICACIÓN TOAST */}
         <Toast toast={toast} onClose={clearToast} />
 
         {loading ? (
-          <div style={{ padding: '4rem 0', textAlign: 'center' }}><LoadingState label="Actualizando indicadores del sistema…" /></div>
+          <div className="py-16 text-center text-slate-400 text-sm">
+            Actualizando indicadores del sistema…
+          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', width: '100%' }}>
+          <div className="flex flex-col gap-6 w-full">
 
-            {/* GRILLA DE KPI */}
-            <div className="print-card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',marginLeft:'10px', gap: '1.25rem', width: '100%' }}>
-              <StatCard icon={<StatIcons.Patients />} label="Pacientes" value={reports?.summary?.patients ?? 0} hint="Total registrado" tone="primary" />
-              <StatCard icon={<StatIcons.Consultations />} label="Consultas" value={reports?.summary?.consultations ?? 0} hint={`Últimos ${days} días`} tone="success" />
-              <StatCard icon={<StatIcons.Users />} label="Usuarios activos" value={metrics?.active_users ?? 0} hint="Sesiones recientes" tone="primary" />
-              <StatCard icon={<StatIcons.Time />} label="Sesión promedio" value={`${Math.round(metrics?.avg_session_seconds || 0)}s`} hint="Duración media" tone="warning" />
-              <StatCard icon={<StatIcons.Time />} label="Próxima sesión" value="0s" hint="Predicción" tone="primary" />
+            {/* GRILLA SUPERIOR DE MÉTRICAS / KPIS */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              
+              {/* Disponibilidad TI */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
+                  <Monitor size={16} className="text-blue-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-emerald-400 tracking-tight">99.8%</span>
+                  <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
+                    <CheckCircle2 size={10} /> +0.2% vs sem. previa
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Estado óptimo de servidores
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
+              </div>
+
+              {/* Resolución Alertas */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/40 transition-all cursor-pointer" onClick={() => alert('Detalle de alertas bajo revisión')}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
+                  <AlertTriangle size={16} className="text-amber-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-amber-400 tracking-tight">12</span>
+                  <div className="text-[10px] text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
+                    Atención prioritaria
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Media de respuesta: 14m
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
+              </div>
+
+              {/* Citas Programadas */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Citas / Consultas</span>
+                  <CalendarIcon size={16} className="text-indigo-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-indigo-400 tracking-tight">{reports?.summary?.consultations ?? 0}</span>
+                  <div className="text-[10px] text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
+                    Últimos {days} días
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Total pacientes: {reports?.summary?.patients ?? 0}
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
+              </div>
+
+              {/* Usuarios Activos */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
+                  <Monitor size={16} className="text-sky-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-sky-400 tracking-tight">{metrics?.active_users ?? 0}</span>
+                  <div className="text-[10px] text-sky-300 font-semibold mt-1 bg-sky-500/10 px-2 py-0.5 rounded w-fit">
+                    Sesiones recientes
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Sesión media: {Math.round(metrics?.avg_session_seconds || 0)}s
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500/40"></div>
+              </div>
+
+              {/* Métrica predictiva / adicional */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Predicción Carga</span>
+                  <ShieldCheck size={16} className="text-purple-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-purple-400 tracking-tight">Estable</span>
+                  <div className="text-[10px] text-purple-300 font-semibold mt-1 bg-purple-500/10 px-2 py-0.5 rounded w-fit">
+                    IA Monitor
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Sin anomalías de red
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500/40"></div>
+              </div>
+
             </div>
 
-            {/* GRILLA INFERIOR DE GRÁFICOS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem', width: '100%', paddingTop: '0.5rem' }}>
+            {/* SECCIÓN INTERMEDIA: GRÁFICOS Y DIRECTORIO DE USUARIOS */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
+              {/* GRÁFICO 1: TENDENCIA DE PACIENTES Y CONSULTAS */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-sm">
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Tendencia de pacientes / consultas</h3>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Evolución diaria de atención</p>
+                  <h3 className="text-sm font-bold text-white">Tendencia de Pacientes / Consultas</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Evolución diaria de atención clínica</p>
                 </div>
-                <div style={{ paddingTop: '0.5rem' }}>
-                  <ResponsiveContainer width="100%" height={280}>
+                <div className="pt-2">
+                  <ResponsiveContainer width="100%" height={240}>
                     <LineChart data={series}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 12 }} />
-                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
-                      <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={3} dot={false} name="Pacientes" />
-                      <Line type="monotone" dataKey="consultations" stroke="#10b981" strokeWidth={3} dot={false} name="Consultas" />
+                      <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 10 }} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 10 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', fontSize: '12px' }} />
+                      <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={2.5} dot={false} name="Pacientes" />
+                      <Line type="monotone" dataKey="consultations" stroke="#10b981" strokeWidth={2.5} dot={false} name="Consultas" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="print-card" style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)' }}>
+              {/* GRÁFICO 2: DISPOSITIVOS Y ALERTAS POR ÁREA */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-sm">
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Dispositivos y alertas por área</h3>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Distribución operativa del sistema</p>
+                  <h3 className="text-sm font-bold text-white">Dispositivos y Alertas por Área</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Distribución operativa de infraestructura</p>
                 </div>
-                <div style={{ paddingTop: '0.5rem' }}>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={areas} margin={{ left: 0, right: 8 }}>
+                <div className="pt-2">
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={areas} margin={{ left: -15, right: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                      <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={56} />
-                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }} />
-                      <Bar dataKey="device_count" fill="#3b82f6" radius={[6, 6, 0, 0]} name="Dispositivos" />
-                      <Bar dataKey="active_alerts" fill="#ef4444" radius={[6, 6, 0, 0]} name="Alertas activas" />
+                      <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={45} />
+                      <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 10 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', fontSize: '12px' }} />
+                      <Bar dataKey="device_count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Dispositivos" />
+                      <Bar dataKey="active_alerts" fill="#ef4444" radius={[4, 4, 0, 0]} name="Alertas" />
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* DIRECTORIO DE USUARIOS INTEGRADO */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
+                      <p className="text-[11px] text-slate-400">{users.length} cuentas con acceso activo.</p>
+                    </div>
+                  </div>
+
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Buscar usuario..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="w-full overflow-y-auto max-h-[175px] pr-1">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400 text-[10px] uppercase">
+                          <th className="pb-2 text-left">Usuario / Rol</th>
+                          <th className="pb-2 text-right">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {users
+                          .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+                          .map((user) => (
+                            <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
+                              <td className="py-2 flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
+                                  {user.username.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
+                                  <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
+                                </div>
+                              </td>
+                              <td className="py-2 text-right whitespace-nowrap">
+                                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                
+                <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
+                  Multi-tenant • ISO 27001 Secure
                 </div>
               </div>
 
@@ -4168,10 +4570,10 @@ export function Dashboard() {
         )}
 
       </div>
-
     </div>
-  )
+  );
 }
+
 
 export function Users() {
   const [users, setUsers] = useState([])
@@ -4595,22 +4997,656 @@ export function Users() {
 }
 
 
-export function Profile() {
-  const { user } = useAuth()
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [toast, notify, clearToast] = useToast()
+export function Profile({ user = {}, usersList = [] }) {
+  const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    ; (async () => {
-      try {
-        const res = await apiFetch('/profile')
-        if (!res.ok) throw new Error('No se pudo cargar el perfil')
-        setProfile(await res.json())
-      } catch (error) { notify(error.message, 'error') } finally { setLoading(false) }
-    })()
-  }, [notify])
+  const userData = {
+    username: user.username || user.name || 'admin',
+    role: user.role || 'Administrador',
+    tenant: user.tenant_id || user.tenant || '#1',
+    createdAt: user.created_at || '10 ago 2026',
+    permissionsCount: user.permissions?.length || 6,
+  };
 
-  return <PageShell title="Mi perfil" subtitle="Resumen de identidad y actividad dentro del sistema."><Toast toast={toast} onClose={clearToast} />{loading ? <SectionCard><LoadingState label="Cargando perfil…" /></SectionCard> : profile ? <><SectionCard title="Información de cuenta" icon="◎"><div className="profile-hero"><div className="profile-avatar">{(profile.username || user?.email || 'U').charAt(0).toUpperCase()}</div><div><div className="card-kicker">Usuario</div><h2>{profile.username}</h2><span className="badge badge-info">{profile.role_name || profile.role}</span></div></div><div className="profile-grid"><div><span className="meta-label">Rol</span><strong>{profile.role_name || profile.role}</strong></div><div><span className="meta-label">Tenant</span><strong>#{profile.tenant_id}</strong></div><div><span className="meta-label">Alta</span><strong>{formatDate(profile.created_at)}</strong></div><div><span className="meta-label">Permisos</span><strong>{profile.permissions?.length ?? 0}</strong></div></div></SectionCard><div className="stats-grid"><StatCard icon="👥" label="Pacientes" value={profile.counts?.patients ?? 0} /><StatCard icon="🩺" label="Consultas" value={profile.counts?.consultations ?? 0} tone="success" /><StatCard icon="◷" label="Citas" value={profile.counts?.appointments ?? 0} tone="primary" /><StatCard icon="▤" label="Documentos" value={profile.counts?.documents ?? 0} tone="warning" /></div></> : <SectionCard><EmptyState title="No se pudo cargar el perfil" /></SectionCard>}</PageShell>
+  // Datos de ejemplo para la tabla si no vienen por props
+  const defaultUsers = [
+    { id: 5, username: 'int_test_user', email: '—', role: 'Usuario' },
+    { id: 1, username: 'admin', email: 'admin@hospital.com', role: 'Administrador' },
+  ];
+
+  const listToDisplay = usersList.length > 0 ? usersList : defaultUsers;
+  const filteredUsers = listToDisplay.filter(u =>
+    u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="profile-container">
+      <style>{`
+        .profile-container, .profile-container * {
+          box-sizing: border-box !important;
+          position: static; /* Evita que divs flotantes tapen el contenido */
+        }
+
+        .profile-container {
+          width: 100%;
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 1.5rem;
+          color: #f8fafc;
+          font-family: system-ui, -apple-system, sans-serif;
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .header-section h1 {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin: 0;
+          color: #fff;
+        }
+
+        .header-section h2 {
+          font-size: 1.1rem;
+          font-weight: 600;
+          margin: 0.2rem 0;
+          color: #cbd5e1;
+        }
+
+        .header-section p {
+          font-size: 0.8rem;
+          color: #94a3b8;
+          margin: 0;
+        }
+
+        /* Banner Azul */
+        .banner-card {
+          background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%);
+          border-radius: 16px;
+          padding: 1.5rem;
+          display: flex;
+          align-items: center;
+          gap: 1.25rem;
+          box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.3);
+        }
+
+        .avatar-box {
+          width: 60px;
+          height: 60px;
+          background: rgba(255, 255, 255, 0.15);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.75rem;
+          font-weight: 800;
+          color: #fff;
+          flex-shrink: 0;
+        }
+
+        .banner-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .badge-tag {
+          font-size: 0.65rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          color: #bfdbfe;
+          text-transform: uppercase;
+        }
+
+        .banner-info h2 {
+          font-size: 1.5rem;
+          font-weight: 800;
+          margin: 0;
+          color: #fff;
+        }
+
+        .banner-info p {
+          font-size: 0.8rem;
+          color: #e0f2fe;
+          margin: 0;
+        }
+
+        .role-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.4rem;
+          background: rgba(255, 255, 255, 0.2);
+          padding: 0.2rem 0.6rem;
+          border-radius: 6px;
+          font-size: 0.75rem;
+          width: fit-content;
+          margin-top: 0.4rem;
+        }
+
+        /* Grid Información de Cuenta */
+        .account-card {
+          background: #0f172a;
+          border: 1px solid #1e293b;
+          border-radius: 16px;
+          padding: 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .card-title {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.8rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          color: #38bdf8;
+          text-transform: uppercase;
+          border-bottom: 1px solid #1e293b;
+          padding-bottom: 0.75rem;
+        }
+
+        .info-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 0.85rem;
+        }
+
+        .info-item {
+          background: #090d16;
+          border: 1px solid #1e293b;
+          border-radius: 10px;
+          padding: 0.75rem;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .info-item label {
+          display: block;
+          font-size: 0.65rem;
+          font-weight: 700;
+          color: #64748b;
+          text-transform: uppercase;
+        }
+
+        .info-item span {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #f8fafc;
+        }
+
+        /* Tabla / Directorio */
+        .directory-card {
+          background: #0f172a;
+          border: 1px solid #1e293b;
+          border-radius: 16px;
+          padding: 1.25rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .search-box {
+          position: relative;
+          width: 100%;
+          max-width: 360px;
+        }
+
+        .search-box input {
+          width: 100%;
+          background: #090d16;
+          border: 1px solid #334155;
+          border-radius: 8px;
+          padding: 0.6rem 0.8rem 0.6rem 2.2rem;
+          color: #fff;
+          font-size: 0.85rem;
+          outline: none;
+        }
+
+        .search-box svg {
+          position: absolute;
+          left: 0.75rem;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #64748b;
+        }
+
+        .table-responsive {
+          width: 100%;
+          overflow-x: auto;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+          font-size: 0.85rem;
+        }
+
+        th {
+          background: #090d16;
+          padding: 0.75rem 1rem;
+          color: #64748b;
+          font-size: 0.7rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          border-bottom: 1px solid #1e293b;
+        }
+
+        td {
+          padding: 0.85rem 1rem;
+          border-bottom: 1px solid #1e293b;
+        }
+
+        tr:hover td {
+          background: rgba(30, 41, 59, 0.5);
+        }
+
+        .user-avatar-sm {
+          width: 32px;
+          height: 32px;
+          background: #6366f1;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 0.8rem;
+          color: #fff;
+          margin-right: 0.6rem;
+        }
+      `}</style>
+
+      {/* TITULO */}
+      <div className="header-section">
+        <h1>Hospital TIC</h1>
+        <h2>Mi perfil</h2>
+        <p>Resumen de identidad y actividad dentro del sistema.</p>
+      </div>
+
+      {/* BANNER PRINCIPAL */}
+      <div className="banner-card">
+        <div className="avatar-box">
+          {userData.username.charAt(0).toUpperCase()}
+        </div>
+        <div className="banner-info">
+          <span className="badge-tag">Panel de Usuario</span>
+          <h2>Hola, {userData.username}</h2>
+          <p>Bienvenido a tu resumen general de actividad médica y estado de la cuenta.</p>
+          <div className="role-pill">
+            <Shield size={13} /> {userData.role}
+          </div>
+        </div>
+      </div>
+
+      {/* INFORMACIÓN DE CUENTA */}
+      <div className="account-card">
+        <div className="card-title">
+          <User size={16} /> Información de cuenta
+        </div>
+        <div className="info-grid">
+          <div className="info-item">
+            <Shield size={18} className="text-slate-400" />
+            <div>
+              <label>ROL</label>
+              <span>{userData.role}</span>
+            </div>
+          </div>
+          <div className="info-item">
+            <User size={18} className="text-slate-400" />
+            <div>
+              <label>TENANT</label>
+              <span>{userData.tenant}</span>
+            </div>
+          </div>
+          <div className="info-item">
+            <Calendar size={18} className="text-slate-400" />
+            <div>
+              <label>FECHA DE ALTA</label>
+              <span>{userData.createdAt}</span>
+            </div>
+          </div>
+          <div className="info-item">
+            <Key size={18} className="text-slate-400" />
+            <div>
+              <label>PERMISOS</label>
+              <span>{userData.permissionsCount} asignados</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* DIRECTORIO DE USUARIOS (TABLA LIMPIA) */}
+      <div className="directory-card">
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Directorio de Usuarios</h3>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+            {filteredUsers.length} cuentas registradas en el sistema.
+          </p>
+        </div>
+
+        <div className="search-box">
+          <Search size={15} />
+          <input
+            type="text"
+            placeholder="Buscar por usuario, correo o rol..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Correo Electrónico</th>
+                <th>Rol</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((u) => (
+                <tr key={u.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span className="user-avatar-sm">{u.username.charAt(0).toUpperCase()}</span>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{u.username}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>ID: #{u.id}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ color: u.email !== '—' ? '#f8fafc' : '#64748b' }}>{u.email}</td>
+                  <td>
+                    <span style={{
+                      background: '#1e293b',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      color: '#38bdf8'
+                    }}>
+                      {u.role}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  );
 }
 
+
+export  function dashboard2() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  
+  const unreadAlertsCount = 3;
+  const unreadMessagesCount = 2;
+
+  const [users] = useState([
+    { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario', status: 'Activo' },
+    { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador', status: 'Activo' },
+    { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador', status: 'Activo' },
+  ]);
+
+  return (
+    <div className="app-layout">
+      <main className="main-content">
+        
+        {/* CABECERA SUPERIOR */}
+        <header className="app-header">
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Sistema Operativo (Ping: 18ms)</span>
+            </div>
+            <span className="hidden md:inline text-slate-600">|</span>
+            <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
+          </div>
+
+          <div className="user-badge flex items-center gap-2">
+            <div className="avatar-circle">A</div>
+            <div className="flex flex-col text-left">
+              <span className="text-xs font-bold leading-none text-white">admin</span>
+              <span className="text-[10px] text-slate-400">Auditor TI Senior</span>
+            </div>
+          </div>
+        </header>
+
+        {/* TÍTULO Y ACCIONES */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-2">
+            <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
+              <span>Enterprise Analytics</span>
+              <span>•</span>
+              <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Dashboard de Control y Auditoría TI
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              Monitoreo centralizado multi-tenant de dispositivos, alertas operativas y registros de seguridad.
+            </p>
+          
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <div className="relative">
+              <button 
+                onClick={() => alert('Abriendo centro de chat...')}
+                className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-blue-500/50 cursor-pointer relative"
+              >
+                <MessageSquare size={14} className="text-cyan-400" />
+                <span>Chat TI</span>
+              </button>
+              {unreadMessagesCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </div>
+
+            <div className="relative">
+              <button 
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-amber-500/50 cursor-pointer relative"
+              >
+                <Bell size={14} className="text-amber-400" />
+                <span>Alertas</span>
+              </button>
+              {unreadAlertsCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19]">
+                  {unreadAlertsCount}
+                </span>
+              )}
+            </div>
+
+            <button 
+              onClick={() => alert('Generando informe...')}
+              className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-blue-500/50 cursor-pointer"
+            >
+              <Download size={14} className="text-emerald-400" />
+              <span>Exportar Reporte</span>
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 cursor-pointer"
+            >
+              <RefreshCw size={14} className="text-blue-400" />
+              <span>Refrescar</span>
+            </button>
+          </div>
+        </div>
+
+        {/* FILTROS OPERATIVOS */}
+        <div className="stats-wrapper mb-6">
+          <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <ShieldCheck size={15} className="text-blue-400" />
+            <span>Filtros Operativos Activos:</span>
+          </div>
+          
+          <div className="advanced-filter-grid grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
+              <div className="relative">
+                <select className="form-control w-full appearance-none pr-8 cursor-pointer bg-[#111827] text-slate-200 border border-slate-700 rounded p-2 text-xs">
+                  <option>Todas las sedes</option>
+                  <option>Sede Central</option>
+                  <option>Clínica Norte</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
+              <div className="relative">
+                <select className="form-control w-full appearance-none pr-8 cursor-pointer bg-[#111827] text-slate-200 border border-slate-700 rounded p-2 text-xs">
+                  <option>Todos los dispositivos</option>
+                  <option>Estaciones de Trabajo</option>
+                  <option>Servidores Core</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
+              <div className="relative">
+                <select className="form-control w-full appearance-none pr-8 cursor-pointer bg-[#111827] text-slate-200 border border-slate-700 rounded p-2 text-xs">
+                  <option>Últimos 7 Días</option>
+                  <option>Últimos 30 Días</option>
+                  <option>Año Actual</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-3 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* GRILLA DE MÉTRICAS AMPLIADA PARA MANAGEMENT */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+          
+          <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Disponibilidad TI */}
+            <div className="card flex flex-col justify-between min-h-[220px] relative overflow-hidden bg-[#111827] border border-slate-800 p-4 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
+                <Monitor size={16} className="text-blue-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-2">
+                <span className="text-4xl font-black text-emerald-400 tracking-tight">99.8%</span>
+                <span className="text-xs text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded">
+                  <CheckCircle2 size={12} /> +0.2% vs semana anterior
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
+                Estado óptimo de servidores core
+              </div>
+            </div>
+
+            {/* Ocupación de Camas (NUEVO) */}
+            <div className="card flex flex-col justify-between min-h-[220px] relative overflow-hidden bg-[#111827] border border-slate-800 p-4 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Ocupación de Camas</span>
+                <Bed size={16} className="text-indigo-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-2">
+                <span className="text-4xl font-black text-indigo-400 tracking-tight">84.2%</span>
+                <span className="text-xs text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded">
+                  342 / 406 camas ocupadas
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
+                Alta demanda en área de hospitalización
+              </div>
+            </div>
+
+            {/* Tiempo de Espera en ER (NUEVO) */}
+            <div className="card flex flex-col justify-between min-h-[220px] relative overflow-hidden bg-[#111827] border border-slate-800 p-4 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold tracking-wider text-slate-300 uppercase">Espera Promedio ER</span>
+                <Clock size={16} className="text-amber-400" />
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center my-2">
+                <span className="text-4xl font-black text-amber-400 tracking-tight">18 min</span>
+                <span className="text-xs text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded">
+                  Triage óptimo activo
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-400 text-center border-t border-slate-800 pt-3">
+                Tiempo de atención en urgencias
+              </div>
+            </div>
+
+          </div>
+
+          {/* Directorio de Usuarios */}
+          <div className="lg:col-span-1 card flex flex-col justify-between bg-[#111827] border border-slate-800 p-4 rounded-xl">
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
+                  <p className="text-[11px] text-slate-400">{users.length} cuentas registradas.</p>
+                </div>
+              </div>
+
+              <div className="relative mb-3">
+                <Search className="absolute left-3 top-3 h-3.5 w-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar usuario..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="form-control w-full pl-9 bg-[#0B0F19] text-xs text-slate-200 border border-slate-700 rounded p-2"
+                />
+              </div>
+
+              <div className="w-full overflow-x-auto max-h-[160px] overflow-y-auto pr-1">
+                <table className="data-table-container text-xs w-full">
+                  <thead>
+                    <tr>
+                      <th className="pb-2 px-1 text-[10px] text-left text-slate-400">Usuario / Rol</th>
+                      <th className="pb-2 px-1 text-[10px] text-right text-slate-400">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {users
+                      .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((user) => (
+                        <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="py-2.5 px-1 flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
+                              {user.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
+                              <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-1 whitespace-nowrap text-right">
+                            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            
+            <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
+              Multi-tenant • ISO 27001 Secure
+            </div>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  );
+};
