@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import './styles.css'
 import { Patients, Consultations, Appointments, Documents, Reports, Locations, Devices, Dashboard, Users, Profile, DeviceManagementDashboard } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
+import { supabase } from '.lib/supabaseClient.js'
 // 1. ROUTE MAP DEFINED AT TOP LEVEL
 const ROUTES_MAP = {
   '/dashboard': Dashboard,
@@ -455,5 +456,202 @@ export default function App() {
     <AuthProvider>
       <MainApp />
     </AuthProvider>
+  )
+}
+
+export default function ChatRoom({ roomId, currentUser }) {
+  const [messages, setMessages] = useState([])
+  const [newMessage, setNewMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const messagesEndRef = useRef(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true })
+
+      if (error) {
+        console.error('Error al cargar mensajes:', error.message)
+      } else {
+        setMessages(data || [])
+        // Marcar como leídos los mensajes ajenos que estén pendientes al abrir la sala
+        markPendingMessagesAsRead(data || [])
+      }
+      setLoading(false)
+    }
+
+    fetchMessages()
+
+    // Suscripción Realtime para nuevos mensajes y actualizaciones de estado
+    const channel = supabase
+      .channel(`room:${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_id=eq.${roomId}`
+        },
+        (payload) => {
+          setMessages((prev) => [...prev5 => [...prev, payload.new]])
+          // Si el mensaje nuevo es de otra persona, marcarlo como leído automáticamente
+          if (payload.new.user_id !== currentUser?.id) {
+            markMessageAsRead(payload.new.id)
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_id=eq.${roomId}`
+        },
+        (payload) => {
+          // Actualizar el estado del mensaje en tiempo real (ej. cuando cambia a 'read')
+          setMessages((prev) =>
+            prev.map((msg) => (msg.id === payload.new.id ? payload.new : msg))
+          )
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [roomId, currentUser])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  // Función para marcar un mensaje individual como leído
+  const markMessageAsRead = async (messageId) => {
+    await supabase
+      .from('messages')
+      .update({ status: 'read' })
+      .eq('id', messageId)
+  }
+
+  // Marcar todos los mensajes que no son míos y siguen 'sent' como 'read'
+  const markPendingMessagesAsRead = async (msgs) => {
+    const unreadIds = msgs
+      .filter((msg) => msg.user_id !== currentUser?.id && msg.status !== 'read')
+      .map((msg) => msg.id)
+
+    if (unreadIds.length > 0) {
+      await supabase
+        .from('messages')
+        .update({ status: 'read' })
+        .in('id', unreadIds)
+    }
+  }
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault()
+    if (!newMessage.trim()) return
+
+    const messageData = {
+      room_id: roomId,
+      user_id: currentUser?.id,
+      username: currentUser?.username || 'Anónimo',
+      content: newMessage.trim(),
+      status: 'sent', // Estado inicial al enviar
+      created_at: new Date().toISOString()
+    }
+
+    const { error } = await supabase.from('messages').insert([messageData])
+
+    if (error) {
+      console.error('Error al enviar mensaje:', error.message)
+    } else {
+      setNewMessage('')
+    }
+  }
+
+  // Renderizador de iconos de estado (Check de enviado / doble check azul de leído)
+  const renderStatusIcon = (status, isMe) => {
+    if (!isMe) return null // Solo mostramos los ticks en los mensajes propios
+
+    if (status === 'read') {
+      return (
+        <span className="text-sky-400 font-bold text-xs ml-1" title="Leído">
+          ✓✓
+        </span>
+      )
+    } else {
+      return (
+        <span className="text-gray-400 text-xs ml-1" title="Enviado / No leído">
+          ✓
+        </span>
+      )
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full max-w-2xl mx-auto bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+      <div className="bg-slate-800 text-white px-4 py-3 font-semibold">
+        Sala de Chat #{roomId}
+      </div>
+
+      <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 min-h-[350px] max-h-[500px]">
+        {loading ? (
+          <div className="text-center text-gray-500 py-10">Cargando mensajes...</div>
+        ) : messages.length === 0 ? (
+          <div className="text-center text-gray-400 py-10">No hay mensajes aún.</div>
+        ) : (
+          messages.map((msg, index) => {
+            const isMe = msg.user_id === currentUser?.id
+            return (
+              <div
+                key={msg.id || index}
+                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+              >
+                <span className="text-xs text-gray-500 mb-1">
+                  {msg.username} • {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <div
+                  className={`px-4 py-2 rounded-lg max-w-xs md:max-w-md text-sm flex items-end gap-1 ${
+                    isMe
+                      ? 'bg-blue-600 text-white rounded-br-none'
+                      : 'bg-gray-200 text-gray-800 rounded-bl-none'
+                  }`}
+                >
+                  <span>{msg.content}</span>
+                  {renderStatusIcon(msg.status, isMe)}
+                </div>
+              </div>
+            )
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <form onSubmit={handleSendMessage} className="bg-white border-t border-gray-200 p-3 flex gap-2">
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          placeholder="Escribe un mensaje..."
+          className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        />
+        <button
+          type="submit"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
+        >
+          Enviar
+        </button>
+      </form>
+    </div>
   )
 }
