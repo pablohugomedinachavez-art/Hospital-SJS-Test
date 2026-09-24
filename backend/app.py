@@ -40,7 +40,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import pandas as pd
 import openpyxl
 from openpyxl.chart import BarChart, Reference
-from supabase import create_client, Client
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
