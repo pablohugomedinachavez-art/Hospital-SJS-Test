@@ -6,7 +6,7 @@ from supabase import create_client, Client
 from functools import wraps
 from pathlib import Path
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory, g
+from flask import Flask, request, jsonify, send_from_directory, g, Blueprint
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import jwt
@@ -94,6 +94,12 @@ CORS(app,
      expose_headers=['Authorization'])
 
 db = SQLAlchemy(app)
+
+chat_bp = Blueprint('chat', __name__)
+
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
 # ==========================================
 # 4. Modelos de Base de Datos (SQLAlchemy)
 # ==========================================
@@ -780,6 +786,12 @@ def consultations_handler():
         record_audit('create', 'consultation', new_consultation['id'], f'Consultation for patient {patient_id}', tenant_id, user_id)
         return jsonify({'message': 'Consultation created', 'id': new_consultation['id']}), 201
 
+
+@chat_bp.route('/api/messages', methods=['GET'])
+def get_messages():
+    room = request.args.get('room', 'general')
+    response = supabase.table('messages').select("*").eq("room_id", room).order("created_at", desc=False).execute()
+    return jsonify(response.data), 200
 
 # ==========================================
 # ENDPOINT: SUBIR DOCUMENTO Y VINCULAR PACIENTE
