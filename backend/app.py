@@ -6,7 +6,7 @@ from supabase import create_client, Client
 from functools import wraps
 from pathlib import Path
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory, g
+from flask import Flask, request, jsonify, send_from_directory, g, Blueprint
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import jwt
@@ -17,19 +17,34 @@ import csv
 from io import StringIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
+import os
+import datetime
+import time
+from datetime import timezone
+from functools import wraps
+from pathlib import Path
+from io import StringIO
 import io
+import traceback
+import logging
+from urllib.parse import unquote
+
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, send_from_directory, g, send_file
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+import jwt
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from werkzeug.security import generate_password_hash, check_password_hash
 import pandas as pd
-from flask import send_file
 import openpyxl
 from openpyxl.chart import BarChart, Reference
+from supabase import create_client, Client
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from urllib.parse import unquote
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
@@ -38,6 +53,9 @@ CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PARENT_DIR = CURRENT_DIR.parent
+DEMO_DATA_ENABLED = os.getenv('DEMO_DATA_ENABLED', 'False').lower() in ('true', '1', 't')
+FRONTEND_DIR = os.getenv('FRONTEND_DIR', str(PARENT_DIR / 'frontend'))
+
 
 env_loaded = False
 for env_path in [CURRENT_DIR / '.env', PARENT_DIR / '.env', Path('.env')]:
@@ -76,6 +94,12 @@ CORS(app,
      expose_headers=['Authorization'])
 
 db = SQLAlchemy(app)
+
+chat_bp = Blueprint('chat', __name__)
+
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key)
 # ==========================================
 # 4. Modelos de Base de Datos (SQLAlchemy)
 # ==========================================
@@ -107,7 +131,9 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # 5. Funciones auxiliares
 def now_utc():
-    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
+    """Retorna timestamp UTC compatible sin fallos de atributo."""
+    # Updated to datetime.datetime.now
+    return datetime.datetime.now(timezone.utc)
 
 def get_db():
     """Conecta directamente a PostgreSQL vía psycopg2 utilizando la URL parseada."""
@@ -139,7 +165,9 @@ def register_client_device(db_connection, tenant_id, user_id, location_id=None):
     ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
     device_type = parse_device_type(user_agent)
     device_name = f"{device_type.upper()} - {ip_address}"
-    created_at = datetime.now(timezone.utc)
+    
+    # Updated to datetime.datetime.now
+    created_at = datetime.datetime.now(timezone.utc)
     
     cursor = db_connection.cursor()
     
@@ -679,13 +707,11 @@ def consultations_handler():
 
     # 1. OBTENER CONSULTAS CON FILTROS (GET)
     if request.method == 'GET':
-        # Capturar parámetros de la URL
-        search_query = request.args.get('q', '').strip()       # Búsqueda general (Nombre, diagnóstico, motivo)
-        doctor = request.args.get('doctor', '').strip()         # Filtro por médico
-        start_date = request.args.get('start_date', '').strip() # Fecha inicio (YYYY-MM-DD)
-        end_date = request.args.get('end_date', '').strip()     # Fecha fin (YYYY-MM-DD)
+        search_query = request.args.get('q', '').strip()
+        doctor = request.args.get('doctor', '').strip()
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
 
-        # Base del SQL
         sql = '''
             SELECT c.id, c.patient_id, p.full_name as patient_name, c.doctor_name, 
                    c.reason, c.symptoms, c.diagnosis, c.treatment, c.prescription, 
@@ -698,7 +724,6 @@ def consultations_handler():
         '''
         params = [tenant_id]
 
-        # Aplicar filtro de búsqueda general por texto
         if search_query:
             sql += ''' AND (
                 p.full_name ILIKE %s OR 
@@ -709,12 +734,10 @@ def consultations_handler():
             term = f"%{search_query}%"
             params.extend([term, term, term, term])
 
-        # Aplicar filtro por médico
         if doctor:
             sql += ' AND c.doctor_name ILIKE %s'
             params.append(f"%{doctor}%")
 
-        # Aplicar filtro por rango de fechas
         if start_date:
             sql += ' AND c.created_at >= %s'
             params.append(start_date)
@@ -729,8 +752,46 @@ def consultations_handler():
         return jsonify(rows or []), 200
 
     # 2. CREAR CONSULTA (POST)
-    # ... (Se mantiene igual a tu código previo)
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        patient_id = data.get('patient_id')
+        doctor_name = data.get('doctor_name', claims.get('username'))
+        reason = data.get('reason')
+        symptoms = data.get('symptoms')
+        diagnosis = data.get('diagnosis')
+        treatment = data.get('treatment')
+        prescription = data.get('prescription')
+        triage_id = data.get('triage_id')
 
+        if not patient_id or not diagnosis:
+            return jsonify({'message': 'patient_id and diagnosis are required'}), 400
+
+        new_consultation = db_query(
+            '''
+            INSERT INTO consultations (
+                tenant_id, patient_id, doctor_name, reason, symptoms, 
+                diagnosis, treatment, prescription, triage_id, created_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            ''',
+            (
+                tenant_id, patient_id, doctor_name, reason, symptoms,
+                diagnosis, treatment, prescription, triage_id, now_utc()
+            ),
+            commit=True,
+            fetchone=True
+        )
+
+        record_audit('create', 'consultation', new_consultation['id'], f'Consultation for patient {patient_id}', tenant_id, user_id)
+        return jsonify({'message': 'Consultation created', 'id': new_consultation['id']}), 201
+
+
+@chat_bp.route('/api/messages', methods=['GET'])
+def get_messages():
+    room = request.args.get('room', 'general')
+    response = supabase.table('messages').select("*").eq("room_id", room).order("created_at", desc=False).execute()
+    return jsonify(response.data), 200
 
 # ==========================================
 # ENDPOINT: SUBIR DOCUMENTO Y VINCULAR PACIENTE
@@ -923,9 +984,27 @@ def get_patient_documents(patient_id):
 @app.route('/api/templates/<int:template_id>', methods=['DELETE'])
 @token_required
 def templates_handler(template_id=None):
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
+    tenant_id = claims.get('tenant_id')
+    data = request.get_json() or {}
 
+    patient_id = str(data.get('patient_id'))
+    document_type = data.get('document_type')
+    template_id = data.get('template_id')
+    dynamic_values = json.dumps(data.get('dynamic_values', {}))
+    pdf_url = data.get('pdf_url')
+
+    record = db_query(
+        '''
+        INSERT INTO formularios_paciente 
+        (patient_id, document_type, template_id, dynamic_values, pdf_url, tenant_id, fecha_creacion)
+        VALUES (%s, %s, %s, %s::jsonb, %s, %s, NOW())
+        RETURNING id
+        ''',
+        (patient_id, document_type, template_id, dynamic_values, pdf_url, tenant_id),
+        commit=True,
+        fetchone=True
+    )
+    return jsonify({'message': 'Patient form stored successfully', 'id': record['id']}), 201
     # 1. OBTENER PLANTILLAS (GET)
     if request.method == 'GET':
         rows = db_query(
@@ -1173,45 +1252,164 @@ def documents():
     except Exception as db_err:
         print(f"--- ERROR DE BASE DE DATOS: {db_err} ---")
         return jsonify({'message': f'Error al registrar en la base de datos: {str(db_err)}'}), 500
-    
+
+
+
+# 1. Múltiples rutas para soportar /api/alerts y /api/dashboard/alerts
+@app.route('/api/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
+@app.route('/api/dashboard/alerts', methods=['GET', 'POST', 'HEAD', 'OPTIONS'])
+@token_required
+def dashboard_alerts():
+    claims = get_current_user() or {}
+    tenant_id = claims.get('tenant_id')
+    user_id = claims.get('user_id') or claims.get('id')
+
+    if not tenant_id:
+        return jsonify({'message': 'tenant_id no encontrado en la sesión o token'}), 401
+
+    # --- MÉTODO GET ---
+    if request.method == 'GET':
+        try:
+            rows = db_query(
+                '''
+                SELECT a.id, a.device_id, d.name as device_name, a.alert_type, 
+                       a.message, a.severity, a.is_resolved, a.created_at
+                FROM alerts a
+                LEFT JOIN devices d ON d.id = a.device_id
+                WHERE a.tenant_id = %s
+                ORDER BY a.created_at DESC
+                ''',
+                (tenant_id,), fetchall=True
+            )
+            return jsonify(rows or []), 200
+        except Exception as e:
+            logging.error(f"Error en GET /api/alerts: {str(e)}")
+            return jsonify({'error': 'Internal Server Error', 'detail': str(e)}), 500
+
+    # --- MÉTODO POST ---
+    if request.method == 'POST':
+        if not request.is_json:
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'El encabezado Content-Type debe ser application/json'
+            }), 400
+
+        data = request.get_json(silent=True) or {}
+
+        # Validar y castear device_id
+        try:
+            device_id = int(data.get('device_id'))
+        except (ValueError, TypeError):
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'El campo device_id es obligatorio y debe ser un número entero'
+            }), 400
+
+        alert_type = str(data.get('alert_type', '')).strip()
+        message = str(data.get('message', '')).strip()
+        severity = str(data.get('severity', 'medium')).strip()
+
+        if not alert_type or not message:
+            return jsonify({
+                'error': 'Bad Request',
+                'message': 'alert_type y message son campos obligatorios'
+            }), 400
+
+        try:
+            new_alert = db_query(
+                '''
+                INSERT INTO alerts (
+                    tenant_id, device_id, user_id, alert_type, 
+                    message, severity, is_resolved, created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) 
+                RETURNING id
+                ''',
+                (
+                    int(tenant_id),
+                    device_id,
+                    user_id,
+                    alert_type,
+                    message,
+                    severity,
+                    0,  # smallint: 0 = no resuelto
+                    now_utc()
+                ),
+                commit=True, fetchone=True
+            )
+
+            if not new_alert:
+                return jsonify({'error': 'Database Error', 'message': 'No se pudo registrar la alerta'}), 500
+
+            # Maneja retorno como diccionario o tupla según el cursor SQL
+            alert_id = new_alert['id'] if isinstance(new_alert, dict) else new_alert[0]
+
+            return jsonify({
+                'message': 'Alerta registrada con éxito',
+                'id': alert_id
+            }), 201
+
+        except Exception as e:
+            error_msg = str(e)
+            logging.error(f"Error en POST /api/alerts: {error_msg}")
+
+            if 'foreign key' in error_msg.lower():
+                return jsonify({
+                    'error': 'Bad Request',
+                    'message': f'El device_id {device_id} o tenant_id {tenant_id} no existe en la base de datos',
+                    'detail': error_msg
+                }), 400
+
+            return jsonify({'error': 'Internal Server Error', 'detail': error_msg}), 500
+
+
+
 # ==========================================
 # ENDPOINT OPCIONAL: TRIAJE INDEPENDIENTE
 # ==========================================
 @app.route('/api/triage', methods=['GET', 'POST'])
 @token_required
 def triage_handler():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
+    tenant_id = claims.get('tenant_id')
 
     if request.method == 'GET':
-        rows = db_query('SELECT * FROM triages WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
-        return jsonify(rows or []), 200
+        patient_id = request.args.get('patient_id')
+        query = "SELECT * FROM triages WHERE tenant_id = %s"
+        params = [tenant_id]
+        if patient_id:
+            query += " AND patient_id = %s"
+            params.append(patient_id)
+        query += " ORDER BY created_at DESC"
+        
+        triages = db_query(query, tuple(params), fetchall=True)
+        return jsonify(triages), 200
 
     if request.method == 'POST':
         data = request.get_json() or {}
         patient_id = data.get('patient_id')
-        weight_kg = data.get('weight_kg')
-        height_cm = data.get('height_cm')
-        blood_pressure = data.get('blood_pressure')
-
-        if not patient_id or not weight_kg or not height_cm or not blood_pressure:
-            return jsonify({'message': 'patient_id, weight_kg, height_cm y blood_pressure son obligatorios'}), 400
-
-        bmi = data.get('bmi')
-        if not bmi and float(height_cm) > 0:
-            h_m = float(height_cm) / 100.0
-            bmi = round(float(weight_kg) / (h_m * h_m), 2)
+        weight = float(data.get('weight_kg', 0))
+        height = float(data.get('height_cm', 0))
+        
+        # Calculate BMI automatically if height > 0
+        height_m = height / 100.0 if height > 0 else 0
+        bmi = round(weight / (height_m ** 2), 2) if height_m > 0 else 0.0
 
         new_triage = db_query(
             '''
-            INSERT INTO triages (tenant_id, patient_id, weight_kg, height_cm, blood_pressure, bmi, abdominal_perimeter_cm, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
+            INSERT INTO triages 
+            (patient_id, tenant_id, weight_kg, height_cm, blood_pressure, bmi, abdominal_perimeter_cm, notes, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            RETURNING id
             ''',
-            (tenant_id, patient_id, weight_kg, height_cm, blood_pressure, bmi, data.get('abdominal_perimeter_cm'), now_utc()),
-            commit=True, fetchone=True
+            (
+                patient_id, tenant_id, weight, height, 
+                data.get('blood_pressure'), bmi, 
+                data.get('abdominal_perimeter_cm'), data.get('notes')
+            ),
+            commit=True,
+            fetchone=True
         )
-
-        return jsonify({'message': 'Triaje registrado', 'id': new_triage['id']}), 201
+        return jsonify({'message': 'Triage record created successfully', 'triage_id': new_triage['id']}), 201
     
 @app.route('/api/locations', methods=['GET', 'POST'])
 @token_required
@@ -1342,29 +1540,6 @@ def dashboard_areas():
         return jsonify({'message': 'Error generating dashboard areas'}), 500
 
 
-@app.route('/api/dashboard/alerts', methods=['GET, POST,PUT'])
-@token_required
-def dashboard_alerts():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-
-    try:
-        rows = db_query(
-            '''
-            SELECT a.id, a.title, a.description, a.is_resolved, d.name as device_name
-            FROM alerts a
-            JOIN devices d ON d.id = a.device_id
-            WHERE a.tenant_id = %s AND a.is_resolved = 0
-            ORDER BY a.created_at DESC
-            ''',
-            (tenant_id,), fetchall=True
-        )
-        return jsonify(rows or [])
-    except Exception as e:
-        print(f"[DASHBOARD ALERTS ERROR]: {e}")
-        return jsonify({'message': 'Error generating dashboard alerts'}), 500
-
-
 @app.route('/api/reports')
 @token_required
 def reports():
@@ -1427,32 +1602,100 @@ def reports_series():
         return jsonify({'message': 'Error generating series'}), 500
 
 
-@app.route('/api/metrics')
+@app.route('/api/metrics', methods=['GET', 'POST', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH', 'TRACE', 'CONNECT'])
 @token_required
-def metrics():
-    """Return key metrics and a simple session duration prediction."""
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
+def metrics(*args, **kwargs):
     try:
-        # Active users: distinct user_id in sessions last 24h
-        # CÓDIGO CORREGIDO
-        active_users = (db_query("SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id ="" %s AND last_seen >= NOW() - INTERVAL '1 day'",(tenant_id,),fetchone=True,)or {}).get("count", 0)
-        # Average session duration (seconds) across sessions with last_seen
-        avg_row = db_query("SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", (tenant_id,), fetchone=True) or {'avg_seconds': None}
-        avg_seconds = avg_row.get('avg_seconds') or 0
+        # 1. Extracción unificada de claims (soporta kwargs del decorador, request, g o globales)
+        claims = (
+            kwargs.get('claims') or 
+            kwargs.get('user') or 
+            getattr(request, 'claims', None) or 
+            getattr(request, 'user', None) or 
+            getattr(g, 'claims', None) or 
+            {}
+        )
+        
+        tenant_id = claims.get('tenant_id') if isinstance(claims, dict) else None
 
-        # Simple time-series prediction: get daily avg durations for last 7 days and perform linear trend
-        series = db_query("SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", (tenant_id,), fetchall=True) or []
-        # Build arrays for regression
-        xs = []
-        ys = []
-        for i, row in enumerate(series):
+        # Fallback opcional por compatibilidad si usas variables globales
+        if not tenant_id:
+            try:
+                if 'claims' in globals() and isinstance(globals().get('claims'), dict):
+                    tenant_id = globals()['claims'].get('tenant_id')
+            except Exception:
+                pass
+
+        if not tenant_id:
+            return jsonify({'error': 'Unauthorized', 'message': 'Missing or invalid tenant_id in claims'}), 401
+
+        device_id = request.args.get('device_id')
+
+        # 2. Hardware metrics con manejo seguro
+        summary = []
+        query = '''
+            SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
+            FROM metrics
+            WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
+        '''
+        params = [tenant_id]
+
+        if device_id:
+            query += " AND device_id = %s"
+            params.append(device_id)
+
+        query += " GROUP BY metric_type, component_name, unit"
+        
+        try:
+            summary = db_query(query, tuple(params), fetchall=True) or []
+        except Exception as db_err:
+            print(f"[DB METRICS ERROR]: {db_err}")
+            summary = []
+
+        # 3. Métricas de sesiones con valores por defecto seguros
+        active_users = 0
+        avg_seconds = 0
+        series = []
+
+        try:
+            active_res = db_query(
+                "SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'",
+                (tenant_id,),
+                fetchone=True
+            )
+            if active_res and isinstance(active_res, dict):
+                active_users = active_res.get("count", 0) or 0
+        except Exception as e:
+            print(f"[DB SESSIONS ACTIVE ERROR]: {e}")
+
+        try:
+            avg_row = db_query(
+                "SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", 
+                (tenant_id,), 
+                fetchone=True
+            )
+            if avg_row and isinstance(avg_row, dict):
+                avg_seconds = avg_row.get('avg_seconds') or 0
+        except Exception as e:
+            print(f"[DB SESSIONS AVG ERROR]: {e}")
+
+        try:
+            series = db_query(
+                "SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", 
+                (tenant_id,), 
+                fetchall=True
+            ) or []
+        except Exception as e:
+            print(f"[DB SESSIONS SERIES ERROR]: {e}")
+
+        # Regresión lineal segura
+        xs, ys = [], []
+        for i, row in enumerate(series or []):
             xs.append(i)
             ys.append(row.get('avg_seconds') or 0)
 
-        pred = None
+        pred = 0
         if len(xs) >= 2:
-            # Simple linear regression y = a + b*x
             n = len(xs)
             sum_x = sum(xs)
             sum_y = sum(ys)
@@ -1460,21 +1703,23 @@ def metrics():
             sum_xy = sum(x*y for x,y in zip(xs,ys))
             denom = (n*sum_xx - sum_x*sum_x)
             if denom != 0:
-                b = (n*sum_xy - sum_x*sum_y) / denom
-                a = (sum_y - b*sum_x) / n
-                next_x = n
-                pred = max(0, a + b*next_x)
+                b_reg = (n*sum_xy - sum_x*sum_y) / denom
+                a_reg = (sum_y - b_reg*sum_x) / n
+                pred = max(0, a_reg + b_reg * n)
 
-        # return metrics
         return jsonify({
+            'hardware_metrics': summary,
             'active_users': active_users,
-            'avg_session_seconds': avg_seconds,
-            'session_duration_prediction_seconds': pred,
+            'avg_session_seconds': float(avg_seconds) if avg_seconds else 0,
+            'session_duration_prediction_seconds': float(pred),
             'series': series
-        })
+        }), 200
+
     except Exception as e:
-        print(f"[METRICS ERROR]: {e}")
-        return jsonify({'message': 'Error generating metrics'}), 500
+        import traceback
+        traceback.print_exc()
+        print(f"[FATAL METRICS ERROR]: {str(e)}")
+        return jsonify({'error': 'Internal Server Error', 'message': str(e)}), 500
 
 
 @app.route('/api/users', methods=['GET'])
@@ -1656,27 +1901,33 @@ def devices():
         print(f"[ERROR DB /api/devices POST]: {str(e)}")
         return jsonify({'message': 'Error interno al registrar dispositivo', 'error': str(e)}), 500
 
+
+
 @app.route('/api/audit_logs', methods=['GET'])
 @token_required
-def get_audit_logs():
-    claims = getattr(request, 'claims', {})
+def get_audit_logs(): # Removed 'claims' parameter
+    # Retrieve claims using the helper function or request context
+    claims = get_current_user()
     tenant_id = claims.get('tenant_id')
     user_role = claims.get('role')
 
-    # Verificación de permisos
+    # Permission check
     if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    # Parseo seguro de paginación
+    # Safe pagination parameter parsing
     try:
         page = max(1, int(request.args.get('page', 1)))
         per_page = max(1, min(100, int(request.args.get('per_page', 20))))
     except (ValueError, TypeError):
         page, per_page = 1, 20
 
+    offset = (page - 1) * per_page
+
     try:
-        where_conditions = ["al.tenant_id::text = %s"]
-        params = [str(tenant_id)]
+        # Construct filter conditions using native integer foreign keys
+        where_conditions = ["al.tenant_id = %s"]
+        params = [tenant_id]
 
         action_filter = request.args.get('action')
         if action_filter:
@@ -1686,16 +1937,16 @@ def get_audit_logs():
         search = request.args.get('search') or request.args.get('q')
         if search and search.strip():
             search_term = f"%{search.strip()}%"
-            where_conditions.append("(u.username ILIKE %s OR al.details ILIKE %s)")
+            where_conditions.append("(u.username ILIKE %s OR al.details::text ILIKE %s)")
             params.extend([search_term, search_term])
 
         where_sql = " AND ".join(where_conditions)
 
-        # 1. Obtener total de registros
+        # 1. Total record count for pagination metadata
         count_sql = f'''
             SELECT COUNT(*) as total
             FROM audit_logs al
-            LEFT JOIN users u ON u.id::text = al.user_id::text
+            LEFT JOIN users u ON u.id = al.user_id
             WHERE {where_sql}
         '''
         total_row = db_query(count_sql, tuple(params), fetchone=True)
@@ -1707,13 +1958,19 @@ def get_audit_logs():
         else:
             total = 0
 
-        # 2. Consulta paginada de registros
-        offset = (page - 1) * per_page
+        # 2. Query paginated records
         query_sql = f'''
-            SELECT al.id, al.action, al.entity_type, al.entity_id, 
-                   al.details, al.user_id, u.username, al.created_at
+            SELECT 
+                al.id AS log_id, 
+                al.action, 
+                al.entity_type, 
+                al.entity_id, 
+                al.details, 
+                al.user_id, 
+                COALESCE(u.username, 'System') AS username, 
+                al.created_at
             FROM audit_logs al
-            LEFT JOIN users u ON u.id::text = al.user_id::text
+            LEFT JOIN users u ON u.id = al.user_id
             WHERE {where_sql}
             ORDER BY al.created_at DESC
             LIMIT %s OFFSET %s
@@ -1722,7 +1979,7 @@ def get_audit_logs():
         query_params = list(params) + [per_page, offset]
         rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
 
-        # 3. Serialización de respuesta
+        # 3. Serialize response payload
         items = []
         for row in rows:
             row_dict = dict(row) if hasattr(row, '_asdict') or isinstance(row, dict) else dict(zip([
@@ -1741,12 +1998,10 @@ def get_audit_logs():
         }), 200
 
     except Exception as e:
-        import traceback
-        print(f"[ERROR /api/audit_logs GET]: {str(e)}")
+        app.logger.error(f"[ERROR /api/audit_logs GET]: {str(e)}")
         traceback.print_exc()
         return jsonify({'message': f'Error fetching audit logs: {str(e)}'}), 500
-
-
+    
             
 @app.route('/api/device_actions', methods=['GET', 'POST'])
 @token_required
@@ -1913,7 +2168,7 @@ def _build_device_actions_query(tenant_id):
 
     where_sql = " AND ".join(where_conditions)
     return where_sql, params
-
+    
 
 
 @app.route('/api/incidents', methods=['GET', 'POST', 'PUT'])
@@ -2055,4 +2310,3 @@ def export_dashboard_excel():
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
-
