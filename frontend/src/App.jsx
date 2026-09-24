@@ -594,7 +594,7 @@ export default function App() {
   )
 }
 
-export default function ChatRoom({ roomId, currentUser }) {
+export function ChatRoom({ roomId, currentUser }) {
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
