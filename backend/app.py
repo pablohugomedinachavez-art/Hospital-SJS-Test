@@ -424,21 +424,14 @@ def register():
 @app.route('/')
 def index():
     try:
-        # Ejemplo de ruta que interactúa con la BD
         with app.app_context():
             db.session.execute(db.text('SELECT 1'))
         return jsonify({"status": "success", "message": "Conectado correctamente a Supabase"}), 200
     except Exception as e:
-        # Registro detallado de la excepción usando sys
         exc_type, exc_obj, exc_tb = sys.exc_info()
         print(f"Excepción en ruta '/': {e} en la línea {exc_tb.tb_lineno}", file=sys.stderr)
         return jsonify({"status": "error", "message": "No se pudo conectar al servidor de base de datos"}), 500
 
-if __name__ == '__main__':
-    check_db_connection()
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-    
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -2225,12 +2218,7 @@ def incidents_handler():
         record_audit('update', 'incident', inc_id, f'Status set to {status}', tenant_id, claims.get('id'))
         return jsonify({'message': 'Incident updated'})
 
-@app.route('/index')
-def index():
-    dist_dir = os.path.join(FRONTEND_DIR, 'dist')
-    if os.path.isdir(dist_dir):
-        return send_from_directory(dist_dir, 'index.html')
-    return send_from_directory(FRONTEND_DIR, 'index.html')
+
 
 @app.route('/<path:path>')
 def static_proxy(path):
