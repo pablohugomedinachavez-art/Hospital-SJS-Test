@@ -1,3 +1,4 @@
+import sys
 import os
 import datetime
 import time
@@ -28,8 +29,6 @@ import io
 import traceback
 import logging
 from urllib.parse import unquote
-
-
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory, g, send_file
 from flask_cors import CORS
@@ -423,12 +422,22 @@ def register():
         return jsonify({'message': f'Internal server error: {str(e)}'}), 500
 
 @app.route('/')
-def home():
-    return jsonify({
-        'status': 'online',
-        'service': 'Hospital SJS Backend',
-        'health_check': '/api/health'
-    }), 200
+def index():
+    try:
+        # Ejemplo de ruta que interactúa con la BD
+        with app.app_context():
+            db.session.execute(db.text('SELECT 1'))
+        return jsonify({"status": "success", "message": "Conectado correctamente a Supabase"}), 200
+    except Exception as e:
+        # Registro detallado de la excepción usando sys
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        print(f"Excepción en ruta '/': {e} en la línea {exc_tb.tb_lineno}", file=sys.stderr)
+        return jsonify({"status": "error", "message": "No se pudo conectar al servidor de base de datos"}), 500
+
+if __name__ == '__main__':
+    check_db_connection()
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
 
 @app.route('/api/login', methods=['POST'])
 def login():
