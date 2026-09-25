@@ -455,16 +455,16 @@ def login():
         token = create_token(user_dict)
 
         # Record session for this login (IP and user-agent)
-        try:
-            ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-            user_agent = request.headers.get('User-Agent', '')
-            session_row = db_query(
-                '''
-                INSERT INTO sessions (tenant_id, user_id, ip_address, user_agent, created_at, last_seen)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-                ''',
-                (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), commit=True, fetchone=True
-            )
+        #try:
+            #ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+            #user_agent = request.headers.get('User-Agent', '')
+            #session_row = db_query(
+            #    '''
+            #    INSERT INTO sessions (tenant_id, user_id, ip_address, user_agent, created_at, last_seen)
+            #    VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+            #    ''',
+            #    (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), commit=True, fetchone=True
+            #)
             # Optionally include session id in token or logs (not modifying token now)
         except Exception as e:
             print(f"[SESSION WARNING]: No se pudo crear el registro de sesión: {str(e)}")
