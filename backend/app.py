@@ -421,6 +421,14 @@ def register():
         print(f"[REGISTER ERROR]: {str(e)}")
         return jsonify({'message': f'Internal server error: {str(e)}'}), 500
 
+@app.route('/')
+def home():
+    return jsonify({
+        'status': 'online',
+        'service': 'Hospital SJS Backend',
+        'health_check': '/api/health'
+    }), 200
+
 @app.route('/api/login', methods=['POST'])
 def login():
     try:
