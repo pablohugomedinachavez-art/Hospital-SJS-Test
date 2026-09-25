@@ -29,6 +29,7 @@ import traceback
 import logging
 from urllib.parse import unquote
 
+
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory, g, send_file
 from flask_cors import CORS
@@ -439,7 +440,7 @@ def login():
         if not username or not password:
             return jsonify({'message': 'username and password required'}), 400
 
-        # Autenticación mediante SQLAlchemy (evita fallos de conexión manual)
+        # Autenticación mediante SQLAlchemy
         user = User.query.filter_by(username=username).first()
 
         if not user or not check_password_hash(user.password, password):
@@ -452,32 +453,37 @@ def login():
             'role': user.role
         }
 
+        # Generar token de autenticación
         token = create_token(user_dict)
 
-        # Record session for this login (IP and user-agent)
-        #try:
-            #ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-            #user_agent = request.headers.get('User-Agent', '')
-            #session_row = db_query(
-            #    '''
-            #    INSERT INTO sessions (tenant_id, user_id, ip_address, user_agent, created_at, last_seen)
-            #    VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-            #    ''',
-            #    (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), commit=True, fetchone=True
-            #)
-            # Optionally include session id in token or logs (not modifying token now)
-        #except Exception as e:
-            #print(f"[SESSION WARNING]: No se pudo crear el registro de sesión: {str(e)}")
+        # Registro de sesión opcional (mantenido comentado para evitar bloqueos por tablas externas)
+        # try:
+        #     ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        #     user_agent = request.headers.get('User-Agent', '')
+        #     session_row = db_query(
+        #         '''
+        #         INSERT INTO sessions (tenant_id, user_id, ip_address, user_agent, created_at, last_seen)
+        #         VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+        #         ''',
+        #         (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), commit=True, fetchone=True
+        #     )
+        # except Exception as session_err:
+        #     print(f"[SESSION WARNING]: No se pudo crear el registro de sesión: {str(session_err)}")
 
         return jsonify({
             'token': token,
             'username': user.username,
-            'role': user.role
+            'role': user.role,
+            'tenant_id': user.tenant_id
         }), 200
 
     except Exception as e:
-        print(f"[LOGIN ERROR]: {str(e)}")
+        # Esto imprimirá la traza completa del error en los logs de Render
+        error_details = traceback.format_exc()
+        print(f"[LOGIN ERROR CRITICAL]:\n{error_details}", file=sys.stderr)
         return jsonify({'message': f'Internal server error: {str(e)}'}), 500
+
+
 
 @app.route('/api/auth/verify', methods=['GET'])
 def auth_verify():
