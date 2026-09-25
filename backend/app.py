@@ -421,16 +421,7 @@ def register():
         print(f"[REGISTER ERROR]: {str(e)}")
         return jsonify({'message': f'Internal server error: {str(e)}'}), 500
 
-@app.route('/')
-def index():
-    try:
-        with app.app_context():
-            db.session.execute(db.text('SELECT 1'))
-        return jsonify({"status": "success", "message": "Conectado correctamente a Supabase"}), 200
-    except Exception as e:
-        exc_type, exc_obj, exc_tb = sys.exc_info()
-        print(f"Excepción en ruta '/': {e} en la línea {exc_tb.tb_lineno}", file=sys.stderr)
-        return jsonify({"status": "error", "message": "No se pudo conectar al servidor de base de datos"}), 500
+
 
 
 @app.route('/api/login', methods=['POST'])
