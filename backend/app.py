@@ -438,6 +438,7 @@ if __name__ == '__main__':
     check_db_connection()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+    
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -2224,7 +2225,7 @@ def incidents_handler():
         record_audit('update', 'incident', inc_id, f'Status set to {status}', tenant_id, claims.get('id'))
         return jsonify({'message': 'Incident updated'})
 
-@app.route('/')
+@app.route('/index')
 def index():
     dist_dir = os.path.join(FRONTEND_DIR, 'dist')
     if os.path.isdir(dist_dir):
