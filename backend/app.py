@@ -466,8 +466,8 @@ def login():
             #    (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), commit=True, fetchone=True
             #)
             # Optionally include session id in token or logs (not modifying token now)
-        except Exception as e:
-            print(f"[SESSION WARNING]: No se pudo crear el registro de sesión: {str(e)}")
+        #except Exception as e:
+            #print(f"[SESSION WARNING]: No se pudo crear el registro de sesión: {str(e)}")
 
         return jsonify({
             'token': token,
