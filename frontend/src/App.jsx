@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-
+import { ChatTIWidget } from './ChatTIWidget';
 import './styles.css'
 import { Patients, Consultations, Appointments, Documents, Reports, Locations, 
   Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
@@ -429,53 +429,37 @@ function Alerts() {
   )
 }
 
-function AppHeader() {
-  const { user } = useAuth()
+function AppHeader({ onOpenChat, unreadChatCount }) {
+  const { user } = useAuth();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const unreadAlertsCount = 3;
-  const unreadMessagesCount = 2;
+
   return (
     <header className="app-header">
       <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <span style={{ color: 'var(--primary)' }}>•</span> Panel General
-        {/* CABECERA SUPERIOR CON ESTADO EN VIVO */}
-          <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
-            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Sistema Operativo (Ping: 18ms)</span>
-            </div>
-            <span className="hidden md:inline text-slate-600">|</span>
-            <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
-          </div>
-        
-
-        
-
       </div>
-      
+
       {user && (
-        
         <div className="user-badge">
-          {/* Botonera de Acción Global con Chat y Alertas (Red Bubbles) */}
           <div className="flex items-center gap-2 self-start md:self-auto">
-            
-            {/* Chat TI Button with Badge */}
+            {/* Functional Chat TI Button */}
             <div className="relative">
               <button 
-                onClick={() => alert('Abriendo centro de chat con soporte médico y TI...')}
+                onClick={onOpenChat}
                 className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer relative"
               >
                 <MessageSquare size={14} className="text-cyan-400" />
                 <span>Chat TI</span>
               </button>
-              {unreadMessagesCount > 0 && (
+              {unreadChatCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
-                  {unreadMessagesCount}
+                  {unreadChatCount}
                 </span>
               )}
             </div>
 
-            {/* Alertas Button with Dropdown & Red Bubble */}
+            {/* Alerts Button */}
             <div className="relative">
               <button 
                 onClick={() => setNotificationsOpen(!notificationsOpen)}
@@ -489,73 +473,44 @@ function AppHeader() {
                   {unreadAlertsCount}
                 </span>
               )}
-
-              {/* Popup de Alertas */}
-              {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-[#111827] border border-slate-700 rounded-xl shadow-2xl z-50 p-4 text-left">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">Centro de Alertas TI</h3>
-                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-medium">3 Nuevas</span>
-                  </div>
-                  <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-                    <div className="p-2.5 bg-red-950/30 border border-red-900/50 rounded-lg text-xs">
-                      <p className="font-semibold text-red-300">Falla de Servidor - Rayos X</p>
-                      <p className="text-slate-400 mt-0.5 text-[11px]">Sede Central - Nodo 04 desconectado por timeout.</p>
-                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 4 minutos</span>
-                    </div>
-                    <div className="p-2.5 bg-yellow-950/30 border border-yellow-900/50 rounded-lg text-xs">
-                      <p className="font-semibold text-yellow-300">Alto uso de CPU (92%)</p>
-                      <p className="text-slate-400 mt-0.5 text-[11px]">Servidor de Historias Clínicas Electrónicas.</p>
-                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 15 minutos</span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
+
           <div className="avatar-circle">{(user.username || user.email || 'U')[0].toUpperCase()}</div>
           <span>{user.username || user.email}</span>
         </div>
       )}
     </header>
-  )
+  );
 }
 
 function AppContent() {
-  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash))
-
-  useEffect(() => {
-    const handleHashChange = () => setRoute(normalizeRoute(window.location.hash))
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [])
-
-  const renderRoute = () => {
-    const targetRoute = route || '/dashboard'
-    const ActiveComponent = ROUTES_MAP[targetRoute]
-
-    if (ROUTES_MAP.hasOwnProperty(targetRoute) && !ActiveComponent) {
-      return (
-        <div className="card" style={{ padding: '2rem', border: '1px solid #ef4444' }}>
-          <h3 style={{ color: '#ef4444' }}>Error de Importación</h3>
-          <p>El componente para la ruta <code>{targetRoute}</code> está siendo importado como <code>undefined</code>.</p>
-          <small>Revisa las exportaciones en <code>hospitalModules.js</code> o la importación de <code>DeviceManagementDashboard</code>.</small>
-        </div>
-      )
-    }
-
-    return ActiveComponent ? <ActiveComponent /> : <DefaultPanel />
-  }
+  const { user } = useAuth();
+  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   return (
     <div className="app-layout">
       <Sidebar currentRoute={route} />
       <main className="main-content">
-        <AppHeader />
+        <AppHeader 
+          onOpenChat={() => { setIsChatOpen(true); setUnreadChatCount(0); }} 
+          unreadChatCount={unreadChatCount} 
+        />
+        {/* Main Content Modules */}
         {renderRoute()}
+
+        {/* Floating Functional Chat TI Widget */}
+        <ChatTIWidget 
+          currentUser={user}
+          supabase={supabase}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+        />
       </main>
     </div>
-  )
+  );
 }
 
 function MainApp() {

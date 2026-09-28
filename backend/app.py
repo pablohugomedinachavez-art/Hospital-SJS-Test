@@ -94,7 +94,6 @@ CORS(app,
 
 db = SQLAlchemy(app)
 
-chat_bp = Blueprint('chat', __name__)
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
@@ -794,11 +793,7 @@ def consultations_handler():
         return jsonify({'message': 'Consultation created', 'id': new_consultation['id']}), 201
 
 
-@chat_bp.route('/api/messages', methods=['GET'])
-def get_messages():
-    room = request.args.get('room', 'general')
-    response = supabase.table('messages').select("*").eq("room_id", room).order("created_at", desc=False).execute()
-    return jsonify(response.data), 200
+
 
 # ==========================================
 # ENDPOINT: SUBIR DOCUMENTO Y VINCULAR PACIENTE
@@ -2228,6 +2223,99 @@ def static_proxy(path):
         return send_from_directory(FRONTEND_DIR, path)
     return send_from_directory(FRONTEND_DIR, 'index.html')
 
+
+# Add to app_3.py
+
+@app.route('/api/chat/rooms', methods=['GET', 'POST'])
+@token_required
+def handle_chat_rooms():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user_id = claims['id']
+
+    if request.method == 'GET':
+        # Fetch user's active rooms
+        rooms = db_query('''
+            SELECT DISTINCT r.id, r.name, r.is_group, r.created_at,
+                   (SELECT json_agg(json_build_object('id', u.id, 'username', u.username))
+                    FROM chat_participants cp_sub
+                    JOIN users u ON u.id = cp_sub.user_id
+                    WHERE cp_sub.room_id = r.id) as participants
+            FROM chat_rooms r
+            JOIN chat_participants cp ON cp.room_id = r.id
+            WHERE r.tenant_id = %s AND cp.user_id = %s
+            ORDER BY r.created_at DESC
+        ''', (tenant_id, user_id), fetchall=True)
+        return jsonify(rooms or []), 200
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        participant_ids = data.get('participant_ids', []) # List of user IDs
+        is_group = data.get('is_group', False)
+        room_name = data.get('name', 'Grupo TI') if is_group else None
+
+        if user_id not in participant_ids:
+            participant_ids.append(user_id)
+
+        # Create room
+        new_room = db_query(
+            'INSERT INTO chat_rooms (tenant_id, name, is_group, created_by) VALUES (%s, %s, %s, %s) RETURNING id',
+            (tenant_id, room_name, is_group, user_id),
+            commit=True, fetchone=True
+        )
+        room_id = new_room['id']
+
+        # Add participants
+        for pid in participant_ids:
+            db_query(
+                'INSERT INTO chat_participants (room_id, user_id) VALUES (%s, %s) ON CONFLICT DO NOTHING',
+                (room_id, pid), commit=True
+            )
+
+        return jsonify({'message': 'Room created', 'room_id': room_id}), 201
+
+@app.route('/api/chat/upload', methods=['POST'])
+@token_required
+def upload_chat_attachment():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    
+    file = request.files.get('file')
+    attachment_type = request.form.get('type', 'file') # 'image', 'audio', 'file'
+
+    if not file:
+        return jsonify({'message': 'No file provided'}), 400
+
+    try:
+        file_bytes = file.read()
+        filename = f"chat_{tenant_id}_{int(time.time())}_{file.filename}"
+        storage_path = f"chat_files/tenant_{tenant_id}/{filename}"
+
+        # Upload to Supabase Storage bucket
+        supabase.storage.from_("chat-attachments").upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": file.mimetype, "x-upsert": "true"}
+        )
+
+        # Get public URL
+        public_url_resp = supabase.storage.from_("chat-attachments").get_public_url(storage_path)
+        public_url = public_url_resp if isinstance(public_url_resp, str) else public_url_resp.get('publicUrl')
+
+        return jsonify({'attachment_url': public_url, 'attachment_type': attachment_type}), 200
+    except Exception as e:
+        return jsonify({'message': f'Upload failed: {str(e)}'}), 500
+
+@app.route('/api/chat/users', methods=['GET'])
+@token_required
+def get_chat_users():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    users = db_query(
+        'SELECT id, username, role FROM users WHERE tenant_id = %s ORDER BY username ASC',
+        (tenant_id,), fetchall=True
+    )
+    return jsonify(users or []), 200
 
 
 @app.route('/api/dashboard/export/excel', methods=['GET'])
