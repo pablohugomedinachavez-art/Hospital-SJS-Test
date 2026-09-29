@@ -44,8 +44,14 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   };
 
   useEffect(() => {
-    if (isOpen) fetchRooms();
+    if (isOpen) {
+      fetchRooms();
+      setView('list'); // Always open to the chat inbox list
+    }
   }, [isOpen]);
+
+
+  
 
   // Realtime Messages Subscription & Sound Alert
   useEffect(() => {
@@ -264,11 +270,20 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Move size={14} className="text-slate-400" />
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-            Chat TI {unreadCount > 0 && `(${unreadCount})`}
+            {view === 'chat' && activeRoom ? activeRoom.name || 'Chat Privado' : view === 'new_chat' ? 'Nuevo Chat' : 'Chat TI'} 
+            {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
           </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {view !== 'list' && (
+            <button 
+              onClick={() => setView('list')}
+              style={{ background: 'none', border: 'none', color: '#38BDF8', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+            >
+              ← Chats
+            </button>
+          )}
           <button 
             onClick={() => { setIsMinimized(!isMinimized); setUnreadCount(0); }}
             style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
@@ -286,129 +301,183 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
       {!isMinimized && (
         <>
-          {/* ROOM TABS */}
-          <div style={{ display: 'flex', background: '#090D16', borderBottom: '1px solid #1E293B', overflowX: 'auto' }}>
-            {rooms.map(room => (
-              <button
-                key={room.id}
-                onClick={() => { setActiveTabId(room.id); setUnreadCount(0); }}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '12px',
-                  fontWeight: activeTabId === room.id ? 600 : 400,
-                  color: activeTabId === room.id ? '#38BDF8' : '#94A3B8',
-                  background: activeTabId === room.id ? '#0F172A' : 'transparent',
-                  border: 'none',
-                  borderBottom: activeTabId === room.id ? '2px solid #38BDF8' : 'none',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {room.name || 'Chat Privado'}
-              </button>
-            ))}
-          </div>
+          {/* VIEW 1: CHAT ROOMS INBOX LIST */}
+          {view === 'list' && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0B0F19', overflowY: 'auto' }}>
+              <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1E293B' }}>
+                <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>Conversaciones</span>
+                <button 
+                  onClick={() => { setView('new_chat'); fetchTenantUsers(); }}
+                  style={{ background: '#2563EB', color: '#FFF', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  + Nuevo Chat
+                </button>
+              </div>
 
-          {/* MESSAGES CONTAINER */}
-          <div style={{ flex: 1, padding: '12px', overflowY: 'auto', background: '#0B0F19', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {currentMessages.map((msg, i) => {
-              const isMe = msg.sender_id === currentUser?.id;
-              return (
-                <div key={msg.id || i} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                  {!isMe && (
-                    <a 
-                      href={`#/profile?user=${msg.sender_id}`} 
-                      style={{ fontSize: '10px', color: '#38BDF8', textDecoration: 'none', fontWeight: 600, display: 'block', marginBottom: '2px' }}
-                    >
-                      {msg.sender_name}
-                    </a>
-                  )}
-
-                  <div style={{
-                    padding: '8px 12px',
-                    borderRadius: '10px',
-                    fontSize: '12px',
-                    backgroundColor: isMe ? '#2563EB' : '#1E293B',
-                    color: '#FFF',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                  }}>
-                    {msg.content && <p style={{ margin: 0 }}>{msg.content}</p>}
-
-                    {msg.attachment_type === 'image' && (
-                      <img src={msg.attachment_url} alt="adjunto" style={{ maxWidth: '100%', borderRadius: '6px', marginTop: '4px' }} />
-                    )}
-
-                    {msg.attachment_type === 'audio' && (
-                      <audio controls src={msg.attachment_url} style={{ width: '180px', height: '30px', marginTop: '4px' }} />
-                    )}
-
-                    {msg.attachment_type === 'file' && (
-                      <a href={msg.attachment_url} target="_blank" rel="noreferrer" style={{ color: '#38BDF8', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                        <FileText size={12} /> Ver Archivo
-                      </a>
-                    )}
-                  </div>
+              {rooms.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
+                  No tienes chats activos. ¡Inicia uno nuevo!
                 </div>
-              );
-            })}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* CAMERA OVERLAY MODAL */}
-          {showCamera && (
-            <div style={{ padding: '8px', background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <video ref={videoRef} autoPlay playsInline style={{ width: '100%', borderRadius: '6px' }} />
-              <button onClick={capturePhoto} style={{ marginTop: '6px', padding: '4px 12px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
-                Tomar Foto
-              </button>
+              ) : (
+                rooms.map(room => (
+                  <div 
+                    key={room.id}
+                    onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
+                    style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div>
+                      <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
+                        {room.name || 'Chat Privado'}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                        {room.is_group ? 'Grupo de trabajo' : 'Chat directo'}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
-          {/* INPUT TOOLBAR & CONTROLS */}
-          <div style={{ padding: '8px', background: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
-              style={{ display: 'none' }} 
-            />
-            
-            <button onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }} title="Adjuntar Archivo">
-              <Paperclip size={16} />
-            </button>
+          {/* VIEW 2: NEW CHAT - USER DIRECTORY LIST */}
+          {view === 'new_chat' && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0B0F19', overflowY: 'auto' }}>
+              <div style={{ padding: '10px 14px', borderBottom: '1px solid #1E293B', fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>
+                Selecciona un usuario para chatear
+              </div>
 
-            <button onClick={startCamera} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }} title="Usar Cámara">
-              <Camera size={16} />
-            </button>
+              {loadingUsers ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>Cargando usuarios...</div>
+              ) : (
+                allUsers
+                  .filter(u => u.id !== currentUser?.id)
+                  .map(user => (
+                    <div 
+                      key={user.id}
+                      onClick={() => handleSelectUserToChat(user.id)}
+                      style={{ padding: '10px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 600 }}>
+                        {user.username?.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '12px', color: '#F8FAFC', fontWeight: 600 }}>{user.username}</div>
+                        <div style={{ fontSize: '10px', color: '#94A3B8' }}>{user.role || 'Usuario'}</div>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          )}
 
-            <button onClick={toggleAudioRecording} style={{ background: 'none', border: 'none', color: isRecordingAudio ? '#EF4444' : '#94A3B8', cursor: 'pointer' }} title="Nota de Voz">
-              <Mic size={16} />
-            </button>
+          {/* VIEW 3: ACTIVE CONVERSATION */}
+          {view === 'chat' && (
+            <>
+              {/* MESSAGES CONTAINER */}
+              <div style={{ flex: 1, padding: '12px', overflowY: 'auto', background: '#0B0F19', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {currentMessages.map((msg, i) => {
+                  const isMe = msg.sender_id === currentUser?.id;
+                  return (
+                    <div key={msg.id || i} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                      {!isMe && (
+                        <a 
+                          href={`#/profile?user=${msg.sender_id}`} 
+                          style={{ fontSize: '10px', color: '#38BDF8', textDecoration: 'none', fontWeight: 600, display: 'block', marginBottom: '2px' }}
+                        >
+                          {msg.sender_name}
+                        </a>
+                      )}
 
-            <input 
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="Escribe un mensaje..."
-              style={{
-                flex: 1,
-                background: '#0F172A',
-                border: '1px solid #334155',
-                borderRadius: '6px',
-                color: '#FFF',
-                padding: '6px 10px',
-                fontSize: '12px',
-                outline: 'none'
-              }}
-            />
+                      <div style={{
+                        padding: '8px 12px',
+                        borderRadius: '10px',
+                        fontSize: '12px',
+                        backgroundColor: isMe ? '#2563EB' : '#1E293B',
+                        color: '#FFF',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                      }}>
+                        {msg.content && <p style={{ margin: 0 }}>{msg.content}</p>}
 
-            <button onClick={() => sendMessage()} style={{ background: '#2563EB', border: 'none', color: '#FFF', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-              <Send size={14} />
-            </button>
-          </div>
+                        {msg.attachment_type === 'image' && (
+                          <img src={msg.attachment_url} alt="adjunto" style={{ maxWidth: '100%', borderRadius: '6px', marginTop: '4px' }} />
+                        )}
+
+                        {msg.attachment_type === 'audio' && (
+                          <audio controls src={msg.attachment_url} style={{ width: '180px', height: '30px', marginTop: '4px' }} />
+                        )}
+
+                        {msg.attachment_type === 'file' && (
+                          <a href={msg.attachment_url} target="_blank" rel="noreferrer" style={{ color: '#38BDF8', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                            <FileText size={12} /> Ver Archivo
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* CAMERA OVERLAY MODAL */}
+              {showCamera && (
+                <div style={{ padding: '8px', background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <video ref={videoRef} autoPlay playsInline style={{ width: '100%', borderRadius: '6px' }} />
+                  <button onClick={capturePhoto} style={{ marginTop: '6px', padding: '4px 12px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
+                    Tomar Foto
+                  </button>
+                </div>
+              )}
+
+              {/* INPUT TOOLBAR & CONTROLS */}
+              <div style={{ padding: '8px', background: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  style={{ display: 'none' }} 
+                />
+                
+                <button onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }} title="Adjuntar Archivo">
+                  <Paperclip size={16} />
+                </button>
+
+                <button onClick={startCamera} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }} title="Usar Cámara">
+                  <Camera size={16} />
+                </button>
+
+                <button onClick={toggleAudioRecording} style={{ background: 'none', border: 'none', color: isRecordingAudio ? '#EF4444' : '#94A3B8', cursor: 'pointer' }} title="Nota de Voz">
+                  <Mic size={16} />
+                </button>
+
+                <input 
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder="Escribe un mensaje..."
+                  style={{
+                    flex: 1,
+                    background: '#0F172A',
+                    border: '1px solid #334155',
+                    borderRadius: '6px',
+                    color: '#FFF',
+                    padding: '6px 10px',
+                    fontSize: '12px',
+                    outline: 'none'
+                  }}
+                />
+
+                <button onClick={() => sendMessage()} style={{ background: '#2563EB', border: 'none', color: '#FFF', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>
+                  <Send size={14} />
+                </button>
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
   );
-}
