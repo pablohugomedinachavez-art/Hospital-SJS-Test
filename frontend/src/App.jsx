@@ -113,61 +113,7 @@ function Sidebar({ currentRoute }) {
     dashboard: true, clinical: true, operations: true, users: true, reports: true, account: true
   })
 
-  function AppContent() {
-  const { user } = useAuth();
-  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [unreadChatCount, setUnreadChatCount] = useState(0);
-
-  // Listen to hash changes for routing
-  useEffect(() => {
-    const handleHashChange = () => {
-      setRoute(normalizeRoute(window.location.hash));
-    };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  // Define the missing renderRoute function
-  const renderRoute = () => {
-    switch (route) {
-      case 'dashboard':
-      case '':
-        return <DashboardView />; // Replace with your actual dashboard component
-      case 'patients':
-        return <PatientsView />;  // Replace with your actual patients component
-      case 'appointments':
-        return <AppointmentsView />;
-      case 'profile':
-        return <ProfileView />;
-      default:
-        return <div className="p-6 text-white">Página no encontrada</div>;
-    }
-  };
-
-  return (
-    <div className="app-layout">
-      <Sidebar currentRoute={route} />
-      <main className="main-content">
-        <AppHeader 
-          onOpenChat={() => { setIsChatOpen(true); setUnreadChatCount(0); }} 
-          unreadChatCount={unreadChatCount} 
-        />
-        
-        {/* Main Content Modules */}
-        {renderRoute()}
-
-        {/* Floating Functional Chat TI Widget */}
-        <ChatTIWidget 
-          currentUser={user}
-          supabase={supabase}
-          isOpen={isChatOpen}
-          onClose={() => setIsChatOpen(false)}
-        />
-      </main>
-    </div>
-  );
-}
+  
 
   const hasPermission = (permission) => {
     const permissions = user?.permissions || user?.user_metadata?.permissions || []
@@ -546,6 +492,32 @@ function AppContent() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
+  // Listen to hash changes for routing
+  useEffect(() => {
+    const handleHashChange = () => {
+      setRoute(normalizeRoute(window.location.hash));
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Define the missing renderRoute function
+  const renderRoute = () => {
+    switch (route) {
+      case 'dashboard':
+      case '':
+        return <DashboardView />; // Replace with your actual dashboard component
+      case 'patients':
+        return <PatientsView />;  // Replace with your actual patients component
+      case 'appointments':
+        return <AppointmentsView />;
+      case 'profile':
+        return <ProfileView />;
+      default:
+        return <div className="p-6 text-white">Página no encontrada</div>;
+    }
+  };
+
   return (
     <div className="app-layout">
       <Sidebar currentRoute={route} />
@@ -554,6 +526,7 @@ function AppContent() {
           onOpenChat={() => { setIsChatOpen(true); setUnreadChatCount(0); }} 
           unreadChatCount={unreadChatCount} 
         />
+        
         {/* Main Content Modules */}
         {renderRoute()}
 
