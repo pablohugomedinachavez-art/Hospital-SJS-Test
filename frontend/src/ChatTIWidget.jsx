@@ -30,7 +30,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   // Load User's Chat Rooms
   const fetchRooms = async () => {
     try {
-      const res = await apiFetch('/api/chat/rooms');
+      const res = await apiFetch('/chat/rooms');
       if (res.ok) {
         const data = await res.json();
         setRooms(data);
