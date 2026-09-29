@@ -18,6 +18,15 @@ import {
     TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, ArrowUpRight, 
     ArrowDownRight,} from 'lucide-react';
 
+import { createClient } from '@supabase/supabase-js'; // Ensure it's @supabase/supabase-js
+import { ChatTIWidget } from './ChatTIWidget';
+
+// 1. Initialize Supabase Client using Vite environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+
 export class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
