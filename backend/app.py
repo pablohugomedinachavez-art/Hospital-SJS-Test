@@ -2230,25 +2230,31 @@ def static_proxy(path):
 @token_required
 def handle_chat_rooms():
     claims = get_current_user()
-    tenant_id = claims['tenant_id']
-    user_id = claims['id']
+    
+    try:
+        tenant_id = int(claims.get('tenant_id'))
+        user_id = int(claims.get('id'))
+    except (ValueError, TypeError, KeyError) as e:
+        return jsonify({'error': 'Invalid token claims', 'details': str(e)}), 400
 
     try:
         if request.method == 'GET':
-            # Fetch user's active rooms with aggregated participants
+            # Fixed query: Uses EXISTS instead of JOIN + DISTINCT to prevent JSON errors
             rooms = db_query('''
-                SELECT DISTINCT r.id, r.name, r.is_group, r.created_at,
+                SELECT r.id, r.name, r.is_group, r.created_at,
                        (SELECT json_agg(json_build_object('id', u.id, 'username', u.username))
                         FROM chat_participants cp_sub
                         JOIN users u ON u.id = cp_sub.user_id
                         WHERE cp_sub.room_id = r.id) as participants
                 FROM chat_rooms r
-                JOIN chat_participants cp ON cp.room_id = r.id
-                WHERE r.tenant_id = %s AND cp.user_id = %s
+                WHERE r.tenant_id = %s 
+                  AND EXISTS (
+                      SELECT 1 FROM chat_participants cp 
+                      WHERE cp.room_id = r.id AND cp.user_id = %s
+                  )
                 ORDER BY r.created_at DESC
             ''', (tenant_id, user_id), fetchall=True)
             
-            # Format rooms and sanitize potential null participants
             formatted_rooms = []
             if rooms:
                 for room in rooms:
@@ -2256,12 +2262,20 @@ def handle_chat_rooms():
                         if room.get('participants') is None:
                             room['participants'] = []
                         formatted_rooms.append(room)
+                    elif isinstance(room, (list, tuple)):
+                        formatted_rooms.append({
+                            'id': room[0],
+                            'name': room[1],
+                            'is_group': room[2],
+                            'created_at': room[3],
+                            'participants': room[4] if room[4] is not None else []
+                        })
                         
             return jsonify(formatted_rooms), 200
 
         if request.method == 'POST':
             data = request.get_json() or {}
-            participant_ids = data.get('participant_ids', []) # List of user IDs
+            participant_ids = data.get('participant_ids', [])
             is_group = data.get('is_group', False)
             room_name = data.get('name', 'Grupo TI') if is_group else None
 
@@ -2275,12 +2289,12 @@ def handle_chat_rooms():
                 commit=True, fetchone=True
             )
             
-            if not new_room or 'id' not in new_room:
+            if not new_room:
                 return jsonify({'error': 'Failed to create chat room'}), 500
 
-            room_id = new_room['id']
+            room_id = new_room['id'] if isinstance(new_room, dict) else new_room[0]
 
-            # Add participants safely without requiring unique constraints
+            # Add participants safely
             for pid in participant_ids:
                 db_query('''
                     INSERT INTO chat_participants (room_id, user_id)
@@ -2288,12 +2302,12 @@ def handle_chat_rooms():
                     WHERE NOT EXISTS (
                         SELECT 1 FROM chat_participants WHERE room_id = %s AND user_id = %s
                     )
-                ''', (room_id, pid, room_id, pid), commit=True)
+                ''', (room_id, int(pid), room_id, int(pid)), commit=True)
 
             return jsonify({'message': 'Room created', 'room_id': room_id}), 201
 
     except Exception as e:
-        print(f"Error in /api/chat/rooms: {str(e)}")
+        print(f"CRITICAL ERROR in /api/chat/rooms: {str(e)}")
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
 @app.route('/api/chat/upload', methods=['POST'])
