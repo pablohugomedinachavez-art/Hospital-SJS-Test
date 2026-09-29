@@ -509,6 +509,7 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  
   // Define the missing renderRoute function
   const renderRoute = () => {
     const Component = ROUTES_MAP[route] || ROUTES_MAP['/dashboard'];
