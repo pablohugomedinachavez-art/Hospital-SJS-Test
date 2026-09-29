@@ -19,7 +19,6 @@ import {
     ArrowDownRight,} from 'lucide-react';
 
 import { createClient } from '@supabase/supabase-js'; // Ensure it's @supabase/supabase-js
-import { ChatTIWidget } from './ChatTIWidget';
 
 // 1. Initialize Supabase Client using Vite environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL";
