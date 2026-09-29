@@ -14,6 +14,11 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Navigation & User Directory States (Fixed ReferenceError)
+  const [view, setView] = useState('list'); // 'list' | 'new_chat' | 'chat'
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   // Position & Drag state (Facebook-style draggable floating widget)
   const [position, setPosition] = useState({ right: 30, bottom: 20 });
   const [isDragging, setIsDragging] = useState(false);
@@ -43,15 +48,47 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
+  // Fetch Tenant Users for the New Chat Directory
+  const fetchTenantUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await apiFetch('/users');
+      if (res.ok) {
+        const data = await res.json();
+        setAllUsers(data);
+      }
+    } catch (err) {
+      console.error('Error fetching tenant users:', err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  // Handle selecting a user to start/open a direct chat
+  const handleSelectUserToChat = async (recipientId) => {
+    try {
+      const res = await apiFetch('/chat/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_id: recipientId })
+      });
+      if (res.ok) {
+        const room = await res.json();
+        await fetchRooms();
+        setActiveTabId(room.id);
+        setView('chat');
+      }
+    } catch (err) {
+      console.error('Error creating/opening chat room:', err);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchRooms();
       setView('list'); // Always open to the chat inbox list
     }
   }, [isOpen]);
-
-
-  
 
   // Realtime Messages Subscription & Sound Alert
   useEffect(() => {
@@ -87,7 +124,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, activeTabId]);
 
-  // Dragging Handlers (Stick to Right / Left / Bottom)
+  // Dragging Handlers
   const handleMouseDown = (e) => {
     setIsDragging(true);
     dragStartRef.current = {
@@ -107,7 +144,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       let newRight = dragStartRef.current.right + deltaX;
       let newBottom = dragStartRef.current.bottom + deltaY;
 
-      // Keep within viewport boundaries
       newRight = Math.max(10, Math.min(window.innerWidth - 360, newRight));
       newBottom = Math.max(10, Math.min(window.innerHeight - 450, newBottom));
 
@@ -147,7 +183,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0);
 
-    // Stop tracks
     const stream = video.srcObject;
     stream?.getTracks().forEach(t => t.stop());
     setShowCamera(false);
@@ -186,7 +221,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // Upload Attachment Helper
   const uploadAndSendAttachment = async (file, type) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -203,7 +237,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // File Upload Handler
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -211,7 +244,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     uploadAndSendAttachment(file, type);
   };
 
-  // Send Message
   const sendMessage = async (text = inputText, attachmentUrl = null, attachmentType = null) => {
     if (!text.trim() && !attachmentUrl) return;
     if (!activeTabId) return;
@@ -480,4 +512,5 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         </>
       )}
     </div>
-  )}
+  );
+}
