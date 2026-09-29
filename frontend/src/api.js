@@ -53,6 +53,11 @@ export const apiFetch = async (endpoint, options = {}) => {
   }
 };
 
+
+api.get('/chat/rooms')
+api.post('/chat/upload', formData)
+api.get('/chat/users')
+
 // Mantener alias fetchApi por compatibilidad
 export const fetchApi = apiFetch;
 
