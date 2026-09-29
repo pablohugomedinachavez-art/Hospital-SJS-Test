@@ -2,7 +2,10 @@
 
 const RAW_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://hospital-sjs-test.onrender.com/api';
 const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
-
+// Axios instance configuration
+const api = axios.create({
+  baseURL: 'https://hospital-sjs-test.onrender.com/api' // <-- Already has /api
+});
 /**
  * Función wrapper principal para peticiones a la API
  */
