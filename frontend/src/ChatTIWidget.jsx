@@ -480,4 +480,4 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         </>
       )}
     </div>
-  );
+  )}
