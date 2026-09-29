@@ -2233,46 +2233,68 @@ def handle_chat_rooms():
     tenant_id = claims['tenant_id']
     user_id = claims['id']
 
-    if request.method == 'GET':
-        # Fetch user's active rooms
-        rooms = db_query('''
-            SELECT DISTINCT r.id, r.name, r.is_group, r.created_at,
-                   (SELECT json_agg(json_build_object('id', u.id, 'username', u.username))
-                    FROM chat_participants cp_sub
-                    JOIN users u ON u.id = cp_sub.user_id
-                    WHERE cp_sub.room_id = r.id) as participants
-            FROM chat_rooms r
-            JOIN chat_participants cp ON cp.room_id = r.id
-            WHERE r.tenant_id = %s AND cp.user_id = %s
-            ORDER BY r.created_at DESC
-        ''', (tenant_id, user_id), fetchall=True)
-        return jsonify(rooms or []), 200
+    try:
+        if request.method == 'GET':
+            # Fetch user's active rooms with aggregated participants
+            rooms = db_query('''
+                SELECT DISTINCT r.id, r.name, r.is_group, r.created_at,
+                       (SELECT json_agg(json_build_object('id', u.id, 'username', u.username))
+                        FROM chat_participants cp_sub
+                        JOIN users u ON u.id = cp_sub.user_id
+                        WHERE cp_sub.room_id = r.id) as participants
+                FROM chat_rooms r
+                JOIN chat_participants cp ON cp.room_id = r.id
+                WHERE r.tenant_id = %s AND cp.user_id = %s
+                ORDER BY r.created_at DESC
+            ''', (tenant_id, user_id), fetchall=True)
+            
+            # Format rooms and sanitize potential null participants
+            formatted_rooms = []
+            if rooms:
+                for room in rooms:
+                    if isinstance(room, dict):
+                        if room.get('participants') is None:
+                            room['participants'] = []
+                        formatted_rooms.append(room)
+                        
+            return jsonify(formatted_rooms), 200
 
-    if request.method == 'POST':
-        data = request.get_json() or {}
-        participant_ids = data.get('participant_ids', []) # List of user IDs
-        is_group = data.get('is_group', False)
-        room_name = data.get('name', 'Grupo TI') if is_group else None
+        if request.method == 'POST':
+            data = request.get_json() or {}
+            participant_ids = data.get('participant_ids', []) # List of user IDs
+            is_group = data.get('is_group', False)
+            room_name = data.get('name', 'Grupo TI') if is_group else None
 
-        if user_id not in participant_ids:
-            participant_ids.append(user_id)
+            if user_id not in participant_ids:
+                participant_ids.append(user_id)
 
-        # Create room
-        new_room = db_query(
-            'INSERT INTO chat_rooms (tenant_id, name, is_group, created_by) VALUES (%s, %s, %s, %s) RETURNING id',
-            (tenant_id, room_name, is_group, user_id),
-            commit=True, fetchone=True
-        )
-        room_id = new_room['id']
-
-        # Add participants
-        for pid in participant_ids:
-            db_query(
-                'INSERT INTO chat_participants (room_id, user_id) VALUES (%s, %s) ON CONFLICT DO NOTHING',
-                (room_id, pid), commit=True
+            # Create room
+            new_room = db_query(
+                'INSERT INTO chat_rooms (tenant_id, name, is_group, created_by) VALUES (%s, %s, %s, %s) RETURNING id',
+                (tenant_id, room_name, is_group, user_id),
+                commit=True, fetchone=True
             )
+            
+            if not new_room or 'id' not in new_room:
+                return jsonify({'error': 'Failed to create chat room'}), 500
 
-        return jsonify({'message': 'Room created', 'room_id': room_id}), 201
+            room_id = new_room['id']
+
+            # Add participants safely without requiring unique constraints
+            for pid in participant_ids:
+                db_query('''
+                    INSERT INTO chat_participants (room_id, user_id)
+                    SELECT %s, %s
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM chat_participants WHERE room_id = %s AND user_id = %s
+                    )
+                ''', (room_id, pid, room_id, pid), commit=True)
+
+            return jsonify({'message': 'Room created', 'room_id': room_id}), 201
+
+    except Exception as e:
+        print(f"Error in /api/chat/rooms: {str(e)}")
+        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
 @app.route('/api/chat/upload', methods=['POST'])
 @token_required
