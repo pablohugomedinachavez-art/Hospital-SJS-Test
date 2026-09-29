@@ -511,19 +511,8 @@ function AppContent() {
 
   // Define the missing renderRoute function
   const renderRoute = () => {
-    switch (route) {
-      case 'dashboard':
-      case '':
-        return <DashboardView />; // Replace with your actual dashboard component
-      case 'patients':
-        return <PatientsView />;  // Replace with your actual patients component
-      case 'appointments':
-        return <AppointmentsView />;
-      case 'profile':
-        return <ProfileView />;
-      default:
-        return <div className="p-6 text-white">Página no encontrada</div>;
-    }
+    const Component = ROUTES_MAP[route] || ROUTES_MAP['/dashboard'];
+    return <Component />;
   };
 
   return (
