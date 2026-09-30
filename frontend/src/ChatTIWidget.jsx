@@ -31,7 +31,10 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
-
+  <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
+  {view === 'chat' && activeRoom ? getRoomTitle(activeRoom) : view === 'new_chat' ? 'Nuevo Chat' : 'Chat TI'} 
+  {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
+</span>
   // Load User's Chat Rooms[cite: 12]
   const fetchRooms = async () => {
     try {
@@ -65,18 +68,39 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   };
 
   // ACTUALIZACIÓN 1: Evitar duplicidad de chats verificando si la sala ya existe localmente
-  const handleSelectUserToChat = async (recipientId) => {
-    const existingRoom = rooms.find(r => 
-      !r.is_group && (r.recipient_id === recipientId || r.user_id === recipientId || r.other_user_id === recipientId)
-    );
-
-    if (existingRoom) {
-      setActiveTabId(existingRoom.id);
-      setView('chat');
-      return;
+ // Función para obtener el nombre correcto del chat (usa el username del otro participante si es chat directo)
+  const getRoomTitle = (room) => {
+    if (room.is_group) return room.name || 'Grupo de trabajo';
+    
+    // Si la sala incluye participantes, buscamos al que no sea el usuario actual
+    if (room.participants && Array.isArray(room.participants)) {
+      const otherUser = room.participants.find(p => p.user_id !== currentUser?.id);
+      if (otherUser?.username) return otherUser.username;
     }
+    
+    // Fallbacks por si viene en otra estructura
+    if (room.recipient_name) return room.recipient_name;
+    if (room.name && room.name !== 'Chat Privado') return room.name;
+    
+    return 'Chat Directo';
+  };
 
+  // Manejar la selección de usuario evitando duplicados
+  const handleSelectUserToChat = async (recipientId) => {
     try {
+      // 1. Verificamos si ya existe un chat directo con este usuario en la lista actual
+      const existingRoom = rooms.find(room => 
+        !room.is_group && 
+        room.participants?.some(p => p.user_id === recipientId)
+      );
+
+      if (existingRoom) {
+        setActiveTabId(existingRoom.id);
+        setView('chat');
+        return;
+      }
+
+      // 2. Si no existe, procedemos a crearlo
       const res = await apiFetch('/chat/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,13 +116,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       console.error('Error creating/opening chat room:', err);
     }
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchRooms();
-      setView('list'); 
-    }
-  }, [isOpen]);
 
   // Realtime Messages Subscription & Sound Alert[cite: 12]
   useEffect(() => {
@@ -365,27 +382,24 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                   No tienes chats activos. ¡Inicia uno nuevo!
                 </div>
               ) : (
-                rooms.map(room => (
-                  <div 
-                    key={room.id}
-                    onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
-                    style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <div>
-                      <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
-                        {room.name || 'Chat Privado'}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                        {room.is_group ? 'Grupo de trabajo' : 'Chat directo'}
-                      </div>
+                {rooms.map(room => (
+                <div 
+                  key={room.id}
+                  onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
+                  style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s' }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
+                      {getRoomTitle(room)}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                      {room.is_group ? 'Grupo de trabajo' : 'Chat directo'}
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                </div>
+              ))}
 
           {/* VIEW 2: NEW CHAT - USER DIRECTORY LIST */}
           {view === 'new_chat' && (
