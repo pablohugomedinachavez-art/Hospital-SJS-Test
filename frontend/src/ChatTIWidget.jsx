@@ -260,7 +260,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
     const payload = {
       room_id: activeTabId,
-      sender_id: currentUser?.id,
+      sender_id: currentUser?.id ? parseInt(currentUser.id, 10) : null, // Asegura tipo integer compatible con public.users(id)
       sender_name: currentUser?.username || 'Usuario TI',
       content: text.trim(),
       attachment_url: attachmentUrl,
@@ -268,19 +268,14 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       status: 'sent'
     };
 
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert([payload])
-      .select();
-
+    const { error } = await supabase.from('chat_messages').insert([payload]);
     if (error) {
-      console.error('❌ Error crítico al registrar mensaje en Supabase:', error.message);
-      alert(`No se pudo enviar el mensaje: ${error.message}`);
-    } else {
-      setInputText('');
+      console.error('Error al registrar mensaje en Supabase:', error.message);
+      return;
     }
+    
+    setInputText('');
   };
-
   if (!isOpen) return null;
 
   const activeRoom = rooms.find(r => r.id === activeTabId);
