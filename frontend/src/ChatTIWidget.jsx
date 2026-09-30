@@ -14,28 +14,25 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Navigation & User Directory States[cite: 12]
+  // Navigation & User Directory States[cite: 10]
   const [view, setView] = useState('list'); // 'list' | 'new_chat' | 'chat'
   const [allUsers, setAllUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Position & Drag state[cite: 12]
+  // Position & Drag state[cite: 10]
   const [position, setPosition] = useState({ right: 30, bottom: 20 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, right: 30, bottom: 20 });
 
-  // Camera & Audio recorder state[cite: 12]
+  // Camera & Audio recorder state[cite: 10]
   const [showCamera, setShowCamera] = useState(false);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const videoRef = useRef(null);
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
-  <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-  {view === 'chat' && activeRoom ? getRoomTitle(activeRoom) : view === 'new_chat' ? 'Nuevo Chat' : 'Chat TI'} 
-  {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
-</span>
-  // Load User's Chat Rooms[cite: 12]
+
+  // Load User's Chat Rooms[cite: 10]
   const fetchRooms = async () => {
     try {
       const res = await apiFetch('/chat/rooms');
@@ -51,7 +48,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // Fetch Tenant Users for the New Chat Directory[cite: 12]
+  // Fetch Tenant Users for the New Chat Directory[cite: 10]
   const fetchTenantUsers = async () => {
     setLoadingUsers(true);
     try {
@@ -67,28 +64,24 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // ACTUALIZACIÓN 1: Evitar duplicidad de chats verificando si la sala ya existe localmente
- // Función para obtener el nombre correcto del chat (usa el username del otro participante si es chat directo)
+  // Función para obtener el nombre correcto del chat (usa el username del otro participante si es chat directo)[cite: 10]
   const getRoomTitle = (room) => {
     if (room.is_group) return room.name || 'Grupo de trabajo';
     
-    // Si la sala incluye participantes, buscamos al que no sea el usuario actual
     if (room.participants && Array.isArray(room.participants)) {
       const otherUser = room.participants.find(p => p.user_id !== currentUser?.id);
       if (otherUser?.username) return otherUser.username;
     }
     
-    // Fallbacks por si viene en otra estructura
     if (room.recipient_name) return room.recipient_name;
     if (room.name && room.name !== 'Chat Privado') return room.name;
     
     return 'Chat Directo';
   };
 
-  // Manejar la selección de usuario evitando duplicados
+  // Manejar la selección de usuario evitando duplicados[cite: 10]
   const handleSelectUserToChat = async (recipientId) => {
     try {
-      // 1. Verificamos si ya existe un chat directo con este usuario en la lista actual
       const existingRoom = rooms.find(room => 
         !room.is_group && 
         room.participants?.some(p => p.user_id === recipientId)
@@ -100,7 +93,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         return;
       }
 
-      // 2. Si no existe, procedemos a crearlo
       const res = await apiFetch('/chat/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,7 +109,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // Realtime Messages Subscription & Sound Alert[cite: 12]
+  // Realtime Messages Subscription & Sound Alert[cite: 10]
   useEffect(() => {
     if (!isOpen) return;
 
@@ -145,12 +137,12 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     return () => { supabase.removeChannel(channel); };
   }, [isOpen, currentUser]);
 
-  // Scroll to bottom on new message[cite: 12]
+  // Scroll to bottom on new message[cite: 10]
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, activeTabId]);
 
-  // Dragging Handlers[cite: 12]
+  // Dragging Handlers[cite: 10]
   const handleMouseDown = (e) => {
     setIsDragging(true);
     dragStartRef.current = {
@@ -188,7 +180,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     };
   }, [isDragging]);
 
-  // Camera Capture Logic[cite: 12]
+  // Camera Capture Logic[cite: 10]
   const startCamera = async () => {
     setShowCamera(true);
     try {
@@ -219,7 +211,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }, 'image/jpeg');
   };
 
-  // Voice Note Recording Logic[cite: 12]
+  // Voice Note Recording Logic[cite: 10]
   const toggleAudioRecording = async () => {
     if (isRecordingAudio) {
       mediaRecorder?.stop();
@@ -270,14 +262,14 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     uploadAndSendAttachment(file, type);
   };
 
-  // ACTUALIZACIÓN 3: Registro seguro de mensajes en Supabase con manejo de errores y .select()
+  // Registro seguro de mensajes en Supabase con manejo de errores[cite: 10]
   const sendMessage = async (text = inputText, attachmentUrl = null, attachmentType = null) => {
     if (!text.trim() && !attachmentUrl) return;
     if (!activeTabId) return;
 
     const payload = {
       room_id: activeTabId,
-      sender_id: currentUser?.id ? parseInt(currentUser.id, 10) : null, // Asegura tipo integer compatible con public.users(id)
+      sender_id: currentUser?.id ? parseInt(currentUser.id, 10) : null,
       sender_name: currentUser?.username || 'Usuario TI',
       content: text.trim(),
       attachment_url: attachmentUrl,
@@ -293,6 +285,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     
     setInputText('');
   };
+
   if (!isOpen) return null;
 
   const activeRoom = rooms.find(r => r.id === activeTabId);
@@ -317,7 +310,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         transition: isDragging ? 'none' : 'height 0.2s ease-in-out'
       }}
     >
-      {/* HEADER BAR (DRAGGABLE)[cite: 12] */}
+      {/* HEADER BAR (DRAGGABLE)[cite: 10] */}
       <div 
         onMouseDown={handleMouseDown}
         style={{
@@ -333,7 +326,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Move size={14} className="text-slate-400" />
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-            {view === 'chat' && activeRoom ? activeRoom.name || 'Chat Privado' : view === 'new_chat' ? 'Nuevo Chat' : 'Chat TI'} 
+            {view === 'chat' && activeRoom ? getRoomTitle(activeRoom) : view === 'new_chat' ? 'Nuevo Chat' : 'Chat TI'} 
             {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
           </span>
         </div>
@@ -364,7 +357,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
       {!isMinimized && (
         <>
-          {/* VIEW 1: CHAT ROOMS INBOX LIST[cite: 12] */}
+          {/* VIEW 1: CHAT ROOMS INBOX LIST[cite: 10] */}
           {view === 'list' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0B0F19', overflowY: 'auto' }}>
               <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1E293B' }}>
@@ -382,26 +375,29 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                   No tienes chats activos. ¡Inicia uno nuevo!
                 </div>
               ) : (
-                {rooms.map(room => (
-                <div 
-                  key={room.id}
-                  onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
-                  style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <div>
-                    <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
-                      {getRoomTitle(room)}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                      {room.is_group ? 'Grupo de trabajo' : 'Chat directo'}
+                rooms.map(room => (
+                  <div 
+                    key={room.id}
+                    onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
+                    style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div>
+                      <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
+                        {getRoomTitle(room)}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                        {room.is_group ? 'Grupo de trabajo' : 'Chat directo'}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
+            </div>
+          )}
 
-          {/* VIEW 2: NEW CHAT - USER DIRECTORY LIST */}
+          {/* VIEW 2: NEW CHAT - USER DIRECTORY LIST[cite: 10] */}
           {view === 'new_chat' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0B0F19', overflowY: 'auto' }}>
               <div style={{ padding: '10px 14px', borderBottom: '1px solid #1E293B', fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>
@@ -425,7 +421,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                         {user.username?.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        {/* ACTUALIZACIÓN 2: Mostrar Nombre, Área y ID claramente en el directorio */}
                         <div style={{ fontSize: '12px', color: '#F8FAFC', fontWeight: 600 }}>{user.username}</div>
                         <div style={{ fontSize: '10px', color: '#94A3B8' }}>
                           {user.area || user.department || user.role || 'Soporte / General'} • ID: {user.id ? String(user.id).slice(0, 6) + '...' : 'N/D'}
@@ -437,7 +432,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
             </div>
           )}
 
-          {/* VIEW 3: ACTIVE CONVERSATION[cite: 12] */}
+          {/* VIEW 3: ACTIVE CONVERSATION[cite: 10] */}
           {view === 'chat' && (
             <>
               {/* MESSAGES CONTAINER */}
@@ -447,7 +442,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                   return (
                     <div key={msg.id || i} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
                       {!isMe && (
-                        /* ACTUALIZACIÓN 2: Mostrar Nombre, Área e ID de quien envía en la burbuja */
                         <div style={{ fontSize: '10px', color: '#38BDF8', fontWeight: 600, display: 'flex', gap: '6px', marginBottom: '2px', alignItems: 'center' }}>
                           <span>{msg.sender_name}</span>
                           <span style={{ color: '#94A3B8', fontSize: '9px' }}>
@@ -486,7 +480,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 <div ref={chatEndRef} />
               </div>
 
-              {/* CAMERA OVERLAY MODAL[cite: 12] */}
+              {/* CAMERA OVERLAY MODAL[cite: 10] */}
               {showCamera && (
                 <div style={{ padding: '8px', background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <video ref={videoRef} autoPlay playsInline style={{ width: '100%', borderRadius: '6px' }} />
@@ -496,7 +490,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 </div>
               )}
 
-              {/* INPUT TOOLBAR & CONTROLS[cite: 12] */}
+              {/* INPUT TOOLBAR & CONTROLS[cite: 10] */}
               <div style={{ padding: '8px', background: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <input 
                   type="file" 
