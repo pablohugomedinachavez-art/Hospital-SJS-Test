@@ -414,7 +414,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                         {/* ACTUALIZACIÓN 2: Mostrar Nombre, Área y ID claramente en el directorio */}
                         <div style={{ fontSize: '12px', color: '#F8FAFC', fontWeight: 600 }}>{user.username}</div>
                         <div style={{ fontSize: '10px', color: '#94A3B8' }}>
-                          {user.area || user.department || user.role || 'Soporte / General'} • ID: {user.id ? user.id.slice(0, 6) + '...' : 'N/D'}
+                          {user.area || user.department || user.role || 'Soporte / General'} • ID: {user.id ? String(user.id).slice(0, 6) + '...' : 'N/D'}
                         </div>
                       </div>
                     </div>
@@ -437,7 +437,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                         <div style={{ fontSize: '10px', color: '#38BDF8', fontWeight: 600, display: 'flex', gap: '6px', marginBottom: '2px', alignItems: 'center' }}>
                           <span>{msg.sender_name}</span>
                           <span style={{ color: '#94A3B8', fontSize: '9px' }}>
-                            {msg.sender_area ? `(${msg.sender_area})` : ''} {msg.sender_id ? `[ID: ${msg.sender_id.slice(0, 6)}...]` : ''}
+                            {msg.sender_area ? `(${msg.sender_area})` : ''} {msg.sender_id ? `[ID: ${String(msg.sender_id).slice(0, 6)}...]` : ''}
                           </span>
                         </div>
                       )}
