@@ -2342,6 +2342,106 @@ def upload_chat_attachment():
     except Exception as e:
         return jsonify({'message': f'Upload failed: {str(e)}'}), 500
 
+
+# --- ENDPOINTS DE CHAT (Basados en el esquema de la BD) ---
+
+@app.route('/api/chat/rooms/<room_id>/messages', methods=['GET'])
+def get_room_messages(room_id):
+    """Obtiene todos los mensajes de una sala de chat específica."""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        query = """
+            SELECT id, room_id, sender_id, sender_name, content, attachment_url, attachment_type, status, created_at
+            FROM public.chat_messages
+            WHERE room_id = %s
+            ORDER BY created_at ASC;
+        """
+        cur.execute(query, (room_id,))
+        rows = cur.fetchall()
+        
+        messages = []
+        for row in rows:
+            messages.append({
+                "id": str(row[0]),
+                "room_id": str(row[1]),
+                "sender_id": row[2],
+                "sender_name": row[3],
+                "content": row[4],
+                "attachment_url": row[5],
+                "attachment_type": row[6],
+                "status": row[7],
+                "created_at": row[8].isoformat() if row[8] else None
+            })
+            
+        cur.close()
+        conn.close()
+        
+        return jsonify({
+            "status": "success",
+            "messages": messages
+        }), 200
+
+    except Exception as e:
+        print(f"--- ERROR AL OBTENER MENSAJES: {str(e)} ---")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/chat/messages', methods=['POST'])
+def send_chat_message():
+    """Recibe, almacena y retorna un nuevo mensaje usando la tabla chat_messages."""
+    try:
+        data = request.get_json()
+        room_id = data.get('room_id')
+        sender_id = data.get('sender_id')
+        sender_name = data.get('sender_name')
+        content = data.get('content')
+        attachment_url = data.get('attachment_url')
+        attachment_type = data.get('attachment_type')
+
+        # Validar campos obligatorios según restricciones de la tabla
+        if not room_id or not sender_id or not sender_name or not content:
+            return jsonify({'error': 'Los campos room_id, sender_id, sender_name y content son obligatorios'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """
+            INSERT INTO public.chat_messages (room_id, sender_id, sender_name, content, attachment_url, attachment_type, status)
+            VALUES (%s, %s, %s, %s, %s, %s, 'sent')
+            RETURNING id, room_id, sender_id, sender_name, content, attachment_url, attachment_type, status, created_at;
+        """
+        cur.execute(query, (room_id, sender_id, sender_name, content, attachment_url, attachment_type))
+        row = cur.fetchone()
+        conn.commit()
+
+        new_message = {
+            "id": str(row[0]),
+            "room_id": str(row[1]),
+            "sender_id": row[2],
+            "sender_name": row[3],
+            "content": row[4],
+            "attachment_url": row[5],
+            "attachment_type": row[6],
+            "status": row[7],
+            "created_at": row[8].isoformat() if row[8] else None
+        }
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "success",
+            "message": "Mensaje guardado exitosamente",
+            "data": new_message
+        }), 201
+
+    except Exception as e:
+        print(f"--- ERROR AL ENVIAR MENSAJE: {str(e)} ---")
+        return jsonify({'error': str(e)}), 500
+
+    
 @app.route('/api/chat/users', methods=['GET'])
 @token_required
 def get_chat_users():

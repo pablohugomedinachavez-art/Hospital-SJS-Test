@@ -619,7 +619,9 @@ export function ChatRoom({ roomId, currentUser }) {
           filter: `room_id=eq.${roomId}`
         },
         (payload) => {
-          setMessages((prev) => [...prev5 => [...prev, payload.new]])
+          // Corrección aplicada: se actualiza el estado correctamente
+          setMessages((prev) => [...prev, payload.new])
+
           // Si el mensaje nuevo es de otra persona, marcarlo como leído automáticamente
           if (payload.new.user_id !== currentUser?.id) {
             markMessageAsRead(payload.new.id)
