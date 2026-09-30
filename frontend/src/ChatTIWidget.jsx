@@ -262,7 +262,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       room_id: activeTabId,
       sender_id: currentUser?.id,
       sender_name: currentUser?.username || 'Usuario TI',
-      sender_area: currentUser?.area || currentUser?.department || 'Soporte TI / General',
       content: text.trim(),
       attachment_url: attachmentUrl,
       attachment_type: attachmentType,
