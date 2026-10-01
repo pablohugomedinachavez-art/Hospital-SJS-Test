@@ -131,7 +131,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
   // Obtener el nombre a mostrar en la tarjeta de chat
   const getRoomTitle = (room) => {
-    if (!room) return 'Chat Directo';
+    if (!room) return 'b b';
     if (room.is_group) return room.name || 'Grupo de Trabajo';
     
     // Obtiene el ID del otro usuario en la sala y busca su username en el mapa
@@ -148,7 +148,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       }
     }
 
-    return room.recipient_username || room.username || 'Chat Directo';
+    return room.recipient_username || room.username || 'a';
   };
 
   // Enlazar sala al seleccionar un usuario del directorio
@@ -420,7 +420,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
             </div>
           ) : (
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-              {view === 'new_chat' ? 'Nuevo Chat' : 'Chat Directo'} 
+              {view === 'new_chat' ? 'Nuevo Chat' : 'c c'} 
               {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
             </span>
           )}
