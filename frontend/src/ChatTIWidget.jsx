@@ -129,18 +129,24 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     fetchHistoryMessages();
   }, [activeTabId, supabase]);
 
- // Obtener el nombre a mostrar en la tarjeta de chat
+ // Obtener el nombre real del usuario del chat
   const getRoomTitle = (room) => {
-    if (!room) return 'Chat Directo';
-    if (room.is_group) return room.name || 'Grupo de Trabajo';
+    if (!room) return 'Chat';
+    if (isGroupChat(room)) return room.name || 'Grupo de Trabajo';
     
-    // Obtiene el ID del otro usuario en la sala y busca su username en el mapa
-    const peerId = room.recipient_id || room.user_id;
-    if (peerId && roomPeerMap[peerId]) {
-      return roomPeerMap[peerId];
+    // Obtener ID del otro usuario
+    const peerId = room.recipient_id || room.user_id || (room.user1_id === currentUser?.id ? room.user2_id : room.user1_id);
+    
+    // 1. Buscar en el mapa de nombres
+    if (peerId && roomPeerMap[peerId]) return roomPeerMap[peerId];
+    
+    // 2. Buscar directamente en la lista general de usuarios cargados del hospital
+    if (peerId && Array.isArray(allUsers) && allUsers.length > 0) {
+      const foundUser = allUsers.find(u => u.id === peerId);
+      if (foundUser?.username) return foundUser.username;
     }
 
-    // Si viene en los participantes de la sala de la BD
+    // 3. Buscar en participantes de la BD
     if (room.participants && Array.isArray(room.participants)) {
       const other = room.participants.find(p => (p.user_id || p.id) !== currentUser?.id);
       if (other && (other.username || other.users?.username)) {
@@ -148,47 +154,63 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       }
     }
 
-    // Fallback mejorado: si no hay username, muestra una referencia limpia basada en el ID
-    return room.recipient_username || room.username || (peerId ? `Usuario #${peerId.slice(0, 6)}` : 'Chat Directo');
+    return room.recipient_username || room.username || 'Conversación';
   };
 
-  // Enlazar sala al seleccionar un usuario del directorio
-  const handleSelectUserToChat = async (targetUser) => {
-    try {
-      const existingRoom = rooms.find(room => {
-        if (room.is_group) return false;
-        return roomPeerMap[room.id] === targetUser.username;
-      });
+  // Función para formatear la vista previa del último mensaje en la tarjeta
+  const getLastMessagePreview = (room) => {
+    const msg = room.last_message || {
+      content: room.last_message_content || room.last_message_text,
+      attachment_type: room.last_attachment_type,
+      sender_id: room.last_sender_id,
+      sender_name: room.last_sender_name,
+      duration: room.last_audio_duration
+    };
 
-      let roomId;
-      if (existingRoom) {
-        roomId = existingRoom.id;
-      } else {
-        const res = await apiFetch('/chat/rooms', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recipient_id: targetUser.id })
-        });
-        if (res.ok) {
-          const newRoom = await res.json();
-          roomId = newRoom.id || newRoom.room_id;
-          await fetchRooms();
-        }
-      }
-
-      if (roomId) {
-        setRoomPeerMap(prev => ({
-          ...prev,
-          [roomId]: targetUser.username
-        }));
-        setActiveTabId(roomId);
-        setView('chat');
-      }
-    } catch (err) {
-      console.error('Error creating/opening chat room:', err);
+    if (!msg || (!msg.content && !msg.attachment_type)) {
+      return <span style={{ color: '#64748B', fontStyle: 'italic' }}>Sin mensajes aún</span>;
     }
+
+    const isMe = msg.sender_id === currentUser?.id;
+    const senderPrefix = isMe ? 'Tú: ' : (msg.sender_name ? `${msg.sender_name}: ` : '');
+
+    let contentDisplay = null;
+    if (msg.attachment_type === 'image') {
+      contentDisplay = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
+          <Image size={12} /> Foto
+        </span>
+      );
+    } else if (msg.attachment_type === 'audio') {
+      contentDisplay = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
+          <Mic size={12} /> Audio {msg.duration ? `(${msg.duration})` : ''}
+        </span>
+      );
+    } else if (msg.attachment_type === 'file') {
+      contentDisplay = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
+          <FileText size={12} /> Archivo adjunto
+        </span>
+      );
+    } else {
+      contentDisplay = <span>{msg.content || 'Mensaje'}</span>;
+    }
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '190px' }}>
+          {senderPrefix}{contentDisplay}
+        </span>
+        {isMe && (
+          <CheckCheck size={14} style={{ color: msg.read ? '#38BDF8' : '#94A3B8', flexShrink: 0, marginLeft: '4px' }} />
+        )}
+      </div>
+    );
   };
 
+
+  
   // Realtime Messages Subscription & Sound Alert
   useEffect(() => {
     if (!isOpen) return;
