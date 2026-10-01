@@ -133,7 +133,21 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const getRoomTitle = (room) => {
     if (!room) return 'Chat Directo';
     if (room.is_group) return room.name || 'Grupo de Trabajo';
-    if (roomPeerMap[room.id]) return roomPeerMap[room.id];
+    
+    // Obtiene el ID del otro usuario en la sala y busca su username en el mapa
+    const peerId = room.recipient_id || room.user_id;
+    if (peerId && roomPeerMap[peerId]) {
+      return roomPeerMap[peerId];
+    }
+
+    // Si viene en los participantes de la sala de la BD
+    if (room.participants && Array.isArray(room.participants)) {
+      const other = room.participants.find(p => (p.user_id || p.id) !== currentUser?.id);
+      if (other && (other.username || other.users?.username)) {
+        return other.username || other.users?.username;
+      }
+    }
+
     return room.recipient_username || room.username || 'Chat Directo';
   };
 
