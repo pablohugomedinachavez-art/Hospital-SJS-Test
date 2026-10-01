@@ -6,6 +6,93 @@ import {
 import { playNewMessageSound } from './chatSound';
 import { apiFetch } from './api';
 
+// Función auxiliar para identificar si es grupo
+  const isGroupChat = (room) => {
+    return Boolean(room?.is_group || room?.type === 'group');
+  };
+
+  // Obtener el nombre real del usuario del chat
+  const getRoomTitle = (room) => {
+    if (!room) return 'Chat';
+    if (isGroupChat(room)) return room.name || 'Grupo de Trabajo';
+    
+    // Obtener ID del otro usuario
+    const peerId = room.recipient_id || room.user_id || (room.user1_id === currentUser?.id ? room.user2_id : room.user1_id);
+    
+    // 1. Buscar en el mapa de nombres
+    if (peerId && roomPeerMap[peerId]) return roomPeerMap[peerId];
+    
+    // 2. Buscar directamente en la lista general de usuarios cargados del hospital
+    if (peerId && Array.isArray(allUsers) && allUsers.length > 0) {
+      const foundUser = allUsers.find(u => u.id === peerId);
+      if (foundUser?.username) return foundUser.username;
+    }
+
+    // 3. Buscar en participantes de la BD
+    if (room.participants && Array.isArray(room.participants)) {
+      const other = room.participants.find(p => (p.user_id || p.id) !== currentUser?.id);
+      if (other && (other.username || other.users?.username)) {
+        return other.username || other.users?.username;
+      }
+    }
+
+    return room.recipient_username || room.username || 'Conversación';
+  };
+
+  // Función para formatear la vista previa del último mensaje en la tarjeta
+  const getLastMessagePreview = (room) => {
+    const msg = room.last_message || {
+      content: room.last_message_content || room.last_message_text,
+      attachment_type: room.last_attachment_type,
+      sender_id: room.last_sender_id,
+      sender_name: room.last_sender_name,
+      duration: room.last_audio_duration,
+      read: room.last_message_read ?? room.read
+    };
+
+    if (!msg || (!msg.content && !msg.attachment_type)) {
+      return <span style={{ color: '#64748B', fontStyle: 'italic' }}>Sin mensajes aún</span>;
+    }
+
+    const isMe = msg.sender_id === currentUser?.id;
+    const senderPrefix = isMe ? 'Tú: ' : (msg.sender_name ? `${msg.sender_name}: ` : '');
+
+    let contentDisplay = null;
+    if (msg.attachment_type === 'image') {
+      contentDisplay = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
+          <Image size={12} /> Foto
+        </span>
+      );
+    } else if (msg.attachment_type === 'audio') {
+      contentDisplay = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
+          <Mic size={12} /> Audio {msg.duration ? `(${msg.duration})` : ''}
+        </span>
+      );
+    } else if (msg.attachment_type === 'file') {
+      contentDisplay = (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
+          <FileText size={12} /> Archivo adjunto
+        </span>
+      );
+    } else {
+      contentDisplay = <span>{msg.content || 'Mensaje'}</span>;
+    }
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '190px' }}>
+          {senderPrefix}{contentDisplay}
+        </span>
+        {isMe && (
+          <CheckCheck size={14} style={{ color: msg.read ? '#38BDF8' : '#94A3B8', flexShrink: 0, marginLeft: '4px' }} />
+        )}
+      </div>
+    );
+  };
+
+
 export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const [rooms, setRooms] = useState([]);
   const [activeTabId, setActiveTabId] = useState(null);
@@ -489,35 +576,35 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
               </div>
 
               {rooms.length === 0 ? (
-  <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
-    No hay chats activos. ¡Inicia uno nuevo!
-  </div>
-) : (
-  rooms.map(room => {
-    const peerName = getRoomTitle(room);
-    return (
-      <div 
-        key={room.id}
-        onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
-        style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'background 0.2s' }}
-        onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
-        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-      >
-        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}>
-          {peerName.charAt(0).toUpperCase()}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {peerName}
-          </div>
-          <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px', display: 'flex', alignItems: 'center' }}>
-            {getLastMessagePreview(room)}
-          </div>
-        </div>
-      </div>
-    );
-  })
-)}
+                <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
+                  No hay chats activos. ¡Inicia uno nuevo!
+                </div>
+                  ) : (
+                rooms.map(room => {
+                  const peerName = getRoomTitle(room);
+                  return (
+                    <div 
+                      key={room.id}
+                      onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
+                      style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}>
+                        {peerName.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {peerName}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px', display: 'flex', alignItems: 'center' }}>
+                          {getLastMessagePreview(room)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 
