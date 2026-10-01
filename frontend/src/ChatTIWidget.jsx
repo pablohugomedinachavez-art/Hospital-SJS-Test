@@ -628,7 +628,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 />
 
                 <button onClick={() => sendMessage()} style={{ background: '#2563EB', border: 'none', color: '#FFF', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-                  <Send size= {14} />
+                  <Send size={14} />
                 </button>
               </div>
             </>
