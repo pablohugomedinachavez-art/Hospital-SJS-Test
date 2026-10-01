@@ -216,46 +216,55 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     fetchHistoryMessages();
   }, [activeTabId, supabase]);
 
- // Obtener el nombre real del usuario del chat
+ // Pagsurotan para iti nagan dagiti dua nga usuario (Chat de Usuario 1 y Usuario 2)
   const getRoomTitle = (room) => {
-    if (!room) return 'Chat';
+    if (!room) return 'Chat Directo';
     if (isGroupChat(room)) return room.name || 'Grupo de Trabajo';
     
-    // Obtener ID del otro usuario
-    const peerId = room.recipient_id || room.user_id || (room.user1_id === currentUser?.id ? room.user2_id : room.user1_id);
+    // Nagan ti agdama nga usuario (Usuario 1)
+    const myName = currentUser?.username || currentUser?.name || 'Usuario';
     
-    // 1. Buscar en el mapa de nombres
-    if (peerId && roomPeerMap[peerId]) return roomPeerMap[peerId];
+    // Biruken ti ID ti sabali nga usuario (Usuario 2)
+    const peerId = room.recipient_id || room.user_id || 
+      (room.user1_id === currentUser?.id ? room.user2_id : room.user1_id);
     
-    // 2. Buscar directamente en la lista general de usuarios cargados del hospital
-    if (peerId && Array.isArray(allUsers) && allUsers.length > 0) {
+    let otherName = null;
+    if (peerId && roomPeerMap[peerId]) {
+      otherName = roomPeerMap[peerId];
+    } else if (peerId && Array.isArray(allUsers) && allUsers.length > 0) {
       const foundUser = allUsers.find(u => u.id === peerId);
-      if (foundUser?.username) return foundUser.username;
-    }
-
-    // 3. Buscar en participantes de la BD
-    if (room.participants && Array.isArray(room.participants)) {
+      if (foundUser?.username) otherName = foundUser.username;
+    } else if (room.participants && Array.isArray(room.participants)) {
       const other = room.participants.find(p => (p.user_id || p.id) !== currentUser?.id);
       if (other && (other.username || other.users?.username)) {
-        return other.username || other.users?.username;
+        otherName = other.username || other.users?.username;
       }
     }
 
-    return room.recipient_username || room.username || 'Conversación';
+    if (!otherName) {
+      otherName = room.recipient_username || room.username || 'Usuario';
+    }
+
+    return `Chat de ${myName} y ${otherName}`;
   };
 
-  // Función para formatear la vista previa del último mensaje en la tarjeta
+  // Pagsurotan para iti preview tiudiudi a mensahe (agtalinad a blangko no awan ti linaona)
   const getLastMessagePreview = (room) => {
-    const msg = room.last_message || {
+    const lastMsgFromArray = Array.isArray(room.messages) && room.messages.length > 0 
+      ? room.messages[room.messages.length - 1] 
+      : null;
+
+    const msg = room.last_message || lastMsgFromArray || {
       content: room.last_message_content || room.last_message_text,
       attachment_type: room.last_attachment_type,
       sender_id: room.last_sender_id,
       sender_name: room.last_sender_name,
-      duration: room.last_audio_duration
+      duration: room.last_audio_duration,
+      read: room.last_message_read ?? room.read
     };
 
     if (!msg || (!msg.content && !msg.attachment_type)) {
-      return <span style={{ color: '#64748B', fontStyle: 'italic' }}>Sin mensajes aún</span>;
+      return null; // Agtalinaed a blangko no awan ti mensahe
     }
 
     const isMe = msg.sender_id === currentUser?.id;
@@ -281,7 +290,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         </span>
       );
     } else {
-      contentDisplay = <span>{msg.content || 'Mensaje'}</span>;
+      contentDisplay = <span>{msg.content || ''}</span>;
     }
 
     return (
