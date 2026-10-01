@@ -55,9 +55,9 @@ import { apiFetch } from './api';
     }
 
     // 5. Respaldo final a nivel de objeto de sala
-    return room.recipient_username || room.username || room.target_username || room.name || 'Usuario del Sistema';
+    return room.recipient_username || room.username || room.target_username || room.name ;
   };
-  
+
 
   // Función para formatear la vista previa del último mensaje en la tarjeta
   const getLastMessagePreview = (room) => {
