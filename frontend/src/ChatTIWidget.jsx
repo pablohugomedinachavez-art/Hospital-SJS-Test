@@ -1,778 +1,619 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  X, Minimize2, Maximize2, Send, Paperclip, Camera, Mic, 
-  Users, User, FileText, Move, ArrowLeft 
+  MessageSquare, MessageCircle, Users, Send, Paperclip, Mic, 
+  Camera, X, Check, CheckCheck, Image, Volume2, UserPlus, StopCircle, Trash2
 } from 'lucide-react';
-import { playNewMessageSound } from './chatSound';
 import { apiFetch } from './api';
 
-// Función auxiliar para identificar si es grupo
-  const isGroupChat = (room) => {
-    return Boolean(room?.is_group || room?.type === 'group');
-  };
+export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
+  const [activeTab, setActiveTab] = useState('chats'); // 'chats' | 'groups' | 'new_direct' | 'new_group'
+  const [rooms, setRooms] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessageText, setNewMessageText] = useState('');
+  const [presences, setPresences] = useState({}); // ✅ 1. Movid a nivel superior
+  
+  // Estados para cámara y audios
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
-  // Lógica unificada y robusta para obtener el nombre real del chat sin texto plano genérico
-  const getRoomTitle = (room) => {
-    if (!room) return 'Conversación Privada';
-    
-    // Si es un grupo, validar múltiples opciones de nombres de propiedad
-    if (room.is_group || room.type === 'group') {
-      return room.name || room.group_name || 'Grupo de Trabajo';
-    }
-    
-    // 1. Normalización de IDs a String para evitar fallos por tipos (string vs number)
-    const currentIdStr = String(currentUser?.id || '');
-    const user1Str = String(room.user1_id || '');
-    
-    // Resolución segura del ID del interlocutor (peerId)
-    const peerId = room.recipient_id || room.user_id || 
-      (room.user1_id && currentUser?.id ? (user1Str === currentIdStr ? room.user2_id : room.user1_id) : null);
-    
-    // 2. Validación dual de roomPeerMap (soporta tanto ID de sala como ID de usuario)
-    if (room.id && roomPeerMap[room.id]) {
-      return room.id && roomPeerMap[room.id];
-    }
-    if (peerId && roomPeerMap[peerId]) {
-      return roomPeerMap[peerId];
-    }
-    
-    // 3. Búsqueda en la lista general con respaldo para múltiples nomenclaturas de base de datos
-    if (peerId && Array.isArray(allUsers) && allUsers.length > 0) {
-      const foundUser = allUsers.find(u => String(u.id) === String(peerId));
-      if (foundUser) {
-        return foundUser.username || foundUser.full_name || foundUser.nombre || foundUser.name;
-      }
-    }
+  // Estados de formulario de creación de grupo
+  const [groupName, setGroupName] = useState('');
+  const [groupDesc, setGroupDesc] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState([]);
 
-    // 4. Búsqueda en participantes con respaldo para relaciones anidadas (singular y plural)
-    if (room.participants && Array.isArray(room.participants)) {
-      const other = room.participants.find(p => String(p.user_id || p.id || p.userId) !== currentIdStr);
-      if (other) {
-        return other.username || other.full_name || other.name || 
-               other.users?.username || other.users?.full_name || 
-               other.user?.username || other.user?.full_name;
-      }
+  // Cargar lista de salas y presencia inicial al abrir
+  useEffect(() => {
+    if (isOpen) {
+      loadUserRooms();
+      loadAllUsers();
+      updatePresence('online');
     }
+  }, [isOpen]);
 
-    // 5. Respaldo final a nivel de objeto de sala
-    return room.recipient_username || room.username || room.target_username || room.name ;
-  };
+  // ✅ 2. useEffect de Presencia y Heartbeat (Movid a nivel superior independiente)
+  useEffect(() => {
+    if (!currentUser?.id || !isOpen) return;
 
-
-  // Función para formatear la vista previa del último mensaje en la tarjeta
-  const getLastMessagePreview = (room) => {
-    const msg = room.last_message || {
-      content: room.last_message_content || room.last_message_text,
-      attachment_type: room.last_attachment_type,
-      sender_id: room.last_sender_id,
-      sender_name: room.last_sender_name,
-      duration: room.last_audio_duration,
-      read: room.last_message_read ?? room.read
+    const sendHeartbeat = async () => {
+      await supabase.from('user_presence').upsert({
+        user_id: currentUser.id,
+        status: 'online',
+        last_seen: new Date().toISOString()
+      });
     };
 
-    if (!msg || (!msg.content && !msg.attachment_type)) {
-      return <span style={{ color: '#64748B', fontStyle: 'italic' }}>Sin mensajes aún</span>;
-    }
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 30000);
 
-    const isMe = msg.sender_id === currentUser?.id;
-    const senderPrefix = isMe ? 'Tú: ' : (msg.sender_name ? `${msg.sender_name}: ` : '');
+    const presenceChannel = supabase
+      .channel('online_presence_channel')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_presence'
+      }, (payload) => {
+        setPresences(prev => ({
+          ...prev,
+          [payload.new.user_id]: payload.new
+        }));
+      })
+      .subscribe();
 
-    let contentDisplay = null;
-    if (msg.attachment_type === 'image') {
-      contentDisplay = (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
-          <Image size={12} /> Foto
-        </span>
-      );
-    } else if (msg.attachment_type === 'audio') {
-      contentDisplay = (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
-          <Mic size={12} /> Audio {msg.duration ? `(${msg.duration})` : ''}
-        </span>
-      );
-    } else if (msg.attachment_type === 'file') {
-      contentDisplay = (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
-          <FileText size={12} /> Archivo adjunto
-        </span>
-      );
-    } else {
-      contentDisplay = <span>{msg.content || 'Mensaje'}</span>;
-    }
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(presenceChannel);
+      supabase.from('user_presence').upsert({
+        user_id: currentUser.id,
+        status: 'offline',
+        last_seen: new Date().toISOString()
+      });
+    };
+  }, [currentUser, isOpen]);
 
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '190px' }}>
-          {senderPrefix}{contentDisplay}
-        </span>
-        {isMe && (
-          <CheckCheck size={14} style={{ color: msg.read ? '#38BDF8' : '#94A3B8', flexShrink: 0, marginLeft: '4px' }} />
-        )}
-      </div>
-    );
+  const updatePresence = async (status) => {
+    if (!currentUser?.id) return;
+    await supabase.from('user_presence').upsert({
+      user_id: currentUser.id,
+      status: status,
+      last_seen: new Date().toISOString()
+    });
   };
 
+  const loadUserRooms = async () => {
+    if (!currentUser?.id) return;
+    const { data } = await supabase
+      .from('chat_room_members')
+      .select('room_id, chat_rooms(*)')
+      .eq('user_id', currentUser.id);
 
-export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
-  const [rooms, setRooms] = useState([]);
-  const [activeTabId, setActiveTabId] = useState(null);
-  const [messages, setMessages] = useState({});
-  const [inputText, setInputText] = useState('');
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Navigation & User Directory States
-  const [view, setView] = useState('list'); // 'list' | 'new_chat' | 'chat'
-  const [allUsers, setAllUsers] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-
-  // Mapa dinámico de nombres de usuario por sala (Cargado directamente desde Supabase)
-  const [roomPeerMap, setRoomPeerMap] = useState({});
-
-  // Position & Drag state
-  const [position, setPosition] = useState({ right: 30, bottom: 20 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0, right: 30, bottom: 20 });
-
-  // Camera & Audio recorder state
-  const [showCamera, setShowCamera] = useState(false);
-  const [isRecordingAudio, setIsRecordingAudio] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState(null);
-  const videoRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const chatEndRef = useRef(null);
-
-  // Load User's Chat Rooms
-  const fetchRooms = async () => {
-    try {
-      const res = await apiFetch('/chat/rooms');
-      if (res.ok) {
-        const data = await res.json();
-        setRooms(data);
-        if (data.length > 0 && !activeTabId) {
-          setActiveTabId(data[0].id);
-        }
-        // Consultar los nombres de los participantes para cada sala en Supabase
-        resolveRoomPeers(data);
-      }
-    } catch (err) {
-      console.error('Error fetching rooms:', err);
+    if (data) {
+      const roomList = data.map(item => item.chat_rooms).filter(Boolean);
+      setRooms(roomList);
     }
   };
 
-  // Resolver dinámicamente los usernames desde Supabase (Unión chat_participants -> users)
-  const resolveRoomPeers = async (roomsList) => {
-    if (!supabase || !currentUser?.id) return;
-    try {
-      const roomIds = roomsList.map(r => r.id);
-      if (roomIds.length === 0) return;
-
-      const { data, error } = await supabase
-        .from('chat_participants')
-        .select(`
-          room_id,
-          user_id,
-          users:user_id ( id, username )
-        `)
-        .in('room_id', roomIds);
-
-      if (!error && data) {
-        const newMap = {};
-        data.forEach(p => {
-          // Si el participante no es el usuario actual, guardamos su username
-          if (p.user_id !== currentUser.id && p.users) {
-            const peerUser = Array.isArray(p.users) ? p.users[0] : p.users;
-            if (peerUser?.username) {
-              newMap[p.room_id] = peerUser.username;
-            }
-          }
-        });
-        setRoomPeerMap(prev => ({ ...prev, ...newMap }));
-      }
-    } catch (err) {
-      console.error('Error resolving room peers:', err);
-    }
-  };
-
-  // Fetch Tenant Users for the New Chat Directory
-  const fetchTenantUsers = async () => {
-    setLoadingUsers(true);
+  const loadAllUsers = async () => {
     try {
       const res = await apiFetch('/users');
       if (res.ok) {
         const data = await res.json();
-        setAllUsers(data);
+        setAllUsers(data.filter(u => u.id !== currentUser?.id));
       }
-    } catch (err) {
-      console.error('Error fetching tenant users:', err);
-    } finally {
-      setLoadingUsers(false);
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  // Cargar mensajes históricos de la sala activa desde Supabase
+  // ✅ 3. Escuchar mensajes en tiempo real (Unificado sin duplicados)
   useEffect(() => {
-    if (!activeTabId || !supabase) return;
+    if (!selectedRoom?.id) return;
 
-    const fetchHistoryMessages = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('room_id', activeTabId)
-          .order('created_at', { ascending: true });
+    const fetchMessages = async () => {
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', selectedRoom.id)
+        .order('created_at', { ascending: true });
 
-        if (!error && data) {
-          setMessages(prev => ({
-            ...prev,
-            [activeTabId]: data
-          }));
-        }
-      } catch (err) {
-        console.error('Error fetching message history:', err);
-      }
+      setMessages(data || []);
+      markMessagesAsRead(data || []);
     };
 
-    fetchHistoryMessages();
-  }, [activeTabId, supabase]);
-
- // Pagsurotan para iti nagan dagiti dua nga usuario (Chat de Usuario 1 y Usuario 2)
-  const getRoomTitle = (room) => {
-    if (!room) return 'Chat Directo';
-    if (isGroupChat(room)) return room.name || 'Grupo de Trabajo';
-    
-    // Nagan ti agdama nga usuario (Usuario 1)
-    const myName = currentUser?.username || currentUser?.name || 'Usuario';
-    
-    // Biruken ti ID ti sabali nga usuario (Usuario 2)
-    const peerId = room.recipient_id || room.user_id || 
-      (room.user1_id === currentUser?.id ? room.user2_id : room.user1_id);
-    
-    let otherName = null;
-    if (peerId && roomPeerMap[peerId]) {
-      otherName = roomPeerMap[peerId];
-    } else if (peerId && Array.isArray(allUsers) && allUsers.length > 0) {
-      const foundUser = allUsers.find(u => u.id === peerId);
-      if (foundUser?.username) otherName = foundUser.username;
-    } else if (room.participants && Array.isArray(room.participants)) {
-      const other = room.participants.find(p => (p.user_id || p.id) !== currentUser?.id);
-      if (other && (other.username || other.users?.username)) {
-        otherName = other.username || other.users?.username;
-      }
-    }
-
-    if (!otherName) {
-      otherName = room.recipient_username || room.username || 'Usuario';
-    }
-
-    return `Chat de ${myName} y ${otherName}`;
-  };
-
-  // Pagsurotan para iti preview tiudiudi a mensahe (agtalinad a blangko no awan ti linaona)
-  const getLastMessagePreview = (room) => {
-    const lastMsgFromArray = Array.isArray(room.messages) && room.messages.length > 0 
-      ? room.messages[room.messages.length - 1] 
-      : null;
-
-    const msg = room.last_message || lastMsgFromArray || {
-      content: room.last_message_content || room.last_message_text,
-      attachment_type: room.last_attachment_type,
-      sender_id: room.last_sender_id,
-      sender_name: room.last_sender_name,
-      duration: room.last_audio_duration,
-      read: room.last_message_read ?? room.read
-    };
-
-    if (!msg || (!msg.content && !msg.attachment_type)) {
-      return null; // Agtalinaed a blangko no awan ti mensahe
-    }
-
-    const isMe = msg.sender_id === currentUser?.id;
-    const senderPrefix = isMe ? 'Tú: ' : (msg.sender_name ? `${msg.sender_name}: ` : '');
-
-    let contentDisplay = null;
-    if (msg.attachment_type === 'image') {
-      contentDisplay = (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
-          <Image size={12} /> Foto
-        </span>
-      );
-    } else if (msg.attachment_type === 'audio') {
-      contentDisplay = (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
-          <Mic size={12} /> Audio {msg.duration ? `(${msg.duration})` : ''}
-        </span>
-      );
-    } else if (msg.attachment_type === 'file') {
-      contentDisplay = (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#38BDF8' }}>
-          <FileText size={12} /> Archivo adjunto
-        </span>
-      );
-    } else {
-      contentDisplay = <span>{msg.content || ''}</span>;
-    }
-
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '190px' }}>
-          {senderPrefix}{contentDisplay}
-        </span>
-        {isMe && (
-          <CheckCheck size={14} style={{ color: msg.read ? '#38BDF8' : '#94A3B8', flexShrink: 0, marginLeft: '4px' }} />
-        )}
-      </div>
-    );
-  };
-
-
-
-  // Realtime Messages Subscription & Sound Alert
-  useEffect(() => {
-    if (!isOpen) return;
-    fetchRooms();
+    fetchMessages();
 
     const channel = supabase
-      .channel('chat-widget-global')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-        (payload) => {
-          const newMsg = payload.new;
-          
-          setMessages(prev => {
-            const roomMsgs = prev[newMsg.room_id] || [];
-            if (roomMsgs.some(m => m.id === newMsg.id)) return prev;
-            return { ...prev, [newMsg.room_id]: [...roomMsgs, newMsg] };
-          });
+      .channel(`chat_messages:${selectedRoom.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `room_id=eq.${selectedRoom.id}`
+      }, async (payload) => {
+        setMessages(prev => [...prev, payload.new]);
 
-          if (newMsg.sender_id !== currentUser?.id) {
-            playNewMessageSound();
-            if (newMsg.room_id !== activeTabId) {
-              setUnreadCount(count => count + 1);
-            }
+        // Transición de Estado de Mensaje Entrante
+        if (payload.new.sender_id !== currentUser?.id) {
+          if (document.hasFocus()) {
+            await supabase.from('chat_messages').update({ status: 'read' }).eq('id', payload.new.id);
+          } else {
+            await supabase.from('chat_messages').update({ status: 'delivered' }).eq('id', payload.new.id);
           }
         }
-      )
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_messages',
+        filter: `room_id=eq.${selectedRoom.id}`
+      }, (payload) => {
+        setMessages(prev => prev.map(m => m.id === payload.new.id ? payload.new : m));
+      })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [isOpen, currentUser, activeTabId]);
-
-  // Scroll to bottom on new message
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, activeTabId]);
-
-  // Dragging Handlers
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      right: position.right,
-      bottom: position.bottom
+    return () => {
+      supabase.removeChannel(channel);
     };
+  }, [selectedRoom, currentUser]);
+  
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // ✅ 4. Liberación de hardware (Cámara)
+  const stopCameraStream = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setShowCamera(false);
   };
 
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (!isDragging) return;
-      const deltaX = dragStartRef.current.x - e.clientX;
-      const deltaY = dragStartRef.current.y - e.clientY;
+  const handleCloseWidget = () => {
+    stopCameraStream();
+    onClose();
+  };
 
-      let newRight = dragStartRef.current.right + deltaX;
-      let newBottom = dragStartRef.current.bottom + deltaY;
+  const markMessagesAsRead = async (msgList) => {
+    const unread = msgList
+      .filter(m => m.sender_id !== currentUser?.id && m.status !== 'read')
+      .map(m => m.id);
 
-      newRight = Math.max(10, Math.min(window.innerWidth - 360, newRight));
-      newBottom = Math.max(10, Math.min(window.innerHeight - 450, newBottom));
-
-      setPosition({ right: newRight, bottom: newBottom });
-    };
-
-    const handleMouseUp = () => setIsDragging(false);
-
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+    if (unread.length > 0) {
+      await supabase.from('chat_messages').update({ status: 'read' }).in('id', unread);
     }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
+  };
 
-  // Camera Capture Logic
-  const startCamera = async () => {
+  const handleStartDirectChat = async (targetUserId) => {
+    try {
+      const res = await apiFetch('/chat/direct', {
+        method: 'POST',
+        body: JSON.stringify({ target_user_id: targetUserId })
+      });
+      if (res.ok) {
+        const { room_id } = await res.json();
+        await loadUserRooms();
+        const targetUser = allUsers.find(u => u.id === targetUserId);
+        setSelectedRoom({ id: room_id, name: targetUser?.username || 'Chat Directo', is_group: false });
+        setActiveTab('chats');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+    if (!groupName.trim() || selectedMembers.length === 0) return;
+
+    try {
+      const res = await apiFetch('/chat/group', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: groupName,
+          description: groupDesc,
+          member_ids: selectedMembers
+        })
+      });
+
+      if (res.ok) {
+        const { room_id } = await res.json();
+        setGroupName('');
+        setGroupDesc('');
+        setSelectedMembers([]);
+        await loadUserRooms();
+        setSelectedRoom({ id: room_id, name: groupName, is_group: true });
+        setActiveTab('groups');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
+    if (!newMessageText.trim() && !mediaUrl) return;
+
+    const msgData = {
+      room_id: selectedRoom.id,
+      sender_id: currentUser.id,
+      sender_name: currentUser.username || currentUser.email,
+      content: newMessageText.trim(),
+      media_url: mediaUrl,
+      media_type: mediaType,
+      status: 'sent',
+      created_at: new Date().toISOString()
+    };
+
+    setNewMessageText('');
+    setAudioBlob(null);
+
+    await supabase.from('chat_messages').insert([msgData]);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('media_type', file.type.startsWith('image/') ? 'image' : 'file');
+
+    const res = await apiFetch('/chat/upload', { method: 'POST', body: formData });
+    if (res.ok) {
+      const { media_url, media_type } = await res.json();
+      await handleSendMessage(media_url, media_type);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+      };
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsRecording(true);
+    } catch (err) {
+      alert('Permiso de micrófono denegado');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const sendAudioMessage = async () => {
+    if (!audioBlob) return;
+    const formData = new FormData();
+    formData.append('file', audioBlob, 'audio_record.webm');
+    formData.append('media_type', 'audio');
+
+    const res = await apiFetch('/chat/upload', { method: 'POST', body: formData });
+    if (res.ok) {
+      const { media_url, media_type } = await res.json();
+      await handleSendMessage(media_url, media_type);
+    }
+  };
+
+  const openCamera = async () => {
     setShowCamera(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    } catch (e) {
-      alert('No se pudo acceder a la cámara.');
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      alert('No se pudo acceder a la cámara');
       setShowCamera(false);
     }
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     const video = videoRef.current;
-    if (!video) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
+    const canvas = canvasRef.current;
+    if (video && canvas) {
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const stream = video.srcObject;
-    stream?.getTracks().forEach(t => t.stop());
-    setShowCamera(false);
+      stopCameraStream();
 
-    canvas.toBlob(async (blob) => {
-      const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
-      await uploadAndSendAttachment(file, 'image');
-    }, 'image/jpeg');
-  };
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('file', blob, 'camera_photo.jpg');
+        formData.append('media_type', 'image');
 
-  // Voice Note Recording Logic
-  const toggleAudioRecording = async () => {
-    if (isRecordingAudio) {
-      mediaRecorder?.stop();
-      setIsRecordingAudio(false);
-    } else {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const recorder = new MediaRecorder(stream);
-        const chunks = [];
-
-        recorder.ondataavailable = (e) => chunks.push(e.data);
-        recorder.onstop = async () => {
-          const blob = new Blob(chunks, { type: 'audio/webm' });
-          const file = new File([blob], 'voicenote.webm', { type: 'audio/webm' });
-          await uploadAndSendAttachment(file, 'audio');
-          stream.getTracks().forEach(t => t.stop());
-        };
-
-        recorder.start();
-        setMediaRecorder(recorder);
-        setIsRecordingAudio(true);
-      } catch (e) {
-        alert('Acceso al micrófono denegado.');
-      }
+        const res = await apiFetch('/chat/upload', { method: 'POST', body: formData });
+        if (res.ok) {
+          const { media_url, media_type } = await res.json();
+          await handleSendMessage(media_url, media_type);
+        }
+      }, 'image/jpeg');
     }
-  };
-
-  const uploadAndSendAttachment = async (file, type) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
-
-    try {
-      const res = await apiFetch('/api/chat/upload', { method: 'POST', body: formData });
-      if (res.ok) {
-        const { attachment_url } = await res.json();
-        sendMessage('', attachment_url, type);
-      }
-    } catch (err) {
-      console.error('Error al subir archivo:', err);
-    }
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const type = file.type.startsWith('image/') ? 'image' : 'file';
-    uploadAndSendAttachment(file, type);
-  };
-
-  const sendMessage = async (text = inputText, attachmentUrl = null, attachmentType = null) => {
-    if (!text.trim() && !attachmentUrl) return;
-    if (!activeTabId) return;
-
-    const payload = {
-      room_id: activeTabId,
-      sender_id: currentUser?.id || null,
-      sender_name: currentUser?.username || 'Usuario TI',
-      content: text.trim(),
-      attachment_url: attachmentUrl,
-      attachment_type: attachmentType,
-      status: 'sent'
-    };
-
-    const { error } = await supabase.from('chat_messages').insert([payload]);
-    if (error) {
-      console.error('Error al registrar mensaje en Supabase:', error.message);
-      return;
-    }
-    
-    setInputText('');
   };
 
   if (!isOpen) return null;
 
-  const activeRoom = rooms.find(r => r.id === activeTabId);
-  const currentMessages = messages[activeTabId] || [];
-  const currentPeerUsername = getRoomTitle(activeRoom);
-
   return (
-    <div 
-      style={{
-        position: 'fixed',
-        right: `${position.right}px`,
-        bottom: `${position.bottom}px`,
-        width: '360px',
-        height: isMinimized ? '48px' : '480px',
-        backgroundColor: '#0F172A',
-        border: '1px solid #1E293B',
-        borderRadius: '12px',
-        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        transition: isDragging ? 'none' : 'height 0.2s ease-in-out'
-      }}
-    >
-      {/* HEADER BAR (DRAGGABLE) - Estilo Referencia con Avatar e Info del Usuario */}
-      <div 
-        onMouseDown={handleMouseDown}
-        style={{
-          backgroundColor: '#1E293B',
-          padding: '10px 14px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          userSelect: 'none'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Move size={14} className="text-slate-400" />
-          
-          {view === 'chat' && activeRoom ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 700 }}>
-                {currentPeerUsername.charAt(0).toUpperCase()}
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-                {currentPeerUsername}
-              </span>
-            </div>
-          ) : (
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-              {view === 'new_chat' ? 'Nuevo Chat' : 'Chat Directo'} 
-              {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
-            </span>
-          )}
+    <div className="fixed bottom-4 right-4 w-96 h-[560px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden text-slate-100 font-sans">
+      
+      {/* Header del Chat */}
+      <div className="bg-slate-950 p-3.5 border-b border-slate-800 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="text-cyan-400" size={18} />
+          <span className="font-semibold text-sm">
+            {selectedRoom ? selectedRoom.name : 'Centro de Mensajería TI'}
+          </span>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {view !== 'list' && (
-            <button 
-              onClick={() => setView('list')}
-              style={{ background: 'none', border: 'none', color: '#38BDF8', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}
-            >
-              <ArrowLeft size={12} /> Chats
+        <div className="flex items-center gap-1">
+          {selectedRoom && (
+            <button onClick={() => setSelectedRoom(null)} className="p-1 hover:bg-slate-800 rounded text-slate-400 text-xs mr-2">
+              Volver
             </button>
           )}
-          <button 
-            onClick={() => { setIsMinimized(!isMinimized); setUnreadCount(0); }}
-            style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
-          >
-            {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
-          </button>
-          <button 
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }}
-          >
+          <button onClick={handleCloseWidget} className="p-1 hover:bg-slate-800 rounded-full text-slate-400">
             <X size={16} />
           </button>
         </div>
       </div>
 
-      {!isMinimized && (
-        <>
-          {/* VIEW 1: CHAT ROOMS INBOX LIST */}
-          {view === 'list' && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0B0F19', overflowY: 'auto' }}>
-              <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1E293B' }}>
-                <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>Conversaciones</span>
-                <button 
-                  onClick={() => { setView('new_chat'); fetchTenantUsers(); }}
-                  style={{ background: '#2563EB', color: '#FFF', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  + Nuevo Chat
-                </button>
-              </div>
+      {/* Si hay una sala seleccionada, mostrar la conversación */}
+      {selectedRoom ? (
+        <div className="flex-1 flex flex-col bg-slate-900 overflow-hidden">
+          
+          {/* Panel de Mensajes */}
+          <div className="flex-1 p-3 overflow-y-auto space-y-3">
+            {messages.map((msg) => {
+              const isMe = msg.sender_id === currentUser?.id;
+              const formattedTime = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-              {rooms.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
-                  No hay chats activos. ¡Inicia uno nuevo!
-                </div>
-                  ) : (
-                rooms.map(room => {
-                  const peerName = getRoomTitle(room);
-                  return (
-                    <div 
-                      key={room.id}
-                      onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
-                      style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}>
-                        {peerName.charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {peerName}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px', display: 'flex', alignItems: 'center' }}>
-                          {getLastMessagePreview(room)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
+              return (
+                <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                  {!isMe && <span className="text-[10px] text-slate-400 ml-1 mb-0.5">{msg.sender_name}</span>}
+                  
+                  <div className={`relative px-3 py-2 rounded-2xl max-w-[80%] text-xs shadow-md ${
+                    isMe ? 'bg-cyan-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none'
+                  }`}>
+                    {msg.content && <p className="leading-relaxed whitespace-pre-wrap pr-10">{msg.content}</p>}
 
-          {/* VIEW 2: NEW CHAT - USER DIRECTORY LIST */}
-          {view === 'new_chat' && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0B0F19', overflowY: 'auto' }}>
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid #1E293B', fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>
-                Selecciona un trabajador del hospital
-              </div>
+                    {msg.media_type === 'image' && (
+                      <img src={msg.media_url} alt="multimedia" className="rounded-lg max-h-48 object-cover my-1" />
+                    )}
+                    {msg.media_type === 'audio' && (
+                      <audio controls src={msg.media_url} className="w-48 h-8 my-1" />
+                    )}
+                    {msg.media_type === 'file' && (
+                      <a href={msg.media_url} target="_blank" rel="noreferrer" className="underline text-cyan-200 block my-1">
+                        Ver archivo adjunto
+                      </a>
+                    )}
 
-              {loadingUsers ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>Cargando personal...</div>
-              ) : (
-                allUsers
-                  .filter(u => u.id !== currentUser?.id)
-                  .map(user => (
-                    <div 
-                      key={user.id}
-                      onClick={() => handleSelectUserToChat(user)}
-                      style={{ padding: '10px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 600 }}>
-                        {user.username?.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '12px', color: '#F8FAFC', fontWeight: 600 }}>{user.username}</div>
-                        <div style={{ fontSize: '10px', color: '#94A3B8' }}>
-                          Rol: {user.role || 'Personal'}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-              )}
-            </div>
-          )}
-
-          {/* VIEW 3: ACTIVE CONVERSATION */}
-          {view === 'chat' && (
-            <>
-              {/* MESSAGES CONTAINER */}
-              <div style={{ flex: 1, padding: '12px', overflowY: 'auto', background: '#0B0F19', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {currentMessages.map((msg, i) => {
-                  const isMe = msg.sender_id === currentUser?.id;
-                  return (
-                    <div key={msg.id || i} style={{ alignSelf: isMe ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                      {!isMe && (
-                        <div style={{ fontSize: '10px', color: '#38BDF8', fontWeight: 600, display: 'flex', gap: '6px', marginBottom: '2px', alignItems: 'center' }}>
-                          <span>{msg.sender_name}</span>
-                        </div>
+                    <div className="flex items-center justify-end gap-1 mt-1 text-[9px] opacity-70 text-right">
+                      <span>{formattedTime}</span>
+                      {isMe && (
+                        <span>
+                          {msg.status === 'read' ? (
+                            <CheckCheck size={12} className="text-cyan-200 font-bold" title="Leído" />
+                          ) : msg.status === 'delivered' ? (
+                            <CheckCheck size={12} className="text-slate-300" title="Entregado" />
+                          ) : (
+                            <Check size={12} className="text-slate-300" title="Enviándose / Enviado" />
+                          )}
+                        </span>
                       )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
 
-                      <div style={{
-                        padding: '8px 12px',
-                        borderRadius: '10px',
-                        fontSize: '12px',
-                        backgroundColor: isMe ? '#2563EB' : '#1E293B',
-                        color: '#FFF',
-                        boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                      }}>
-                        {msg.content && <p style={{ margin: 0 }}>{msg.content}</p>}
+          {audioBlob && (
+            <div className="p-2 bg-slate-950 flex items-center justify-between border-t border-slate-800">
+              <span className="text-xs text-cyan-400">Audio listo para enviar</span>
+              <div className="flex gap-2">
+                <button onClick={sendAudioMessage} className="px-2 py-1 bg-cyan-600 text-xs rounded-lg font-medium">Enviar</button>
+                <button onClick={() => setAudioBlob(null)} className="p-1 text-red-400"><Trash2 size={14}/></button>
+              </div>
+            </div>
+          )}
 
-                        {msg.attachment_type === 'image' && (
-                          <img src={msg.attachment_url} alt="adjunto" style={{ maxWidth: '100%', borderRadius: '6px', marginTop: '4px' }} />
-                        )}
+          {showCamera && (
+            <div className="p-2 bg-slate-950 border-t border-slate-800 flex flex-col items-center">
+              <video ref={videoRef} autoPlay playsInline className="w-full h-36 bg-black rounded-lg" />
+              <canvas ref={canvasRef} className="hidden" />
+              <div className="flex gap-2 mt-2">
+                <button onClick={capturePhoto} className="px-3 py-1 bg-cyan-600 text-xs rounded-lg font-medium">Tomar foto</button>
+                <button onClick={stopCameraStream} className="px-3 py-1 bg-slate-800 text-xs rounded-lg">Cancelar</button>
+              </div>
+            </div>
+          )}
 
-                        {msg.attachment_type === 'audio' && (
-                          <audio controls src={msg.attachment_url} style={{ width: '180px', height: '30px', marginTop: '4px' }} />
-                        )}
+          <div className="p-2.5 bg-slate-950 border-t border-slate-800 flex items-center gap-1.5">
+            <label className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 cursor-pointer">
+              <Paperclip size={16} />
+              <input type="file" onChange={handleFileUpload} className="hidden" />
+            </label>
 
-                        {msg.attachment_type === 'file' && (
-                          <a href={msg.attachment_url} target="_blank" rel="noreferrer" style={{ color: '#38BDF8', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-                            <FileText size={12} /> Ver Archivo
-                          </a>
-                        )}
+            <button onClick={openCamera} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400">
+              <Camera size={16} />
+            </button>
+
+            {isRecording ? (
+              <button onClick={stopRecording} className="p-1.5 bg-red-600/20 text-red-400 rounded-lg animate-pulse">
+                <StopCircle size={16} />
+              </button>
+            ) : (
+              <button onClick={startRecording} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400">
+                <Mic size={16} />
+              </button>
+            )}
+
+            <input
+              type="text"
+              value={newMessageText}
+              onChange={(e) => setNewMessageText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Escribe un mensaje..."
+              className="flex-1 bg-slate-800 border-none rounded-xl px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            />
+
+            <button onClick={() => handleSendMessage()} className="p-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl transition-colors">
+              <Send size={14} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col bg-slate-900">
+          <div className="flex border-b border-slate-800 bg-slate-950 text-xs">
+            <button
+              onClick={() => setActiveTab('chats')}
+              className={`flex-1 py-2.5 font-medium border-b-2 transition-colors ${activeTab === 'chats' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400'}`}
+            >
+              Chats Directos
+            </button>
+            <button
+              onClick={() => setActiveTab('groups')}
+              className={`flex-1 py-2.5 font-medium border-b-2 transition-colors ${activeTab === 'groups' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400'}`}
+            >
+              Grupos
+            </button>
+            <button
+              onClick={() => setActiveTab('new_group')}
+              className={`px-3 py-2.5 font-medium text-slate-400 hover:text-cyan-400 flex items-center gap-1`}
+              title="Crear Nuevo Grupo"
+            >
+              <UserPlus size={14} />
+            </button>
+          </div>
+
+          <div className="flex-1 p-3 overflow-y-auto">
+            {activeTab === 'chats' && (
+              <div className="space-y-3">
+                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+                  Usuarios Disponibles
+                </span>
+                {allUsers.map((u) => {
+                  const isOnline = presences[u.id]?.status === 'online';
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => handleStartDirectChat(u.id)}
+                      className="flex items-center justify-between p-2.5 bg-slate-800/60 hover:bg-slate-800 rounded-xl cursor-pointer transition-all border border-slate-800"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative">
+                          <div className="w-8 h-8 rounded-full bg-cyan-900/50 text-cyan-300 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
+                            {(u.username || u.email || 'U')[0].toUpperCase()}
+                          </div>
+                          <span 
+                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-slate-900 ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} 
+                            title={isOnline ? "Online" : "Offline"} 
+                          />
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-slate-200">{u.username || u.email}</p>
+                          <p className="text-[10px] text-slate-400">{u.role}</p>
+                        </div>
                       </div>
+                      <MessageCircle size={14} className="text-slate-500" />
                     </div>
                   );
                 })}
-                <div ref={chatEndRef} />
               </div>
+            )}
 
-              {/* CAMERA OVERLAY MODAL */}
-              {showCamera && (
-                <div style={{ padding: '8px', background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <video ref={videoRef} autoPlay playsInline style={{ width: '100%', borderRadius: '6px' }} />
-                  <button onClick={capturePhoto} style={{ marginTop: '6px', padding: '4px 12px', background: '#22C55E', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>
-                    Tomar Foto
-                  </button>
+            {activeTab === 'groups' && (
+              <div className="space-y-2">
+                {rooms.filter(r => r.is_group).length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-8">No perteneces a ningún grupo aún.</p>
+                ) : (
+                  rooms.filter(r => r.is_group).map((g) => (
+                    <div
+                      key={g.id}
+                      onClick={() => setSelectedRoom(g)}
+                      className="p-3 bg-slate-800/60 hover:bg-slate-800 rounded-xl cursor-pointer transition-all border border-slate-800"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users size={16} className="text-cyan-400" />
+                        <span className="text-xs font-semibold text-slate-200">{g.name}</span>
+                      </div>
+                      {g.description && <p className="text-[10px] text-slate-400 mt-1 line-clamp-1">{g.description}</p>}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {activeTab === 'new_group' && (
+              <form onSubmit={handleCreateGroup} className="space-y-3">
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">Nombre del Grupo</label>
+                  <input
+                    type="text"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    placeholder="Ej. Soporte Sistemas"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
+                  />
                 </div>
-              )}
-
-              {/* INPUT TOOLBAR & CONTROLS */}
-              <div style={{ padding: '8px', background: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileChange} 
-                  style={{ display: 'none' }} 
-                />
-                
-                <button onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }} title="Adjuntar Archivo">
-                  <Paperclip size={16} />
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">Descripción</label>
+                  <textarea
+                    value={groupDesc}
+                    onChange={(e) => setGroupDesc(e.target.value)}
+                    placeholder="Propósito del grupo..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 h-16 resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">Seleccionar Miembros</label>
+                  <div className="max-h-36 overflow-y-auto space-y-1 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                    {allUsers.map((u) => (
+                      <label key={u.id} className="flex items-center gap-2 p-1 hover:bg-slate-800 rounded cursor-pointer text-xs">
+                        <input
+                          type="checkbox"
+                          checked={selectedMembers.includes(u.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedMembers([...selectedMembers, u.id]);
+                            else setSelectedMembers(selectedMembers.filter(id => id !== u.id));
+                          }}
+                          className="rounded text-cyan-600 focus:ring-0"
+                        />
+                        <span>{u.username || u.email}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full py-2 bg-cyan-600 hover:bg-cyan-500 font-medium text-xs rounded-xl transition-all"
+                >
+                  Crear Grupo
                 </button>
-
-                <button onClick={startCamera} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer' }} title="Usar Cámara">
-                  <Camera size={16} />
-                </button>
-
-                <button onClick={toggleAudioRecording} style={{ background: 'none', border: 'none', color: isRecordingAudio ? '#EF4444' : '#94A3B8', cursor: 'pointer' }} title="Nota de Voz">
-                  <Mic size={16} />
-                </button>
-
-                <input 
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Escribe un mensaje..."
-                  style={{
-                    flex: 1,
-                    background: '#0F172A',
-                    border: '1px solid #334155',
-                    borderRadius: '6px',
-                    color: '#FFF',
-                    padding: '6px 10px',
-                    fontSize: '12px',
-                    outline: 'none'
-                  }}
-                />
-
-                <button onClick={() => sendMessage()} style={{ background: '#2563EB', border: 'none', color: '#FFF', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-                  <Send size={14} />
-                </button>
-              </div>
-            </>
-          )}
-        </>
+              </form>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

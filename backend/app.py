@@ -2231,272 +2231,111 @@ def static_proxy(path):
 
 # Add to app_3.py
 
-@app.route('/api/chat/rooms', methods=['GET', 'POST'])
+# ==========================================
+# ENDPOINTS PARA SISTEMA DE CHAT MULTIMEDIA
+# ==========================================
+
+@app.route('/api/chat/direct', methods=['POST'])
 @token_required
-def handle_chat_rooms():
+def get_or_create_direct_chat():
+    """Valida que no exista más de un chat directo entre los dos mismos usuarios."""
     claims = get_current_user()
-    
-    try:
-        tenant_id = int(claims.get('tenant_id'))
-        user_id = int(claims.get('id'))
-    except (ValueError, TypeError, KeyError) as e:
-        return jsonify({'error': 'Invalid token claims', 'details': str(e)}), 400
+    tenant_id = claims['tenant_id']
+    user1_id = claims['id']
+    data = request.get_json() or {}
+    user2_id = data.get('target_user_id')
 
-    try:
-        if request.method == 'GET':
-            # Obtiene las salas y sus participantes, enriqueciendo los datos para chats directos
-            rooms = db_query('''
-                SELECT r.id, r.name, r.is_group, r.created_at,
-                       (SELECT json_agg(json_build_object(
-                            'id', u.id, 
-                            'username', u.username, 
-                            'role', u.role
-                        ))
-                        FROM chat_participants cp_sub
-                        JOIN users u ON u.id = cp_sub.user_id
-                        WHERE cp_sub.room_id = r.id) as participants
-                FROM chat_rooms r
-                WHERE r.tenant_id = %s 
-                  AND EXISTS (
-                      SELECT 1 FROM chat_participants cp 
-                      WHERE cp.room_id = r.id AND cp.user_id = %s
-                  )
-                ORDER BY r.created_at DESC
-            ''', (tenant_id, user_id), fetchall=True)
-            
-            formatted_rooms = []
-            if rooms:
-                for room in rooms:
-                    room_dict = dict(room) if not isinstance(room, dict) else room
-                    participants = room_dict.get('participants') or []
-                    
-                    # Si no es grupo (es chat directo), ajustar nombre y datos del otro usuario
-                    if not room_dict.get('is_group'):
-                        other_participant = next((p for p in participants if p['id'] != user_id), None)
-                        if other_participant:
-                            room_dict['name'] = other_participant['username']
-                            room_dict['other_user'] = other_participant
-                        else:
-                            room_dict['name'] = "Chat Directo"
-                    
-                    room_dict['participants'] = participants
-                    formatted_rooms.append(room_dict)
-                        
-            return jsonify(formatted_rooms), 200
+    if not user2_id:
+        return jsonify({'message': 'target_user_id es requerido'}), 400
 
-        if request.method == 'POST':
-            data = request.get_json() or {}
-            participant_ids = data.get('participant_ids', [])
-            is_group = data.get('is_group', False)
-            room_name = data.get('name', 'Grupo de Chat') if is_group else None
+    if user1_id == user2_id:
+        return jsonify({'message': 'No puedes iniciar un chat contigo mismo'}), 400
 
-            # Asegurar que el usuario actual esté incluido
-            if user_id not in [int(p) for p in participant_ids]:
-                participant_ids.append(user_id)
+    # Buscar si ya existe un chat de tipo directo (is_group = False) con los mismos dos miembros
+    query = """
+        SELECT r.id 
+        FROM public.chat_rooms r
+        JOIN public.chat_room_members m1 ON r.id = m1.room_id AND m1.user_id = %s
+        JOIN public.chat_room_members m2 ON r.id = m2.room_id AND m2.user_id = %s
+        WHERE r.tenant_id = %s AND r.is_group = FALSE
+        LIMIT 1
+    """
+    existing_room = db_query(query, (user1_id, user2_id, tenant_id), fetchone=True)
 
-            # COMPROBACIÓN DE CHAT REPETIDO (Si es chat directo entre 2 personas)
-            if not is_group and len(participant_ids) == 2:
-                other_user_id = [p for p in participant_ids if int(p) != user_id][0]
-                existing_room = db_query('''
-                    r.id FROM chat_rooms r
-                    JOIN chat_participants cp1 ON cp1.room_id = r.id AND cp1.user_id = %s
-                    JOIN chat_participants cp2 ON cp2.room_id = r.id AND cp2.user_id = %s
-                    WHERE r.tenant_id = %s AND r.is_group = FALSE
-                '''.replace('r.id', 'SELECT r.id'), (user_id, other_user_id, tenant_id), fetchone=True)
-                
-                if existing_room:
-                    room_id = existing_room['id'] if isinstance(existing_room, dict) else existing_room[0]
-                    return jsonify({'message': 'Chat room already exists', 'room_id': room_id, 'exists': True}), 200
+    if existing_room:
+        return jsonify({'room_id': existing_room['id'], 'is_new': False}), 200
 
-            # Crear nueva sala
-            new_room = db_query(
-                'INSERT INTO chat_rooms (tenant_id, name, is_group, created_by) VALUES (%s, %s, %s, %s) RETURNING id',
-                (tenant_id, room_name, is_group, user_id),
-                commit=True, fetchone=True
-            )
-            
-            if not new_room:
-                return jsonify({'error': 'Failed to create chat room'}), 500
+    # Si no existe, crear la sala e insertar los miembros
+    new_room = db_query(
+        "INSERT INTO public.chat_rooms (tenant_id, is_group, created_by) VALUES (%s, FALSE, %s) RETURNING id",
+        (tenant_id, user1_id), commit=True, fetchone=True
+    )
+    room_id = new_room['id']
 
-            room_id = new_room['id'] if isinstance(new_room, dict) else new_room[0]
+    db_query("INSERT INTO public.chat_room_members (room_id, user_id) VALUES (%s, %s), (%s, %s)",
+             (room_id, user1_id, room_id, user2_id), commit=True)
 
-            # Agregar participantes asegurando que no se dupliquen
-            for pid in participant_ids:
-                db_query('''
-                    INSERT INTO chat_participants (room_id, user_id)
-                    SELECT %s, %s
-                    WHERE NOT EXISTS (
-                        SELECT 1 FROM chat_participants WHERE room_id = %s AND user_id = %s
-                    )
-                ''', (room_id, int(pid), room_id, int(pid)), commit=True)
+    return jsonify({'room_id': room_id, 'is_new': True}), 201
 
-            return jsonify({'message': 'Room created', 'room_id': room_id, 'exists': False}), 201
 
-    except Exception as e:
-        print(f"CRITICAL ERROR in /api/chat/rooms: {str(e)}")
-        return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
+@app.route('/api/chat/group', methods=['POST'])
+@token_required
+def create_group_chat():
+    """Crea un grupo con nombre, descripción y múltiples usuarios."""
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    creator_id = claims['id']
+    data = request.get_json() or {}
+
+    name = data.get('name')
+    description = data.get('description', '')
+    member_ids = data.get('member_ids', [])
+
+    if not name or not member_ids:
+        return jsonify({'message': 'El nombre y al menos un miembro son obligatorios'}), 400
+
+    if creator_id not in member_ids:
+        member_ids.append(creator_id)
+
+    new_room = db_query(
+        "INSERT INTO public.chat_rooms (tenant_id, name, description, is_group, created_by) VALUES (%s, %s, %s, TRUE, %s) RETURNING id",
+        (tenant_id, name, description, creator_id), commit=True, fetchone=True
+    )
+    room_id = new_room['id']
+
+    for uid in set(member_ids):
+        db_query("INSERT INTO public.chat_room_members (room_id, user_id) VALUES (%s, %s)", (room_id, uid), commit=True)
+
+    return jsonify({'room_id': room_id, 'message': 'Grupo creado con éxito'}), 201
+
 
 @app.route('/api/chat/upload', methods=['POST'])
 @token_required
-def upload_chat_attachment():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-    
+def upload_chat_media():
+    """Sube multimedia (imágenes, archivos o audios) al bucket 'chat-attachments' de Supabase."""
     file = request.files.get('file')
-    attachment_type = request.form.get('type', 'file') # 'image', 'audio', 'file'
+    media_type = request.form.get('media_type', 'file')
 
     if not file:
-        return jsonify({'message': 'No file provided'}), 400
+        return jsonify({'message': 'Archivo no enviado'}), 400
 
     try:
         file_bytes = file.read()
-        filename = f"chat_{tenant_id}_{int(time.time())}_{file.filename}"
-        storage_path = f"chat_files/tenant_{tenant_id}/{filename}"
+        filename = f"{int(time.time())}_{file.filename}"
+        storage_path = f"chat_media/{filename}"
 
-        # Subir a Supabase Storage bucket 'chat-attachments'
         supabase.storage.from_("chat-attachments").upload(
             path=storage_path,
             file=file_bytes,
-            file_options={"content-type": file.mimetype or "application/octet-stream", "x-upsert": "true"}
+            file_options={"content-type": file.mimetype, "x-upsert": "true"}
         )
 
-        # Obtener URL pública de forma segura
-        public_url_response = supabase.storage.from_("chat-attachments").get_public_url(storage_path)
-        
-        if isinstance(public_url_response, str):
-            public_url = public_url_response
-        elif isinstance(public_url_response, dict):
-            public_url = public_url_response.get('publicUrl') or public_url_response.get('data', {}).get('publicUrl')
-        else:
-            public_url = getattr(public_url_response, 'public_url', str(public_url_response))
+        public_url_res = supabase.storage.from_("chat-attachments").get_public_url(storage_path)
+        media_url = public_url_res if isinstance(public_url_res, str) else public_url_res.get('publicUrl')
 
-        return jsonify({
-            'message': 'Archivo subido con éxito',
-            'file_url': public_url,
-            'type': attachment_type
-        }), 200
-
+        return jsonify({'media_url': media_url, 'media_type': media_type}), 200
     except Exception as e:
-        print(f"--- ERROR AL SUBIR ADJUNTO DE CHAT: {str(e)} ---")
-        return jsonify({'message': f'Error interno: {str(e)}'}), 500
-
-
-# --- ENDPOINTS DE CHAT (Basados en el esquema de la BD) ---
-
-@app.route('/api/chat/rooms/<int:room_id>/messages', methods=['GET', 'POST'])
-@token_required
-def handle_room_messages(room_id):
-    claims = get_current_user()
-    tenant_id = int(claims.get('tenant_id'))
-    user_id = int(claims.get('id'))
-    username = claims.get('username')
-
-    # Verificar que el usuario pertenece a la sala
-    is_participant = db_query(
-        'SELECT 1 FROM chat_participants WHERE room_id = %s AND user_id = %s',
-        (room_id, user_id), fetchone=True
-    )
-    if not is_participant:
-        return jsonify({'error': 'Unauthorized room access'}), 403
-
-    if request.method == 'GET':
-        messages = db_query(
-            '''
-            SELECT id, room_id, sender_id, sender_name, content, message_type, file_url, created_at
-            FROM chat_messages
-            WHERE room_id = %s
-            ORDER BY created_at ASC
-            ''',
-            (room_id,), fetchall=True
-        )
-        return jsonify(messages or []), 200
-
-    if request.method == 'POST':
-        data = request.get_json() or {}
-        content = data.get('content', '')
-        message_type = data.get('message_type', 'text') # text, audio, image, file
-        file_url = data.get('file_url')
-
-        if not content and not file_url:
-            return jsonify({'error': 'Message content or file required'}), 400
-
-        new_msg = db_query(
-            '''
-            INSERT INTO chat_messages (room_id, sender_id, sender_name, content, message_type, file_url, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            RETURNING id, room_id, sender_id, sender_name, content, message_type, file_url, created_at
-            ''',
-            (room_id, user_id, username, content, message_type, file_url, now_utc()),
-            commit=True, fetchone=True
-        )
-        return jsonify(new_msg), 201
-
-
-@app.route('/api/chat/messages', methods=['POST'])
-def send_chat_message():
-    """Recibe, almacena y retorna un nuevo mensaje usando la tabla chat_messages."""
-    try:
-        data = request.get_json()
-        room_id = data.get('room_id')
-        sender_id = data.get('sender_id')
-        sender_name = data.get('sender_name')
-        content = data.get('content')
-        attachment_url = data.get('attachment_url')
-        attachment_type = data.get('attachment_type')
-
-        # Validar campos obligatorios según restricciones de la tabla
-        if not room_id or not sender_id or not sender_name or not content:
-            return jsonify({'error': 'Los campos room_id, sender_id, sender_name y content son obligatorios'}), 400
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        query = """
-            INSERT INTO public.chat_messages (room_id, sender_id, sender_name, content, attachment_url, attachment_type, status)
-            VALUES (%s, %s, %s, %s, %s, %s, 'sent')
-            RETURNING id, room_id, sender_id, sender_name, content, attachment_url, attachment_type, status, created_at;
-        """
-        cur.execute(query, (room_id, sender_id, sender_name, content, attachment_url, attachment_type))
-        row = cur.fetchone()
-        conn.commit()
-
-        new_message = {
-            "id": str(row[0]),
-            "room_id": str(row[1]),
-            "sender_id": row[2],
-            "sender_name": row[3],
-            "content": row[4],
-            "attachment_url": row[5],
-            "attachment_type": row[6],
-            "status": row[7],
-            "created_at": row[8].isoformat() if row[8] else None
-        }
-
-        cur.close()
-        conn.close()
-
-        return jsonify({
-            "status": "success",
-            "message": "Mensaje guardado exitosamente",
-            "data": new_message
-        }), 201
-
-    except Exception as e:
-        print(f"--- ERROR AL ENVIAR MENSAJE: {str(e)} ---")
-        return jsonify({'error': str(e)}), 500
-
-    
-@app.route('/api/chat/users', methods=['GET'])
-@token_required
-def get_chat_users():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-    users = db_query(
-        'SELECT id, username, role FROM users WHERE tenant_id = %s ORDER BY username ASC',
-        (tenant_id,), fetchall=True
-    )
-    return jsonify(users or []), 200
-
+        return jsonify({'message': f'Error al subir archivo: {str(e)}'}), 500
 
 @app.route('/api/dashboard/export/excel', methods=['GET'])
 @token_required
