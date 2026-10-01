@@ -210,7 +210,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   };
 
 
-  
+
   // Realtime Messages Subscription & Sound Alert
   useEffect(() => {
     if (!isOpen) return;
@@ -489,35 +489,35 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
               </div>
 
               {rooms.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
-                  No hay chats activos. ¡Inicia uno nuevo!
-                </div>
-              ) : (
-                rooms.map(room => {
-                  const peerName = getRoomTitle(room);
-                  return (
-                    <div 
-                      key={room.id}
-                      onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
-                      style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '12px', fontWeight: 600 }}>
-                        {peerName.charAt(0).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
-                          {peerName}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                          {room.is_group ? 'Grupo de trabajo' : (room.recipient_username || room.username || room.recipient_id || room.user_id || peerName)}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+  <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
+    No hay chats activos. ¡Inicia uno nuevo!
+  </div>
+) : (
+  rooms.map(room => {
+    const peerName = getRoomTitle(room);
+    return (
+      <div 
+        key={room.id}
+        onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
+        style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'background 0.2s' }}
+        onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+      >
+        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '12px', fontWeight: 600, flexShrink: 0 }}>
+          {peerName.charAt(0).toUpperCase()}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {peerName}
+          </div>
+          <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px', display: 'flex', alignItems: 'center' }}>
+            {getLastMessagePreview(room)}
+          </div>
+        </div>
+      </div>
+    );
+  })
+)}
             </div>
           )}
 
