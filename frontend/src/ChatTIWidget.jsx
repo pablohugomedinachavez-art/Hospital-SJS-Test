@@ -11,33 +11,53 @@ import { apiFetch } from './api';
     return Boolean(room?.is_group || room?.type === 'group');
   };
 
-  // Obtener el nombre real del usuario del chat
+  // Lógica unificada y robusta para obtener el nombre real del chat sin texto plano genérico
   const getRoomTitle = (room) => {
-    if (!room) return 'Chat';
-    if (isGroupChat(room)) return room.name || 'Grupo de Trabajo';
+    if (!room) return 'Conversación Privada';
     
-    // Obtener ID del otro usuario
-    const peerId = room.recipient_id || room.user_id || (room.user1_id === currentUser?.id ? room.user2_id : room.user1_id);
-    
-    // 1. Buscar en el mapa de nombres
-    if (peerId && roomPeerMap[peerId]) return roomPeerMap[peerId];
-    
-    // 2. Buscar directamente en la lista general de usuarios cargados del hospital
-    if (peerId && Array.isArray(allUsers) && allUsers.length > 0) {
-      const foundUser = allUsers.find(u => u.id === peerId);
-      if (foundUser?.username) return foundUser.username;
+    // Si es un grupo, validar múltiples opciones de nombres de propiedad
+    if (room.is_group || room.type === 'group') {
+      return room.name || room.group_name || 'Grupo de Trabajo';
     }
-
-    // 3. Buscar en participantes de la BD
-    if (room.participants && Array.isArray(room.participants)) {
-      const other = room.participants.find(p => (p.user_id || p.id) !== currentUser?.id);
-      if (other && (other.username || other.users?.username)) {
-        return other.username || other.users?.username;
+    
+    // 1. Normalización de IDs a String para evitar fallos por tipos (string vs number)
+    const currentIdStr = String(currentUser?.id || '');
+    const user1Str = String(room.user1_id || '');
+    
+    // Resolución segura del ID del interlocutor (peerId)
+    const peerId = room.recipient_id || room.user_id || 
+      (room.user1_id && currentUser?.id ? (user1Str === currentIdStr ? room.user2_id : room.user1_id) : null);
+    
+    // 2. Validación dual de roomPeerMap (soporta tanto ID de sala como ID de usuario)
+    if (room.id && roomPeerMap[room.id]) {
+      return room.id && roomPeerMap[room.id];
+    }
+    if (peerId && roomPeerMap[peerId]) {
+      return roomPeerMap[peerId];
+    }
+    
+    // 3. Búsqueda en la lista general con respaldo para múltiples nomenclaturas de base de datos
+    if (peerId && Array.isArray(allUsers) && allUsers.length > 0) {
+      const foundUser = allUsers.find(u => String(u.id) === String(peerId));
+      if (foundUser) {
+        return foundUser.username || foundUser.full_name || foundUser.nombre || foundUser.name;
       }
     }
 
-    return room.recipient_username || room.username || 'Conversación';
+    // 4. Búsqueda en participantes con respaldo para relaciones anidadas (singular y plural)
+    if (room.participants && Array.isArray(room.participants)) {
+      const other = room.participants.find(p => String(p.user_id || p.id || p.userId) !== currentIdStr);
+      if (other) {
+        return other.username || other.full_name || other.name || 
+               other.users?.username || other.users?.full_name || 
+               other.user?.username || other.user?.full_name;
+      }
+    }
+
+    // 5. Respaldo final a nivel de objeto de sala
+    return room.recipient_username || room.username || room.target_username || room.name || 'Usuario del Sistema';
   };
+  
 
   // Función para formatear la vista previa del último mensaje en la tarjeta
   const getLastMessagePreview = (room) => {
