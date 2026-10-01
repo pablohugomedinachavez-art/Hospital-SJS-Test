@@ -67,15 +67,15 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   // Función robusta para extraer el nombre de usuario real y evitar "Chat Directo"
   const getRoomTitle = (room) => {
     if (!room) return 'Chat TI';
-    if (room.is_group) return room.name || 'Grupo de trabajo';
+    if (room.is_group) return room.name && room.name !== 'Chat Directo' && room.name !== 'Chat directo' ? room.name : 'Grupo de trabajo';
     
-    // 1. Revisar propiedades directas del objeto room que contengan el nombre del otro usuario
-    if (room.recipient_name && room.recipient_name !== 'Chat Directo') return room.recipient_name;
-    if (room.other_username && room.other_username !== 'Chat Directo') return room.other_username;
-    if (room.user_name && room.user_name !== 'Chat Directo') return room.user_name;
-    if (room.username && room.username !== 'Chat Directo') return room.username;
+    // 1. Revisar propiedades directas del objeto room
+    if (room.recipient_name && room.recipient_name.toLowerCase() !== 'chat directo') return room.recipient_name;
+    if (room.other_username && room.other_username.toLowerCase() !== 'chat directo') return room.other_username;
+    if (room.user_name && room.user_name.toLowerCase() !== 'chat directo') return room.user_name;
+    if (room.username && room.username.toLowerCase() !== 'chat directo') return room.username;
 
-    // 2. Buscar dentro del arreglo de participantes (verificando múltiples estructuras posibles)
+    // 2. Buscar dentro del arreglo de participantes
     if (room.participants && Array.isArray(room.participants)) {
       const otherUser = room.participants.find(p => {
         const participantId = p.user_id || p.id || p.userId;
@@ -88,21 +88,23 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       }
     }
     
-    // 3. Fallback a room.name solo si no es un texto genérico
-    if (room.name && room.name !== 'Chat Directo' && room.name !== 'Chat Privado') {
+    // 3. Fallback a room.name si no es un texto genérico
+    if (room.name && room.name.toLowerCase() !== 'chat directo' && room.name.toLowerCase() !== 'chat privado') {
       return room.name;
     }
     
     return 'Conversación Privada';
   };
 
-  // Manejar la selección de usuario evitando duplicados
+  // Manejar la selección de usuario evitando duplicados de forma robusta
   const handleSelectUserToChat = async (recipientId) => {
     try {
-      const existingRoom = rooms.find(room => 
-        !room.is_group && 
-        room.participants?.some(p => (p.user_id || p.id || p.userId) === recipientId)
-      );
+      const existingRoom = rooms.find(room => {
+        if (room.is_group) return false;
+        const matchRecipient = room.recipient_id === recipientId || room.user_id === recipientId;
+        const matchParticipant = room.participants?.some(p => (p.user_id || p.id || p.userId) === recipientId);
+        return matchRecipient || matchParticipant;
+      });
 
       if (existingRoom) {
         setActiveTabId(existingRoom.id);
@@ -118,7 +120,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       if (res.ok) {
         const room = await res.json();
         await fetchRooms();
-        setActiveTabId(room.id);
+        setActiveTabId(room.id || room.room_id);
         setView('chat');
       }
     } catch (err) {
@@ -141,6 +143,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
           
           setMessages(prev => {
             const roomMsgs = prev[newMsg.room_id] || [];
+            if (roomMsgs.some(m => m.id === newMsg.id)) return prev;
             return { ...prev, [newMsg.room_id]: [...roomMsgs, newMsg] };
           });
 
@@ -286,7 +289,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
     const payload = {
       room_id: activeTabId,
-      sender_id: currentUser?.id ? parseInt(currentUser.id, 10) : null,
+      sender_id: currentUser?.id || null,
       sender_name: currentUser?.username || 'Usuario TI',
       content: text.trim(),
       attachment_url: attachmentUrl,
@@ -531,7 +534,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 <input 
                   type="text"
                   value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
+                  onChange={(e) => setInputTest(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                   placeholder="Escribe un mensaje..."
                   style={{
@@ -547,7 +550,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 />
 
                 <button onClick={() => sendMessage()} style={{ background: '#2563EB', border: 'none', color: '#FFF', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-                  <Send size5={14} />
+                  <Send size={14} />
                 </button>
               </div>
             </>
