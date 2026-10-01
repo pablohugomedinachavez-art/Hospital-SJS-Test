@@ -64,22 +64,36 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // Función para obtener el nombre correcto del chat (usa el username del otro participante si es chat directo)
+  // Función robusta para extraer el nombre de usuario real y evitar "Chat Directo"
   const getRoomTitle = (room) => {
     if (!room) return 'Chat TI';
     if (room.is_group) return room.name || 'Grupo de trabajo';
     
-    // Si la sala incluye participantes, buscamos al que no sea el usuario actual
+    // 1. Revisar propiedades directas del objeto room que contengan el nombre del otro usuario
+    if (room.recipient_name && room.recipient_name !== 'Chat Directo') return room.recipient_name;
+    if (room.other_username && room.other_username !== 'Chat Directo') return room.other_username;
+    if (room.user_name && room.user_name !== 'Chat Directo') return room.user_name;
+    if (room.username && room.username !== 'Chat Directo') return room.username;
+
+    // 2. Buscar dentro del arreglo de participantes (verificando múltiples estructuras posibles)
     if (room.participants && Array.isArray(room.participants)) {
-      const otherUser = room.participants.find(p => p.user_id !== currentUser?.id);
-      if (otherUser?.username) return otherUser.username;
+      const otherUser = room.participants.find(p => {
+        const participantId = p.user_id || p.id || p.userId;
+        return participantId !== currentUser?.id;
+      });
+      if (otherUser) {
+        if (otherUser.username) return otherUser.username;
+        if (otherUser.name) return otherUser.name;
+        if (otherUser.user?.username) return otherUser.user.username;
+      }
     }
     
-    // Fallbacks por si viene en otra estructura
-    if (room.recipient_name) return room.recipient_name;
-    if (room.name && room.name !== 'Chat Privado') return room.name;
+    // 3. Fallback a room.name solo si no es un texto genérico
+    if (room.name && room.name !== 'Chat Directo' && room.name !== 'Chat Privado') {
+      return room.name;
+    }
     
-    return 'Chat Directo';
+    return 'Conversación Privada';
   };
 
   // Manejar la selección de usuario evitando duplicados
@@ -87,7 +101,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     try {
       const existingRoom = rooms.find(room => 
         !room.is_group && 
-        room.participants?.some(p => p.user_id === recipientId)
+        room.participants?.some(p => (p.user_id || p.id || p.userId) === recipientId)
       );
 
       if (existingRoom) {
@@ -391,7 +405,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                         {getRoomTitle(room)}
                       </div>
                       <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                        {room.is_group ? 'Grupo de trabajo' : 'Chat directo'}
+                        {room.is_group ? 'Grupo de trabajo' : (room.recipient_area || room.department || 'Chat privado')}
                       </div>
                     </div>
                   </div>
@@ -533,7 +547,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 />
 
                 <button onClick={() => sendMessage()} style={{ background: '#2563EB', border: 'none', color: '#FFF', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-                  <Send size={14} />
+                  <Send size5={14} />
                 </button>
               </div>
             </>
