@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Minimize2, Maximize2, Send, Paperclip, Camera, Mic, 
-  Users, User, FileText, Move 
+  Users, User, FileText, Move, ArrowLeft 
 } from 'lucide-react';
 import { playNewMessageSound } from './chatSound';
 import { apiFetch } from './api';
@@ -19,15 +19,8 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const [allUsers, setAllUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Mapa dinámico de nombres de usuario por sala (Persistente con localStorage para sobrevivir recargas)
-  const [roomPeerMap, setRoomPeerMap] = useState(() => {
-    try {
-      const saved = localStorage.getItem('hospital_chat_peers');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Mapa dinámico de nombres de usuario por sala (Cargado directamente desde Supabase)
+  const [roomPeerMap, setRoomPeerMap] = useState({});
 
   // Position & Drag state
   const [position, setPosition] = useState({ right: 30, bottom: 20 });
@@ -42,15 +35,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
 
-  // Guardar en localStorage cuando cambie el mapa de nombres
-  useEffect(() => {
-    try {
-      localStorage.setItem('hospital_chat_peers', JSON.stringify(roomPeerMap));
-    } catch (err) {
-      console.error('Error saving chat peers:', err);
-    }
-  }, [roomPeerMap]);
-
   // Load User's Chat Rooms
   const fetchRooms = async () => {
     try {
@@ -61,9 +45,45 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         if (data.length > 0 && !activeTabId) {
           setActiveTabId(data[0].id);
         }
+        // Consultar los nombres de los participantes para cada sala en Supabase
+        resolveRoomPeers(data);
       }
     } catch (err) {
       console.error('Error fetching rooms:', err);
+    }
+  };
+
+  // Resolver dinámicamente los usernames desde Supabase (Unión chat_participants -> users)
+  const resolveRoomPeers = async (roomsList) => {
+    if (!supabase || !currentUser?.id) return;
+    try {
+      const roomIds = roomsList.map(r => r.id);
+      if (roomIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .from('chat_participants')
+        .select(`
+          room_id,
+          user_id,
+          users:user_id ( id, username )
+        `)
+        .in('room_id', roomIds);
+
+      if (!error && data) {
+        const newMap = {};
+        data.forEach(p => {
+          // Si el participante no es el usuario actual, guardamos su username
+          if (p.user_id !== currentUser.id && p.users) {
+            const peerUser = Array.isArray(p.users) ? p.users[0] : p.users;
+            if (peerUser?.username) {
+              newMap[p.room_id] = peerUser.username;
+            }
+          }
+        });
+        setRoomPeerMap(prev => ({ ...prev, ...newMap }));
+      }
+    } catch (err) {
+      console.error('Error resolving room peers:', err);
     }
   };
 
@@ -109,34 +129,20 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     fetchHistoryMessages();
   }, [activeTabId, supabase]);
 
-  // Función flexible y dinámica para obtener el título del chat
+  // Obtener el nombre a mostrar en la tarjeta de chat
   const getRoomTitle = (room) => {
-    if (!room) return 'Chat TI';
+    if (!room) return 'Chat Directo';
     if (room.is_group) return room.name || 'Grupo de Trabajo';
-    
-    // 1. Prioridad absoluta al mapa dinámico local de la BD
-    if (roomPeerMap[room.id]) {
-      return roomPeerMap[room.id];
-    }
-
-    // 2. Si la sala trae participantes de la BD
-    if (room.participants && Array.isArray(room.participants)) {
-      const other = room.participants.find(p => (p.user_id || p.id) !== currentUser?.id);
-      if (other && (other.username || other.users?.username)) {
-        return other.username || other.users?.username;
-      }
-    }
-
+    if (roomPeerMap[room.id]) return roomPeerMap[room.id];
     return room.recipient_username || room.username || 'Chat Directo';
   };
 
-  // Enlazar dinámicamente el chat al seleccionar un usuario del directorio
+  // Enlazar sala al seleccionar un usuario del directorio
   const handleSelectUserToChat = async (targetUser) => {
     try {
-      // Buscar si ya existe una sala con este usuario
       const existingRoom = rooms.find(room => {
         if (room.is_group) return false;
-        return room.participants?.some(p => (p.user_id || p.id) === targetUser.id);
+        return roomPeerMap[room.id] === targetUser.username;
       });
 
       let roomId;
@@ -156,7 +162,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       }
 
       if (roomId) {
-        // Asociar dinámicamente el ID de la sala con el username de la BD obtenido al seleccionarlo
         setRoomPeerMap(prev => ({
           ...prev,
           [roomId]: targetUser.username
@@ -353,6 +358,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
   const activeRoom = rooms.find(r => r.id === activeTabId);
   const currentMessages = messages[activeTabId] || [];
+  const currentPeerUsername = getRoomTitle(activeRoom);
 
   return (
     <div 
@@ -373,7 +379,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         transition: isDragging ? 'none' : 'height 0.2s ease-in-out'
       }}
     >
-      {/* HEADER BAR (DRAGGABLE) */}
+      {/* HEADER BAR (DRAGGABLE) - Estilo Referencia con Avatar e Info del Usuario */}
       <div 
         onMouseDown={handleMouseDown}
         style={{
@@ -388,19 +394,31 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Move size={14} className="text-slate-400" />
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-            {view === 'chat' && activeRoom ? getRoomTitle(activeRoom) : view === 'new_chat' ? 'Nuevo Chat' : 'Chat Hospital'} 
-            {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
-          </span>
+          
+          {view === 'chat' && activeRoom ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 700 }}>
+                {currentPeerUsername.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
+                {currentPeerUsername}
+              </span>
+            </div>
+          ) : (
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
+              {view === 'new_chat' ? 'Nuevo Chat' : 'Chat Directo'} 
+              {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {view !== 'list' && (
             <button 
               onClick={() => setView('list')}
-              style={{ background: 'none', border: 'none', color: '#38BDF8', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}
+              style={{ background: 'none', border: 'none', color: '#38BDF8', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px' }}
             >
-              ← Chats
+              <ArrowLeft size={12} /> Chats
             </button>
           )}
           <button 
@@ -438,24 +456,30 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                   No hay chats activos. ¡Inicia uno nuevo!
                 </div>
               ) : (
-                rooms.map(room => (
-                  <div 
-                    key={room.id}
-                    onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
-                    style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.2s' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <div>
-                      <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
-                        {getRoomTitle(room)}
+                rooms.map(room => {
+                  const peerName = getRoomTitle(room);
+                  return (
+                    <div 
+                      key={room.id}
+                      onClick={() => { setActiveTabId(room.id); setView('chat'); setUnreadCount(0); }}
+                      style={{ padding: '12px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '12px', fontWeight: 600 }}>
+                        {peerName.charAt(0).toUpperCase()}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                        {room.is_group ? 'Grupo de trabajo' : 'Chat Directo Hospitalario'}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', color: '#F8FAFC', fontWeight: 600 }}>
+                          {peerName}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                          {room.is_group ? 'Grupo de trabajo' : 'Chat Directo Hospitalario'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -480,7 +504,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                       onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
-                      <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 600 }}>
+                      <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '11px', fontWeight: 600 }}>
                         {user.username?.charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -590,7 +614,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 />
 
                 <button onClick={() => sendMessage()} style={{ background: '#2563EB', border: 'none', color: '#FFF', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer' }}>
-                  <Send size={14} />
+                  <Send size= {14} />
                 </button>
               </div>
             </>
