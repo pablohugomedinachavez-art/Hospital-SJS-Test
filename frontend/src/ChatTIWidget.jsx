@@ -64,23 +64,38 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // Función restaurada y corregida para mostrar correctamente el nombre del usuario
+  // Cargar mensajes históricos de la sala activa desde Supabase para garantizar persistencia
+  useEffect(() => {
+    if (!activeTabId || !supabase) return;
+
+    const fetchHistoryMessages = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('room_id', activeTabId)
+          .order('created_at', { ascending: true });
+
+        if (!error && data) {
+          setMessages(prev => ({
+            ...prev,
+            [activeTabId]: data
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching message history:', err);
+      }
+    };
+
+    fetchHistoryMessages();
+  }, [activeTabId, supabase]);
+
+  // Función robusta para mostrar el nombre real del usuario con quien se habla
   const getRoomTitle = (room) => {
     if (!room) return 'Chat TI';
-    if (room.is_group) return room.name || 'Grupo de trabajo';
+    if (room.is_group) return room.name && room.name !== 'Chat directo' ? room.name : 'Grupo de trabajo';
     
-    // 1. Priorizar el nombre directo que viene en la sala (ej. 'admin')
-    if (room.name && room.name.toLowerCase() !== 'chat directo' && room.name.toLowerCase() !== 'chat privado') {
-      return room.name;
-    }
-    
-    // 2. Revisar otras propiedades alternativas
-    if (room.recipient_name && room.recipient_name.toLowerCase() !== 'chat directo') return room.recipient_name;
-    if (room.other_username && room.other_username.toLowerCase() !== 'chat directo') return room.other_username;
-    if (room.user_name && room.user_name.toLowerCase() !== 'chat directo') return room.user_name;
-    if (room.username && room.username.toLowerCase() !== 'chat directo') return room.username;
-
-    // 3. Buscar dentro del arreglo de participantes
+    // 1. Buscar dentro del arreglo de participantes al usuario que NO es el actual
     if (room.participants && Array.isArray(room.participants)) {
       const otherUser = room.participants.find(p => {
         const participantId = p.user_id || p.id || p.userId;
@@ -92,11 +107,25 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         if (otherUser.user?.username) return otherUser.user.username;
       }
     }
+
+    // 2. Revisar propiedades directas de la sala si contienen nombres específicos
+    if (room.recipient_name && room.recipient_name.toLowerCase() !== 'chat directo' && room.recipient_name.toLowerCase() !== 'chat privado') {
+      return room.recipient_name;
+    }
+    if (room.other_username && room.other_username.toLowerCase() !== 'chat directo') {
+      return room.other_username;
+    }
+    if (room.username && room.username.toLowerCase() !== 'chat directo') {
+      return room.username;
+    }
+    if (room.name && room.name.toLowerCase() !== 'chat directo' && room.name.toLowerCase() !== 'chat privado') {
+      return room.name;
+    }
     
-    return 'Chat Privado';
+    return 'Conversación Directa';
   };
 
-  // Manejar la selección de usuario evitando duplicados
+  // Manejar selección de usuario evitando duplicar salas
   const handleSelectUserToChat = async (recipientId) => {
     try {
       const existingRoom = rooms.find(room => {
@@ -149,14 +178,16 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
           if (newMsg.sender_id !== currentUser?.id) {
             playNewMessageSound();
-            setUnreadCount(count => count + 1);
+            if (newMsg.room_id !== activeTabId) {
+              setUnreadCount(count => count + 1);
+            }
           }
         }
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [isOpen, currentUser]);
+  }, [isOpen, currentUser, activeTabId]);
 
   // Scroll to bottom on new message
   useEffect(() => {
@@ -208,7 +239,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) videoRef.current.srcObject = stream;
     } catch (e) {
-      alert('Unable to access camera.');
+      alert('No se pudo acceder a la cámara.');
       setShowCamera(false);
     }
   };
@@ -255,7 +286,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         setMediaRecorder(recorder);
         setIsRecordingAudio(true);
       } catch (e) {
-        alert('Microphone access denied.');
+        alert('Acceso al micrófono denegado.');
       }
     }
   };
@@ -272,7 +303,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         sendMessage('', attachment_url, type);
       }
     } catch (err) {
-      console.error('Upload failed:', err);
+      console.error('Error al subir archivo:', err);
     }
   };
 
@@ -346,7 +377,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Move size={14} className="text-slate-400" />
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#F8FAFC' }}>
-            {view === 'chat' && activeRoom ? getRoomTitle(activeRoom) : view === 'new_chat' ? 'Nuevo Chat' : 'Chat TI'} 
+            {view === 'chat' && activeRoom ? getRoomTitle(activeRoom) : view === 'new_chat' ? 'Nuevo Chat' : 'Chat Hospital'} 
             {unreadCount > 0 && view !== 'chat' && ` (${unreadCount})`}
           </span>
         </div>
@@ -392,7 +423,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
               {rooms.length === 0 ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
-                  No tienes chats activos. ¡Inicia uno nuevo!
+                  No hay chats activos. ¡Inicia uno nuevo!
                 </div>
               ) : (
                 rooms.map(room => (
@@ -408,7 +439,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                         {getRoomTitle(room)}
                       </div>
                       <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                        {room.is_group ? 'Grupo de trabajo' : (room.recipient_area || room.department || 'Chat directo')}
+                        {room.is_group ? 'Grupo de trabajo' : (room.recipient_area || room.department || 'Personal Médico / Operativo')}
                       </div>
                     </div>
                   </div>
@@ -421,11 +452,11 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
           {view === 'new_chat' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#0B0F19', overflowY: 'auto' }}>
               <div style={{ padding: '10px 14px', borderBottom: '1px solid #1E293B', fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>
-                Selecciona un usuario para chatear
+                Selecciona un trabajador del hospital
               </div>
 
               {loadingUsers ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>Cargando usuarios...</div>
+                <div style={{ padding: '24px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>Cargando personal...</div>
               ) : (
                 allUsers
                   .filter(u => u.id !== currentUser?.id)
@@ -443,7 +474,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                       <div>
                         <div style={{ fontSize: '12px', color: '#F8FAFC', fontWeight: 600 }}>{user.username}</div>
                         <div style={{ fontSize: '10px', color: '#94A3B8' }}>
-                          {user.area || user.department || user.role || 'Soporte / General'} • ID: {user.id ? String(user.id).slice(0, 6) + '...' : 'N/D'}
+                          {user.area || user.department || user.role || 'Área general'}
                         </div>
                       </div>
                     </div>
@@ -464,9 +495,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                       {!isMe && (
                         <div style={{ fontSize: '10px', color: '#38BDF8', fontWeight: 600, display: 'flex', gap: '6px', marginBottom: '2px', alignItems: 'center' }}>
                           <span>{msg.sender_name}</span>
-                          <span style={{ color: '#94A3B8', fontSize: '9px' }}>
-                            {msg.sender_area ? `(${msg.sender_area})` : ''} {msg.sender_id ? `[ID: ${String(msg.sender_id).slice(0, 6)}...]` : ''}
-                          </span>
                         </div>
                       )}
 
