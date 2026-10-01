@@ -19,6 +19,16 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const [allUsers, setAllUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
+  // Mapa dinámico de nombres de usuario por sala (Persistente con localStorage para sobrevivir recargas)
+  const [roomPeerMap, setRoomPeerMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hospital_chat_peers');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   // Position & Drag state
   const [position, setPosition] = useState({ right: 30, bottom: 20 });
   const [isDragging, setIsDragging] = useState(false);
@@ -32,7 +42,16 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
 
-  // Load User's Chat Rooms (Debe incluir el join con chat_participants y users)
+  // Guardar en localStorage cuando cambie el mapa de nombres
+  useEffect(() => {
+    try {
+      localStorage.setItem('hospital_chat_peers', JSON.stringify(roomPeerMap));
+    } catch (err) {
+      console.error('Error saving chat peers:', err);
+    }
+  }, [roomPeerMap]);
+
+  // Load User's Chat Rooms
   const fetchRooms = async () => {
     try {
       const res = await apiFetch('/chat/rooms');
@@ -64,7 +83,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // Cargar mensajes históricos de la sala activa desde Supabase para garantizar persistencia
+  // Cargar mensajes históricos de la sala activa desde Supabase
   useEffect(() => {
     if (!activeTabId || !supabase) return;
 
@@ -90,51 +109,59 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     fetchHistoryMessages();
   }, [activeTabId, supabase]);
 
-  // Función optimizada para extraer el username del otro participante según tu esquema relacional
+  // Función flexible y dinámica para obtener el título del chat
   const getRoomTitle = (room) => {
     if (!room) return 'Chat TI';
     if (room.is_group) return room.name || 'Grupo de Trabajo';
     
-    // Si el backend incluye los participantes con sus datos de la tabla users
-    if (room.participants && Array.isArray(room.participants)) {
-      const otherParticipant = room.participants.find(p => {
-        const pUserId = p.user_id || p.id;
-        return pUserId !== currentUser?.id;
-      });
+    // 1. Prioridad absoluta al mapa dinámico local de la BD
+    if (roomPeerMap[room.id]) {
+      return roomPeerMap[room.id];
+    }
 
-      if (otherParticipant) {
-        // Soporta tanto si viene directo (username) como si viene anidado por un join de Supabase/SQL
-        return otherParticipant.username || otherParticipant.users?.username || 'Personal Hospital';
+    // 2. Si la sala trae participantes de la BD
+    if (room.participants && Array.isArray(room.participants)) {
+      const other = room.participants.find(p => (p.user_id || p.id) !== currentUser?.id);
+      if (other && (other.username || other.users?.username)) {
+        return other.username || other.users?.username;
       }
     }
 
-    // Fallbacks alternativos por si la API envía propiedades directas
-    return room.recipient_username || room.username || room.name || 'Chat Privado';
+    return room.recipient_username || room.username || 'Chat Directo';
   };
 
-  // Manejar selección de usuario evitando duplicar salas
-  const handleSelectUserToChat = async (recipientId) => {
+  // Enlazar dinámicamente el chat al seleccionar un usuario del directorio
+  const handleSelectUserToChat = async (targetUser) => {
     try {
+      // Buscar si ya existe una sala con este usuario
       const existingRoom = rooms.find(room => {
         if (room.is_group) return false;
-        return room.participants?.some(p => (p.user_id || p.id) === recipientId);
+        return room.participants?.some(p => (p.user_id || p.id) === targetUser.id);
       });
 
+      let roomId;
       if (existingRoom) {
-        setActiveTabId(existingRoom.id);
-        setView('chat');
-        return;
+        roomId = existingRoom.id;
+      } else {
+        const res = await apiFetch('/chat/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipient_id: targetUser.id })
+        });
+        if (res.ok) {
+          const newRoom = await res.json();
+          roomId = newRoom.id || newRoom.room_id;
+          await fetchRooms();
+        }
       }
 
-      const res = await apiFetch('/chat/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipient_id: recipientId })
-      });
-      if (res.ok) {
-        const room = await res.json();
-        await fetchRooms();
-        setActiveTabId(room.id || room.room_id);
+      if (roomId) {
+        // Asociar dinámicamente el ID de la sala con el username de la BD obtenido al seleccionarlo
+        setRoomPeerMap(prev => ({
+          ...prev,
+          [roomId]: targetUser.username
+        }));
+        setActiveTabId(roomId);
         setView('chat');
       }
     } catch (err) {
@@ -448,7 +475,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                   .map(user => (
                     <div 
                       key={user.id}
-                      onClick={() => handleSelectUserToChat(user.id)}
+                      onClick={() => handleSelectUserToChat(user)}
                       style={{ padding: '10px 14px', borderBottom: '1px solid #1E293B', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }}
                       onMouseEnter={(e) => e.currentTarget.style.background = '#1E293B'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
