@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Minimize2, Maximize2, Send, Paperclip, Camera, Mic, 
-  Users, User, Circle, Image, FileText, CheckCheck, Move 
+  Users, User, FileText, Move 
 } from 'lucide-react';
 import { playNewMessageSound } from './chatSound';
 import { apiFetch } from './api';
@@ -32,7 +32,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const fileInputRef = useRef(null);
   const chatEndRef = useRef(null);
 
-  // Load User's Chat Rooms
+  // Load User's Chat Rooms (Debe incluir el join con chat_participants y users)
   const fetchRooms = async () => {
     try {
       const res = await apiFetch('/chat/rooms');
@@ -90,39 +90,26 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     fetchHistoryMessages();
   }, [activeTabId, supabase]);
 
-  // Función robusta para mostrar el nombre real del usuario con quien se habla
+  // Función optimizada para extraer el username del otro participante según tu esquema relacional
   const getRoomTitle = (room) => {
     if (!room) return 'Chat TI';
-    if (room.is_group) return room.name && room.name !== 'Chat directo' ? room.name : 'Grupo de trabajo';
+    if (room.is_group) return room.name || 'Grupo de Trabajo';
     
-    // 1. Buscar dentro del arreglo de participantes al usuario que NO es el actual
+    // Si el backend incluye los participantes con sus datos de la tabla users
     if (room.participants && Array.isArray(room.participants)) {
-      const otherUser = room.participants.find(p => {
-        const participantId = p.user_id || p.id || p.userId;
-        return participantId !== currentUser?.id;
+      const otherParticipant = room.participants.find(p => {
+        const pUserId = p.user_id || p.id;
+        return pUserId !== currentUser?.id;
       });
-      if (otherUser) {
-        if (otherUser.username) return otherUser.username;
-        if (otherUser.name) return otherUser.name;
-        if (otherUser.user?.username) return otherUser.user.username;
+
+      if (otherParticipant) {
+        // Soporta tanto si viene directo (username) como si viene anidado por un join de Supabase/SQL
+        return otherParticipant.username || otherParticipant.users?.username || 'Personal Hospital';
       }
     }
 
-    // 2. Revisar propiedades directas de la sala si contienen nombres específicos
-    if (room.recipient_name && room.recipient_name.toLowerCase() !== 'chat directo' && room.recipient_name.toLowerCase() !== 'chat privado') {
-      return room.recipient_name;
-    }
-    if (room.other_username && room.other_username.toLowerCase() !== 'chat directo') {
-      return room.other_username;
-    }
-    if (room.username && room.username.toLowerCase() !== 'chat directo') {
-      return room.username;
-    }
-    if (room.name && room.name.toLowerCase() !== 'chat directo' && room.name.toLowerCase() !== 'chat privado') {
-      return room.name;
-    }
-    
-    return 'Conversación Directa';
+    // Fallbacks alternativos por si la API envía propiedades directas
+    return room.recipient_username || room.username || room.name || 'Chat Privado';
   };
 
   // Manejar selección de usuario evitando duplicar salas
@@ -130,9 +117,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     try {
       const existingRoom = rooms.find(room => {
         if (room.is_group) return false;
-        const matchRecipient = room.recipient_id === recipientId || room.user_id === recipientId;
-        const matchParticipant = room.participants?.some(p => (p.user_id || p.id || p.userId) === recipientId);
-        return matchRecipient || matchParticipant;
+        return room.participants?.some(p => (p.user_id || p.id) === recipientId);
       });
 
       if (existingRoom) {
@@ -439,7 +424,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                         {getRoomTitle(room)}
                       </div>
                       <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                        {room.is_group ? 'Grupo de trabajo' : (room.recipient_area || room.department || 'Personal Médico / Operativo')}
+                        {room.is_group ? 'Grupo de trabajo' : 'Chat Directo Hospitalario'}
                       </div>
                     </div>
                   </div>
@@ -474,7 +459,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                       <div>
                         <div style={{ fontSize: '12px', color: '#F8FAFC', fontWeight: 600 }}>{user.username}</div>
                         <div style={{ fontSize: '10px', color: '#94A3B8' }}>
-                          {user.area || user.department || user.role || 'Área general'}
+                          Rol: {user.role || 'Personal'}
                         </div>
                       </div>
                     </div>
