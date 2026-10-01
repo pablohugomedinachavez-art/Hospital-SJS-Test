@@ -64,18 +64,23 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // Función robusta para extraer el nombre de usuario real y evitar "Chat Directo"
+  // Función restaurada y corregida para mostrar correctamente el nombre del usuario
   const getRoomTitle = (room) => {
     if (!room) return 'Chat TI';
-    if (room.is_group) return room.name && room.name !== 'Chat Directo' && room.name !== 'Chat directo' ? room.name : 'Grupo de trabajo';
+    if (room.is_group) return room.name || 'Grupo de trabajo';
     
-    // 1. Revisar propiedades directas del objeto room
+    // 1. Priorizar el nombre directo que viene en la sala (ej. 'admin')
+    if (room.name && room.name.toLowerCase() !== 'chat directo' && room.name.toLowerCase() !== 'chat privado') {
+      return room.name;
+    }
+    
+    // 2. Revisar otras propiedades alternativas
     if (room.recipient_name && room.recipient_name.toLowerCase() !== 'chat directo') return room.recipient_name;
     if (room.other_username && room.other_username.toLowerCase() !== 'chat directo') return room.other_username;
     if (room.user_name && room.user_name.toLowerCase() !== 'chat directo') return room.user_name;
     if (room.username && room.username.toLowerCase() !== 'chat directo') return room.username;
 
-    // 2. Buscar dentro del arreglo de participantes
+    // 3. Buscar dentro del arreglo de participantes
     if (room.participants && Array.isArray(room.participants)) {
       const otherUser = room.participants.find(p => {
         const participantId = p.user_id || p.id || p.userId;
@@ -88,15 +93,10 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       }
     }
     
-    // 3. Fallback a room.name si no es un texto genérico
-    if (room.name && room.name.toLowerCase() !== 'chat directo' && room.name.toLowerCase() !== 'chat privado') {
-      return room.name;
-    }
-    
-    return 'Conversación Privada';
+    return 'Chat Privado';
   };
 
-  // Manejar la selección de usuario evitando duplicados de forma robusta
+  // Manejar la selección de usuario evitando duplicados
   const handleSelectUserToChat = async (recipientId) => {
     try {
       const existingRoom = rooms.find(room => {
@@ -408,7 +408,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                         {getRoomTitle(room)}
                       </div>
                       <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                        {room.is_group ? 'Grupo de trabajo' : (room.recipient_area || room.department || 'Chat privado')}
+                        {room.is_group ? 'Grupo de trabajo' : (room.recipient_area || room.department || 'Chat directo')}
                       </div>
                     </div>
                   </div>
@@ -534,7 +534,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 <input 
                   type="text"
                   value={inputText}
-                  onChange={(e) => setInputTest(e.target.value)}
+                  onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                   placeholder="Escribe un mensaje..."
                   style={{
