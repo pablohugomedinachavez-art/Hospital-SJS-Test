@@ -488,7 +488,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                           {peerName}
                         </div>
                         <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                          {room.is_group ? 'Grupo de trabajo' : 'Chat Directo Hospitalario'}
+                          {room.is_group ? 'Grupo de trabajo' : (room.recipient_username || room.username || room.recipient_id || room.user_id || peerName)}
                         </div>
                       </div>
                     </div>
