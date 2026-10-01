@@ -1,30 +1,32 @@
 import React, { useState, useEffect } from 'react'
-import { ChatTIWidget } from './ChatTIWidget';
+import { ChatTIWidget } from './ChatTIWidget'
 import './styles.css'
-import { Patients, Consultations, Appointments, Documents, Reports, Locations, 
+import { 
+  Patients, Consultations, Appointments, Documents, Reports, Locations, 
   Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
-  dashboard2 } from './hospitalModules'
+  dashboard2 
+} from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
 import {
-  User,MessageSquare,MessageCircle,Bell, 
-  ChevronDown,Mail,ShieldCheck,Shiel,  UserPlus, Shield, MapPin, Key, ArrowLeft,
-   Plus, Edit3, Trash2, AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, 
-   Clock, FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, 
-   FileX, FileSearch, FileEdit, X, Save, Eye, ExternalLink, Download, Award, Search,
-    Filter, Scale, Ruler, HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, 
-    Monitor, Server, Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, 
-    TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, ArrowUpRight, 
-    ArrowDownRight,} from 'lucide-react';
+  User, MessageSquare, MessageCircle, Bell, ChevronDown, Mail, ShieldCheck, 
+  UserPlus, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2, AlertTriangle, 
+  Stethoscope, UserCheck, Printer, Calendar, Clock, FileText, Phone, Heart, 
+  Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit, 
+  X, Save, Eye, ExternalLink, Download, Award, Search, Filter, Scale, Ruler, 
+  HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, 
+  Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, 
+  TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, 
+  ArrowUpRight, ArrowDownRight
+} from 'lucide-react'
 
-import { createClient } from '@supabase/supabase-js'; // Ensure it's @supabase/supabase-js
+import { createClient } from '@supabase/supabase-js'
 
-// 1. Initialize Supabase Client using Vite environment variables
+// Inicialización del cliente Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -37,7 +39,7 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error(" Error capturado por ErrorBoundary:", error, errorInfo);
+    console.error("Error capturado por ErrorBoundary:", error, errorInfo);
   }
 
   render() {
@@ -67,12 +69,7 @@ export class ErrorBoundary extends React.Component {
   }
 }
 
-
-<ErrorBoundary>
-  <Dashboard />
-</ErrorBoundary>
-
-// 1. ROUTE MAP DEFINED AT TOP LEVEL
+// Mapa de rutas de navegación
 const ROUTES_MAP = {
   '/dashboard': Dashboard,
   '/patients': Patients,
@@ -90,15 +87,11 @@ const ROUTES_MAP = {
   '/dashboard2': dashboard2,
 }
 
-// 2. DEFAULT PANEL DEFINED AT TOP LEVEL
-const DefaultPanel = () => (
-  <div className="card">
-    <h2>Panel Principal</h2>
-    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-      Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
-    </p>
-  </div>
-)
+const normalizeRoute = (hash) => {
+  const route = String(hash || '').replace(/^#/, '')
+  if (!route || route === '/' || route === '/home') return '/login'
+  return route
+}
 
 const Icons = {
   Dashboard: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
@@ -109,19 +102,11 @@ const Icons = {
   Account: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
 }
 
-const normalizeRoute = (hash) => {
-  const route = String(hash || '').replace(/^#/, '')
-  if (!route || route === '/' || route === '/home') return '/login'
-  return route
-}
-
 function Sidebar({ currentRoute }) {
   const { user, logout } = useAuth()
   const [openSections, setOpenSections] = useState({
     dashboard: true, clinical: true, operations: true, users: true, reports: true, account: true
   })
-
-  
 
   const hasPermission = (permission) => {
     const permissions = user?.permissions || user?.user_metadata?.permissions || []
@@ -322,7 +307,7 @@ function Alerts() {
           fontSize: '0.9rem',
           display: 'flex',
           alignItems: 'center',
-          justifyInContent: 'space-between'
+          justifyContent: 'space-between'
         }}>
           <span>{info}</span>
           <button onClick={() => setInfo('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>
@@ -444,7 +429,7 @@ function AppHeader({ onOpenChat, unreadChatCount }) {
 
   return (
     <header className="app-header">
-      <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', items: 'center', gap: '0.5rem' }}>
         <span style={{ color: 'var(--primary)' }}>•</span> Panel General
       </div>
 
@@ -471,29 +456,6 @@ function AppHeader({ onOpenChat, unreadChatCount }) {
     </header>
   );
 }
-// Dentro del componente AppContent en App.jsx:
-useEffect(() => {
-  if (!user?.id) return;
-
-  // Escuchar mensajes entrantes cuando el chat está cerrado
-  const channel = supabase
-    .channel('global_unread_notifications')
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'chat_messages'
-    }, (payload) => {
-      // Si el mensaje lo envía otro usuario y el widget está cerrado, incrementamos el contador
-      if (payload.new.sender_id !== user.id && !isChatOpen) {
-        setUnreadChatCount(prev => prev + 1);
-      }
-    })
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [user, isChatOpen]);
 
 function AppContent() {
   const { user } = useAuth();
@@ -501,7 +463,7 @@ function AppContent() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
-  // Listen to hash changes for routing
+  // Escuchar cambios de hash para la navegación entre módulos
   useEffect(() => {
     const handleHashChange = () => {
       setRoute(normalizeRoute(window.location.hash));
@@ -510,8 +472,28 @@ function AppContent() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  
-  // Define the missing renderRoute function
+  // Escuchar mensajes no leídos globalmente cuando el chat está cerrado
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('global_unread_notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages'
+      }, (payload) => {
+        if (payload.new.sender_id !== user.id && !isChatOpen) {
+          setUnreadChatCount(prev => prev + 1);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isChatOpen]);
+
   const renderRoute = () => {
     const Component = ROUTES_MAP[route] || ROUTES_MAP['/dashboard'];
     return <Component />;
@@ -526,10 +508,12 @@ function AppContent() {
           unreadChatCount={unreadChatCount} 
         />
         
-        {/* Main Content Modules */}
-        {renderRoute()}
+        {/* Módulos de Contenido Principal envueltos en ErrorBoundary */}
+        <ErrorBoundary>
+          {renderRoute()}
+        </ErrorBoundary>
 
-        {/* Floating Functional Chat TI Widget */}
+        {/* Widget Flotante del Chat TI */}
         <ChatTIWidget 
           currentUser={user}
           supabase={supabase}
