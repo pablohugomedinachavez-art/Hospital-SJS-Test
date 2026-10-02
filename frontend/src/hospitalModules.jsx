@@ -4520,7 +4520,7 @@ export function Dashboard() {
                     <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
                     <input
                       type="text"
-                      placeholder="Buscar usuario..."
+                      placeholder="    Buscar usuario..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-blue-500"

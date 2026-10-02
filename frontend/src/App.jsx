@@ -1,22 +1,32 @@
 import React, { useState, useEffect } from 'react'
-
+import { ChatTIWidget } from './ChatTIWidget'
 import './styles.css'
-import { Patients, Consultations, Appointments, Documents, Reports, Locations, 
+import { 
+  Patients, Consultations, Appointments, Documents, Reports, Locations, 
   Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
-  dashboard2 } from './hospitalModules'
+  dashboard2 
+} from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
 import {
-  User,MessageSquare,MessageCircle,Bell, 
-  ChevronDown,Mail,ShieldCheck,Shiel,  UserPlus, Shield, MapPin, Key, ArrowLeft,
-   Plus, Edit3, Trash2, AlertTriangle, Stethoscope, UserCheck, Printer, Calendar, 
-   Clock, FileText, Phone, Heart, Activity, File, FilePlus, FileMinus, FileCheck, 
-   FileX, FileSearch, FileEdit, X, Save, Eye, ExternalLink, Download, Award, Search,
-    Filter, Scale, Ruler, HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, 
-    Monitor, Server, Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, 
-    TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, ArrowUpRight, 
-    ArrowDownRight,} from 'lucide-react';
+  User, MessageSquare, MessageCircle, Bell, ChevronDown, Mail, ShieldCheck, 
+  UserPlus, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2, AlertTriangle, 
+  Stethoscope, UserCheck, Printer, Calendar, Clock, FileText, Phone, Heart, 
+  Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit, 
+  X, Save, Eye, ExternalLink, Download, Award, Search, Filter, Scale, Ruler, 
+  HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, 
+  Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, 
+  TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, 
+  ArrowUpRight, ArrowDownRight
+} from 'lucide-react'
+
+import { createClient } from '@supabase/supabase-js'
+
+// Inicialización del cliente Supabase
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -29,7 +39,7 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error(" Error capturado por ErrorBoundary:", error, errorInfo);
+    console.error("Error capturado por ErrorBoundary:", error, errorInfo);
   }
 
   render() {
@@ -59,12 +69,7 @@ export class ErrorBoundary extends React.Component {
   }
 }
 
-
-<ErrorBoundary>
-  <Dashboard />
-</ErrorBoundary>
-
-// 1. ROUTE MAP DEFINED AT TOP LEVEL
+// Mapa de rutas de navegación
 const ROUTES_MAP = {
   '/dashboard': Dashboard,
   '/patients': Patients,
@@ -82,15 +87,11 @@ const ROUTES_MAP = {
   '/dashboard2': dashboard2,
 }
 
-// 2. DEFAULT PANEL DEFINED AT TOP LEVEL
-const DefaultPanel = () => (
-  <div className="card">
-    <h2>Panel Principal</h2>
-    <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-      Pase el cursor sobre el extremo izquierdo para acceder al menú de navegación.
-    </p>
-  </div>
-)
+const normalizeRoute = (hash) => {
+  const route = String(hash || '').replace(/^#/, '')
+  if (!route || route === '/' || route === '/home') return '/login'
+  return route
+}
 
 const Icons = {
   Dashboard: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
@@ -99,12 +100,6 @@ const Icons = {
   Users: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
   Reports: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
   Account: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-}
-
-const normalizeRoute = (hash) => {
-  const route = String(hash || '').replace(/^#/, '')
-  if (!route || route === '/' || route === '/home') return '/login'
-  return route
 }
 
 function Sidebar({ currentRoute }) {
@@ -312,7 +307,7 @@ function Alerts() {
           fontSize: '0.9rem',
           display: 'flex',
           alignItems: 'center',
-          justifyInContent: 'space-between'
+          justifyContent: 'space-between'
         }}>
           <span>{info}</span>
           <button onClick={() => setInfo('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>
@@ -429,133 +424,105 @@ function Alerts() {
   )
 }
 
-function AppHeader() {
-  const { user } = useAuth()
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const unreadAlertsCount = 3;
-  const unreadMessagesCount = 2;
+function AppHeader({ onOpenChat, unreadChatCount }) {
+  const { user } = useAuth();
+
   return (
     <header className="app-header">
-      <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', items: 'center', gap: '0.5rem' }}>
         <span style={{ color: 'var(--primary)' }}>•</span> Panel General
-        {/* CABECERA SUPERIOR CON ESTADO EN VIVO */}
-          <div className="flex items-center gap-3 text-xs font-semibold text-slate-200">
-            <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Sistema Operativo (Ping: 18ms)</span>
-            </div>
-            <span className="hidden md:inline text-slate-600">|</span>
-            <span className="hidden md:inline text-slate-400">Última sincronización: Hace 2 min</span>
-          </div>
-        
-
-        
-
       </div>
-      
+
       {user && (
-        
-        <div className="user-badge">
-          {/* Botonera de Acción Global con Chat y Alertas (Red Bubbles) */}
-          <div className="flex items-center gap-2 self-start md:self-auto">
-            
-            {/* Chat TI Button with Badge */}
-            <div className="relative">
-              <button 
-                onClick={() => alert('Abriendo centro de chat con soporte médico y TI...')}
-                className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-blue-500/50 transition-all cursor-pointer relative"
-              >
-                <MessageSquare size={14} className="text-cyan-400" />
-                <span>Chat TI</span>
-              </button>
-              {unreadMessagesCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
-                  {unreadMessagesCount}
-                </span>
-              )}
-            </div>
+        <div className="user-badge flex items-center gap-3">
+          {/* Botón de Chat TI en el Header */}
+          <button 
+            onClick={onOpenChat}
+            className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-cyan-500/50 transition-all cursor-pointer relative"
+          >
+            <MessageSquare size={14} className="text-cyan-400" />
+            <span>Chat TI</span>
+            {unreadChatCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
+                {unreadChatCount}
+              </span>
+            )}
+          </button>
 
-            {/* Alertas Button with Dropdown & Red Bubble */}
-            <div className="relative">
-              <button 
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="btn btn-secondary flex items-center gap-2 shrink-0 text-xs py-2 px-3 hover:border-amber-500/50 transition-all cursor-pointer relative"
-              >
-                <Bell size={14} className="text-amber-400" />
-                <span>Alertas</span>
-              </button>
-              {unreadAlertsCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-600 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19]">
-                  {unreadAlertsCount}
-                </span>
-              )}
-
-              {/* Popup de Alertas */}
-              {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-[#111827] border border-slate-700 rounded-xl shadow-2xl z-50 p-4 text-left">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-800 mb-3">
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">Centro de Alertas TI</h3>
-                    <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-0.5 rounded font-medium">3 Nuevas</span>
-                  </div>
-                  <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-                    <div className="p-2.5 bg-red-950/30 border border-red-900/50 rounded-lg text-xs">
-                      <p className="font-semibold text-red-300">Falla de Servidor - Rayos X</p>
-                      <p className="text-slate-400 mt-0.5 text-[11px]">Sede Central - Nodo 04 desconectado por timeout.</p>
-                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 4 minutos</span>
-                    </div>
-                    <div className="p-2.5 bg-yellow-950/30 border border-yellow-900/50 rounded-lg text-xs">
-                      <p className="font-semibold text-yellow-300">Alto uso de CPU (92%)</p>
-                      <p className="text-slate-400 mt-0.5 text-[11px]">Servidor de Historias Clínicas Electrónicas.</p>
-                      <span className="text-[9px] text-slate-500 mt-1 block">Hace 15 minutos</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
           <div className="avatar-circle">{(user.username || user.email || 'U')[0].toUpperCase()}</div>
           <span>{user.username || user.email}</span>
         </div>
       )}
     </header>
-  )
+  );
 }
 
 function AppContent() {
-  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash))
+  const { user } = useAuth();
+  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
+  // Escuchar cambios de hash para la navegación entre módulos
   useEffect(() => {
-    const handleHashChange = () => setRoute(normalizeRoute(window.location.hash))
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [])
+    const handleHashChange = () => {
+      setRoute(normalizeRoute(window.location.hash));
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Escuchar mensajes no leídos globalmente cuando el chat está cerrado
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('global_unread_notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages'
+      }, (payload) => {
+        if (payload.new.sender_id !== user.id && !isChatOpen) {
+          setUnreadChatCount(prev => prev + 1);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isChatOpen]);
 
   const renderRoute = () => {
-    const targetRoute = route || '/dashboard'
-    const ActiveComponent = ROUTES_MAP[targetRoute]
-
-    if (ROUTES_MAP.hasOwnProperty(targetRoute) && !ActiveComponent) {
-      return (
-        <div className="card" style={{ padding: '2rem', border: '1px solid #ef4444' }}>
-          <h3 style={{ color: '#ef4444' }}>Error de Importación</h3>
-          <p>El componente para la ruta <code>{targetRoute}</code> está siendo importado como <code>undefined</code>.</p>
-          <small>Revisa las exportaciones en <code>hospitalModules.js</code> o la importación de <code>DeviceManagementDashboard</code>.</small>
-        </div>
-      )
-    }
-
-    return ActiveComponent ? <ActiveComponent /> : <DefaultPanel />
-  }
+    const Component = ROUTES_MAP[route] || ROUTES_MAP['/dashboard'];
+    return <Component />;
+  };
 
   return (
     <div className="app-layout">
       <Sidebar currentRoute={route} />
       <main className="main-content">
-        <AppHeader />
-        {renderRoute()}
+        <AppHeader 
+          onOpenChat={() => { setIsChatOpen(true); setUnreadChatCount(0); }} 
+          unreadChatCount={unreadChatCount} 
+        />
+        
+        {/* Módulos de Contenido Principal envueltos en ErrorBoundary */}
+        <ErrorBoundary>
+          {renderRoute()}
+        </ErrorBoundary>
+
+        {/* Widget Flotante del Chat TI */}
+        <ChatTIWidget 
+          currentUser={user}
+          supabase={supabase}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+        />
       </main>
     </div>
-  )
+  );
 }
 
 function MainApp() {
@@ -591,202 +558,5 @@ export default function App() {
     <AuthProvider>
       <MainApp />
     </AuthProvider>
-  )
-}
-
-export function ChatRoom({ roomId, currentUser }) {
-  const [messages, setMessages] = useState([])
-  const [newMessage, setNewMessage] = useState('')
-  const [loading, setLoading] = useState(true)
-  const messagesEndRef = useRef(null)
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  useEffect(() => {
-    const fetchMessages = async () => {
-      setLoading(true)
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true })
-
-      if (error) {
-        console.error('Error al cargar mensajes:', error.message)
-      } else {
-        setMessages(data || [])
-        // Marcar como leídos los mensajes ajenos que estén pendientes al abrir la sala
-        markPendingMessagesAsRead(data || [])
-      }
-      setLoading(false)
-    }
-
-    fetchMessages()
-
-    // Suscripción Realtime para nuevos mensajes y actualizaciones de estado
-    const channel = supabase
-      .channel(`room:${roomId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `room_id=eq.${roomId}`
-        },
-        (payload) => {
-          setMessages((prev) => [...prev5 => [...prev, payload.new]])
-          // Si el mensaje nuevo es de otra persona, marcarlo como leído automáticamente
-          if (payload.new.user_id !== currentUser?.id) {
-            markMessageAsRead(payload.new.id)
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `room_id=eq.${roomId}`
-        },
-        (payload) => {
-          // Actualizar el estado del mensaje en tiempo real (ej. cuando cambia a 'read')
-          setMessages((prev) =>
-            prev.map((msg) => (msg.id === payload.new.id ? payload.new : msg))
-          )
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [roomId, currentUser])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  // Función para marcar un mensaje individual como leído
-  const markMessageAsRead = async (messageId) => {
-    await supabase
-      .from('messages')
-      .update({ status: 'read' })
-      .eq('id', messageId)
-  }
-
-  // Marcar todos los mensajes que no son míos y siguen 'sent' como 'read'
-  const markPendingMessagesAsRead = async (msgs) => {
-    const unreadIds = msgs
-      .filter((msg) => msg.user_id !== currentUser?.id && msg.status !== 'read')
-      .map((msg) => msg.id)
-
-    if (unreadIds.length > 0) {
-      await supabase
-        .from('messages')
-        .update({ status: 'read' })
-        .in('id', unreadIds)
-    }
-  }
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault()
-    if (!newMessage.trim()) return
-
-    const messageData = {
-      room_id: roomId,
-      user_id: currentUser?.id,
-      username: currentUser?.username || 'Anónimo',
-      content: newMessage.trim(),
-      status: 'sent', // Estado inicial al enviar
-      created_at: new Date().toISOString()
-    }
-
-    const { error } = await supabase.from('messages').insert([messageData])
-
-    if (error) {
-      console.error('Error al enviar mensaje:', error.message)
-    } else {
-      setNewMessage('')
-    }
-  }
-
-  // Renderizador de iconos de estado (Check de enviado / doble check azul de leído)
-  const renderStatusIcon = (status, isMe) => {
-    if (!isMe) return null // Solo mostramos los ticks en los mensajes propios
-
-    if (status === 'read') {
-      return (
-        <span className="text-sky-400 font-bold text-xs ml-1" title="Leído">
-          ✓✓
-        </span>
-      )
-    } else {
-      return (
-        <span className="text-gray-400 text-xs ml-1" title="Enviado / No leído">
-          ✓
-        </span>
-      )
-    }
-  }
-
-  return (
-    <div className="flex flex-col h-full max-w-2xl mx-auto bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
-      <div className="bg-slate-800 text-white px-4 py-3 font-semibold">
-        Sala de Chat #{roomId}
-      </div>
-
-      <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50 min-h-[350px] max-h-[500px]">
-        {loading ? (
-          <div className="text-center text-gray-500 py-10">Cargando mensajes...</div>
-        ) : messages.length === 0 ? (
-          <div className="text-center text-gray-400 py-10">No hay mensajes aún.</div>
-        ) : (
-          messages.map((msg, index) => {
-            const isMe = msg.user_id === currentUser?.id
-            return (
-              <div
-                key={msg.id || index}
-                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-              >
-                <span className="text-xs text-gray-500 mb-1">
-                  {msg.username} • {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <div
-                  className={`px-4 py-2 rounded-lg max-w-xs md:max-w-md text-sm flex items-end gap-1 ${
-                    isMe
-                      ? 'bg-blue-600 text-white rounded-br-none'
-                      : 'bg-gray-200 text-gray-800 rounded-bl-none'
-                  }`}
-                >
-                  <span>{msg.content}</span>
-                  {renderStatusIcon(msg.status, isMe)}
-                </div>
-              </div>
-            )
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <form onSubmit={handleSendMessage} className="bg-white border-t border-gray-200 p-3 flex gap-2">
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Escribe un mensaje..."
-          className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-        />
-        <button
-          type="submit"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          Enviar
-        </button>
-      </form>
-    </div>
   )
 }

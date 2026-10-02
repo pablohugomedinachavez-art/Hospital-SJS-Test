@@ -94,7 +94,6 @@ CORS(app,
 
 db = SQLAlchemy(app)
 
-chat_bp = Blueprint('chat', __name__)
 
 url: str = os.environ.get("SUPABASE_URL")
 key: str = os.environ.get("SUPABASE_KEY")
@@ -127,7 +126,12 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 # Inicialización correcta y limpia para el servidor Flask
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
+# ==========================================
+# FUNCIONES AUXILIARES DE BASE DE DATOS PARA CHAT
+# ==========================================
+def get_db_connection():
+    """Alias compatible para mantener la conexión psycopg2."""
+    return get_db()
 # 5. Funciones auxiliares
 def now_utc():
     """Retorna timestamp UTC compatible sin fallos de atributo."""
@@ -794,11 +798,7 @@ def consultations_handler():
         return jsonify({'message': 'Consultation created', 'id': new_consultation['id']}), 201
 
 
-@chat_bp.route('/api/messages', methods=['GET'])
-def get_messages():
-    room = request.args.get('room', 'general')
-    response = supabase.table('messages').select("*").eq("room_id", room).order("created_at", desc=False).execute()
-    return jsonify(response.data), 200
+
 
 # ==========================================
 # ENDPOINT: SUBIR DOCUMENTO Y VINCULAR PACIENTE
@@ -2229,6 +2229,113 @@ def static_proxy(path):
     return send_from_directory(FRONTEND_DIR, 'index.html')
 
 
+# Add to app_3.py
+
+# ==========================================
+# ENDPOINTS PARA SISTEMA DE CHAT MULTIMEDIA
+# ==========================================
+
+@app.route('/api/chat/direct', methods=['POST'])
+@token_required
+def get_or_create_direct_chat():
+    """Valida que no exista más de un chat directo entre los dos mismos usuarios."""
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user1_id = claims['id']
+    data = request.get_json() or {}
+    user2_id = data.get('target_user_id')
+
+    if not user2_id:
+        return jsonify({'message': 'target_user_id es requerido'}), 400
+
+    if user1_id == user2_id:
+        return jsonify({'message': 'No puedes iniciar un chat contigo mismo'}), 400
+
+    # Buscar si ya existe un chat de tipo directo (is_group = False) con los mismos dos miembros
+    query = """
+        SELECT r.id 
+        FROM public.chat_rooms r
+        JOIN public.chat_room_members m1 ON r.id = m1.room_id AND m1.user_id = %s
+        JOIN public.chat_room_members m2 ON r.id = m2.room_id AND m2.user_id = %s
+        WHERE r.tenant_id = %s AND r.is_group = FALSE
+        LIMIT 1
+    """
+    existing_room = db_query(query, (user1_id, user2_id, tenant_id), fetchone=True)
+
+    if existing_room:
+        return jsonify({'room_id': existing_room['id'], 'is_new': False}), 200
+
+    # Si no existe, crear la sala e insertar los miembros
+    new_room = db_query(
+        "INSERT INTO public.chat_rooms (tenant_id, is_group, created_by) VALUES (%s, FALSE, %s) RETURNING id",
+        (tenant_id, user1_id), commit=True, fetchone=True
+    )
+    room_id = new_room['id']
+
+    db_query("INSERT INTO public.chat_room_members (room_id, user_id) VALUES (%s, %s), (%s, %s)",
+             (room_id, user1_id, room_id, user2_id), commit=True)
+
+    return jsonify({'room_id': room_id, 'is_new': True}), 201
+
+
+@app.route('/api/chat/group', methods=['POST'])
+@token_required
+def create_group_chat():
+    """Crea un grupo con nombre, descripción y múltiples usuarios."""
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    creator_id = claims['id']
+    data = request.get_json() or {}
+
+    name = data.get('name')
+    description = data.get('description', '')
+    member_ids = data.get('member_ids', [])
+
+    if not name or not member_ids:
+        return jsonify({'message': 'El nombre y al menos un miembro son obligatorios'}), 400
+
+    if creator_id not in member_ids:
+        member_ids.append(creator_id)
+
+    new_room = db_query(
+        "INSERT INTO public.chat_rooms (tenant_id, name, description, is_group, created_by) VALUES (%s, %s, %s, TRUE, %s) RETURNING id",
+        (tenant_id, name, description, creator_id), commit=True, fetchone=True
+    )
+    room_id = new_room['id']
+
+    for uid in set(member_ids):
+        db_query("INSERT INTO public.chat_room_members (room_id, user_id) VALUES (%s, %s)", (room_id, uid), commit=True)
+
+    return jsonify({'room_id': room_id, 'message': 'Grupo creado con éxito'}), 201
+
+
+@app.route('/api/chat/upload', methods=['POST'])
+@token_required
+def upload_chat_media():
+    """Sube multimedia (imágenes, archivos o audios) al bucket 'chat-attachments' de Supabase."""
+    file = request.files.get('file')
+    media_type = request.form.get('media_type', 'file')
+
+    if not file:
+        return jsonify({'message': 'Archivo no enviado'}), 400
+
+    try:
+        file_bytes = file.read()
+        filename = f"{int(time.time())}_{file.filename}"
+        storage_path = f"chat_media/{filename}"
+
+        supabase.storage.from_("chat-attachments").upload(
+            path=storage_path,
+            file=file_bytes,
+            file_options={"content-type": file.mimetype, "x-upsert": "true"}
+        )
+
+        public_url_res = supabase.storage.from_("chat-attachments").get_public_url(storage_path)
+        media_url = public_url_res if isinstance(public_url_res, str) else public_url_res.get('publicUrl')
+
+        return jsonify({'media_url': media_url, 'media_type': media_type}), 200
+    except Exception as e:
+        return jsonify({'message': f'Error al subir archivo: {str(e)}'}), 500
 
 @app.route('/api/dashboard/export/excel', methods=['GET'])
 @token_required
