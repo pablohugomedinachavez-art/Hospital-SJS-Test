@@ -290,15 +290,17 @@ export function Login() {
               </button>
             </div>
 
-            {/* Error de contraseña y recuperación */}
-            {passwordError && (
-              <div style={styles.passwordErrorContainer}>
+            {/* Acceso a recuperación de contraseña (siempre visible o al errar) */}
+            <div style={styles.passwordErrorContainer}>
+              {passwordError && (
                 <div style={styles.passwordErrorText}>
                   <svg style={styles.miniErrorIcon} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
                   </svg>
                   <span>Contraseña incorrecta. Por favor vuelve a intentarlo.</span>
                 </div>
+              )}
+              {!isRegister && (
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(true)}
@@ -306,8 +308,8 @@ export function Login() {
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Botón Principal */}
