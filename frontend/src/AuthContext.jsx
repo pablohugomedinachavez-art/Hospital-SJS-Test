@@ -21,7 +21,7 @@ export const AuthProvider = ({ children }) => {
 
       try {
         // Aseguramos la ruta del endpoint auth
-        const response = await api.get('/api/auth/verify');
+        const response = await api.get('/auth/verify');
         
         // Manejo defensivo por si 'api.get' devuelve directamente JSON o un Response nativo
         const data = response.json ? await response.json() : response;
@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     const cleanUsername = username.trim();
 
     // Invocación a /api/login con payload estandarizado
-    const response = await api.post('/api/login', {
+    const response = await api.post('/login', {
       username: cleanUsername,
       password: password,
     });
@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (username, password) => {
     const cleanUsername = username.trim();
 
-    const response = await api.post('/api/register', {
+    const response = await api.post('/register', {
       username: cleanUsername,
       password: password,
     });
