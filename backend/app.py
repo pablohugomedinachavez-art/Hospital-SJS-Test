@@ -115,7 +115,7 @@ class User(db.Model):
     role = db.Column(db.String, default='viewer', nullable=False)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
-    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
+
 
 # Inicializa el cliente de Supabase
 SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
