@@ -1,49 +1,33 @@
-import sys
-import os
-import datetime
-import time
-from datetime import timezone
-from supabase import create_client, Client
-from functools import wraps
-from pathlib import Path
-from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory, g, Blueprint
-from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-import jwt
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from werkzeug.security import generate_password_hash, check_password_hash
 import csv
-from io import StringIO
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-import os
 import datetime
-import time
 from datetime import timezone
 from functools import wraps
-from pathlib import Path
-from io import StringIO
 import io
-import traceback
+from io import StringIO
 import logging
+import os
+from pathlib import Path
+import sys
+import time
+import traceback
 from urllib.parse import unquote
+
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory, g, send_file
+from flask import Blueprint, Flask, g, jsonify, request, send_file, send_from_directory
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import jwt
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from werkzeug.security import generate_password_hash, check_password_hash
-import pandas as pd
 import openpyxl
 from openpyxl.chart import BarChart, Reference
-from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+import pandas as pd
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from supabase import Client, create_client
+from werkzeug.security import check_password_hash, generate_password_hash
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
