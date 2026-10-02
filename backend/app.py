@@ -1,33 +1,49 @@
-import csv
-import datetime
-from datetime import timezone
-from functools import wraps
-import io
-from io import StringIO
-import logging
-import os
-from pathlib import Path
 import sys
+import os
+import datetime
 import time
-import traceback
-from urllib.parse import unquote
-
+from datetime import timezone
+from supabase import create_client, Client
+from functools import wraps
+from pathlib import Path
 from dotenv import load_dotenv
-from flask import Blueprint, Flask, g, jsonify, request, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, g, Blueprint
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import jwt
-import openpyxl
-from openpyxl.chart import BarChart, Reference
-import pandas as pd
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from reportlab.lib import colors
+from werkzeug.security import generate_password_hash, check_password_hash
+import csv
+from io import StringIO
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+import os
+import datetime
+import time
+from datetime import timezone
+from functools import wraps
+from pathlib import Path
+from io import StringIO
+import io
+import traceback
+import logging
+from urllib.parse import unquote
+from dotenv import load_dotenv
+from flask import Flask, request, jsonify, send_from_directory, g, send_file
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+import jwt
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from werkzeug.security import generate_password_hash, check_password_hash
+import pandas as pd
+import openpyxl
+from openpyxl.chart import BarChart, Reference
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from supabase import Client, create_client
-from werkzeug.security import check_password_hash, generate_password_hash
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
@@ -226,8 +242,8 @@ def create_token(user):
         'sub': user['username'],
         'user_id': user.get('id'),
         'tenant_id': user['tenant_id'],
-        'role': user['role_id'],
-        'permissions': get_role_permissions(user['role_id']),
+        'role': user['role'],
+        'permissions': get_role_permissions(user['role']),
         'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
@@ -319,7 +335,7 @@ def get_current_user():
         'id': claims.get('user_id'),
         'username': claims.get('sub'),
         'tenant_id': claims.get('tenant_id'),
-        'role': claims.get('role_id')
+        'role': claims.get('role')
     }
 
 def record_audit(action, entity_type, entity_id, details, tenant_id, user_id=None):
@@ -382,7 +398,7 @@ def register():
         new_user = User(
             username=username,
             password=hashed_password,
-            role=data.get('role_id', 'viewer'),
+            role=data.get('role', 'viewer'),
             tenant_id=tenant_id,
             created_at=datetime.datetime.now(timezone.utc)
         )
@@ -489,7 +505,7 @@ def auth_verify():
             'id': claims.get('user_id'),
             'username': claims.get('sub'),
             'tenant_id': claims.get('tenant_id'),
-            'role': claims.get('role_id'),
+            'role': claims.get('role'),
             'permissions': claims.get('permissions', [])
         }
         return jsonify({'authenticated': True, 'user': user}), 200
@@ -599,7 +615,7 @@ def patients():
         record_audit('delete', 'patient', deleted['id'], f'Deleted patient {deleted["id"]}', tenant_id, claims.get('id'))
         return jsonify({'message': 'Patient deleted'})
 
-    if not has_permission(claims.get('role_id'), 'manage_patients'):
+    if not has_permission(claims.get('role'), 'manage_patients'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
@@ -796,7 +812,7 @@ def upload_supabase_document():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
 
-    if not has_permission(claims.get('role_id'), 'manage_patients'):
+    if not has_permission(claims.get('role'), 'manage_patients'):
         return jsonify({'message': 'Permission denied'}), 403
 
     patient_id = request.form.get('patient_id')
@@ -975,7 +991,6 @@ def get_patient_documents(patient_id):
 @app.route('/api/templates/<int:template_id>', methods=['DELETE'])
 @token_required
 def templates_handler(template_id=None):
-    claims = get_current_user()
     tenant_id = claims.get('tenant_id')
     data = request.get_json() or {}
 
@@ -1066,7 +1081,7 @@ def delete_document(doc_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
 
-    if not has_permission(claims.get('role_id'), 'manage_patients'):
+    if not has_permission(claims.get('role'), 'manage_patients'):
         return jsonify({'message': 'Permission denied'}), 403
 
     doc_to_delete = db_query(
@@ -1427,7 +1442,7 @@ def locations():
         )
         return jsonify(rows or [])
 
-    if not has_permission(claims.get('role_id'), 'manage_locations'):
+    if not has_permission(claims.get('role'), 'manage_locations'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
@@ -1472,7 +1487,7 @@ def location_detail(location_id):
         row['hospital_position'] = ''
         return jsonify(row)
 
-    if not has_permission(claims.get('role_id'), 'manage_locations'):
+    if not has_permission(claims.get('role'), 'manage_locations'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
@@ -1719,12 +1734,12 @@ def metrics(*args, **kwargs):
 def list_users():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role_id'), 'manage_users'):
+    if not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     users = db_query(
         '''
-        SELECT u.id, u.username, u.role_id, u.tenant_id, u.created_at
+        SELECT u.id, u.username, u.role, u.tenant_id, u.created_at
         FROM users u
         WHERE u.tenant_id = %s
         ORDER BY u.id DESC
@@ -1739,11 +1754,11 @@ def list_users():
 def update_user(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role_id'), 'manage_users'):
+    if not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
-    role = data.get('role_id')
+    role = data.get('role')
     location_id = data.get('location_id')
     active = data.get('active')
 
@@ -1778,7 +1793,7 @@ def update_user(user_id):
 def reset_user_password(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role_id'), 'manage_users'):
+    if not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
@@ -1796,7 +1811,7 @@ def reset_user_password(user_id):
 def delete_user(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role_id'), 'manage_users'):
+    if not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     # Opcional: evitar que el usuario se elimine a sí mismo
@@ -1814,7 +1829,7 @@ def delete_user(user_id):
 def get_sessions():
     claims = request.claims
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role_id'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     rows = db_query(
@@ -1837,8 +1852,7 @@ def devices():
 
     # 1. Validar Roles
     role = claims.get('role')
-    role_id = claims.get('role_id')
-    if role not in ['admin', 'it_support', ] or role_id not in [1]:
+    if role not in ['admin', 'it_support']:
         return jsonify({'message': 'Permission denied'}), 403
 
     # 2. Sanitizar payload entrante
@@ -2037,7 +2051,7 @@ def device_actions():
             return jsonify({'message': f'Error logging action: {str(e)}'}), 500
 
     # --- VERIFICACIÓN DE PERMISOS PARA GET ---
-    user_role = claims.get('role_id') or claims.get('role')
+    user_role = claims.get('role')
     if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
@@ -2072,7 +2086,7 @@ def device_actions():
         # 2. Consulta paginada
         offset = (page - 1) * per_page
         query_sql = f'''
-            SELECT da.id, da.session_id, da.user_id, u.username, u.role_id as user_role, 
+            SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, 
                    da.ip_address, da.user_agent, da.action_type, da.entity_type, 
                    da.entity_id, da.details, da.created_at
             FROM device_actions da
