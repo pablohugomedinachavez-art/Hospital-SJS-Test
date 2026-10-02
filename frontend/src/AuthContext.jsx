@@ -3,8 +3,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from './api';
 
-
-
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -22,10 +20,13 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const response = await api.get('/auth/verify');
-        const data = await response.json();
+        // Aseguramos la ruta del endpoint auth
+        const response = await api.get('/api/auth/verify');
+        
+        // Manejo defensivo por si 'api.get' devuelve directamente JSON o un Response nativo
+        const data = response.json ? await response.json() : response;
 
-        if (response.ok && data.authenticated) {
+        if ((response.ok || data.authenticated) && data.user) {
           setUser(data.user);
         } else {
           localStorage.removeItem('token');
@@ -45,29 +46,62 @@ export const AuthProvider = ({ children }) => {
 
   // Función de Login
   const login = async (username, password) => {
-    const response = await api.post('/login', { username, password });
-    const data = await response.json();
+    // Trim para evitar espacios accidentales
+    const cleanUsername = username.trim();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Error al iniciar sesión');
+    // Invocación a /api/login con payload estandarizado
+    const response = await api.post('/api/login', {
+      username: cleanUsername,
+      password: password,
+    });
+
+    // Manejo seguro de la respuesta de tu helper 'api.js'
+    const data = response.json ? await response.json() : response;
+
+    if (response.status >= 400 || (data.ok === false) || data.error) {
+      throw new Error(data.message || data.error || 'Credenciales inválidas');
     }
 
-    localStorage.setItem('token', data.token);
-    setUser({ username: data.username, role_id: data.role_id, tenant_id: data.tenant_id });
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
+
+    const userData = {
+      username: data.username || cleanUsername,
+      role_id: data.role_id || data.role,
+      tenant_id: data.tenant_id || 1,
+    };
+
+    setUser(userData);
     return data;
   };
 
   // Función de Registro
   const register = async (username, password) => {
-    const response = await api.post('/register', { username, password });
-    const data = await response.json();
+    const cleanUsername = username.trim();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Error al registrar el usuario');
+    const response = await api.post('/api/register', {
+      username: cleanUsername,
+      password: password,
+    });
+
+    const data = response.json ? await response.json() : response;
+
+    if (response.status >= 400 || (data.ok === false) || data.error) {
+      throw new Error(data.message || data.error || 'Error al registrar el usuario');
     }
 
-    localStorage.setItem('token', data.token);
-    setUser({ username: data.username, role_id: data.role_id, tenant_id: data.tenant_id });
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+    }
+
+    const userData = {
+      username: data.username || cleanUsername,
+      role_id: data.role_id || data.role,
+      tenant_id: data.tenant_id || 1,
+    };
+
+    setUser(userData);
     return data;
   };
 
