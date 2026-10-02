@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     localStorage.setItem('token', data.token);
-    setUser({ username: data.username, role: data.role, tenant_id: data.tenant_id });
+    setUser({ username: data.username, role_id: data.role_id, tenant_id: data.tenant_id });
     return data;
   };
 
@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     localStorage.setItem('token', data.token);
-    setUser({ username: data.username, role: data.role, tenant_id: data.tenant_id });
+    setUser({ username: data.username, role_id: data.role_id, tenant_id: data.tenant_id });
     return data;
   };
 

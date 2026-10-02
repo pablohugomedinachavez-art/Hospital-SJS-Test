@@ -115,7 +115,7 @@ class User(db.Model):
     role = db.Column(db.String, default='viewer', nullable=False)
     tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
-
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
 
 # Inicializa el cliente de Supabase
 SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
@@ -242,8 +242,8 @@ def create_token(user):
         'sub': user['username'],
         'user_id': user.get('id'),
         'tenant_id': user['tenant_id'],
-        'role': user['role'],
-        'permissions': get_role_permissions(user['role']),
+        'role': user['role_id'],
+        'permissions': get_role_permissions(user['role_id']),
         'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
@@ -335,7 +335,7 @@ def get_current_user():
         'id': claims.get('user_id'),
         'username': claims.get('sub'),
         'tenant_id': claims.get('tenant_id'),
-        'role': claims.get('role')
+        'role': claims.get('role_id')
     }
 
 def record_audit(action, entity_type, entity_id, details, tenant_id, user_id=None):
@@ -398,7 +398,7 @@ def register():
         new_user = User(
             username=username,
             password=hashed_password,
-            role=data.get('role', 'viewer'),
+            role=data.get('role_id', 'viewer'),
             tenant_id=tenant_id,
             created_at=datetime.datetime.now(timezone.utc)
         )
@@ -505,7 +505,7 @@ def auth_verify():
             'id': claims.get('user_id'),
             'username': claims.get('sub'),
             'tenant_id': claims.get('tenant_id'),
-            'role': claims.get('role'),
+            'role': claims.get('role_id'),
             'permissions': claims.get('permissions', [])
         }
         return jsonify({'authenticated': True, 'user': user}), 200
@@ -615,7 +615,7 @@ def patients():
         record_audit('delete', 'patient', deleted['id'], f'Deleted patient {deleted["id"]}', tenant_id, claims.get('id'))
         return jsonify({'message': 'Patient deleted'})
 
-    if not has_permission(claims.get('role'), 'manage_patients'):
+    if not has_permission(claims.get('role_id'), 'manage_patients'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
@@ -812,7 +812,7 @@ def upload_supabase_document():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
 
-    if not has_permission(claims.get('role'), 'manage_patients'):
+    if not has_permission(claims.get('role_id'), 'manage_patients'):
         return jsonify({'message': 'Permission denied'}), 403
 
     patient_id = request.form.get('patient_id')
@@ -991,6 +991,7 @@ def get_patient_documents(patient_id):
 @app.route('/api/templates/<int:template_id>', methods=['DELETE'])
 @token_required
 def templates_handler(template_id=None):
+    claims = get_current_user()
     tenant_id = claims.get('tenant_id')
     data = request.get_json() or {}
 
@@ -1081,7 +1082,7 @@ def delete_document(doc_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
 
-    if not has_permission(claims.get('role'), 'manage_patients'):
+    if not has_permission(claims.get('role_id'), 'manage_patients'):
         return jsonify({'message': 'Permission denied'}), 403
 
     doc_to_delete = db_query(
@@ -1442,7 +1443,7 @@ def locations():
         )
         return jsonify(rows or [])
 
-    if not has_permission(claims.get('role'), 'manage_locations'):
+    if not has_permission(claims.get('role_id'), 'manage_locations'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
@@ -1487,7 +1488,7 @@ def location_detail(location_id):
         row['hospital_position'] = ''
         return jsonify(row)
 
-    if not has_permission(claims.get('role'), 'manage_locations'):
+    if not has_permission(claims.get('role_id'), 'manage_locations'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
@@ -1734,12 +1735,12 @@ def metrics(*args, **kwargs):
 def list_users():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_users'):
+    if not has_permission(claims.get('role_id'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     users = db_query(
         '''
-        SELECT u.id, u.username, u.role, u.tenant_id, u.created_at
+        SELECT u.id, u.username, u.role_id, u.tenant_id, u.created_at
         FROM users u
         WHERE u.tenant_id = %s
         ORDER BY u.id DESC
@@ -1754,11 +1755,11 @@ def list_users():
 def update_user(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_users'):
+    if not has_permission(claims.get('role_id'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
-    role = data.get('role')
+    role = data.get('role_id')
     location_id = data.get('location_id')
     active = data.get('active')
 
@@ -1793,7 +1794,7 @@ def update_user(user_id):
 def reset_user_password(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_users'):
+    if not has_permission(claims.get('role_id'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     data = request.get_json() or {}
@@ -1811,7 +1812,7 @@ def reset_user_password(user_id):
 def delete_user(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_users'):
+    if not has_permission(claims.get('role_id'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     # Opcional: evitar que el usuario se elimine a sí mismo
@@ -1829,7 +1830,7 @@ def delete_user(user_id):
 def get_sessions():
     claims = request.claims
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
+    if not has_permission(claims.get('role_id'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
     rows = db_query(
@@ -1852,7 +1853,8 @@ def devices():
 
     # 1. Validar Roles
     role = claims.get('role')
-    if role not in ['admin', 'it_support']:
+    role_id = claims.get('role_id')
+    if role not in ['admin', 'it_support', ] or role_id not in [1]:
         return jsonify({'message': 'Permission denied'}), 403
 
     # 2. Sanitizar payload entrante
@@ -2051,7 +2053,7 @@ def device_actions():
             return jsonify({'message': f'Error logging action: {str(e)}'}), 500
 
     # --- VERIFICACIÓN DE PERMISOS PARA GET ---
-    user_role = claims.get('role')
+    user_role = claims.get('role_id') or claims.get('role')
     if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
@@ -2086,7 +2088,7 @@ def device_actions():
         # 2. Consulta paginada
         offset = (page - 1) * per_page
         query_sql = f'''
-            SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, 
+            SELECT da.id, da.session_id, da.user_id, u.username, u.role_id as user_role, 
                    da.ip_address, da.user_agent, da.action_type, da.entity_type, 
                    da.entity_id, da.details, da.created_at
             FROM device_actions da
