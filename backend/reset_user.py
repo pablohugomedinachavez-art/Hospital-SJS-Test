@@ -6,7 +6,7 @@ try:
 except ImportError:
     from app import app, db_query
 
-USERNAME = "admin_user"
+USERNAME = "admin"
 NEW_PASSWORD = "Admin123!"
 
 with app.app_context():
