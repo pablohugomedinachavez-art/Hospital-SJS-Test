@@ -1,32 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, MessageCircle, Users, Send, Paperclip, Mic, 
-  Camera, X, Check, CheckCheck, Image, Volume2, UserPlus, StopCircle, Trash2, FileText,
-  Search 
+  Camera, X, Check, CheckCheck, FileText, UserPlus, StopCircle, Trash2, Search
 } from 'lucide-react';
 import { apiFetch } from './api';
 
-// Aseguramos que allUsers y rooms sean siempre arreglos para prevenir errores
-  const safeUsers = Array.isArray(allUsers) ? allUsers : [];
-  const safeRooms = Array.isArray(rooms) ? rooms : [];
-
-  // Filtrado dinámico
-  const filteredUsers = safeUsers.filter(u => {
-    const name = u.username || u.email || '';
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
-  const filteredGroups = safeRooms.filter(r => r.is_group).filter(g => {
-    const name = g.name || '';
-    const desc = g.description || '';
-    return name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           desc.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-// Filtrar usuarios directos por nombre o email
- 
-
-  
-// Maximum allowed file size (10 MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
   'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -132,7 +110,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       const res = await apiFetch('/users');
       if (res.ok) {
         const data = await res.json();
-        setAllUsers(data.filter(u => u.id !== currentUser?.id));
+        setAllUsers((data || []).filter(u => u.id !== currentUser?.id));
       }
     } catch (e) {
       console.error(e);
@@ -262,7 +240,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
+  const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
     const cleanText = newMessageText.trim();
     if (!cleanText && !mediaUrl) return;
 
@@ -286,19 +264,16 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
     }
   };
 
-  // Improved File Upload Handler with Validation & Error Handling
   const handleFileUpload = async (e) => {
     setUploadError(null);
     const file = e.target.files[0];
     if (!file) return;
 
-    // 1. File Size Guardrail
     if (file.size > MAX_FILE_SIZE) {
       setUploadError('El archivo supera el límite de 10 MB');
       return;
     }
 
-    // 2. File Type Guardrail
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       setUploadError('Tipo de archivo no permitido');
       return;
@@ -412,6 +387,22 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
 
   if (!isOpen) return null;
 
+  // Filtros seguros usando listas verificadas
+  const safeUsers = Array.isArray(allUsers) ? allUsers : [];
+  const safeRooms = Array.isArray(rooms) ? rooms : [];
+
+  const filteredUsers = safeUsers.filter(u => {
+    const name = u.username || u.email || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const filteredGroups = safeRooms.filter(r => r?.is_group).filter(g => {
+    const name = g.name || '';
+    const desc = g.description || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+           desc.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   return (
     <div className="fixed bottom-4 right-4 w-96 h-[560px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden text-slate-100 font-sans">
       
@@ -459,7 +450,6 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
                     {msg.media_type === 'audio' && (
                       <audio controls src={msg.media_url} className="w-48 h-8 my-1" />
                     )}
-                    {/* Enhanced Document / File Display */}
                     {msg.media_type === 'file' && (
                       <a 
                         href={msg.media_url} 
@@ -565,8 +555,8 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
             </button>
           </div>
         </div>
-      ) : (<div className="flex-1 flex flex-col bg-slate-900 overflow-hidden">
-          {/* Navegación por pestañas */}
+      ) : (
+        <div className="flex-1 flex flex-col bg-slate-900 overflow-hidden">
           <div className="flex border-b border-slate-800 bg-slate-950 text-xs">
             <button
               onClick={() => { setActiveTab('chats'); setSearchQuery(''); }}
@@ -589,7 +579,7 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
             </button>
           </div>
 
-          {/* BARRA DE BÚSQUEDA (Solo visible en Chats Directos y Grupos) */}
+          {/* BARRA DE BÚSQUEDA */}
           {(activeTab === 'chats' || activeTab === 'groups') && (
             <div className="p-2.5 bg-slate-950 border-b border-slate-800">
               <div className="relative flex items-center">
@@ -614,7 +604,6 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
           )}
 
           <div className="flex-1 p-3 overflow-y-auto">
-            {/* Pestaña: Chats Directos */}
             {activeTab === 'chats' && (
               <div className="space-y-3">
                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
@@ -654,7 +643,6 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
               </div>
             )}
 
-            {/* Pestaña: Grupos */}
             {activeTab === 'groups' && (
               <div className="space-y-2">
                 {filteredGroups.length === 0 ? (
@@ -679,7 +667,6 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
               </div>
             )}
 
-           {/* Pestaña: Crear Nuevo Grupo */}
             {activeTab === 'new_group' && (
               <form onSubmit={handleCreateGroup} className="space-y-3">
                 <div>
@@ -704,7 +691,7 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
                 <div>
                   <label className="text-[11px] text-slate-400 block mb-1">Seleccionar Miembros</label>
                   <div className="max-h-36 overflow-y-auto space-y-1 bg-slate-950 p-2 rounded-lg border border-slate-800">
-                    {(allUsers || []).map((u) => (
+                    {safeUsers.map((u) => (
                       <label key={u.id} className="flex items-center gap-2 p-1 hover:bg-slate-800 rounded cursor-pointer text-xs">
                         <input
                           type="checkbox"
