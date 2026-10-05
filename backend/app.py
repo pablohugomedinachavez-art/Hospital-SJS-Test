@@ -1468,7 +1468,7 @@ def triage_handler():
         )
         return jsonify({'message': 'Triage record created successfully', 'triage_id': new_triage['id']}), 201
 
-        
+
 @app.route('/api/locations', methods=['GET', 'POST'])
 @token_required
 def locations():
@@ -2286,6 +2286,46 @@ def static_proxy(path):
 # ENDPOINTS PARA SISTEMA DE CHAT MULTIMEDIA
 # ==========================================
 
+# ==========================================
+# ENDPOINTS PARA SISTEMA DE CHAT MULTIMEDIA
+# ==========================================
+
+@app.route('/api/chat/rooms', methods=['GET'])
+@token_required
+def get_user_chat_rooms():
+    """Obtiene todas las salas de chat (directas y grupales) a las que pertenece el usuario."""
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user_id = claims['id']
+
+    query = """
+        SELECT 
+            r.id, 
+            r.name, 
+            r.description, 
+            r.is_group, 
+            r.created_at,
+            (
+                SELECT m.content 
+                FROM public.chat_messages m 
+                WHERE m.room_id = r.id 
+                ORDER BY m.created_at DESC LIMIT 1
+            ) AS last_message,
+            (
+                SELECT m.created_at 
+                FROM public.chat_messages m 
+                WHERE m.room_id = r.id 
+                ORDER BY m.created_at DESC LIMIT 1
+            ) AS last_message_at
+        FROM public.chat_rooms r
+        JOIN public.chat_room_members crm ON r.id = crm.room_id
+        WHERE r.tenant_id = %s AND crm.user_id = %s
+        ORDER BY last_message_at DESC NULLS LAST, r.created_at DESC
+    """
+    rooms = db_query(query, (tenant_id, user_id), fetchall=True)
+    return jsonify(rooms or []), 200
+
+
 @app.route('/api/chat/direct', methods=['POST'])
 @token_required
 def get_or_create_direct_chat():
@@ -2302,7 +2342,6 @@ def get_or_create_direct_chat():
     if user1_id == user2_id:
         return jsonify({'message': 'No puedes iniciar un chat contigo mismo'}), 400
 
-    # Buscar si ya existe un chat de tipo directo (is_group = False) con los mismos dos miembros
     query = """
         SELECT r.id 
         FROM public.chat_rooms r
@@ -2316,7 +2355,6 @@ def get_or_create_direct_chat():
     if existing_room:
         return jsonify({'room_id': existing_room['id'], 'is_new': False}), 200
 
-    # Si no existe, crear la sala e insertar los miembros
     new_room = db_query(
         "INSERT INTO public.chat_rooms (tenant_id, is_group, created_by) VALUES (%s, FALSE, %s) RETURNING id",
         (tenant_id, user1_id), commit=True, fetchone=True
@@ -2360,6 +2398,80 @@ def create_group_chat():
     return jsonify({'room_id': room_id, 'message': 'Grupo creado con éxito'}), 201
 
 
+@app.route('/api/chat/messages/<int:room_id>', methods=['GET'])
+@token_required
+def get_room_messages(room_id):
+    """Obtiene el historial de mensajes para una sala específica."""
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user_id = claims['id']
+
+    # Verificar que el usuario pertenece a la sala
+    member_check = db_query(
+        "SELECT 1 FROM public.chat_room_members WHERE room_id = %s AND user_id = %s",
+        (room_id, user_id), fetchone=True
+    )
+    if not member_check:
+        return jsonify({'message': 'Acceso denegado a esta sala'}), 403
+
+    query = """
+        SELECT 
+            m.id, 
+            m.room_id, 
+            m.sender_id, 
+            u.username AS sender_name, 
+            m.content, 
+            m.media_url, 
+            m.media_type, 
+            m.created_at
+        FROM public.chat_messages m
+        JOIN public.users u ON u.id = m.sender_id
+        JOIN public.chat_rooms r ON r.id = m.room_id
+        WHERE m.room_id = %s AND r.tenant_id = %s
+        ORDER BY m.created_at ASC
+    """
+    messages = db_query(query, (room_id, tenant_id), fetchall=True)
+    return jsonify(messages or []), 200
+
+
+@app.route('/api/chat/messages', methods=['POST'])
+@token_required
+def send_chat_message():
+    """Envía un mensaje de texto o multimedia a una sala."""
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    sender_id = claims['id']
+
+    data = request.get_json() or {}
+    room_id = data.get('room_id')
+    content = data.get('content', '')
+    media_url = data.get('media_url')
+    media_type = data.get('media_type', 'text')
+
+    if not room_id or (not content and not media_url):
+        return jsonify({'message': 'room_id y un contenido o media_url son obligatorios'}), 400
+
+    # Verificar membresía del usuario en la sala
+    member_check = db_query(
+        "SELECT 1 FROM public.chat_room_members WHERE room_id = %s AND user_id = %s",
+        (room_id, sender_id), fetchone=True
+    )
+    if not member_check:
+        return jsonify({'message': 'No perteneces a esta sala'}), 403
+
+    new_msg = db_query(
+        """
+        INSERT INTO public.chat_messages (room_id, sender_id, content, media_url, media_type, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        RETURNING id, room_id, sender_id, content, media_url, media_type, created_at
+        """,
+        (room_id, sender_id, content, media_url, media_type, now_utc()),
+        commit=True, fetchone=True
+    )
+
+    return jsonify(new_msg), 201
+
+
 @app.route('/api/chat/upload', methods=['POST'])
 @token_required
 def upload_chat_media():
@@ -2388,6 +2500,7 @@ def upload_chat_media():
     except Exception as e:
         return jsonify({'message': f'Error al subir archivo: {str(e)}'}), 500
 
+    
 @app.route('/api/dashboard/export/excel', methods=['GET'])
 @token_required
 def export_dashboard_excel():
