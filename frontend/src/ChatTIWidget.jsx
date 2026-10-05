@@ -23,18 +23,9 @@ import { apiFetch } from './api';
            desc.toLowerCase().includes(searchQuery.toLowerCase());
   });
 // Filtrar usuarios directos por nombre o email
-  const filteredUsers = allUsers.filter(u => {
-    const name = u.username || u.email || '';
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+ 
 
-  // Filtrar grupos por nombre o descripción
-  const filteredGroups = rooms.filter(r => r.is_group).filter(g => {
-    const name = g.name || '';
-    const desc = g.description || '';
-    return name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-           desc.toLowerCase().includes(searchQuery.toLowerCase());
-  });
+  
 // Maximum allowed file size (10 MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
