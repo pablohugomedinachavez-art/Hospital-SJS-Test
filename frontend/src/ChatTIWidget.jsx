@@ -94,14 +94,14 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
 
   const loadUserRooms = async () => {
     if (!currentUser?.id) return;
-    const { data } = await supabase
-      .from('chat_room_members')
-      .select('room_id, chat_rooms(*)')
-      .eq('user_id', currentUser.id);
-
-    if (data) {
-      const roomList = data.map(item => item.chat_rooms).filter(Boolean);
-      setRooms(roomList);
+    try {
+      const res = await apiFetch('/chat/rooms');
+      if (res.ok) {
+        const data = await res.json();
+        setRooms(data || []);
+      }
+    } catch (e) {
+      console.error('Error al cargar salas:', e);
     }
   };
 
@@ -121,14 +121,16 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     if (!selectedRoom?.id) return;
 
     const fetchMessages = async () => {
-      const { data } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('room_id', selectedRoom.id)
-        .order('created_at', { ascending: true });
-
-      setMessages(data || []);
-      markMessagesAsRead(data || []);
+      try {
+        const res = await apiFetch(`/chat/messages/${selectedRoom.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data || []);
+          markMessagesAsRead(data || []);
+        }
+      } catch (e) {
+        console.error('Error al obtener mensajes:', e);
+      }
     };
 
     fetchMessages();
@@ -240,25 +242,28 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
+const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
     const cleanText = newMessageText.trim();
     if (!cleanText && !mediaUrl) return;
 
-    const msgData = {
+    const bodyData = {
       room_id: selectedRoom.id,
-      sender_id: currentUser.id,
-      sender_name: currentUser.username || currentUser.email,
       content: cleanText,
       media_url: mediaUrl,
-      media_type: mediaType,
-      status: 'sent',
-      created_at: new Date().toISOString()
+      media_type: mediaType || 'text'
     };
 
     setNewMessageText('');
     setAudioBlob(null);
 
-    await supabase.from('chat_messages').insert([msgData]);
+    try {
+      await apiFetch('/chat/messages', {
+        method: 'POST',
+        body: JSON.stringify(bodyData)
+      });
+    } catch (e) {
+      console.error('Error al enviar mensaje:', e);
+    }
   };
 
   // Improved File Upload Handler with Validation & Error Handling
