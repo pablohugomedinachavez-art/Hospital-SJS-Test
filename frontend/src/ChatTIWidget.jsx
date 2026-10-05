@@ -1,20 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, MessageCircle, Users, Send, Paperclip, Mic, 
-  Camera, X, Check, CheckCheck, Image, Volume2, UserPlus, StopCircle, Trash2
+  Camera, X, Check, CheckCheck, Image, Volume2, UserPlus, StopCircle, Trash2, FileText
 } from 'lucide-react';
 import { apiFetch } from './api';
 
+// Maximum allowed file size (10 MB)
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'application/pdf', 'application/msword', 
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'audio/webm', 'audio/wav', 'audio/mp3'
+];
+
 export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
-  const [activeTab, setActiveTab] = useState('chats'); // 'chats' | 'groups' | 'new_direct' | 'new_group'
+  const [activeTab, setActiveTab] = useState('chats');
   const [rooms, setRooms] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessageText, setNewMessageText] = useState('');
-  const [presences, setPresences] = useState({}); // ✅ 1. Movid a nivel superior
+  const [presences, setPresences] = useState({});
+  const [uploadError, setUploadError] = useState(null);
   
-  // Estados para cámara y audios
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [mediaRecorder, setMediaRecorder] = useState(null);
@@ -23,12 +32,10 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const canvasRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // Estados de formulario de creación de grupo
   const [groupName, setGroupName] = useState('');
   const [groupDesc, setGroupDesc] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
 
-  // Cargar lista de salas y presencia inicial al abrir
   useEffect(() => {
     if (isOpen) {
       loadUserRooms();
@@ -37,7 +44,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // ✅ 2. useEffect de Presencia y Heartbeat (Movid a nivel superior independiente)
   useEffect(() => {
     if (!currentUser?.id || !isOpen) return;
 
@@ -111,7 +117,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
-  // ✅ 3. Escuchar mensajes en tiempo real (Unificado sin duplicados)
   useEffect(() => {
     if (!selectedRoom?.id) return;
 
@@ -138,7 +143,6 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       }, async (payload) => {
         setMessages(prev => [...prev, payload.new]);
 
-        // Transición de Estado de Mensaje Entrante
         if (payload.new.sender_id !== currentUser?.id) {
           if (document.hasFocus()) {
             await supabase.from('chat_messages').update({ status: 'read' }).eq('id', payload.new.id);
@@ -161,12 +165,11 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       supabase.removeChannel(channel);
     };
   }, [selectedRoom, currentUser]);
-  
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // ✅ 4. Liberación de hardware (Cámara)
   const stopCameraStream = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject;
@@ -217,8 +220,8 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       const res = await apiFetch('/chat/group', {
         method: 'POST',
         body: JSON.stringify({
-          name: groupName,
-          description: groupDesc,
+          name: groupName.trim(),
+          description: groupDesc.trim(),
           member_ids: selectedMembers
         })
       });
@@ -238,13 +241,14 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   };
 
   const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
-    if (!newMessageText.trim() && !mediaUrl) return;
+    const cleanText = newMessageText.trim();
+    if (!cleanText && !mediaUrl) return;
 
     const msgData = {
       room_id: selectedRoom.id,
       sender_id: currentUser.id,
       sender_name: currentUser.username || currentUser.email,
-      content: newMessageText.trim(),
+      content: cleanText,
       media_url: mediaUrl,
       media_type: mediaType,
       status: 'sent',
@@ -257,18 +261,39 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     await supabase.from('chat_messages').insert([msgData]);
   };
 
+  // Improved File Upload Handler with Validation & Error Handling
   const handleFileUpload = async (e) => {
+    setUploadError(null);
     const file = e.target.files[0];
     if (!file) return;
+
+    // 1. File Size Guardrail
+    if (file.size > MAX_FILE_SIZE) {
+      setUploadError('El archivo supera el límite de 10 MB');
+      return;
+    }
+
+    // 2. File Type Guardrail
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      setUploadError('Tipo de archivo no permitido');
+      return;
+    }
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('media_type', file.type.startsWith('image/') ? 'image' : 'file');
 
-    const res = await apiFetch('/chat/upload', { method: 'POST', body: formData });
-    if (res.ok) {
-      const { media_url, media_type } = await res.json();
-      await handleSendMessage(media_url, media_type);
+    try {
+      const res = await apiFetch('/chat/upload', { method: 'POST', body: formData });
+      if (res.ok) {
+        const { media_url, media_type } = await res.json();
+        await handleSendMessage(media_url, media_type);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setUploadError(errData.message || 'Error al subir el archivo');
+      }
+    } catch (err) {
+      setUploadError('Error de red al subir archivo');
     }
   };
 
@@ -350,12 +375,22 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     }
   };
 
+  const getFileNameFromUrl = (url) => {
+    if (!url) return 'Documento Adjunto';
+    try {
+      const decoded = decodeURIComponent(url);
+      return decoded.split('/').pop().split('?')[0];
+    } catch {
+      return 'Documento Adjunto';
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed bottom-4 right-4 w-96 h-[560px] bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col z-50 overflow-hidden text-slate-100 font-sans">
       
-      {/* Header del Chat */}
+      {/* Header */}
       <div className="bg-slate-950 p-3.5 border-b border-slate-800 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <MessageSquare className="text-cyan-400" size={18} />
@@ -375,11 +410,10 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
         </div>
       </div>
 
-      {/* Si hay una sala seleccionada, mostrar la conversación */}
       {selectedRoom ? (
         <div className="flex-1 flex flex-col bg-slate-900 overflow-hidden">
           
-          {/* Panel de Mensajes */}
+          {/* Message List */}
           <div className="flex-1 p-3 overflow-y-auto space-y-3">
             {messages.map((msg) => {
               const isMe = msg.sender_id === currentUser?.id;
@@ -392,7 +426,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                   <div className={`relative px-3 py-2 rounded-2xl max-w-[80%] text-xs shadow-md ${
                     isMe ? 'bg-cyan-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none'
                   }`}>
-                    {msg.content && <p className="leading-relaxed whitespace-pre-wrap pr-10">{msg.content}</p>}
+                    {msg.content && <p className="leading-relaxed whitespace-pre-wrap pr-6">{msg.content}</p>}
 
                     {msg.media_type === 'image' && (
                       <img src={msg.media_url} alt="multimedia" className="rounded-lg max-h-48 object-cover my-1" />
@@ -400,9 +434,19 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                     {msg.media_type === 'audio' && (
                       <audio controls src={msg.media_url} className="w-48 h-8 my-1" />
                     )}
+                    {/* Enhanced Document / File Display */}
                     {msg.media_type === 'file' && (
-                      <a href={msg.media_url} target="_blank" rel="noreferrer" className="underline text-cyan-200 block my-1">
-                        Ver archivo adjunto
+                      <a 
+                        href={msg.media_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        download
+                        className="flex items-center gap-2 p-2 my-1 bg-slate-900/60 hover:bg-slate-950 rounded-lg text-cyan-300 border border-slate-700/50 transition-colors"
+                      >
+                        <FileText size={18} className="shrink-0 text-cyan-400" />
+                        <span className="truncate text-[11px] max-w-[160px]" title={getFileNameFromUrl(msg.media_url)}>
+                          {getFileNameFromUrl(msg.media_url)}
+                        </span>
                       </a>
                     )}
 
@@ -427,6 +471,14 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Upload Error Banner */}
+          {uploadError && (
+            <div className="px-3 py-1.5 bg-red-900/80 text-red-200 text-[11px] flex justify-between items-center border-t border-red-800">
+              <span>{uploadError}</span>
+              <button onClick={() => setUploadError(null)} className="hover:text-white"><X size={12} /></button>
+            </div>
+          )}
+
           {audioBlob && (
             <div className="p-2 bg-slate-950 flex items-center justify-between border-t border-slate-800">
               <span className="text-xs text-cyan-400">Audio listo para enviar</span>
@@ -448,13 +500,19 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
             </div>
           )}
 
+          {/* Input Controls */}
           <div className="p-2.5 bg-slate-950 border-t border-slate-800 flex items-center gap-1.5">
-            <label className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 cursor-pointer">
+            <label className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 cursor-pointer" title="Adjuntar documento o imagen">
               <Paperclip size={16} />
-              <input type="file" onChange={handleFileUpload} className="hidden" />
+              <input 
+                type="file" 
+                onChange={handleFileUpload} 
+                className="hidden" 
+                accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
+              />
             </label>
 
-            <button onClick={openCamera} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400">
+            <button onClick={openCamera} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400" title="Cámara">
               <Camera size={16} />
             </button>
 
@@ -463,7 +521,7 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
                 <StopCircle size={16} />
               </button>
             ) : (
-              <button onClick={startRecording} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400">
+              <button onClick={startRecording} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400" title="Grabar audio">
                 <Mic size={16} />
               </button>
             )}
