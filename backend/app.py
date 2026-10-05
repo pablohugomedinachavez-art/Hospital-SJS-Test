@@ -11,6 +11,7 @@ from flask import Flask, request, jsonify, send_from_directory, g, Blueprint
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 import jwt
+import json
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1025,28 +1026,14 @@ def get_patient_documents(patient_id):
 @app.route('/api/templates/<int:template_id>', methods=['DELETE'])
 @token_required
 def templates_handler(template_id=None):
+    # Extract decoded token claims (Adjust based on how @token_required sets it)
+    # Common patterns: g.claims, request.claims, or passed via decorator kwargs
+    claims = getattr(g, 'claims', {}) or getattr(request, 'claims', {})
     tenant_id = claims.get('tenant_id')
-    data = request.get_json() or {}
 
-    patient_id = str(data.get('patient_id'))
-    document_type = data.get('document_type')
-    template_id = data.get('template_id')
-    dynamic_values = json.dumps(data.get('dynamic_values', {}))
-    pdf_url = data.get('pdf_url')
-
-    record = db_query(
-        '''
-        INSERT INTO formularios_paciente 
-        (patient_id, document_type, template_id, dynamic_values, pdf_url, tenant_id, fecha_creacion)
-        VALUES (%s, %s, %s, %s::jsonb, %s, %s, NOW())
-        RETURNING id
-        ''',
-        (patient_id, document_type, template_id, dynamic_values, pdf_url, tenant_id),
-        commit=True,
-        fetchone=True
-    )
-    return jsonify({'message': 'Patient form stored successfully', 'id': record['id']}), 201
-    # 1. OBTENER PLANTILLAS (GET)
+    # ------------------------------------------
+    # 1. GET /api/templates - FETCH TEMPLATES
+    # ------------------------------------------
     if request.method == 'GET':
         rows = db_query(
             '''
@@ -1060,9 +1047,34 @@ def templates_handler(template_id=None):
         )
         return jsonify(rows or []), 200
 
-    # 2. CREAR O GUARDAR PLANTILLA (POST)
+    # ------------------------------------------
+    # 2. POST /api/templates - SAVE FORM / TEMPLATE
+    # ------------------------------------------
     if request.method == 'POST':
         data = request.get_json() or {}
+
+        # Case A: Storing a completed patient form entry
+        if 'patient_id' in data:
+            patient_id = str(data.get('patient_id'))
+            document_type = data.get('document_type')
+            t_id = data.get('template_id')
+            dynamic_values = json.dumps(data.get('dynamic_values', {}))
+            pdf_url = data.get('pdf_url')
+
+            record = db_query(
+                '''
+                INSERT INTO formularios_paciente 
+                (patient_id, document_type, template_id, dynamic_values, pdf_url, tenant_id, fecha_creacion)
+                VALUES (%s, %s, %s, %s::jsonb, %s, %s, NOW())
+                RETURNING id
+                ''',
+                (patient_id, document_type, t_id, dynamic_values, pdf_url, tenant_id),
+                commit=True,
+                fetchone=True
+            )
+            return jsonify({'message': 'Patient form stored successfully', 'id': record['id']}), 201
+
+        # Case B: Creating/Updating a form template
         nombre = data.get('nombre')
         structure = data.get('structure')
         version = data.get('version', 1)
@@ -1094,7 +1106,9 @@ def templates_handler(template_id=None):
             print(f"--- ERROR AL GUARDAR PLANTILLA: {e} ---")
             return jsonify({'message': f'Error interno al guardar la plantilla: {str(e)}'}), 500
 
-    # 3. ELIMINAR PLANTILLA (DELETE)
+    # ------------------------------------------
+    # 3. DELETE /api/templates/<id> - DELETE TEMPLATE
+    # ------------------------------------------
     if request.method == 'DELETE' and template_id:
         existing = db_query('SELECT id FROM templates_formulario WHERE id = %s AND tenant_id = %s', (template_id, tenant_id), fetchone=True)
         if not existing:
@@ -1411,6 +1425,8 @@ def dashboard_alerts():
 @app.route('/api/triage', methods=['GET', 'POST'])
 @token_required
 def triage_handler():
+    # Retrieve claims from Flask context 'g' (or request)
+    claims = getattr(g, 'claims', {}) or getattr(g, 'current_user', {}) or getattr(request, 'claims', {})
     tenant_id = claims.get('tenant_id')
 
     if request.method == 'GET':
@@ -1451,7 +1467,8 @@ def triage_handler():
             fetchone=True
         )
         return jsonify({'message': 'Triage record created successfully', 'triage_id': new_triage['id']}), 201
-    
+
+        
 @app.route('/api/locations', methods=['GET', 'POST'])
 @token_required
 def locations():
