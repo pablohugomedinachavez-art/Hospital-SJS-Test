@@ -2472,7 +2472,7 @@ def send_chat_message():
     return jsonify(new_msg), 201
 
 
-import traceback
+
 
 @app.route('/api/chat/upload', methods=['POST'])
 @token_required
