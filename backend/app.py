@@ -2480,7 +2480,7 @@ def upload_chat_media():
     """Sube multimedia (imágenes, archivos o audios) al bucket 'chat-attachments' de Supabase."""
     try:
         if 'file' not in request.files:
-            return jsonify({'message': 'No se encontró la clave "file" en la petición'}), 400
+            return jsonify({'message': 'No se encontró la clave "file" en el formulario'}), 400
 
         file = request.files['file']
         media_type = request.form.get('media_type', 'file')
@@ -2492,14 +2492,14 @@ def upload_chat_media():
         filename = f"{int(time.time())}_{file.filename}"
         storage_path = f"chat_media/{filename}"
 
-        # Subir archivo al bucket
+        # 1. Subir archivo al bucket de Supabase
         supabase.storage.from_("chat-attachments").upload(
             path=storage_path,
             file=file_bytes,
             file_options={"content-type": file.mimetype or "application/octet-stream", "x-upsert": "true"}
         )
 
-        # Obtener URL pública de forma compatible
+        # 2. Obtener URL pública manejando todas las versiones del SDK
         public_url_res = supabase.storage.from_("chat-attachments").get_public_url(storage_path)
         
         if isinstance(public_url_res, str):
@@ -2507,13 +2507,12 @@ def upload_chat_media():
         elif isinstance(public_url_res, dict):
             media_url = public_url_res.get('publicUrl') or public_url_res.get('public_url')
         else:
-            # Fallback en caso de que sea un objeto de la librería con atributo public_url
             media_url = getattr(public_url_res, 'public_url', str(public_url_res))
 
         return jsonify({'media_url': media_url, 'media_type': media_type}), 200
 
     except Exception as e:
-        # Imprime el traceback exacto en las métricas/logs de Render
+        # Imprimir el traceback exacto en los logs de Render
         print("Error en /api/chat/upload:", str(e))
         traceback.print_exc()
         return jsonify({'message': f'Error al subir archivo: {str(e)}'}), 500
