@@ -121,16 +121,14 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
     if (!selectedRoom?.id) return;
 
     const fetchMessages = async () => {
-      try {
-        const res = await apiFetch(`/chat/messages/${selectedRoom.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setMessages(data || []);
-          markMessagesAsRead(data || []);
-        }
-      } catch (e) {
-        console.error('Error al obtener mensajes:', e);
-      }
+      const { data } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('room_id', selectedRoom.id)
+        .order('created_at', { ascending: true });
+
+      setMessages(data || []);
+      markMessagesAsRead(data || []);
     };
 
     fetchMessages();
