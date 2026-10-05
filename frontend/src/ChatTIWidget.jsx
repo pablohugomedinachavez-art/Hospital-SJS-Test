@@ -1,10 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, MessageCircle, Users, Send, Paperclip, Mic, 
-  Camera, X, Check, CheckCheck, Image, Volume2, UserPlus, StopCircle, Trash2, FileText
+  Camera, X, Check, CheckCheck, Image, Volume2, UserPlus, StopCircle, Trash2, FileText,
+  Search 
 } from 'lucide-react';
 import { apiFetch } from './api';
 
+
+// Filtrar usuarios directos por nombre o email
+  const filteredUsers = allUsers.filter(u => {
+    const name = u.username || u.email || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  // Filtrar grupos por nombre o descripción
+  const filteredGroups = rooms.filter(r => r.is_group).filter(g => {
+    const name = g.name || '';
+    const desc = g.description || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+           desc.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 // Maximum allowed file size (10 MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
@@ -16,6 +31,7 @@ const ALLOWED_MIME_TYPES = [
 
 export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
   const [activeTab, setActiveTab] = useState('chats');
+  const [searchQuery, setSearchQuery] = useState('');
   const [rooms, setRooms] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -543,23 +559,23 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
             </button>
           </div>
         </div>
-      ) : (
-        <div className="flex-1 flex flex-col bg-slate-900">
+      ) : (<div className="flex-1 flex flex-col bg-slate-900 overflow-hidden">
+          {/* Navegación por pestañas */}
           <div className="flex border-b border-slate-800 bg-slate-950 text-xs">
             <button
-              onClick={() => setActiveTab('chats')}
+              onClick={() => { setActiveTab('chats'); setSearchQuery(''); }}
               className={`flex-1 py-2.5 font-medium border-b-2 transition-colors ${activeTab === 'chats' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400'}`}
             >
               Chats Directos
             </button>
             <button
-              onClick={() => setActiveTab('groups')}
+              onClick={() => { setActiveTab('groups'); setSearchQuery(''); }}
               className={`flex-1 py-2.5 font-medium border-b-2 transition-colors ${activeTab === 'groups' ? 'border-cyan-500 text-cyan-400' : 'border-transparent text-slate-400'}`}
             >
               Grupos
             </button>
             <button
-              onClick={() => setActiveTab('new_group')}
+              onClick={() => { setActiveTab('new_group'); setSearchQuery(''); }}
               className={`px-3 py-2.5 font-medium text-slate-400 hover:text-cyan-400 flex items-center gap-1`}
               title="Crear Nuevo Grupo"
             >
@@ -567,48 +583,80 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
             </button>
           </div>
 
+          {/* BARRA DE BÚSQUEDA (Solo visible en Chats Directos y Grupos) */}
+          {(activeTab === 'chats' || activeTab === 'groups') && (
+            <div className="p-2.5 bg-slate-950 border-b border-slate-800">
+              <div className="relative flex items-center">
+                <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={activeTab === 'chats' ? "Buscar usuario..." : "Buscar grupo..."}
+                  className="w-full bg-slate-800 border border-slate-700/60 rounded-xl pl-8 pr-7 py-1.5 text-xs text-slate-100 placeholder-slate-400 focus:outline-none focus:border-cyan-500 transition-colors"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 text-slate-400 hover:text-slate-200"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 p-3 overflow-y-auto">
+            {/* Pestaña: Chats Directos */}
             {activeTab === 'chats' && (
               <div className="space-y-3">
                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
-                  Usuarios Disponibles
+                  Usuarios Disponibles ({filteredUsers.length})
                 </span>
-                {allUsers.map((u) => {
-                  const isOnline = presences[u.id]?.status === 'online';
-                  return (
-                    <div
-                      key={u.id}
-                      onClick={() => handleStartDirectChat(u.id)}
-                      className="flex items-center justify-between p-2.5 bg-slate-800/60 hover:bg-slate-800 rounded-xl cursor-pointer transition-all border border-slate-800"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="relative">
-                          <div className="w-8 h-8 rounded-full bg-cyan-900/50 text-cyan-300 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
-                            {(u.username || u.email || 'U')[0].toUpperCase()}
+                {filteredUsers.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-6">No se encontraron usuarios.</p>
+                ) : (
+                  filteredUsers.map((u) => {
+                    const isOnline = presences[u.id]?.status === 'online';
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => handleStartDirectChat(u.id)}
+                        className="flex items-center justify-between p-2.5 bg-slate-800/60 hover:bg-slate-800 rounded-xl cursor-pointer transition-all border border-slate-800"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="relative">
+                            <div className="w-8 h-8 rounded-full bg-cyan-900/50 text-cyan-300 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
+                              {(u.username || u.email || 'U')[0].toUpperCase()}
+                            </div>
+                            <span 
+                              className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-slate-900 ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} 
+                              title={isOnline ? "Online" : "Offline"} 
+                            />
                           </div>
-                          <span 
-                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-slate-900 ${isOnline ? 'bg-emerald-500' : 'bg-slate-500'}`} 
-                            title={isOnline ? "Online" : "Offline"} 
-                          />
+                          <div>
+                            <p className="text-xs font-medium text-slate-200">{u.username || u.email}</p>
+                            <p className="text-[10px] text-slate-400">{u.role}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-medium text-slate-200">{u.username || u.email}</p>
-                          <p className="text-[10px] text-slate-400">{u.role}</p>
-                        </div>
+                        <MessageCircle size={14} className="text-slate-500" />
                       </div>
-                      <MessageCircle size={14} className="text-slate-500" />
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             )}
 
+            {/* Pestaña: Grupos */}
             {activeTab === 'groups' && (
               <div className="space-y-2">
-                {rooms.filter(r => r.is_group).length === 0 ? (
-                  <p className="text-xs text-slate-500 text-center py-8">No perteneces a ningún grupo aún.</p>
+                {filteredGroups.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-8">
+                    {searchQuery ? 'No se encontraron grupos.' : 'No perteneces a ningún grupo aún.'}
+                  </p>
                 ) : (
-                  rooms.filter(r => r.is_group).map((g) => (
+                  filteredGroups.map((g) => (
                     <div
                       key={g.id}
                       onClick={() => setSelectedRoom(g)}
@@ -625,8 +673,9 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
               </div>
             )}
 
+            {/* Pestaña: Crear Nuevo Grupo */}
             {activeTab === 'new_group' && (
-              <form onSubmit={handleCreateGroup} className="space-y-3">
+                  <form onSubmit={handleCreateGroup} className="space-y-3">
                 <div>
                   <label className="text-[11px] text-slate-400 block mb-1">Nombre del Grupo</label>
                   <input
