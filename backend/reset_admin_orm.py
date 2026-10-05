@@ -1,7 +1,7 @@
 from app import app, db, User, Tenant
 from werkzeug.security import generate_password_hash
 
-USERNAME = "admin"
+USERNAME = "admin_user"
 NEW_PASSWORD = "Admin123!"
 
 with app.app_context():

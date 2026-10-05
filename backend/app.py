@@ -126,6 +126,39 @@ SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 # Inicialización correcta y limpia para el servidor Flask
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def init_db():
+    with app.app_context():
+        db.create_all()
+
+        # Verificar o crear el Tenant por defecto
+        tenant = Tenant.query.first()
+        if not tenant:
+            tenant = Tenant(name="Hospital Central", created_at=datetime.datetime.now(timezone.utc))
+            db.session.add(tenant)
+            db.session.commit()
+
+        # Crear o actualizar el usuario admin
+        admin_user = User.query.filter_by(username='admin').first()
+        if not admin_user:
+            admin_user = User(
+                username='admin',
+                password=generate_password_hash('Admin123!'),
+                role='admin',
+                tenant_id=tenant.id,
+                created_at=datetime.datetime.now(timezone.utc)
+            )
+            db.session.add(admin_user)
+            print("[SEED]: Usuario 'admin' creado exitosamente.")
+        else:
+            # Asegura que el hash actual de Admin123! sea válido
+            admin_user.password = generate_password_hash('Admin123!')
+            print("[SEED]: Contraseña del usuario 'admin' actualizada.")
+
+        db.session.commit()
+
+# Llama a la función al iniciar la app
+init_db()
+
 # ==========================================
 # FUNCIONES AUXILIARES DE BASE DE DATOS PARA CHAT
 # ==========================================
@@ -393,6 +426,7 @@ def register():
                 db.session.flush()
             tenant_id = default_tenant.id
 
+        # Se genera el hash compatible con check_password_hash
         hashed_password = generate_password_hash(password)
 
         new_user = User(
@@ -422,7 +456,7 @@ def register():
 
     except Exception as e:
         db.session.rollback()
-        print(f"[REGISTER ERROR]: {str(e)}")
+        print(f"[REGISTER ERROR]: {str(e)}", file=sys.stderr)
         return jsonify({'message': f'Internal server error: {str(e)}'}), 500
 
 
