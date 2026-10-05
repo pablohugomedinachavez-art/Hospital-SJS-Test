@@ -6,7 +6,22 @@ import {
 } from 'lucide-react';
 import { apiFetch } from './api';
 
+// Aseguramos que allUsers y rooms sean siempre arreglos para prevenir errores
+  const safeUsers = Array.isArray(allUsers) ? allUsers : [];
+  const safeRooms = Array.isArray(rooms) ? rooms : [];
 
+  // Filtrado dinámico
+  const filteredUsers = safeUsers.filter(u => {
+    const name = u.username || u.email || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const filteredGroups = safeRooms.filter(r => r.is_group).filter(g => {
+    const name = g.name || '';
+    const desc = g.description || '';
+    return name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+           desc.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 // Filtrar usuarios directos por nombre o email
   const filteredUsers = allUsers.filter(u => {
     const name = u.username || u.email || '';
@@ -673,9 +688,9 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
               </div>
             )}
 
-            {/* Pestaña: Crear Nuevo Grupo */}
+           {/* Pestaña: Crear Nuevo Grupo */}
             {activeTab === 'new_group' && (
-                  <form onSubmit={handleCreateGroup} className="space-y-3">
+              <form onSubmit={handleCreateGroup} className="space-y-3">
                 <div>
                   <label className="text-[11px] text-slate-400 block mb-1">Nombre del Grupo</label>
                   <input
@@ -698,7 +713,7 @@ const handleSendMessage = async (mediaUrl = null, mediaType = null) => {
                 <div>
                   <label className="text-[11px] text-slate-400 block mb-1">Seleccionar Miembros</label>
                   <div className="max-h-36 overflow-y-auto space-y-1 bg-slate-950 p-2 rounded-lg border border-slate-800">
-                    {allUsers.map((u) => (
+                    {(allUsers || []).map((u) => (
                       <label key={u.id} className="flex items-center gap-2 p-1 hover:bg-slate-800 rounded cursor-pointer text-xs">
                         <input
                           type="checkbox"
