@@ -11,11 +11,10 @@ import {
   Eye,File,FileCheck,FileEdit,FileMinus,FilePlus,FileSearch,FileText,FileX,Filter,HardDrive,Heart,
   HeartPulse,Key,Laptop,Layers,Loader2,Mail,MapPin,MessageSquare,Monitor,Phone,Pill,Plus,Printer,
   RefreshCw,Ruler,Save,Scale,Search,Server,Settings,Shield,ShieldAlert,ShieldCheck,Sliders,Smartphone,
-  Stethoscope,TrendingDown,TrendingUp,Trash2,User,UserCheck,UserPlus,Wifi,X
+  Stethoscope,TrendingDown,TrendingUp,Trash2,User as UsersIcon,UserCheck,UserPlus,Wifi,X
 } from 'lucide-react';
 
 
-<Users className="w-7 h-7" />
 
 // ============================================================
 // --- Componentes UX Secundarios Compartidos ---
