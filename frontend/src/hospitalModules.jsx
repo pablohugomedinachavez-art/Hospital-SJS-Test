@@ -531,6 +531,41 @@ export const COLOR_PALETTE = {
   cardBg: '#1e293b'
 };
 
+function AnimatedNumber({ value }) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    // Extract numerical value if passed as a string with commas/formatting
+    const numericTarget = typeof value === 'number' ? value : parseInt(String(value).replace(/,/g, ''), 10);
+    
+    if (isNaN(numericTarget)) {
+      setDisplayValue(value);
+      return;
+    }
+
+    let start = 0;
+    const duration = 1200; // 1.2 seconds
+    const steps = 40;
+    const increment = numericTarget / steps;
+    const stepTime = duration / steps;
+
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= numericTarget) {
+        setDisplayValue(numericTarget);
+        clearInterval(timer);
+      } else {
+        setDisplayValue(Math.floor(start));
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <span>{displayValue.toLocaleString()}</span>;
+}
+
+
 // ============================================================
 // --- COMPONENTE PRINCIPAL: Dashboard de Dispositivos ---
 // ============================================================
@@ -3924,7 +3959,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   const [alertFilter, setAlertFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
 
-  // 1. PESTAÑAS REORDENADAS POR FLÚJO DE ATENCIÓN
+  // 1. REORDERED HOSPITAL TABS
   const hospitalAreas = [
     { id: 'general', label: 'General / Módulos' },
     { id: 'consulta', label: 'Consulta Externa' },
@@ -3933,7 +3968,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     { id: 'cirugia', label: 'Pabellón Quirúrgico' }
   ];
 
-  // 2. MÉTRICAS EJECUTIVAS
+  // 2. EXECUTIVE METRICS
   const executiveMetrics = useMemo(() => {
     const areaData = {
       general: { patients: stats.patients ?? 142, consultations: stats.consultations ?? 389, appointments: stats.appointments ?? 420, alerts: alertsList.length > 0 ? alertsList.length : 3, noShow: 7.4, occupancy: 78 },
@@ -3946,14 +3981,14 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     const current = areaData[activeArea] || areaData.general;
 
     return [
-      { id: 'patients', label: 'PACIENTES ACTIVOS', value: current.patients.toLocaleString(), subtext: 'Registrados en el área', trend: '+12.4%', isUp: true, icon: Users, decisionNote: 'Flujo de ingreso constante.' },
-      { id: 'consultations', label: 'CONSULTAS REALIZADAS', value: current.consultations.toLocaleString(), subtext: `${current.occupancy}% cap. instalada`, trend: '+8.1%', isUp: true, icon: Stethoscope, decisionNote: 'Operatividad sin saturación.' },
-      { id: 'appointments', label: 'CITAS PROGRAMADAS', value: current.appointments.toLocaleString(), subtext: `Tasa No-Show: ${current.noShow}%`, trend: '-3.2%', isUp: false, icon: Clock, decisionNote: 'Ausentismo bajo monitoreo.' },
-      { id: 'alerts', label: 'INCIDENCIAS Y ALERTAS', value: current.alerts, subtext: 'Atención requerida', trend: current.alerts > 2 ? 'Riesgo Medio' : 'Estable', isUp: false, icon: AlertTriangle, decisionNote: 'Revisiones normativas.' }
+      { id: 'patients', label: 'PACIENTES ACTIVOS', rawValue: current.patients, subtext: 'Registrados en el área', trend: '+12.4%', isUp: true, icon: Users, decisionNote: 'Flujo de ingreso constante.' },
+      { id: 'consultations', label: 'CONSULTAS REALIZADAS', rawValue: current.consultations, subtext: `${current.occupancy}% cap. instalada`, trend: '+8.1%', isUp: true, icon: Stethoscope, decisionNote: 'Operatividad sin saturación.' },
+      { id: 'appointments', label: 'CITAS PROGRAMADAS', rawValue: current.appointments, subtext: `Tasa No-Show: ${current.noShow}%`, trend: '-3.2%', isUp: false, icon: Clock, decisionNote: 'Ausentismo bajo monitoreo.' },
+      { id: 'alerts', label: 'INCIDENCIAS Y ALERTAS', rawValue: current.alerts, subtext: 'Atención requerida', trend: current.alerts > 2 ? 'Riesgo Medio' : 'Estable', isUp: false, icon: AlertTriangle, decisionNote: 'Revisiones normativas.' }
     ];
   }, [stats, alertsList, activeArea]);
 
-  // 3. ESPECIALIDADES
+  // 3. SPECIALTIES DATA
   const specialtiesData = useMemo(() => {
     const dataByArea = {
       general: [
@@ -3984,7 +4019,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     return dataByArea[activeArea] || dataByArea.general;
   }, [activeArea]);
 
-  // 4. INCIDENCIAS
+  // 4. ALERTS DATA
   const rawAlerts = useMemo(() => {
     const alertMap = {
       general: [
@@ -4014,7 +4049,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     return rawAlerts.filter(a => a.level.toLowerCase() === alertFilter.toLowerCase());
   }, [rawAlerts, alertFilter]);
 
-  // 5. USUARIOS
+  // 5. USERS DATA
   const rawUsers = useMemo(() => {
     return usersList.length > 0 ? usersList : [
       { id: 1, name: 'Dr. Roberto Gómez', role: 'Médico General', status: 'Activo', dept: 'Consultorio 1' },
@@ -4041,12 +4076,6 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     downloadAnchor.remove();
   };
 
-  // ESTILOS INLINE DE ANIMACIÓN Y HOVER PARA CUBOS
-  const cardInteractiveStyle = {
-    transition: 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease',
-    cursor: 'pointer'
-  };
-
   const handleMouseEnter = (e) => {
     e.currentTarget.style.transform = 'translateY(-3px)';
     e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.35)';
@@ -4062,8 +4091,41 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   return (
     <div className="view-container" style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
       
+      {/* EMBEDDED STYLES FOR PAGE ENTRANCE ANIMATIONS & SVG STROKE FILL */}
+      <style>{`
+        @keyframes fadeInSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fillDonut {
+          from {
+            stroke-dasharray: 0, 100;
+          }
+          to {
+            stroke-dasharray: 78, 100;
+          }
+        }
+
+        .animated-card {
+          animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+          cursor: pointer;
+        }
+
+        .donut-animated-path {
+          animation: fillDonut 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
       {/* TOOLBAR HEADER */}
-      <header className="app-header toolbar" style={{ marginBottom: '0.75rem', padding: '0.5rem 0.75rem' }}>
+      <header className="app-header toolbar animated-card" style={{ animationDelay: '0ms', marginBottom: '0.75rem', padding: '0.5rem 0.75rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Building2 size={16} style={{ color: 'var(--info)' }} />
@@ -4099,8 +4161,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </header>
 
-      {/* PESTAÑAS CON ORDEN REORGANIZADO */}
-      <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.45rem', overflowX: 'auto' }}>
+      {/* REORDERED HOSPITAL TABS */}
+      <div className="animated-card" style={{ animationDelay: '50ms', display: 'flex', gap: '0.35rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.45rem', overflowX: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', paddingRight: '0.4rem', color: 'var(--text-muted)' }}>
           <Layers size={16} />
           <span style={{ fontSize: '0.675rem', fontWeight: 600 }}>Área:</span>
@@ -4127,19 +4189,19 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         ))}
       </div>
 
-      {/* GRID REAJUSTADO: 8 COLS TABLERO + 4 COLS DIRECTORIO (EVITA CORTES LATERALES) */}
+      {/* MAIN GRID */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0.85rem', width: '100%' }}>
         
-        {/* ================= TABLERO PRINCIPAL (8 COLS) ================= */}
+        {/* MAIN DASHBOARD (8 COLS) */}
         <main style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
           
           {/* TOP KPI CUBES */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
-            {executiveMetrics.map((item) => (
+            {executiveMetrics.map((item, index) => (
               <div
                 key={item.id}
-                className="card"
-                style={{ ...cardInteractiveStyle, padding: '0.65rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '105px', boxSizing: 'border-box' }}
+                className="card animated-card"
+                style={{ animationDelay: `${100 + index * 60}ms`, padding: '0.65rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '105px', boxSizing: 'border-box' }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
@@ -4155,7 +4217,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem', margin: '0.1rem 0' }}>
                   <div className="font-bold" style={{ fontSize: '1.25rem', color: 'var(--text-primary)', lineHeight: 1 }}>
-                    {item.value}
+                    <AnimatedNumber value={item.rawValue} />
                   </div>
                   <span className="text-muted" style={{ fontSize: '0.65rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {item.subtext}
@@ -4174,8 +4236,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             
             {/* DONUT CHART CUBE */}
             <div
-              className="card"
-              style={{ ...cardInteractiveStyle, gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
+              className="card animated-card"
+              style={{ animationDelay: '350ms', gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -4189,10 +4251,19 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', margin: '0.4rem 0' }}>
                 <svg width="100" height="100" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
                   <path stroke="var(--bg-dark)" strokeWidth="3.8" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  <path stroke="var(--info)" strokeDasharray="78, 100" strokeWidth="3.8" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path
+                    className="donut-animated-path"
+                    stroke="var(--info)"
+                    strokeWidth="3.8"
+                    strokeLinecap="round"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
                 </svg>
                 <div style={{ position: 'absolute', textAlign: 'center' }}>
-                  <span className="font-bold" style={{ fontSize: '1.1rem', color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>78%</span>
+                  <span className="font-bold" style={{ fontSize: '1.1rem', color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>
+                    <AnimatedNumber value={78} />%
+                  </span>
                   <span className="text-muted" style={{ fontSize: '0.65rem' }}>Uso Activo</span>
                 </div>
               </div>
@@ -4204,8 +4275,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
             {/* SPECIALTIES PROGRESS CUBE */}
             <div
-              className="card"
-              style={{ ...cardInteractiveStyle, gridColumn: 'span 8', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
+              className="card animated-card"
+              style={{ animationDelay: '420ms', gridColumn: 'span 8', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -4225,11 +4296,11 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                           {spec.name} <span className="text-muted" style={{ fontSize: '0.65rem' }}>({spec.doctorCount} M)</span>
                         </span>
                         <span className="text-muted font-medium" style={{ fontSize: '0.65rem' }}>
-                          <strong style={{ color: 'var(--text-primary)' }}>{spec.count}</strong> / {spec.target} ({spec.percentage}%)
+                          <strong style={{ color: 'var(--text-primary)' }}><AnimatedNumber value={spec.count} /></strong> / {spec.target} ({spec.percentage}%)
                         </span>
                       </div>
                       <div style={{ width: '100%', height: '5px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                        <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)' }} />
+                        <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)', transition: 'width 1s ease-out' }} />
                       </div>
                     </div>
                   ))}
@@ -4244,8 +4315,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
           {/* INCIDENTS CUBE */}
           <div
-            className="card"
-            style={{ ...cardInteractiveStyle, padding: '0.75rem', boxSizing: 'border-box' }}
+            className="card animated-card"
+            style={{ animationDelay: '490ms', padding: '0.75rem', boxSizing: 'border-box' }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
@@ -4315,10 +4386,10 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
         </main>
 
-        {/* ================= DIRECTORIO DE USUARIOS LATERAL (4 COLS) ================= */}
+        {/* RIGHT SIDEBAR USER DIRECTORY (4 COLS) */}
         <aside
-          className="card"
-          style={{ ...cardInteractiveStyle, gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', boxSizing: 'border-box' }}
+          className="card animated-card"
+          style={{ animationDelay: '560ms', gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', boxSizing: 'border-box' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
