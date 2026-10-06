@@ -6,14 +6,70 @@ import {
   Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
   dashboard2 
 } from './hospitalModules'
+import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
-import { MessageSquare } from 'lucide-react'
+import { Login } from './Login'
+import {
+  User, MessageSquare, MessageCircle, Bell, ChevronDown, Mail, ShieldCheck, 
+  UserPlus, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2, AlertTriangle, 
+  Stethoscope, UserCheck, Printer, Calendar, Clock, FileText, Phone, Heart, 
+  Activity, File, FilePlus, FileMinus, FileCheck, FileX, FileSearch, FileEdit, 
+  X, Save, Eye, ExternalLink, Download, Award, Search, Filter, Scale, Ruler, 
+  HeartPulse, Pill, AlertCircle, CheckCircle2, ShieldAlert, Monitor, Server, 
+  Laptop, Smartphone, Wifi, Layers, ChevronLeft, ChevronRight, Loader2, 
+  TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, 
+  ArrowUpRight, ArrowDownRight
+} from 'lucide-react'
+
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL"
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY"
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Inicialización del cliente Supabase
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+export class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Error capturado por ErrorBoundary:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-full text-red-400">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold">Ocurrió un error al cargar este módulo</h2>
+          <p className="text-xs text-slate-400 max-w-md">
+            {this.state.error?.message || "Se produjo una excepción inesperada durante el renderizado."}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-xs font-semibold rounded-xl transition-all"
+          >
+            Recargar Página
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Mapa de rutas de navegación
 const ROUTES_MAP = {
   '/dashboard': Dashboard,
   '/patients': Patients,
@@ -22,7 +78,9 @@ const ROUTES_MAP = {
   '/documents': Documents,
   '/locations': Locations,
   '/devices': Devices,
+  '/alerts': Alerts,
   '/device-management': DeviceManagementDashboard,
+  '/DeviceManagementDashboard': DeviceManagementDashboard,
   '/users': Users,
   '/reports': Reports,
   '/profile': Profile,
@@ -31,74 +89,431 @@ const ROUTES_MAP = {
 
 const normalizeRoute = (hash) => {
   const route = String(hash || '').replace(/^#/, '')
-  if (!route || route === '/' || route === '/home') return '/dashboard'
+  if (!route || route === '/' || route === '/home') return '/login'
   return route
 }
 
+const Icons = {
+  Dashboard: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
+  Clinical: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>,
+  Operations: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  Users: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  Reports: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+  Account: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+}
+
+function Sidebar({ currentRoute }) {
+  const { user, logout } = useAuth()
+  const [openSections, setOpenSections] = useState({
+    dashboard: true, clinical: true, operations: true, users: true, reports: true, account: true
+  })
+
+  const hasPermission = (permission) => {
+    const permissions = user?.permissions || user?.user_metadata?.permissions || []
+    return Boolean(permissions.includes(permission))
+  }
+
+  const navGroups = [
+    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' },{ label: 'dashboard2', path: '/dashboard2' }] },
+    {
+      key: 'clinical', title: 'Gestión clínica', icon: <Icons.Clinical />,
+      items: [
+        { label: 'Pacientes', path: '/patients' },
+        { label: 'Consultas', path: '/consultations' },
+        { label: 'Citas', path: '/appointments' },
+        { label: 'Documentos', path: '/documents' }
+      ]
+    },
+    {
+      key: 'operations', 
+      title: 'Gestión operativa', 
+      icon: <Icons.Operations />,
+      items: [
+        { label: 'Ubicaciones', path: '/locations' },
+        { label: 'Dispositivos', path: '/devices' },
+        { label: 'Alertas', path: '/alerts' },
+        { label: 'Auditoría & IP', path: '/device-management' }
+      ]
+    },
+    { key: 'users', title: 'Usuarios', icon: <Icons.Users />, items: [{ label: 'Usuarios', path: '/users', permission: 'manage_users' }] },
+    { key: 'reports', title: 'Informes', icon: <Icons.Reports />, items: [{ label: 'Reportes', path: '/reports' }] },
+    { key: 'account', title: 'Cuenta', icon: <Icons.Account />, items: [{ label: 'Perfil', path: '/profile' }] }
+  ]
+
+  const toggleSection = (key) => setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-header">
+        <div>
+          <div className="sidebar-brand">Hospital TIC</div>
+          <p className="sidebar-subtitle">Panel de Control</p>
+        </div>
+      </div>
+
+      <div className="sidebar-welcome">
+        <span>Hola, </span>
+        <strong style={{ color: 'var(--text-main)' }}>{user?.username || user?.email || 'Invitado'}</strong>
+      </div>
+
+      <nav className="sidebar-nav">
+        {navGroups.map(group => {
+          const items = group.items.filter(item => !item.permission || hasPermission(item.permission))
+          if (!items.length) return null
+          return (
+            <div key={group.key} className="sidebar-section">
+              <button type="button" className="sidebar-section-header" onClick={() => toggleSection(group.key)}>
+                <span className="sidebar-section-icon">{group.icon}</span>
+                <span>{group.title}</span>
+                <span className={`sidebar-chevron ${openSections[group.key] ? 'open' : ''}`}>▾</span>
+              </button>
+              {openSections[group.key] && (
+                <div className="sidebar-section-items">
+                  {items.map(item => (
+                    <a key={item.path} href={`#${item.path}`} className={`sidebar-item ${currentRoute === item.path ? 'active' : ''}`}>
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </nav>
+
+      <div className="sidebar-footer">
+        {user ? (
+          <button type="button" className="sidebar-logout" onClick={logout}>Cerrar sesión</button>
+        ) : (
+          <a href="#/login" className="button secondary sidebar-logout" style={{ textAlign: 'center' }}>Login</a>
+        )}
+      </div>
+    </aside>
+  )
+}
+
+function CollectionList({ title, items = [], render, filters = [] }) {
+  const [query, setQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState(filters.length ? filters[0].value : 'all')
+  const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => { setCurrentPage(1) }, [query, activeFilter, items])
+
+  const normalizedQuery = query.toLowerCase().trim()
+  const filteredItems = items.filter(item => {
+    const searchMatch = !normalizedQuery || JSON.stringify(item).toLowerCase().includes(normalizedQuery)
+    const filter = filters.find(f => f.value === activeFilter)
+    const filterMatch = !filter || activeFilter === 'all' || filter.predicate(item)
+    return searchMatch && filterMatch
+  })
+
+  const pageSize = 12
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
+  const pageItems = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  return (
+    <div className="card collection-card">
+      <div className="collection-header">
+        <h2>{title}</h2>
+        <span className="collection-count">{filteredItems.length} elementos</span>
+      </div>
+      <div className="collection-toolbar">
+        <div className="collection-search">
+          <span>Búsqueda</span>
+          <input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Filtrar registros..." />
+        </div>
+        {filters.length > 0 && (
+          <div className="collection-filter">
+            <span>Filtro</span>
+            <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)}>
+              {filters.map(filter => <option key={filter.value} value={filter.value}>{filter.label}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <p style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '2rem' }}>No hay registros.</p>
+      ) : filteredItems.length === 0 ? (
+        <p style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '2rem' }}>No hay resultados para la búsqueda.</p>
+      ) : (
+        <>
+          <div className="items-grid">
+            {pageItems.map(item => render(item))}
+          </div>
+          {totalPages > 1 && (
+            <div className="pagination-footer">
+              <button type="button" className="button secondary" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage <= 1}>Anterior</button>
+              <span>Página {currentPage} de {totalPages}</span>
+              <button type="button" className="button secondary" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage >= totalPages}>Siguiente</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function Alerts() {
+  const [alerts, setAlerts] = useState([])
+  const [devices, setDevices] = useState([])
+  const [deviceId, setDeviceId] = useState('')
+  const [alertType, setAlertType] = useState('device_offline')
+  const [message, setMessage] = useState('')
+  const [severity, setSeverity] = useState('medium')
+  const [info, setInfo] = useState('')
+  const [showForm, setShowForm] = useState(false)
+
+  async function load() {
+    try {
+      const [alertsRes, devicesRes] = await Promise.all([apiFetch('/alerts'), apiFetch('/devices')])
+      if (alertsRes.ok) setAlerts(await alertsRes.json())
+      if (devicesRes.ok) setDevices(await devicesRes.json())
+    } catch (err) {
+      setInfo('Error al conectar con el servidor')
+    }
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function submit(e) {
+    e.preventDefault()
+    try {
+      const res = await apiFetch('/alerts', {
+        method: 'POST',
+        body: JSON.stringify({ device_id: deviceId, alert_type: alertType, message, severity })
+      })
+      if (res.ok) {
+        setMessage('')
+        setInfo('Alerta creada exitosamente')
+        setShowForm(false)
+        load()
+        setTimeout(() => setInfo(''), 4000)
+      }
+    } catch (err) {
+      setInfo('Error de red al registrar la alerta')
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+      {info && (
+        <div style={{
+          padding: '0.85rem 1.25rem',
+          background: info.includes('Error') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+          border: `1px solid ${info.includes('Error') ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'}`,
+          color: info.includes('Error') ? '#f87171' : '#34d399',
+          borderRadius: '8px',
+          fontSize: '0.9rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <span>{info}</span>
+          <button onClick={() => setInfo('')} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem' }}>&times;</button>
+        </div>
+      )}
+
+      <div className="card" style={{ background: 'var(--card-bg, #111827)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: '#f3f4f6', margin: 0 }}>Monitoreo de Alertas</h2>
+            <p style={{ color: '#9ca3af', fontSize: '0.875rem', marginTop: '0.25rem' }}>Gestione y configure notificaciones automatizadas del sistema.</p>
+          </div>
+          {!showForm && (
+            <button 
+              type="button" 
+              className="button" 
+              onClick={() => setShowForm(true)}
+              style={{
+                background: '#4f46e5',
+                color: '#ffffff',
+                border: 'none',
+                padding: '0.625rem 1.25rem',
+                borderRadius: '8px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>+</span> Crear Alerta
+            </button>
+          )}
+        </div>
+
+        {showForm && (
+          <form onSubmit={submit} style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.85rem', color: '#9ca3af', fontWeight: 500 }}>
+                Dispositivo
+                <select 
+                  value={deviceId} 
+                  onChange={e => setDeviceId(e.target.value)}
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem' }}
+                >
+                  <option value="">Seleccionar dispositivo</option>
+                  {devices.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}
+                </select>
+              </label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.85rem', color: '#9ca3af', fontWeight: 500 }}>
+                Tipo de alerta
+                <input 
+                  value={alertType} 
+                  onChange={e => setAlertType(e.target.value)} 
+                  placeholder="device_offline" 
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem' }}
+                />
+              </label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.85rem', color: '#9ca3af', fontWeight: 500 }}>
+                Severidad
+                <select 
+                  value={severity} 
+                  onChange={e => setSeverity(e.target.value)}
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem' }}
+                >
+                  <option value="low">Baja</option>
+                  <option value="medium">Media</option>
+                  <option value="high">Alta</option>
+                </select>
+              </label>
+
+              <label style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.375rem', fontSize: '0.85rem', color: '#9ca3af', fontWeight: 500 }}>
+                Mensaje
+                <input 
+                  value={message} 
+                  onChange={e => setMessage(e.target.value)} 
+                  placeholder="Detalle de la alerta o descripción del evento" 
+                  style={{ background: '#1f2937', border: '1px solid #374151', color: '#f3f4f6', padding: '0.625rem', borderRadius: '6px', fontSize: '0.9rem' }}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+              <button type="submit" style={{ background: '#4f46e5', color: '#ffffff', border: 'none', padding: '0.625rem 1.25rem', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}>
+                Guardar Alerta
+              </button>
+              <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', color: '#9ca3af', border: '1px solid #374151', padding: '0.625rem 1.25rem', borderRadius: '6px', fontWeight: 500, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      <CollectionList
+        title="Alertas recientes"
+        items={alerts}
+        render={alert => (
+          <div key={alert.id} className="item-card" style={{ background: 'var(--card-bg, #111827)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '10px', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f3f4f6', margin: 0 }}>{alert.alert_type}</h3>
+              <span className={`badge ${alert.severity}`} style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '9999px', textTransform: 'uppercase', fontWeight: 600, background: alert.severity === 'high' ? 'rgba(239, 68, 68, 0.2)' : alert.severity === 'medium' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)', color: alert.severity === 'high' ? '#f87171' : alert.severity === 'medium' ? '#fbbf24' : '#60a5fa' }}>
+                {alert.severity}
+              </span>
+            </div>
+            <p style={{ color: '#9ca3af', fontSize: '0.9rem', margin: 0 }}>{alert.message}</p>
+            <span className="meta" style={{ color: '#6b7280', fontSize: '0.75rem' }}>{new Date(alert.created_at).toLocaleString()}</span>
+          </div>
+        )}
+      />
+    </div>
+  )
+}
+
 function AppHeader({ onOpenChat, unreadChatCount }) {
-  const { user } = useAuth()
+  const { user } = useAuth();
 
   return (
     <header className="app-header">
-      <div style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <span style={{ color: '#4f46e5' }}>•</span> Tablero Ejecutivo
+      <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', items: 'center', gap: '0.5rem' }}>
+        <span style={{ color: 'var(--primary)' }}>•</span> Panel General
       </div>
 
       {user && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className="user-badge flex items-center gap-3">
+          {/* Botón de Chat TI en el Header */}
           <button 
             onClick={onOpenChat}
-            className="button secondary"
-            style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem' }}
+            className="btn btn-secondary flex items-center gap-2 text-xs py-2 px-3 hover:border-cyan-500/50 transition-all cursor-pointer relative"
           >
-            <MessageSquare size={16} />
+            <MessageSquare size={14} className="text-cyan-400" />
             <span>Chat TI</span>
             {unreadChatCount > 0 && (
-              <span style={{
-                position: 'absolute', top: '-4px', right: '-4px',
-                background: '#ef4444', color: '#fff', fontSize: '10px',
-                fontWeight: 'bold', width: '18px', height: '18px',
-                borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-[#0B0F19] animate-pulse">
                 {unreadChatCount}
               </span>
             )}
           </button>
-          <span style={{ fontSize: '0.9rem', color: '#9ca3af' }}>{user.username || user.email}</span>
+
+          <div className="avatar-circle">{(user.username || user.email || 'U')[0].toUpperCase()}</div>
+          <span>{user.username || user.email}</span>
         </div>
       )}
     </header>
-  )
+  );
 }
 
-function MainLayout() {
-  const { user } = useAuth()
-  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash))
-  const [isChatOpen, setIsChatOpen] = useState(false)
-  const [unreadChatCount, setUnreadChatCount] = useState(0)
+function AppContent() {
+  const { user } = useAuth();
+  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
+  // Escuchar cambios de hash para la navegación entre módulos
   useEffect(() => {
-    const handleHashChange = () => setRoute(normalizeRoute(window.location.hash))
-    window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
-  }, [])
+    const handleHashChange = () => {
+      setRoute(normalizeRoute(window.location.hash));
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
-  // Selección estricta del componente de ruta para evitar doble renderizado
-  const ActiveViewComponent = ROUTES_MAP[route] || Dashboard
+  // Escuchar mensajes no leídos globalmente cuando el chat está cerrado
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('global_unread_notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_messages'
+      }, (payload) => {
+        if (payload.new.sender_id !== user.id && !isChatOpen) {
+          setUnreadChatCount(prev => prev + 1);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isChatOpen]);
+
+  const renderRoute = () => {
+    const Component = ROUTES_MAP[route] || ROUTES_MAP['/dashboard'];
+    return <Component />;
+  };
 
   return (
     <div className="app-layout">
+      <Sidebar currentRoute={route} />
       <main className="main-content">
         <AppHeader 
           onOpenChat={() => { setIsChatOpen(true); setUnreadChatCount(0); }} 
           unreadChatCount={unreadChatCount} 
         />
         
-        {/* Contenedor aislado con BFC independiente */}
-        <div className="view-container">
-          <ActiveViewComponent />
-        </div>
+        {/* Módulos de Contenido Principal envueltos en ErrorBoundary */}
+        <ErrorBoundary>
+          {renderRoute()}
+        </ErrorBoundary>
 
+        {/* Widget Flotante del Chat TI */}
         <ChatTIWidget 
           currentUser={user}
           supabase={supabase}
@@ -107,13 +522,41 @@ function MainLayout() {
         />
       </main>
     </div>
-  )
+  );
+}
+
+function MainApp() {
+  const { user, loading } = useAuth()
+  const [route, setRoute] = useState(() => normalizeRoute(window.location.hash))
+
+  useEffect(() => {
+    const handleHashChange = () => setRoute(normalizeRoute(window.location.hash))
+    window.addEventListener('hashchange', handleHashChange)
+    return () => window.removeEventListener('hashchange', handleHashChange)
+  }, [])
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff', background: '#090d16' }}>
+        Cargando interfaz...
+      </div>
+    )
+  }
+
+  if (!user) return <Login />
+
+  if (route === '/register' || route === '/login') {
+    window.location.hash = '#/dashboard'
+    return null
+  }
+
+  return <AppContent />
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <MainLayout />
+      <MainApp />
     </AuthProvider>
   )
 }
