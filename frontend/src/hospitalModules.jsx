@@ -3924,111 +3924,36 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   const [alertFilter, setAlertFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
 
-  // DEFINICIÓN DE PESTAÑAS DE ÁREAS
+  // 1. PESTAÑAS REORDENADAS POR FLÚJO DE ATENCIÓN
   const hospitalAreas = [
     { id: 'general', label: 'General / Módulos' },
+    { id: 'consulta', label: 'Consulta Externa' },
     { id: 'urgencias', label: 'Urgencias' },
     { id: 'hospitalizacion', label: 'Hospitalización' },
-    { id: 'cirugia', label: 'Pabellón Quirúrgico' },
-    { id: 'consulta', label: 'Consulta Externa' }
+    { id: 'cirugia', label: 'Pabellón Quirúrgico' }
   ];
 
-  // 1. MÉTRICAS DINÁMICAS SEGÚN ÁREA SELECCIONADA
+  // 2. MÉTRICAS EJECUTIVAS
   const executiveMetrics = useMemo(() => {
     const areaData = {
-      general: {
-        patients: stats.patients ?? 142,
-        consultations: stats.consultations ?? 389,
-        appointments: stats.appointments ?? 420,
-        alerts: alertsList.length > 0 ? alertsList.length : 3,
-        noShow: 7.4,
-        occupancy: 78
-      },
-      urgencias: {
-        patients: 88,
-        consultations: 215,
-        appointments: 0,
-        alerts: 5,
-        noShow: 1.2,
-        occupancy: 92
-      },
-      hospitalizacion: {
-        patients: 64,
-        consultations: 110,
-        appointments: 45,
-        alerts: 2,
-        noShow: 2.0,
-        occupancy: 85
-      },
-      cirugia: {
-        patients: 18,
-        consultations: 32,
-        appointments: 28,
-        alerts: 1,
-        noShow: 4.5,
-        occupancy: 65
-      },
-      consulta: {
-        patients: 210,
-        consultations: 430,
-        appointments: 510,
-        alerts: 2,
-        noShow: 9.8,
-        occupancy: 72
-      }
+      general: { patients: stats.patients ?? 142, consultations: stats.consultations ?? 389, appointments: stats.appointments ?? 420, alerts: alertsList.length > 0 ? alertsList.length : 3, noShow: 7.4, occupancy: 78 },
+      consulta: { patients: 210, consultations: 430, appointments: 510, alerts: 2, noShow: 9.8, occupancy: 72 },
+      urgencias: { patients: 88, consultations: 215, appointments: 0, alerts: 5, noShow: 1.2, occupancy: 92 },
+      hospitalizacion: { patients: 64, consultations: 110, appointments: 45, alerts: 2, noShow: 2.0, occupancy: 85 },
+      cirugia: { patients: 18, consultations: 32, appointments: 28, alerts: 1, noShow: 4.5, occupancy: 65 }
     };
 
     const current = areaData[activeArea] || areaData.general;
 
     return [
-      {
-        id: 'patients',
-        label: 'PACIENTES ACTIVOS',
-        value: current.patients.toLocaleString(),
-        subtext: 'Registrados en el área',
-        trend: '+12.4%',
-        isUp: true,
-        icon: Users,
-        badgeClass: 'badge-info',
-        decisionNote: 'Flujo de ingreso constante.'
-      },
-      {
-        id: 'consultations',
-        label: 'CONSULTAS REALIZADAS',
-        value: current.consultations.toLocaleString(),
-        subtext: `${current.occupancy}% cap. instalada`,
-        trend: '+8.1%',
-        isUp: true,
-        icon: Stethoscope,
-        badgeClass: 'badge-success',
-        decisionNote: 'Operatividad sin saturación.'
-      },
-      {
-        id: 'appointments',
-        label: 'CITAS PROGRAMADAS',
-        value: current.appointments.toLocaleString(),
-        subtext: `Tasa No-Show: ${current.noShow}%`,
-        trend: '-3.2%',
-        isUp: false,
-        icon: Clock,
-        badgeClass: 'badge-warning',
-        decisionNote: 'Ausentismo bajo monitoreo.'
-      },
-      {
-        id: 'alerts',
-        label: 'INCIDENCIAS Y ALERTAS',
-        value: current.alerts,
-        subtext: 'Atención requerida',
-        trend: current.alerts > 2 ? 'Riesgo Medio' : 'Estable',
-        isUp: false,
-        icon: AlertTriangle,
-        badgeClass: 'badge-danger',
-        decisionNote: 'Revisiones normativas.'
-      }
+      { id: 'patients', label: 'PACIENTES ACTIVOS', value: current.patients.toLocaleString(), subtext: 'Registrados en el área', trend: '+12.4%', isUp: true, icon: Users, decisionNote: 'Flujo de ingreso constante.' },
+      { id: 'consultations', label: 'CONSULTAS REALIZADAS', value: current.consultations.toLocaleString(), subtext: `${current.occupancy}% cap. instalada`, trend: '+8.1%', isUp: true, icon: Stethoscope, decisionNote: 'Operatividad sin saturación.' },
+      { id: 'appointments', label: 'CITAS PROGRAMADAS', value: current.appointments.toLocaleString(), subtext: `Tasa No-Show: ${current.noShow}%`, trend: '-3.2%', isUp: false, icon: Clock, decisionNote: 'Ausentismo bajo monitoreo.' },
+      { id: 'alerts', label: 'INCIDENCIAS Y ALERTAS', value: current.alerts, subtext: 'Atención requerida', trend: current.alerts > 2 ? 'Riesgo Medio' : 'Estable', isUp: false, icon: AlertTriangle, decisionNote: 'Revisiones normativas.' }
     ];
   }, [stats, alertsList, activeArea]);
 
-  // 2. ESPECIALIDADES POR ÁREA
+  // 3. ESPECIALIDADES
   const specialtiesData = useMemo(() => {
     const dataByArea = {
       general: [
@@ -4036,6 +3961,11 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         { name: 'Pediatría', count: 112, target: 120, percentage: 29, color: 'var(--success)', doctorCount: 4 },
         { name: 'Cardiología', count: 58, target: 80, percentage: 15, color: 'var(--warning)', doctorCount: 3 },
         { name: 'Ginecología', count: 34, target: 50, percentage: 8, color: '#ec4899', doctorCount: 2 }
+      ],
+      consulta: [
+        { name: 'Dermatología', count: 120, target: 150, percentage: 40, color: 'var(--info)', doctorCount: 3 },
+        { name: 'Oftalmología', count: 90, target: 100, percentage: 30, color: 'var(--success)', doctorCount: 2 },
+        { name: 'Endocrinología', count: 80, target: 100, percentage: 30, color: 'var(--warning)', doctorCount: 2 }
       ],
       urgencias: [
         { name: 'Traumatología de Urgencia', count: 95, target: 100, percentage: 55, color: 'var(--danger)', doctorCount: 4 },
@@ -4049,23 +3979,21 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       cirugia: [
         { name: 'Cirugía General', count: 15, target: 20, percentage: 60, color: 'var(--info)', doctorCount: 3 },
         { name: 'Anestesiología', count: 10, target: 12, percentage: 40, color: 'var(--success)', doctorCount: 2 }
-      ],
-      consulta: [
-        { name: 'Dermatología', count: 120, target: 150, percentage: 40, color: 'var(--info)', doctorCount: 3 },
-        { name: 'Oftalmología', count: 90, target: 100, percentage: 30, color: 'var(--success)', doctorCount: 2 },
-        { name: 'Endocrinología', count: 80, target: 100, percentage: 30, color: 'var(--warning)', doctorCount: 2 }
       ]
     };
     return dataByArea[activeArea] || dataByArea.general;
   }, [activeArea]);
 
-  // 3. INCIDENCIAS FILTRADAS POR ÁREA Y NIVEL
+  // 4. INCIDENCIAS
   const rawAlerts = useMemo(() => {
     const alertMap = {
       general: [
         { id: 1, title: 'Inconsistencia de DNI en registros', scope: 'Módulo Pacientes', level: 'Alta', time: 'Hace 10 min', impact: 'Calidad de Datos' },
         { id: 2, title: 'Consultas pendientes de firma digital', scope: 'Atención Médica', level: 'Media', time: 'Hace 45 min', impact: 'Cumplimiento Legal' },
         { id: 3, title: 'Superación de aforo en Pediatría', scope: 'Citas', level: 'Alta', time: 'Hace 2 horas', impact: 'Capacidad Operativa' }
+      ],
+      consulta: [
+        { id: 401, title: 'Retraso en inicio de agenda Dermatología', scope: 'Consulta Ext.', level: 'Media', time: 'Hace 15 min', impact: 'Atención al Usuario' }
       ],
       urgencias: [
         { id: 101, title: 'Saturación en Box de Triaje 2', scope: 'Urgencias', level: 'Alta', time: 'Hace 5 min', impact: 'Tiempo de Espera' },
@@ -4076,9 +4004,6 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       ],
       cirugia: [
         { id: 301, title: 'Mantenimiento preventivo en Quirófano 2', scope: 'Pabellón B', level: 'Alta', time: 'Hace 30 min', impact: 'Disponibilidad' }
-      ],
-      consulta: [
-        { id: 401, title: 'Retraso en inicio de agenda Dermatología', scope: 'Consulta Ext.', level: 'Media', time: 'Hace 15 min', impact: 'Atención al Usuario' }
       ]
     };
     return alertsList.length > 0 ? alertsList : (alertMap[activeArea] || alertMap.general);
@@ -4089,7 +4014,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     return rawAlerts.filter(a => a.level.toLowerCase() === alertFilter.toLowerCase());
   }, [rawAlerts, alertFilter]);
 
-  // 4. DIRECTORIO DE USUARIOS
+  // 5. USUARIOS
   const rawUsers = useMemo(() => {
     return usersList.length > 0 ? usersList : [
       { id: 1, name: 'Dr. Roberto Gómez', role: 'Médico General', status: 'Activo', dept: 'Consultorio 1' },
@@ -4116,32 +4041,50 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     downloadAnchor.remove();
   };
 
+  // ESTILOS INLINE DE ANIMACIÓN Y HOVER PARA CUBOS
+  const cardInteractiveStyle = {
+    transition: 'transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease',
+    cursor: 'pointer'
+  };
+
+  const handleMouseEnter = (e) => {
+    e.currentTarget.style.transform = 'translateY(-3px)';
+    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.35)';
+    e.currentTarget.style.borderColor = 'var(--info)';
+  };
+
+  const handleMouseLeave = (e) => {
+    e.currentTarget.style.transform = 'translateY(0px)';
+    e.currentTarget.style.boxShadow = 'none';
+    e.currentTarget.style.borderColor = 'var(--border-color)';
+  };
+
   return (
-    <div className="view-container" style={{ width: '100%', boxSizing: 'border-box' }}>
+    <div className="view-container" style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
       
       {/* TOOLBAR HEADER */}
-      <header className="app-header toolbar" style={{ marginBottom: '0.75rem' }}>
+      <header className="app-header toolbar" style={{ marginBottom: '0.75rem', padding: '0.5rem 0.75rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Building2 size={16} style={{ color: 'var(--info)' }} />
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            <h1 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
               Hospital TIC
             </h1>
-            <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>TABLERO MODULAR</span>
+            <span className="badge badge-info" style={{ fontSize: '0.625rem' }}>TABLERO MODULAR</span>
           </div>
-          <p className="text-muted" style={{ fontSize: '0.675rem', margin: '0.15rem 0 0 0' }}>
-            Análisis de rendimiento asistencial, distribución operativa y gestión de riesgos por área.
+          <p className="text-muted" style={{ fontSize: '0.675rem', margin: '0.1rem 0 0 0' }}>
+            Rendimiento asistencial y gestión de riesgos por área.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
             <Calendar size={16} className="text-muted" />
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
               aria-label="Rango de tiempo"
-              style={{ fontSize: '0.725rem' }}
+              style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem' }}
             >
               <option value="today">Hoy</option>
               <option value="week">Esta semana</option>
@@ -4150,17 +4093,17 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             </select>
           </div>
 
-          <button onClick={handleExportReport} className="button primary" style={{ fontSize: '0.725rem', padding: '0.35rem 0.75rem' }}>
+          <button onClick={handleExportReport} className="button primary" style={{ fontSize: '0.7rem', padding: '0.3rem 0.65rem' }}>
             <Download size={16} /> Exportar
           </button>
         </div>
       </header>
 
-      {/* TABS DE ÁREAS HOSPITALARIAS */}
-      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', paddingRight: '0.5rem', color: 'var(--text-muted)' }}>
+      {/* PESTAÑAS CON ORDEN REORGANIZADO */}
+      <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.45rem', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', paddingRight: '0.4rem', color: 'var(--text-muted)' }}>
           <Layers size={16} />
-          <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Área:</span>
+          <span style={{ fontSize: '0.675rem', fontWeight: 600 }}>Área:</span>
         </div>
         {hospitalAreas.map((area) => (
           <button
@@ -4171,11 +4114,12 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               backgroundColor: activeArea === area.id ? 'var(--info)' : 'transparent',
               borderColor: activeArea === area.id ? 'var(--info)' : 'var(--border-color)',
               color: activeArea === area.id ? '#ffffff' : 'var(--text-muted)',
-              padding: '0.25rem 0.65rem',
-              fontSize: '0.7rem',
+              padding: '0.2rem 0.55rem',
+              fontSize: '0.675rem',
               fontWeight: activeArea === area.id ? 700 : 500,
               borderRadius: 'var(--radius-sm)',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              transition: 'all 0.2s ease'
             }}
           >
             {area.label}
@@ -4183,107 +4127,108 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         ))}
       </div>
 
-      {/* MAIN LAYOUT: 9 COLS DASHBOARD CUBES + 3 COLS SIDEBAR DIRECTORY */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem', width: '100%' }}>
+      {/* GRID REAJUSTADO: 8 COLS TABLERO + 4 COLS DIRECTORIO (EVITA CORTES LATERALES) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0.85rem', width: '100%' }}>
         
-        {/* ================= MAIN DASHBOARD CUBES (9 COLS) ================= */}
-        <main style={{ gridColumn: 'span 9', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* ================= TABLERO PRINCIPAL (8 COLS) ================= */}
+        <main style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
           
-          {/* ROW 1: 4 KPI MODULAR CUBES */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-            {executiveMetrics.map((item) => {
-              return (
-                <div key={item.id} className="card" style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '110px', boxSizing: 'border-box' }}>
-                  <div className="flex-between">
-                    <span className="text-muted font-bold" style={{ fontSize: '0.675rem', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.label}
-                    </span>
-                    <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.3rem' }}>
-                      {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                      {item.trend}
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', margin: '0.15rem 0' }}>
-                    <div className="font-bold" style={{ fontSize: '1.35rem', color: 'var(--text-primary)', lineHeight: 1 }}>
-                      {item.value}
-                    </div>
-                    <span className="text-muted" style={{ fontSize: '0.675rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {item.subtext}
-                    </span>
-                  </div>
-
-                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.3rem', fontSize: '0.675rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    💡 {item.decisionNote}
-                  </div>
+          {/* TOP KPI CUBES */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+            {executiveMetrics.map((item) => (
+              <div
+                key={item.id}
+                className="card"
+                style={{ ...cardInteractiveStyle, padding: '0.65rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '105px', boxSizing: 'border-box' }}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+              >
+                <div className="flex-between">
+                  <span className="text-muted font-bold" style={{ fontSize: '0.65rem', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.label}
+                  </span>
+                  <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.625rem', padding: '0.05rem 0.25rem' }}>
+                    {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                    {item.trend}
+                  </span>
                 </div>
-              );
-            })}
+
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem', margin: '0.1rem 0' }}>
+                  <div className="font-bold" style={{ fontSize: '1.25rem', color: 'var(--text-primary)', lineHeight: 1 }}>
+                    {item.value}
+                  </div>
+                  <span className="text-muted" style={{ fontSize: '0.65rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {item.subtext}
+                  </span>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.25rem', fontSize: '0.65rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  💡 {item.decisionNote}
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* ROW 2: GRAPH VISUALIZATION CUBES */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem' }}>
+          {/* MIDDLE GRAPH CUBES */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0.75rem' }}>
             
-            {/* CAPACITY DONUT CUBE (4 COLS) */}
-            <div className="card" style={{ gridColumn: 'span 4', padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '250px', boxSizing: 'border-box' }}>
-              <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Activity size={16} /> OCUPACIÓN GLOBAL
+            {/* DONUT CHART CUBE */}
+            <div
+              className="card"
+              style={{ ...cardInteractiveStyle, gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.35rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Activity size={16} /> OCUPACIÓN
                 </span>
-                <span className="text-muted" style={{ fontSize: '0.675rem' }}>Cap. Max</span>
+                <span className="text-muted" style={{ fontSize: '0.65rem' }}>Cap. Max</span>
               </div>
 
-              {/* DONUT CHART */}
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', margin: '0.5rem 0' }}>
-                <svg width="110" height="110" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
-                  <path
-                    stroke="var(--bg-dark)"
-                    strokeWidth="3.8"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
-                  <path
-                    stroke="var(--info)"
-                    strokeDasharray="78, 100"
-                    strokeWidth="3.8"
-                    strokeLinecap="round"
-                    fill="none"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                  />
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', margin: '0.4rem 0' }}>
+                <svg width="100" height="100" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
+                  <path stroke="var(--bg-dark)" strokeWidth="3.8" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path stroke="var(--info)" strokeDasharray="78, 100" strokeWidth="3.8" strokeLinecap="round" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 </svg>
                 <div style={{ position: 'absolute', textAlign: 'center' }}>
-                  <span className="font-bold" style={{ fontSize: '1.15rem', color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>78%</span>
-                  <span className="text-muted" style={{ fontSize: '0.675rem' }}>Uso Activo</span>
+                  <span className="font-bold" style={{ fontSize: '1.1rem', color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>78%</span>
+                  <span className="text-muted" style={{ fontSize: '0.65rem' }}>Uso Activo</span>
                 </div>
               </div>
 
-              <div style={{ padding: '0.45rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.675rem' }} className="text-muted">
-                <strong>Estado:</strong> Capacidad operando dentro de límites seguros.
+              <div style={{ padding: '0.4rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.65rem' }} className="text-muted">
+                <strong>Estado:</strong> Parámetros dentro del rango seguro.
               </div>
             </div>
 
-            {/* SPECIALTIES PROGRESS CUBE (8 COLS) */}
-            <div className="card" style={{ gridColumn: 'span 8', padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '250px', boxSizing: 'border-box' }}>
+            {/* SPECIALTIES PROGRESS CUBE */}
+            <div
+              className="card"
+              style={{ ...cardInteractiveStyle, gridColumn: 'span 8', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
               <div>
-                <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem', marginBottom: '0.65rem' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.35rem', marginBottom: '0.55rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     <BarChart3 size={16} /> CARGA POR ESPECIALIDAD
                   </span>
-                  <span className="text-muted" style={{ fontSize: '0.675rem' }}>Atenciones Reales</span>
+                  <span className="text-muted" style={{ fontSize: '0.65rem' }}>Atenciones</span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
                   {specialtiesData.map((spec, i) => (
-                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                      <div className="flex-between" style={{ fontSize: '0.7rem' }}>
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      <div className="flex-between" style={{ fontSize: '0.675rem' }}>
                         <span className="font-medium" style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>
-                          {spec.name} <span className="text-muted" style={{ fontSize: '0.675rem' }}>({spec.doctorCount} Médicos)</span>
+                          {spec.name} <span className="text-muted" style={{ fontSize: '0.65rem' }}>({spec.doctorCount} M)</span>
                         </span>
-                        <span className="text-muted font-medium" style={{ fontSize: '0.675rem' }}>
+                        <span className="text-muted font-medium" style={{ fontSize: '0.65rem' }}>
                           <strong style={{ color: 'var(--text-primary)' }}>{spec.count}</strong> / {spec.target} ({spec.percentage}%)
                         </span>
                       </div>
-                      <div style={{ width: '100%', height: '6px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                      <div style={{ width: '100%', height: '5px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                         <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)' }} />
                       </div>
                     </div>
@@ -4291,30 +4236,35 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                 </div>
               </div>
 
-              <div style={{ marginTop: '0.5rem', padding: '0.45rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.675rem' }} className="text-muted">
-                <strong>Recomendación:</strong> Balancear la asignación de profesionales en turnos pico.
+              <div style={{ marginTop: '0.4rem', padding: '0.4rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.65rem' }} className="text-muted">
+                <strong>Recomendación:</strong> Optimizar balance de turnos en horarios pico.
               </div>
             </div>
           </div>
 
-          {/* ROW 3: INCIDENTS & RISKS CUBE (FULL 9 COLS WIDTH) */}
-          <div className="card" style={{ padding: '0.85rem', boxSizing: 'border-box' }}>
-            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem', marginBottom: '0.65rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <ShieldAlert size={16} /> RIESGOS & INCIDENCIAS OPERATIVAS
+          {/* INCIDENTS CUBE */}
+          <div
+            className="card"
+            style={{ ...cardInteractiveStyle, padding: '0.75rem', boxSizing: 'border-box' }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.35rem', marginBottom: '0.55rem' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <ShieldAlert size={16} /> RIESGOS & INCIDENCIAS
               </span>
               <div style={{ display: 'flex', gap: '0.2rem' }}>
                 {['all', 'Alta', 'Media'].map((lvl) => (
                   <button
                     key={lvl}
-                    onClick={() => setAlertFilter(lvl)}
+                    onClick={(e) => { e.stopPropagation(); setAlertFilter(lvl); }}
                     className="action-btn"
                     style={{
                       backgroundColor: alertFilter === lvl ? 'var(--bg-surface-hover)' : 'transparent',
                       borderColor: alertFilter === lvl ? 'var(--border-color-strong)' : 'var(--border-color)',
                       color: alertFilter === lvl ? 'var(--text-primary)' : 'var(--text-muted)',
-                      padding: '0.1rem 0.35rem',
-                      fontSize: '0.65rem'
+                      padding: '0.1rem 0.3rem',
+                      fontSize: '0.625rem'
                     }}
                   >
                     {lvl === 'all' ? 'Todas' : lvl}
@@ -4323,7 +4273,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '150px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '140px', overflowY: 'auto' }}>
               {filteredAlerts.length > 0 ? (
                 filteredAlerts.map((alert) => (
                   <div
@@ -4336,19 +4286,19 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                       borderRight: '1px solid var(--border-color)',
                       borderBottom: '1px solid var(--border-color)',
                       borderRadius: 'var(--radius-sm)',
-                      padding: '0.45rem 0.65rem'
+                      padding: '0.4rem 0.55rem'
                     }}
                   >
-                    <div style={{ overflow: 'hidden', paddingRight: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ overflow: 'hidden', paddingRight: '0.4rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.725rem', color: 'var(--text-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {alert.title}
                         </h4>
-                        <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.65rem', padding: '0.05rem 0.25rem', flexShrink: 0 }}>
+                        <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.625rem', padding: '0.05rem 0.2rem', flexShrink: 0 }}>
                           {alert.level}
                         </span>
                       </div>
-                      <p className="text-muted" style={{ margin: '0.1rem 0 0 0', fontSize: '0.675rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <p className="text-muted" style={{ margin: '0.1rem 0 0 0', fontSize: '0.65rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {alert.scope} • {alert.impact} • {alert.time}
                       </p>
                     </div>
@@ -4356,8 +4306,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                   </div>
                 ))
               ) : (
-                <div className="empty-state" style={{ padding: '0.85rem' }}>
-                  <p style={{ fontSize: '0.675rem' }}>Sin incidencias registradas en esta categoría.</p>
+                <div className="empty-state" style={{ padding: '0.75rem' }}>
+                  <p style={{ fontSize: '0.65rem' }}>Sin incidencias en este filtro.</p>
                 </div>
               )}
             </div>
@@ -4365,53 +4315,56 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
         </main>
 
-        {/* ================= RIGHT SIDEBAR: DIRECTORIO DE USUARIOS (3 COLS) ================= */}
-        <aside className="card" style={{ gridColumn: 'span 3', padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxSizing: 'border-box' }}>
-          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <UserCheck size={16} style={{ color: 'var(--info)' }} /> DIRECTORIO
+        {/* ================= DIRECTORIO DE USUARIOS LATERAL (4 COLS) ================= */}
+        <aside
+          className="card"
+          style={{ ...cardInteractiveStyle, gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', boxSizing: 'border-box' }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.35rem' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <UserCheck size={16} style={{ color: 'var(--info)' }} /> DIRECTORIO DE PERSONAL
             </span>
-            <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>{filteredUsers.length}</span>
+            <span className="badge badge-info" style={{ fontSize: '0.625rem' }}>{filteredUsers.length}</span>
           </div>
 
-          {/* BARRA DE BÚSQUEDA */}
           <div style={{ position: 'relative', width: '100%' }}>
-            <Search size={16} className="text-muted" style={{ position: 'absolute', left: '0.45rem', top: '50%', transform: 'translateY(-50%)' }} />
+            <Search size={14} className="text-muted" style={{ position: 'absolute', left: '0.4rem', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text"
-              placeholder="Buscar personal..."
+              placeholder="Buscar por nombre o rol..."
               value={userSearch}
               onChange={(e) => setUserSearch(e.target.value)}
               style={{
                 width: '100%',
-                paddingLeft: '1.65rem',
-                paddingRight: '0.4rem',
-                paddingTop: '0.3rem',
-                paddingBottom: '0.3rem',
-                fontSize: '0.675rem',
+                paddingLeft: '1.5rem',
+                paddingRight: '0.35rem',
+                paddingTop: '0.25rem',
+                paddingBottom: '0.25rem',
+                fontSize: '0.65rem',
                 boxSizing: 'border-box'
               }}
             />
           </div>
 
-          {/* LISTA DE USUARIOS CON TEXT OVERFLOW CONTROL */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', flex: 1, overflowY: 'auto', maxHeight: '480px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1, overflowY: 'auto', maxHeight: '460px' }}>
             {filteredUsers.map((user) => (
               <div
                 key={user.id}
                 style={{
-                  padding: '0.5rem',
+                  padding: '0.45rem',
                   backgroundColor: 'var(--bg-dark)',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border-color)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.15rem',
+                  gap: '0.1rem',
                   overflow: 'hidden'
                 }}
               >
                 <div className="flex-between">
-                  <span className="font-bold" style={{ fontSize: '0.7rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
+                  <span className="font-bold" style={{ fontSize: '0.675rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
                     {user.name}
                   </span>
                   <span
@@ -4422,12 +4375,12 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                         ? 'badge-warning'
                         : 'badge-info'
                     }`}
-                    style={{ fontSize: '0.65rem', padding: '0.05rem 0.25rem', flexShrink: 0 }}
+                    style={{ fontSize: '0.625rem', padding: '0.05rem 0.2rem', flexShrink: 0 }}
                   >
                     {user.status}
                   </span>
                 </div>
-                <div className="text-muted flex-between" style={{ fontSize: '0.675rem' }}>
+                <div className="text-muted flex-between" style={{ fontSize: '0.65rem' }}>
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>{user.role}</span>
                   <span style={{ fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '38%' }}>{user.dept}</span>
                 </div>
@@ -4435,8 +4388,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             ))}
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', textAlign: 'center' }}>
-            <button className="action-btn" style={{ width: '100%', fontSize: '0.675rem', color: 'var(--info)' }}>
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.35rem', textAlign: 'center' }}>
+            <button className="action-btn" style={{ width: '100%', fontSize: '0.65rem', color: 'var(--info)' }}>
               Gestionar Accesos
             </button>
           </div>
