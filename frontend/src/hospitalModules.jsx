@@ -786,36 +786,75 @@ export function DeviceManagementDashboard() {
               {loading ? (
                 <LoadingState label="Cargando historial IP..." />
               ) : (
-                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
+                <div className="border border-slate-800/80 rounded-2xl overflow-hidden bg-slate-950/40 shadow-2xl backdrop-blur-xl">
                   <DataTable
                     columns={[
                       {
                         key: 'ip_address',
                         label: 'Dirección IP',
-                        render: (a) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{a.ip_address || '—'}</code></div>
+                        render: (a) => (
+                          <div className="py-2.5">
+                            <span className="inline-flex items-center gap-2 font-mono text-xs font-semibold text-sky-400 bg-sky-950/50 border border-sky-800/60 px-3 py-1.5 rounded-lg shadow-inner">
+                              <Wifi className="w-3.5 h-3.5 text-sky-400/70 shrink-0" />
+                              {a.ip_address || '—'}
+                            </span>
+                          </div>
+                        )
                       },
                       {
                         key: 'username',
                         label: 'Usuario',
-                        render: (a) => <div className="py-2"><span className="text-slate-200 font-medium">{a.username || 'Anónimo'}</span></div>
+                        render: (a) => (
+                          <div className="py-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-slate-800/80 border border-slate-700/60 flex items-center justify-center shrink-0">
+                                <User className="w-3.5 h-3.5 text-slate-400" />
+                              </div>
+                              <span className="text-slate-200 font-medium text-sm">
+                                {a.username || 'Anónimo'}
+                              </span>
+                            </div>
+                          </div>
+                        )
                       },
                       {
                         key: 'action_type',
                         label: 'Acción Ejecutada',
-                        render: (a) => <div className="py-2"><span className="bg-slate-800 text-slate-200 border border-slate-700/60 px-3 py-1.5 rounded-lg text-xs font-mono">{a.action_type}</span></div>
+                        render: (a) => (
+                          <div className="py-2.5">
+                            <span className="inline-flex items-center gap-1.5 bg-slate-900 text-slate-300 border border-slate-700/60 px-3 py-1 rounded-md text-xs font-mono font-medium shadow-sm">
+                              <Activity className="w-3 h-3 text-slate-400 shrink-0" />
+                              {a.action_type}
+                            </span>
+                          </div>
+                        )
                       },
                       {
                         key: 'created_at',
                         label: 'Fecha / Hora',
-                        render: (a) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(a.created_at)}</span></div>
+                        render: (a) => (
+                          <div className="py-2.5">
+                            <div className="flex items-center gap-1.5 text-slate-400 text-xs font-medium">
+                              <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                              <span>{formatDate(a.created_at)}</span>
+                            </div>
+                          </div>
+                        )
                       }
                     ]}
                     rows={actions}
                   />
                 </div>
               )}
+              
               <div className="pt-2">
-                <Pagination page={actionPage} perPage={perPage} total={actionTotal} onPrev={() => setActionPage(v => Math.max(1, v - 1))} onNext={() => setActionPage(v => v + 1)} />
+                <Pagination 
+                  page={actionPage} 
+                  perPage={perPage} 
+                  total={actionTotal} 
+                  onPrev={() => setActionPage(v => Math.max(1, v - 1))} 
+                  onNext={() => setActionPage(v => v + 1)} 
+                />
               </div>
             </div>
           )}
