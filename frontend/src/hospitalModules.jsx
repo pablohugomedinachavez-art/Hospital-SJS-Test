@@ -3921,8 +3921,9 @@ export function Documents() {
 export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   const [timeRange, setTimeRange] = useState('month');
   const [alertFilter, setAlertFilter] = useState('all');
+  const [userSearch, setUserSearch] = useState('');
 
-  // 1. DATO CALCULADO Y PROCESADO: Métricas KPI
+  // 1. CALCULATED METRICS
   const executiveMetrics = useMemo(() => {
     const patients = stats.patients ?? 142;
     const consultations = stats.consultations ?? 389;
@@ -3981,7 +3982,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     ];
   }, [stats, alertsList]);
 
-  // 2. DATO CALCULADO: Especialidades Médicas
+  // 2. SPECIALTIES DATA
   const specialtiesData = useMemo(() => [
     { name: 'Medicina General', count: 185, target: 200, percentage: 48, color: 'var(--info)', doctorCount: 6 },
     { name: 'Pediatría', count: 112, target: 120, percentage: 29, color: 'var(--success)', doctorCount: 4 },
@@ -3989,7 +3990,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     { name: 'Ginecología', count: 34, target: 50, percentage: 8, color: '#ec4899', doctorCount: 2 }
   ], []);
 
-  // 3. DATO CALCULADO: Alertas Críticas
+  // 3. ALERTS DATA
   const rawAlerts = useMemo(() => {
     return alertsList.length > 0 ? alertsList : [
       { id: 1, title: 'Inconsistencia de DNI en registros', scope: 'Módulo Pacientes', level: 'Alta', time: 'Hace 10 min', impact: 'Calidad de Datos' },
@@ -4003,7 +4004,23 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     return rawAlerts.filter(a => a.level.toLowerCase() === alertFilter.toLowerCase());
   }, [rawAlerts, alertFilter]);
 
-  // Handler para exportación masiva
+  // 4. USERS DIRECTORY DATA
+  const rawUsers = useMemo(() => {
+    return usersList.length > 0 ? usersList : [
+      { id: 1, name: 'Dr. Roberto Gómez', role: 'Médico General', status: 'Activo', dept: 'Consultorio 1' },
+      { id: 2, name: 'Dra. María Torres', role: 'Pediatra', status: 'En Consulta', dept: 'Pediatría' },
+      { id: 3, name: 'Ing. Carlos Ruiz', role: 'Admin TIC', status: 'Activo', dept: 'Sistemas' },
+      { id: 4, name: 'Lic. Ana Mendoza', role: 'Enfermería', status: 'Inactivo', dept: 'Triaje' }
+    ];
+  }, [usersList]);
+
+  const filteredUsers = useMemo(() => {
+    return rawUsers.filter(u => 
+      u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+      u.role.toLowerCase().includes(userSearch.toLowerCase())
+    );
+  }, [rawUsers, userSearch]);
+
   const handleExportReport = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ executiveMetrics, specialtiesData, rawAlerts }, null, 2));
     const downloadAnchor = document.createElement('a');
@@ -4016,145 +4033,165 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
   return (
     <div className="view-container" style={{ width: '100%', boxSizing: 'border-box' }}>
-      {/* 1. HEADER CONTROL BAND (FIXED HEIGHT ROW) */}
-      <header className="app-header toolbar" style={{ marginBottom: '1.25rem' }}>
+      
+      {/* TOOLBAR HEADER */}
+      <header className="app-header toolbar" style={{ marginBottom: '1rem' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Building2 size={20} style={{ color: 'var(--info)' }} />
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
               Hospital TIC
             </h1>
-            <span className="badge badge-info">TABLERO EJECUTIVO</span>
+            <span className="badge badge-info">TABLERO MODULAR</span>
           </div>
-          <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>
-            Análisis consolidado para la toma de decisiones y gestión de riesgo asistencial.
+          <p className="text-muted" style={{ fontSize: '0.775rem', margin: '0.2rem 0 0 0' }}>
+            Panel consolidado de rendimiento asistencial, riesgos y directorio de usuarios.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Calendar size={14} className="text-muted" />
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              aria-label="Seleccionar rango de tiempo"
+              aria-label="Rango de tiempo"
             >
-              <option value="today">Hoy (Tiempo Real)</option>
+              <option value="today">Hoy</option>
               <option value="week">Esta semana</option>
               <option value="month">Este mes</option>
-              <option value="quarter">Trimestre Actual</option>
+              <option value="quarter">Trimestre</option>
             </select>
           </div>
 
           <button onClick={handleExportReport} className="button primary">
-            <Download size={15} /> Exportar Reporte
+            <Download size={15} /> Exportar
           </button>
         </div>
       </header>
 
-      {/* 2. TOP METRIC CARDS ROW (FIXED 4-COLUMN GRID LAYOUT) */}
-      <section className="dashboard-grid" style={{ marginBottom: '1.25rem' }}>
-        {executiveMetrics.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div 
-              key={item.id} 
-              className="card col-span-3" 
-              style={{ 
-                minHeight: '140px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justify: 'space-between',
-                padding: '1rem' 
-              }}
-            >
-              <div className="flex-between">
-                <span className="text-muted font-bold" style={{ fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                  {item.label}
-                </span>
-                <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`}>
-                  {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                  {item.trend}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', margin: '0.2rem 0' }}>
-                <div className="font-bold" style={{ fontSize: '1.6rem', color: 'var(--text-primary)', lineHeight: 1 }}>
-                  {item.value}
-                </div>
-                <span className="text-muted" style={{ fontSize: '0.7rem' }}>
-                  {item.subtext}
-                </span>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                💡 <strong>Análisis:</strong> {item.decisionNote}
-              </div>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* 3. MAIN ANALYTICS SECTION (50/50 PREDEFINED GRID) */}
-      <section className="dashboard-grid">
-        {/* LEFT CARD: ESPECIALIDADES (SPAN 6) */}
-        <div 
-          className="card col-span-6" 
-          style={{ 
-            minHeight: '380px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            justify: 'space-between' 
-          }}
-        >
-          <div>
-            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--info)' }}>
-                <BarChart3 size={18} /> CARGA Y CAPACIDAD POR ESPECIALIDAD
-              </span>
-              <span className="text-muted" style={{ fontSize: '0.75rem' }}>Total: 389</span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {specialtiesData.map((spec, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <div className="flex-between" style={{ fontSize: '0.8rem' }}>
-                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                      {spec.name} <span className="text-muted" style={{ fontSize: '0.7rem' }}>({spec.doctorCount} Médicos)</span>
+      {/* MAIN LAYOUT: 9 COLS DASHBOARD CUBES + 3 COLS SIDEBAR DIRECTORY */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem', width: '100%' }}>
+        
+        {/* ================= MAIN DASHBOARD CUBES (9 COLS) ================= */}
+        <main style={{ gridColumn: 'span 9', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          
+          {/* ROW 1: 4 KPI MODULAR CUBES */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+            {executiveMetrics.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.id} className="card" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '115px' }}>
+                  <div className="flex-between">
+                    <span className="text-muted font-bold" style={{ fontSize: '0.625rem', letterSpacing: '0.04em' }}>
+                      {item.label}
                     </span>
-                    <span className="text-muted font-medium" style={{ fontSize: '0.75rem' }}>
-                      <strong style={{ color: 'var(--text-primary)' }}>{spec.count}</strong> / {spec.target} ({spec.percentage}%)
+                    <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.65rem' }}>
+                      {item.isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                      {item.trend}
                     </span>
                   </div>
-                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                    <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)' }} />
+
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', margin: '0.2rem 0' }}>
+                    <div className="font-bold" style={{ fontSize: '1.4rem', color: 'var(--text-primary)', lineHeight: 1 }}>
+                      {item.value}
+                    </div>
+                    <span className="text-muted" style={{ fontSize: '0.65rem' }}>
+                      {item.subtext}
+                    </span>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.35rem', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                    💡 {item.decisionNote}
                   </div>
                 </div>
-              ))}
+              );
+            })}
+          </div>
+
+          {/* ROW 2: GRAPH VISUALIZATION CUBES (CAPACITY DONUT CHART + SPECIALTIES STACK) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem' }}>
+            
+            {/* CAPACITY DONUT VISUALIZATION CUBE (4 COLS) */}
+            <div className="card" style={{ gridColumn: 'span 4', padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '260px' }}>
+              <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Activity size={15} /> OCUPACIÓN GLOBAL
+                </span>
+                <span className="text-muted" style={{ fontSize: '0.675rem' }}>Cap. 500</span>
+              </div>
+
+              {/* SIMULATED SVG DONUT CHART */}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', margin: '0.75rem 0' }}>
+                <svg width="120" height="120" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
+                  <path
+                    stroke="var(--bg-dark)"
+                    strokeWidth="3.8"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    stroke="var(--info)"
+                    strokeDasharray="78, 100"
+                    strokeWidth="3.8"
+                    strokeLinecap="round"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <div style={{ position: 'absolute', textAlign: 'center' }}>
+                  <span className="font-bold" style={{ fontSize: '1.2rem', color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>78%</span>
+                  <span className="text-muted" style={{ fontSize: '0.625rem' }}>Uso Activo</span>
+                </div>
+              </div>
+
+              <div style={{ padding: '0.5rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.675rem' }} className="text-muted">
+                <strong>Estado:</strong> Capacidad dentro de los parámetros de seguridad.
+              </div>
+            </div>
+
+            {/* SPECIALTIES PROGRESS CUBE (8 COLS) */}
+            <div className="card" style={{ gridColumn: 'span 8', padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '260px' }}>
+              <div>
+                <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <BarChart3 size={16} /> CARGA POR ESPECIALIDAD
+                  </span>
+                  <span className="text-muted" style={{ fontSize: '0.675rem' }}>389 Consultas</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {specialtiesData.map((spec, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div className="flex-between" style={{ fontSize: '0.75rem' }}>
+                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {spec.name} <span className="text-muted" style={{ fontSize: '0.65rem' }}>({spec.doctorCount} Médicos)</span>
+                        </span>
+                        <span className="text-muted font-medium" style={{ fontSize: '0.7rem' }}>
+                          <strong style={{ color: 'var(--text-primary)' }}>{spec.count}</strong> / {spec.target} ({spec.percentage}%)
+                        </span>
+                      </div>
+                      <div style={{ width: '100%', height: '7px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                        <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.675rem' }} className="text-muted">
+                <strong>Recomendación:</strong> Habilitar 1 consultorio adicional en Medicina General.
+              </div>
             </div>
           </div>
 
-          <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.75rem' }} className="text-muted">
-            <strong>Recomendación Operativa:</strong> Medicina General concentra el 48% de la demanda. Habilitar 1 consultorio de contingencia.
-          </div>
-        </div>
-
-        {/* RIGHT CARD: INCIDENCIAS & RIESGOS (SPAN 6) */}
-        <div 
-          className="card col-span-6" 
-          style={{ 
-            minHeight: '380px', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            justify: 'space-between' 
-          }}
-        >
-          <div>
-            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--danger)' }}>
-                <ShieldAlert size={18} /> RIESGOS & INCIDENCIAS OPERATIVAS
+          {/* ROW 3: INCIDENTS & RISKS CUBE (FULL 9 COLS WIDTH) */}
+          <div className="card" style={{ padding: '1rem' }}>
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <ShieldAlert size={16} /> RIESGOS & INCIDENCIAS OPERATIVAS
               </span>
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
+              <div style={{ display: 'flex', gap: '0.2rem' }}>
                 {['all', 'Alta', 'Media'].map((lvl) => (
                   <button
                     key={lvl}
@@ -4164,8 +4201,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                       backgroundColor: alertFilter === lvl ? 'var(--bg-surface-hover)' : 'transparent',
                       borderColor: alertFilter === lvl ? 'var(--border-color-strong)' : 'var(--border-color)',
                       color: alertFilter === lvl ? 'var(--text-primary)' : 'var(--text-muted)',
-                      padding: '0.15rem 0.45rem',
-                      fontSize: '0.675rem'
+                      padding: '0.1rem 0.4rem',
+                      fontSize: '0.65rem'
                     }}
                   >
                     {lvl === 'all' ? 'Todas' : lvl}
@@ -4174,8 +4211,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               </div>
             </div>
 
-            {/* CONTAINED SCROLLABLE LIST PREVENTS OVERLAP/OVERFLOW */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '230px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '160px', overflowY: 'auto' }}>
               {filteredAlerts.length > 0 ? (
                 filteredAlerts.map((alert) => (
                   <div
@@ -4183,24 +4219,24 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                     className="flex-between"
                     style={{
                       backgroundColor: 'var(--bg-dark)',
-                      borderLeft: `4px solid ${alert.level === 'Alta' ? 'var(--danger)' : 'var(--warning)'}`,
+                      borderLeft: `3px solid ${alert.level === 'Alta' ? 'var(--danger)' : 'var(--warning)'}`,
                       borderTop: '1px solid var(--border-color)',
                       borderRight: '1px solid var(--border-color)',
                       borderBottom: '1px solid var(--border-color)',
                       borderRadius: 'var(--radius-sm)',
-                      padding: '0.6rem 0.85rem'
+                      padding: '0.5rem 0.75rem'
                     }}
                   >
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>
                           {alert.title}
                         </h4>
-                        <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem' }}>
+                        <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem' }}>
                           {alert.level}
                         </span>
                       </div>
-                      <p className="text-muted" style={{ margin: '0.2rem 0 0 0', fontSize: '0.7rem' }}>
+                      <p className="text-muted" style={{ margin: '0.15rem 0 0 0', fontSize: '0.675rem' }}>
                         {alert.scope} • {alert.impact} • {alert.time}
                       </p>
                     </div>
@@ -4208,20 +4244,92 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                   </div>
                 ))
               ) : (
-                <div className="empty-state" style={{ padding: '2rem 1rem' }}>
-                  <p style={{ fontSize: '0.8rem' }}>No hay incidencias para este filtro.</p>
+                <div className="empty-state" style={{ padding: '1rem' }}>
+                  <p style={{ fontSize: '0.75rem' }}>Sin incidencias registradas.</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="action-btn" style={{ color: 'var(--info)', border: 'none', background: 'transparent', fontSize: '0.75rem' }}>
-              Ver bitácora completa <ChevronRight size={14} />
+        </main>
+
+        {/* ================= RIGHT SIDEBAR: DIRECTORIO DE USUARIOS (3 COLS) ================= */}
+        <aside className="card" style={{ gridColumn: 'span 3', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <UserCheck size={16} style={{ color: 'var(--info)' }} /> DIRECTORIO
+            </span>
+            <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>{filteredUsers.length}</span>
+          </div>
+
+          {/* SEARCH BAR */}
+          <div style={{ position: 'relative', width: '100%' }}>
+            <Search size={13} className="text-muted" style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              type="text"
+              placeholder="Buscar personal..."
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              style={{
+                width: '100%',
+                paddingLeft: '1.75rem',
+                paddingRight: '0.5rem',
+                paddingTop: '0.35rem',
+                paddingBottom: '0.35rem',
+                fontSize: '0.725rem',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* USER LIST */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowY: 'auto', maxHeight: '500px' }}>
+            {filteredUsers.map((user) => (
+              <div
+                key={user.id}
+                style={{
+                  padding: '0.6rem',
+                  backgroundColor: 'var(--bg-dark)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.2rem'
+                }}
+              >
+                <div className="flex-between">
+                  <span className="font-bold" style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>
+                    {user.name}
+                  </span>
+                  <span
+                    className={`badge ${
+                      user.status === 'Activo'
+                        ? 'badge-success'
+                        : user.status === 'En Consulta'
+                        ? 'badge-warning'
+                        : 'badge-info'
+                    }`}
+                    style={{ fontSize: '0.575rem', padding: '0.05rem 0.3rem' }}
+                  >
+                    {user.status}
+                  </span>
+                </div>
+                <div className="text-muted flex-between" style={{ fontSize: '0.675rem' }}>
+                  <span>{user.role}</span>
+                  <span style={{ fontStyle: 'italic' }}>{user.dept}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', textAlign: 'center' }}>
+            <button className="action-btn" style={{ width: '100%', fontSize: '0.7rem', color: 'var(--info)' }}>
+              Gestionar Accesos
             </button>
           </div>
-        </div>
-      </section>
+        </aside>
+
+      </div>
     </div>
   );
 }
