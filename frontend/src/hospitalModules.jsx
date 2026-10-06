@@ -736,7 +736,13 @@ export function DeviceManagementDashboard() {
               {loading ? (
                 <LoadingState label="Cargando dispositivos..." />
               ) : (
-                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
+                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl"style="
+                      border-top-width: 0px;
+                      margin-top: 10px;
+                      margin-left: 10px;
+                      margin-bottom: 10px;
+                      margin-right: 10px;
+                      ">
                   <DataTable
                     columns={[
                       {
