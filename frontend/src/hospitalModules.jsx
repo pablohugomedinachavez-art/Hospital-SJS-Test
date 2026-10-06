@@ -535,7 +535,6 @@ function AnimatedNumber({ value }) {
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    // Extract numerical value if passed as a string with commas/formatting
     const numericTarget = typeof value === 'number' ? value : parseInt(String(value).replace(/,/g, ''), 10);
     
     if (isNaN(numericTarget)) {
@@ -4077,13 +4076,13 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   };
 
   const handleMouseEnter = (e) => {
-    e.currentTarget.style.transform = 'translateY(-3px)';
-    e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.35)';
+    e.currentTarget.style.transform = 'scale(1.02)';
+    e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
     e.currentTarget.style.borderColor = 'var(--info)';
   };
 
   const handleMouseLeave = (e) => {
-    e.currentTarget.style.transform = 'translateY(0px)';
+    e.currentTarget.style.transform = 'scale(1)';
     e.currentTarget.style.boxShadow = 'none';
     e.currentTarget.style.borderColor = 'var(--border-color)';
   };
@@ -4091,16 +4090,18 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   return (
     <div className="view-container" style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
       
-      {/* EMBEDDED STYLES FOR PAGE ENTRANCE ANIMATIONS & SVG STROKE FILL */}
+      {/* EMBEDDED STYLES FOR BLUR-SCALE FADE-IN ANIMATION */}
       <style>{`
-        @keyframes fadeInSlideUp {
-          from {
+        @keyframes blurScaleIn {
+          0% {
             opacity: 0;
-            transform: translateY(14px);
+            filter: blur(8px);
+            transform: scale(0.95);
           }
-          to {
+          100% {
             opacity: 1;
-            transform: translateY(0);
+            filter: blur(0px);
+            transform: scale(1);
           }
         }
 
@@ -4114,7 +4115,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         }
 
         .animated-card {
-          animation: fadeInSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: blurScaleIn 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
           transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
           cursor: pointer;
         }
@@ -4161,8 +4162,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </header>
 
-      {/* REORDERED HOSPITAL TABS */}
-      <div className="animated-card" style={{ animationDelay: '50ms', display: 'flex', gap: '0.35rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.45rem', overflowX: 'auto' }}>
+      {/* TABS */}
+      <div className="animated-card" style={{ animationDelay: '60ms', display: 'flex', gap: '0.35rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.45rem', overflowX: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', paddingRight: '0.4rem', color: 'var(--text-muted)' }}>
           <Layers size={16} />
           <span style={{ fontSize: '0.675rem', fontWeight: 600 }}>Área:</span>
@@ -4192,7 +4193,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       {/* MAIN GRID */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '0.85rem', width: '100%' }}>
         
-        {/* MAIN DASHBOARD (8 COLS) */}
+        {/* MAIN DASHBOARD */}
         <main style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
           
           {/* TOP KPI CUBES */}
@@ -4201,7 +4202,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               <div
                 key={item.id}
                 className="card animated-card"
-                style={{ animationDelay: `${100 + index * 60}ms`, padding: '0.65rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '105px', boxSizing: 'border-box' }}
+                style={{ animationDelay: `${120 + index * 70}ms`, padding: '0.65rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '105px', boxSizing: 'border-box' }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
@@ -4237,7 +4238,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             {/* DONUT CHART CUBE */}
             <div
               className="card animated-card"
-              style={{ animationDelay: '350ms', gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
+              style={{ animationDelay: '400ms', gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -4276,7 +4277,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             {/* SPECIALTIES PROGRESS CUBE */}
             <div
               className="card animated-card"
-              style={{ animationDelay: '420ms', gridColumn: 'span 8', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
+              style={{ animationDelay: '480ms', gridColumn: 'span 8', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -4316,7 +4317,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           {/* INCIDENTS CUBE */}
           <div
             className="card animated-card"
-            style={{ animationDelay: '490ms', padding: '0.75rem', boxSizing: 'border-box' }}
+            style={{ animationDelay: '560ms', padding: '0.75rem', boxSizing: 'border-box' }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
@@ -4386,10 +4387,10 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
 
         </main>
 
-        {/* RIGHT SIDEBAR USER DIRECTORY (4 COLS) */}
+        {/* RIGHT SIDEBAR USER DIRECTORY */}
         <aside
           className="card animated-card"
-          style={{ animationDelay: '560ms', gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', boxSizing: 'border-box' }}
+          style={{ animationDelay: '640ms', gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', boxSizing: 'border-box' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
