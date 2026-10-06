@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { useAuth } from './AuthContext';
 import {
-  Activity,AlertCircle,AlertTriangle,ArrowDownRight,ArrowLeft,ArrowUpRight,Award,BarChart3,Bed,Bell,
+  User,Activity,AlertCircle,AlertTriangle,ArrowDownRight,ArrowLeft,ArrowUpRight,Award,BarChart3,Bed,Bell,
   Building2,Calendar,CheckCircle2,ChevronDown,ChevronLeft,ChevronRight,Clock,Copy,Download,Edit3,ExternalLink,
   Eye,File,FileCheck,FileEdit,FileMinus,FilePlus,FileSearch,FileText,FileX,Filter,HardDrive,Heart,
   HeartPulse,Key,Laptop,Layers,Loader2,Mail,MapPin,MessageSquare,Monitor,Phone,Pill,Plus,Printer,
