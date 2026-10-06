@@ -3922,7 +3922,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   const [timeRange, setTimeRange] = useState('month');
   const [alertFilter, setAlertFilter] = useState('all');
 
-  // 1. DATO CALCULADO Y PROCESADO: Métricas KPI con cálculo de variación ejecutiva
+  // 1. DATO CALCULADO Y PROCESADO: Métricas KPI
   const executiveMetrics = useMemo(() => {
     const patients = stats.patients ?? 142;
     const consultations = stats.consultations ?? 389;
@@ -3943,29 +3943,29 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         isUp: true,
         icon: Users,
         badgeClass: 'badge-info',
-        decisionNote: 'Demanda creciente en cobertura general.'
+        decisionNote: 'Demanda creciente general.'
       },
       {
         id: 'consultations',
         label: 'CONSULTAS REALIZADAS',
         value: consultations.toLocaleString(),
-        subtext: `${capacityOccupancy}% de capacidad instalada`,
+        subtext: `${capacityOccupancy}% cap. instalada`,
         trend: '+8.1%',
         isUp: true,
         icon: Stethoscope,
         badgeClass: 'badge-success',
-        decisionNote: 'Operatividad adecuada sin saturación.'
+        decisionNote: 'Operatividad sin saturación.'
       },
       {
         id: 'appointments',
         label: 'CITAS PROGRAMADAS',
         value: appointments.toLocaleString(),
-        subtext: `Tasa No-Show: ${noShowRate}%`,
+        subtext: `No-Show: ${noShowRate}%`,
         trend: '-3.2%',
         isUp: false,
         icon: Clock,
         badgeClass: 'badge-warning',
-        decisionNote: 'Revisar ausentismo en turnos tarde.'
+        decisionNote: 'Ausentismo en turnos tarde.'
       },
       {
         id: 'alerts',
@@ -3976,12 +3976,12 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         isUp: false,
         icon: AlertTriangle,
         badgeClass: 'badge-danger',
-        decisionNote: 'Documentación pendiente de firma.'
+        decisionNote: 'Firma pendiente de docs.'
       }
     ];
   }, [stats, alertsList]);
 
-  // 2. DATO CALCULADO: Desglose por Especialidad Médica
+  // 2. DATO CALCULADO: Especialidades Médicas
   const specialtiesData = useMemo(() => [
     { name: 'Medicina General', count: 185, target: 200, percentage: 48, color: 'var(--info)', doctorCount: 6 },
     { name: 'Pediatría', count: 112, target: 120, percentage: 29, color: 'var(--success)', doctorCount: 4 },
@@ -3989,7 +3989,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     { name: 'Ginecología', count: 34, target: 50, percentage: 8, color: '#ec4899', doctorCount: 2 }
   ], []);
 
-  // 3. DATO CALCULADO: Gobernanza y Alertas Críticas
+  // 3. DATO CALCULADO: Alertas Críticas
   const rawAlerts = useMemo(() => {
     return alertsList.length > 0 ? alertsList : [
       { id: 1, title: 'Inconsistencia de DNI en registros', scope: 'Módulo Pacientes', level: 'Alta', time: 'Hace 10 min', impact: 'Calidad de Datos' },
@@ -4015,19 +4015,19 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   };
 
   return (
-    <div className="view-container">
-      {/* HEADER EJECUTIVO CON CONTROLES */}
-      <header className="app-header toolbar">
+    <div className="view-container" style={{ width: '100%', boxSizing: 'border-box' }}>
+      {/* 1. HEADER CONTROL BAND (FIXED HEIGHT ROW) */}
+      <header className="app-header toolbar" style={{ marginBottom: '1.25rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
             <Building2 size={20} style={{ color: 'var(--info)' }} />
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
               Hospital TIC
             </h1>
             <span className="badge badge-info">TABLERO EJECUTIVO</span>
           </div>
-          <p className="text-muted" style={{ fontSize: '0.85rem' }}>
-            Análisis consolidado para la toma de decisiones, optimización de recursos y gestión de riesgo asistencial.
+          <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>
+            Análisis consolidado para la toma de decisiones y gestión de riesgo asistencial.
           </p>
         </div>
 
@@ -4047,73 +4047,86 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           </div>
 
           <button onClick={handleExportReport} className="button primary">
-            <Download size={15} /> Exportar Reporte Ejecutivo
+            <Download size={15} /> Exportar Reporte
           </button>
         </div>
       </header>
 
-      {/* BLOQUE PRINCIPAL REORGANIZADO: COLUMNA LATERAL KPI + ESPECIALIDADES */}
-      <section className="dashboard-grid">
-        {/* PANEL LATERAL: KPI METRICS (4/12 COLS) */}
-        <div className="col-span-4" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {executiveMetrics.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.id} className="card">
-                <div className="flex-between">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div className={`badge ${item.badgeClass}`} style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
-                      <Icon size={18} />
-                    </div>
-                    <div>
-                      <label className="text-muted font-bold" style={{ display: 'block', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
-                        {item.label}
-                      </label>
-                      <div className="font-bold" style={{ fontSize: '1.35rem', color: 'var(--text-primary)', lineHeight: 1 }}>
-                        {item.value}
-                      </div>
-                    </div>
-                  </div>
-
-                  <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`}>
-                    {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                    {item.trend}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)', fontSize: '0.725rem' }}>
-                  <span className="text-muted">{item.subtext}</span>
-                  <span className="text-muted" style={{ fontStyle: 'italic', fontSize: '0.7rem' }}>
-                    💡 {item.decisionNote}
-                  </span>
-                </div>
+      {/* 2. TOP METRIC CARDS ROW (FIXED 4-COLUMN GRID LAYOUT) */}
+      <section className="dashboard-grid" style={{ marginBottom: '1.25rem' }}>
+        {executiveMetrics.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div 
+              key={item.id} 
+              className="card col-span-3" 
+              style={{ 
+                minHeight: '140px', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                justify: 'space-between',
+                padding: '1rem' 
+              }}
+            >
+              <div className="flex-between">
+                <span className="text-muted font-bold" style={{ fontSize: '0.65rem', letterSpacing: '0.05em' }}>
+                  {item.label}
+                </span>
+                <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`}>
+                  {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  {item.trend}
+                </span>
               </div>
-            );
-          })}
-        </div>
 
-        {/* CONTENIDO PRINCIPAL: DISTRIBUCIÓN POR ESPECIALIDAD (8/12 COLS) */}
-        <div className="card col-span-8" style={{ justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', margin: '0.2rem 0' }}>
+                <div className="font-bold" style={{ fontSize: '1.6rem', color: 'var(--text-primary)', lineHeight: 1 }}>
+                  {item.value}
+                </div>
+                <span className="text-muted" style={{ fontSize: '0.7rem' }}>
+                  {item.subtext}
+                </span>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                💡 <strong>Análisis:</strong> {item.decisionNote}
+              </div>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* 3. MAIN ANALYTICS SECTION (50/50 PREDEFINED GRID) */}
+      <section className="dashboard-grid">
+        {/* LEFT CARD: ESPECIALIDADES (SPAN 6) */}
+        <div 
+          className="card col-span-6" 
+          style={{ 
+            minHeight: '380px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justify: 'space-between' 
+          }}
+        >
           <div>
-            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: 700, color: 'var(--info)' }}>
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--info)' }}>
                 <BarChart3 size={18} /> CARGA Y CAPACIDAD POR ESPECIALIDAD
               </span>
-              <span className="text-muted" style={{ fontSize: '0.75rem' }}>Total Consultas: 389</span>
+              <span className="text-muted" style={{ fontSize: '0.75rem' }}>Total: 389</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {specialtiesData.map((spec, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div className="flex-between" style={{ fontSize: '0.85rem' }}>
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <div className="flex-between" style={{ fontSize: '0.8rem' }}>
                     <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                      {spec.name} <span className="text-muted" style={{ fontSize: '0.75rem' }}>({spec.doctorCount} Médicos)</span>
+                      {spec.name} <span className="text-muted" style={{ fontSize: '0.7rem' }}>({spec.doctorCount} Médicos)</span>
                     </span>
-                    <span className="text-muted font-medium" style={{ fontSize: '0.8rem' }}>
-                      <strong style={{ color: 'var(--text-primary)' }}>{spec.count}</strong> / {spec.target} atenciones ({spec.percentage}%)
+                    <span className="text-muted font-medium" style={{ fontSize: '0.75rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>{spec.count}</strong> / {spec.target} ({spec.percentage}%)
                     </span>
                   </div>
-                  <div style={{ width: '100%', height: '10px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '8px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                     <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)' }} />
                   </div>
                 </div>
@@ -4121,22 +4134,27 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             </div>
           </div>
 
-          <div style={{ marginTop: '1.5rem', padding: '0.85rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.775rem' }} className="text-muted">
-            <strong>Recomendación Operativa:</strong> La especialidad de Medicina General concentra el 48% de la demanda global. Se sugiere habilitar 1 consultorio de contingencia para reducir la espera.
+          <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.75rem' }} className="text-muted">
+            <strong>Recomendación Operativa:</strong> Medicina General concentra el 48% de la demanda. Habilitar 1 consultorio de contingencia.
           </div>
         </div>
-      </section>
 
-      {/* SECCIÓN INFERIOR: AUDITORÍA & INCIDENCIAS A ANCHO COMPLETO (12/12 COLS) */}
-      <section className="dashboard-grid">
-        <div className="card col-span-12">
-          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--danger)' }}>
-              <ShieldAlert size={18} /> RIESGOS & INCIDENCIAS OPERATIVAS
-            </span>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div style={{ display: 'flex', gap: '0.3rem' }}>
+        {/* RIGHT CARD: INCIDENCIAS & RIESGOS (SPAN 6) */}
+        <div 
+          className="card col-span-6" 
+          style={{ 
+            minHeight: '380px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            justify: 'space-between' 
+          }}
+        >
+          <div>
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 700, color: 'var(--danger)' }}>
+                <ShieldAlert size={18} /> RIESGOS & INCIDENCIAS OPERATIVAS
+              </span>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
                 {['all', 'Alta', 'Media'].map((lvl) => (
                   <button
                     key={lvl}
@@ -4146,62 +4164,61 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                       backgroundColor: alertFilter === lvl ? 'var(--bg-surface-hover)' : 'transparent',
                       borderColor: alertFilter === lvl ? 'var(--border-color-strong)' : 'var(--border-color)',
                       color: alertFilter === lvl ? 'var(--text-primary)' : 'var(--text-muted)',
-                      padding: '0.2rem 0.6rem',
-                      fontSize: '0.725rem'
+                      padding: '0.15rem 0.45rem',
+                      fontSize: '0.675rem'
                     }}
                   >
                     {lvl === 'all' ? 'Todas' : lvl}
                   </button>
                 ))}
               </div>
+            </div>
 
-              <button className="action-btn" style={{ color: 'var(--info)', border: 'none', background: 'transparent' }}>
-                Ver bitácora completa <ChevronRight size={14} />
-              </button>
+            {/* CONTAINED SCROLLABLE LIST PREVENTS OVERLAP/OVERFLOW */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '230px', overflowY: 'auto' }}>
+              {filteredAlerts.length > 0 ? (
+                filteredAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className="flex-between"
+                    style={{
+                      backgroundColor: 'var(--bg-dark)',
+                      borderLeft: `4px solid ${alert.level === 'Alta' ? 'var(--danger)' : 'var(--warning)'}`,
+                      borderTop: '1px solid var(--border-color)',
+                      borderRight: '1px solid var(--border-color)',
+                      borderBottom: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '0.6rem 0.85rem'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                          {alert.title}
+                        </h4>
+                        <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem' }}>
+                          {alert.level}
+                        </span>
+                      </div>
+                      <p className="text-muted" style={{ margin: '0.2rem 0 0 0', fontSize: '0.7rem' }}>
+                        {alert.scope} • {alert.impact} • {alert.time}
+                      </p>
+                    </div>
+                    <ChevronRight size={14} className="text-muted" />
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state" style={{ padding: '2rem 1rem' }}>
+                  <p style={{ fontSize: '0.8rem' }}>No hay incidencias para este filtro.</p>
+                </div>
+              )}
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            {filteredAlerts.length > 0 ? (
-              filteredAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className="flex-between"
-                  style={{
-                    backgroundColor: 'var(--bg-dark)',
-                    borderLeft: `4px solid ${alert.level === 'Alta' ? 'var(--danger)' : 'var(--warning)'}`,
-                    borderTop: '1px solid var(--border-color)',
-                    borderRight: '1px solid var(--border-color)',
-                    borderBottom: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0.65rem 1rem'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`}>
-                      {alert.level}
-                    </span>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                        {alert.title}
-                      </h4>
-                      <p className="text-muted" style={{ margin: 0, fontSize: '0.725rem' }}>
-                        {alert.scope} • Impacto: <strong style={{ color: 'var(--text-primary)' }}>{alert.impact}</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span className="text-muted" style={{ fontSize: '0.725rem' }}>{alert.time}</span>
-                    <ChevronRight size={16} className="text-muted" />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="empty-state">
-                <p>No se encontraron incidencias para este filtro.</p>
-              </div>
-            )}
+          <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="action-btn" style={{ color: 'var(--info)', border: 'none', background: 'transparent', fontSize: '0.75rem' }}>
+              Ver bitácora completa <ChevronRight size={14} />
+            </button>
           </div>
         </div>
       </section>
