@@ -114,7 +114,7 @@ function Sidebar({ currentRoute }) {
   }
 
   const navGroups = [
-    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' },{ label: 'dashboard2', path: '/dashboard2' }] },
+    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' }] },
     {
       key: 'clinical', title: 'Gestión clínica', icon: <Icons.Clinical />,
       items: [
