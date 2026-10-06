@@ -3486,332 +3486,350 @@ export function Documents() {
   const activeTemplate = templates.find(t => String(t.id) === String(form.template_id));
 
   return (
-  <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-    <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%', boxSizing: 'border-box' }}>
 
-      {/* CABECERA */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
-        <div style={{ minWidth: 0, flex: '1 1 280px' }}>
-          <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, overflowWrap: 'break-word' }}>Gestión de Formularios y Documentos</h1>
-          <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem' }}>Control estricto de campos dinámicos, documentos generados y plantillas.</p>
+        {/* CABECERA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div style={{ minWidth: 0, flex: '1 1 280px' }}>
+            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, overflowWrap: 'break-word' }}>Gestión de Formularios y Documentos</h1>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem' }}>Control estricto de campos dinámicos, documentos generados y plantillas.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
+            <button 
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', flex: '1 1 auto', textAlign: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} 
+              onClick={() => setShowTemplateBuilder(v => !v)}
+            >
+              {showTemplateBuilder ? <X size={16} /> : <Settings size={16} />}
+              {showTemplateBuilder ? 'Cerrar Diseñador' : 'Diseñador de Plantillas (Grid Libre)'}
+            </button>
+            <button 
+              style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', textAlign: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} 
+              onClick={() => setShowForm(v => !v)}
+            >
+              {showForm ? <X size={16} /> : <Plus size={16} />}
+              {showForm ? 'Cancelar' : 'Asignar Formulario a Paciente'}
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
-          <button style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', flex: '1 1 auto', textAlign: 'center' }} onClick={() => setShowTemplateBuilder(v => !v)}>
-            {showTemplateBuilder ? 'Cerrar Diseñador' : '⚙️ Diseñador de Plantillas (Grid Libre)'}
-          </button>
-          <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', textAlign: 'center' }} onClick={() => setShowForm(v => !v)}>
-            {showForm ? 'Cancelar' : '＋ Asignar Formulario a Paciente'}
-          </button>
-        </div>
-      </div>
 
-      <Toast toast={toast} onClose={clearToast} />
+        <Toast toast={toast} onClose={clearToast} />
 
-      {/* LISTADO DE TEMPLATES */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
-          {templates.map(tpl => (
-            <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.nombre || tpl.name}</h4>
-                <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px', display: 'inline-block' }}>Versión {tpl.version}</span>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                <button onClick={() => duplicateTemplate(tpl)} title="Copiar / Duplicar" style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>📋</button>
-                <button onClick={() => deleteTemplate(tpl.id)} title="Eliminar" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>🗑️</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* DISEÑADOR GRID EXCEL */}
-      {showTemplateBuilder && (
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid #3b82f6', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
-          <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Constructor de Formularios (Grid Estilo Excel)</h3>
-          <input
-            style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 1rem', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            value={templateName}
-            onChange={e => setTemplateName(e.target.value)}
-            placeholder="Nombre del nuevo template (ej. Ficha de Evolución Diaria)"
-          />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem', width: '100%' }}>
-            {templateRows.map((row, rIdx) => (
-              <div key={rIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#090d16', padding: '0.75rem', borderRadius: '12px', border: '1px dashed #334155', minWidth: 'max-content' }}>
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold', minWidth: '50px' }}>Fila {rIdx + 1}</span>
-
-                {row.map((cell, cIdx) => (
-                  <div
-                    key={cIdx}
-                    style={{
-                      position: 'relative',
-                      width: cell.width,
-                      minWidth: '100px',
-                      backgroundColor: '#1e293b',
-                      border: '1px solid #475569',
-                      borderRadius: '8px',
-                      padding: '0.5rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.35rem'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <input
-                        style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 'bold', width: '100%', outline: 'none' }}
-                        value={cell.nombre_campo}
-                        onChange={e => updateCellConfig(rIdx, cIdx, 'nombre_campo', e.target.value)}
-                        placeholder="Etiqueta"
-                      />
-                      <button onClick={() => removeCell(rIdx, cIdx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem' }}>×</button>
-                    </div>
-
-                    <select style={{ background: '#0f172a', color: '#38bdf8', fontSize: '0.65rem', border: 'none', borderRadius: '4px', padding: '0.1rem' }} value={cell.tipo_campo} onChange={e => updateCellConfig(rIdx, cIdx, 'tipo_campo', e.target.value)}>
-                      <option value="texto">Texto</option>
-                      <option value="número">Número</option>
-                      <option value="fecha">Fecha</option>
-                      <option value="archivo">Archivo</option>
-                    </select>
-
-                    <div
-                      onMouseDown={(e) => startResizing(e, rIdx, cIdx)}
-                      style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '6px', cursor: 'col-resize', backgroundColor: 'rgba(56, 189, 248, 0.3)', borderTopRightRadius: '8px', borderBottomRightRadius: '8px' }}
-                    />
-                  </div>
-                ))}
-
-                {row.length < 5 && (
-                  <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem', flexShrink: 0 }}>+ Columna</button>
-                )}
-
-                <button onClick={() => removeRow(rIdx)} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', marginLeft: 'auto', flexShrink: 0 }}>
-                  Eliminar Fila
-                </button>
+        {/* LISTADO DE TEMPLATES */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plantillas Disponibles</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
+            {templates.map(tpl => (
+              <div key={tpl.id} style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <h4 style={{ margin: '0 0 0.3rem 0', color: '#f8fafc', fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.nombre || tpl.name}</h4>
+                  <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px', display: 'inline-block' }}>Versión {tpl.version}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                  <button onClick={() => duplicateTemplate(tpl)} title="Copiar / Duplicar" style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.6rem', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Copy size={14} />
+                  </button>
+                  <button onClick={() => deleteTemplate(tpl.id)} title="Eliminar" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.6rem', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #334155', flexWrap: 'wrap', gap: '1rem' }}>
-            <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', width: '100%', maxWidth: '200px' }}>＋ Agregar Nueva Fila</button>
-            <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '300px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowTemplateBuilder(false)} style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', flex: 1 }}>Cancelar</button>
-              <button onClick={saveTemplate} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, flex: 1 }}>Guardar Plantilla</button>
-            </div>
-          </div>
         </div>
-      )}
 
-      {/* FORMULARIO ASIGNACIÓN */}
-      {showForm && (
-        <form onSubmit={submitDocument} style={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #334155', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
-          <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Rellenar Formulario Clínico para Paciente</h3>
+        {/* DISEÑADOR GRID EXCEL */}
+        {showTemplateBuilder && (
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.95)', border: '1px solid #3b82f6', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Constructor de Formularios (Grid Estilo Excel)</h3>
+            <input
+              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 1rem', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              value={templateName}
+              onChange={e => setTemplateName(e.target.value)}
+              placeholder="Nombre del nuevo template (ej. Ficha de Evolución Diaria)"
+            />
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))', gap: '1rem' }}>
-            <input required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))} placeholder="ID Paciente (FK)" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowX: 'auto', paddingBottom: '1rem', width: '100%' }}>
+              {templateRows.map((row, rIdx) => (
+                <div key={rIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#090d16', padding: '0.75rem', borderRadius: '12px', border: '1px dashed #334155', minWidth: 'max-content' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'bold', minWidth: '50px' }}>Fila {rIdx + 1}</span>
 
-            <select style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.document_type} onChange={e => setForm(p => ({ ...p, document_type: e.target.value }))}>
-              <option value="ingreso">Ingreso</option>
-              <option value="evolución">Evolución</option>
-              <option value="alta">Alta</option>
-            </select>
-
-            <select required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value, dynamicValues: {} }))}>
-              <option value="">Seleccione Plantilla</option>
-              {templates.map(t => <option key={t.id} value={t.id}>{t.nombre || t.name}</option>)}
-            </select>
-          </div>
-
-          {activeTemplate && activeTemplate.structure && (
-            <div style={{ background: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
-              <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#38bdf8' }}>Campos: {activeTemplate.nombre || activeTemplate.name}</h4>
-
-              {activeTemplate.structure.map((row, rIdx) => (
-                <div key={rIdx} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
-                  {row.map((cell, cIdx) => {
-                    const key = `${rIdx}-${cIdx}`;
-                    return (
-                      <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: '1 1 180px', minWidth: '0' }}>
-                        <label style={{ fontSize: '0.75rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cell.nombre_campo}</label>
+                  {row.map((cell, cIdx) => (
+                    <div
+                      key={cIdx}
+                      style={{
+                        position: 'relative',
+                        width: cell.width,
+                        minWidth: '100px',
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        padding: '0.5rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <input
-                          type={cell.tipo_campo === 'número' ? 'number' : cell.tipo_campo === 'fecha' ? 'date' : 'text'}
-                          style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem', borderRadius: '6px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-                          value={form.dynamicValues[key] || ''}
-                          onChange={e => setForm(p => ({ ...p, dynamicValues: { ...p.dynamicValues, [key]: e.target.value } }))}
+                          style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 'bold', width: '100%', outline: 'none' }}
+                          value={cell.nombre_campo}
+                          onChange={e => updateCellConfig(rIdx, cIdx, 'nombre_campo', e.target.value)}
+                          placeholder="Etiqueta"
                         />
+                        <button onClick={() => removeCell(rIdx, cIdx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center' }}>
+                          <X size={14} />
+                        </button>
                       </div>
-                    );
-                  })}
+
+                      <select style={{ background: '#0f172a', color: '#38bdf8', fontSize: '0.65rem', border: 'none', borderRadius: '4px', padding: '0.1rem' }} value={cell.tipo_campo} onChange={e => updateCellConfig(rIdx, cIdx, 'tipo_campo', e.target.value)}>
+                        <option value="texto">Texto</option>
+                        <option value="número">Número</option>
+                        <option value="fecha">Fecha</option>
+                        <option value="archivo">Archivo</option>
+                      </select>
+
+                      <div
+                        onMouseDown={(e) => startResizing(e, rIdx, cIdx)}
+                        style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '6px', cursor: 'col-resize', backgroundColor: 'rgba(56, 189, 248, 0.3)', borderTopRightRadius: '8px', borderBottomRightRadius: '8px' }}
+                      />
+                    </div>
+                  ))}
+
+                  {row.length < 5 && (
+                    <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Plus size={14} /> Columna
+                    </button>
+                  )}
+
+                  <button onClick={() => removeRow(rIdx)} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Trash2 size={13} /> Eliminar Fila
+                  </button>
                 </div>
               ))}
             </div>
-          )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-            <button type="submit" disabled={saving || !form.template_id} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, width: '100%', maxWidth: '250px' }}>
-              {saving ? 'Guardando...' : 'Registrar y Generar PDF'}
-            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #334155', flexWrap: 'wrap', gap: '1rem' }}>
+              <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', width: '100%', maxWidth: '200px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+                <PlusCircle size={16} /> Agregar Nueva Fila
+              </button>
+              <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '300px', justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowTemplateBuilder(false)} style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', flex: 1 }}>Cancelar</button>
+                <button onClick={saveTemplate} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, flex: 1 }}>Guardar Plantilla</button>
+              </div>
+            </div>
           </div>
-        </form>
-      )}
+        )}
 
-      {/* LISTADO Y PREVISUALIZACIÓN DE DOCUMENTOS */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Documentos Registrados ({filteredDocuments.length})
-          </h3>
+        {/* FORMULARIO ASIGNACIÓN */}
+        {showForm && (
+          <form onSubmit={submitDocument} style={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #334155', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', margin: 0 }}>Rellenar Formulario Clínico para Paciente</h3>
 
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1, maxWidth: '100%' }}>
-            <div style={{ position: 'relative', flex: '1 1 200px' }}>
-              <Search size={16} color="#64748b" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input
-                type="text"
-                placeholder="Buscar por archivo o ID Paciente..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))', gap: '1rem' }}>
+              <input required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.patient_id} onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))} placeholder="ID Paciente (FK)" />
+
+              <select style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.document_type} onChange={e => setForm(p => ({ ...p, document_type: e.target.value }))}>
+                <option value="ingreso">Ingreso</option>
+                <option value="evolución">Evolución</option>
+                <option value="alta">Alta</option>
+              </select>
+
+              <select required style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.6rem', borderRadius: '8px', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={form.template_id} onChange={e => setForm(p => ({ ...p, template_id: e.target.value, dynamicValues: {} }))}>
+                <option value="">Seleccione Plantilla</option>
+                {templates.map(t => <option key={t.id} value={t.id}>{t.nombre || t.name}</option>)}
+              </select>
+            </div>
+
+            {activeTemplate && activeTemplate.structure && (
+              <div style={{ background: '#090d16', border: '1px solid #334155', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', boxSizing: 'border-box' }}>
+                <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#38bdf8' }}>Campos: {activeTemplate.nombre || activeTemplate.name}</h4>
+
+                {activeTemplate.structure.map((row, rIdx) => (
+                  <div key={rIdx} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', width: '100%' }}>
+                    {row.map((cell, cIdx) => {
+                      const key = `${rIdx}-${cIdx}`;
+                      return (
+                        <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: '1 1 180px', minWidth: '0' }}>
+                          <label style={{ fontSize: '0.75rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cell.nombre_campo}</label>
+                          <input
+                            type={cell.tipo_campo === 'número' ? 'number' : cell.tipo_campo === 'fecha' ? 'date' : 'text'}
+                            style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem', borderRadius: '6px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                            value={form.dynamicValues[key] || ''}
+                            onChange={e => setForm(p => ({ ...p, dynamicValues: { ...p.dynamicValues, [key]: e.target.value } }))}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button type="submit" disabled={saving || !form.template_id} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, width: '100%', maxWidth: '250px' }}>
+                {saving ? 'Guardando...' : 'Registrar y Generar PDF'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* LISTADO Y PREVISUALIZACIÓN DE DOCUMENTOS */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <h3 style={{ fontSize: '1rem', color: '#94a3b8', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Documentos Registrados ({filteredDocuments.length})
+            </h3>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', flex: 1, maxWidth: '100%' }}>
+              <div style={{ position: 'relative', flex: '1 1 200px' }}>
+                <Search size={16} color="#64748b" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder="Buscar por archivo o ID Paciente..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #334155',
+                    color: '#f8fafc',
+                    padding: '0.5rem 0.5rem 0.5rem 2.2rem',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <select
+                value={filterType}
+                onChange={e => setFilterType(e.target.value)}
                 style={{
-                  width: '100%',
                   backgroundColor: '#0f172a',
                   border: '1px solid #334155',
                   color: '#f8fafc',
-                  padding: '0.5rem 0.5rem 0.5rem 2.2rem',
+                  padding: '0.5rem',
                   borderRadius: '8px',
                   fontSize: '0.85rem',
                   outline: 'none',
+                  flex: '1 1 120px',
                   boxSizing: 'border-box'
                 }}
-              />
+              >
+                <option value="all">Todos los tipos</option>
+                <option value="ingreso">Ingreso</option>
+                <option value="evolución">Evolución</option>
+                <option value="alta">Alta</option>
+              </select>
             </div>
+          </div>
 
-            <select
-              value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              style={{
-                backgroundColor: '#0f172a',
-                border: '1px solid #334155',
-                color: '#f8fafc',
-                padding: '0.5rem',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                outline: 'none',
-                flex: '1 1 120px',
-                boxSizing: 'border-box'
-              }}
-            >
-              <option value="all">Todos los tipos</option>
-              <option value="ingreso">Ingreso</option>
-              <option value="evolución">Evolución</option>
-              <option value="alta">Alta</option>
-            </select>
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflowX: 'auto', width: '100%' }}>
+            {filteredDocuments.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
+                <File size={36} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
+                <p style={{ margin: 0 }}>No se encontraron documentos registrados.</p>
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem', minWidth: '600px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #1e293b', color: '#64748b', backgroundColor: 'rgba(15, 23, 42, 0.6)' }}>
+                    <th style={{ padding: '0.85rem 1rem' }}>Documento</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Paciente ID</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Tipo</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Fecha</th>
+                    <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDocuments.map(doc => (
+                    <tr key={doc.id} style={{ borderBottom: '1px solid #1e293b', color: '#cbd5e1' }}>
+                      <td style={{ padding: '0.85rem 1rem', fontWeight: 500, color: '#f8fafc' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <FileText size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.file_name || doc.title || 'Documento sin nombre'}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <User size={14} color="#64748b" /> {doc.patient_id || 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <span style={{
+                          fontSize: '0.75rem',
+                          textTransform: 'capitalize',
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: '6px',
+                          backgroundColor: doc.document_type === 'ingreso' ? 'rgba(56, 189, 248, 0.1)' : 'rgba(168, 85, 247, 0.1)',
+                          color: doc.document_type === 'ingreso' ? '#38bdf8' : '#c084fc',
+                          border: `1px solid ${doc.document_type === 'ingreso' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`
+                        }}>
+                          {doc.document_type || doc.category || 'General'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', color: '#94a3b8' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <Calendar size={14} color="#64748b" />
+                          {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => setPreviewDoc(doc)}
+                            style={{
+                              backgroundColor: '#1e293b',
+                              border: '1px solid #334155',
+                              color: '#38bdf8',
+                              padding: '0.4rem 0.6rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              fontSize: '0.75rem',
+                              fontWeight: 500
+                            }}
+                          >
+                            <Eye size={14} /> Ver PDF
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            style={{
+                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              color: '#ef4444',
+                              padding: '0.4rem 0.5rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer'
+                            }}
+                            title="Eliminar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
-        <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', overflowX: 'auto', width: '100%' }}>
-          {filteredDocuments.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>
-              <File size={36} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-              <p style={{ margin: 0 }}>No se encontraron documentos registrados.</p>
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem', minWidth: '600px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #1e293b', color: '#64748b', backgroundColor: 'rgba(15, 23, 42, 0.6)' }}>
-                  <th style={{ padding: '0.85rem 1rem' }}>Documento</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Paciente ID</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Tipo</th>
-                  <th style={{ padding: '0.85rem 1rem' }}>Fecha</th>
-                  <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDocuments.map(doc => (
-                  <tr key={doc.id} style={{ borderBottom: '1px solid #1e293b', color: '#cbd5e1' }}>
-                    <td style={{ padding: '0.85rem 1rem', fontWeight: 500, color: '#f8fafc' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <FileText size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.file_name || doc.title || 'Documento sin nombre'}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <User size={14} color="#64748b" /> {doc.patient_id || 'N/A'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem' }}>
-                      <span style={{
-                        fontSize: '0.75rem',
-                        textTransform: 'capitalize',
-                        padding: '0.25rem 0.6rem',
-                        borderRadius: '6px',
-                        backgroundColor: doc.document_type === 'ingreso' ? 'rgba(56, 189, 248, 0.1)' : 'rgba(168, 85, 247, 0.1)',
-                        color: doc.document_type === 'ingreso' ? '#38bdf8' : '#c084fc',
-                        border: `1px solid ${doc.document_type === 'ingreso' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`
-                      }}>
-                        {doc.document_type || doc.category || 'General'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', color: '#94a3b8' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <Calendar size={14} color="#64748b" />
-                        {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                        <button
-                          onClick={() => setPreviewDoc(doc)}
-                          style={{
-                            backgroundColor: '#1e293b',
-                            border: '1px solid #334155',
-                            color: '#38bdf8',
-                            padding: '0.4rem 0.6rem',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 500
-                          }}
-                        >
-                          <Eye size={14} /> Ver PDF
-                        </button>
-                        <button
-                          onClick={() => handleDeleteDocument(doc.id)}
-                          style={{
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
-                            color: '#ef4444',
-                            padding: '0.4rem 0.5rem',
-                            borderRadius: '6px',
-                            cursor: 'pointer'
-                          }}
-                          title="Eliminar"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
       </div>
 
+      {previewDoc && (
+        <DocumentPreviewModal
+          previewDoc={previewDoc}
+          setPreviewDoc={setPreviewDoc}
+        />
+      )}
     </div>
-
-    {previewDoc && (
-      <DocumentPreviewModal
-        previewDoc={previewDoc}
-        setPreviewDoc={setPreviewDoc}
-      />
-    )}
-  </div>
-);
+  );
 }
 
 
