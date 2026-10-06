@@ -732,17 +732,11 @@ export function DeviceManagementDashboard() {
                 </div>
               </div>
 
-              {/* Table Container with Generous Row Padding */}
+              {/* Table Container with Generous Row Padding & 10px Margin */}
               {loading ? (
                 <LoadingState label="Cargando dispositivos..." />
               ) : (
-                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl"style="
-                      border-top-width: 0px;
-                      margin-top: 10px;
-                      margin-left: 10px;
-                      margin-bottom: 10px;
-                      margin-right: 10px;
-                      ">
+                <div className="m-[10px] border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
                   <DataTable
                     columns={[
                       {
