@@ -633,7 +633,7 @@ export function DeviceManagementDashboard() {
         {/* --- HEADER BLOCK --- */}
         <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 lg:p-8 shadow-2xl space-y-8">
 
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/80 pb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 border-b border-slate-800/80 pb-8"Style="margin-bottom: 20px;">
             <div className="flex items-start gap-4">
               <div className="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 shrink-0">
                 <ShieldAlert className="w-8 h-8" />
