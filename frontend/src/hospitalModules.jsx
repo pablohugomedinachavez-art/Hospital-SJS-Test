@@ -6,24 +6,14 @@ import {
 } from 'recharts';
 import { useAuth } from './AuthContext';
 import {
-  Shield,
-  Stethoscope,
-  UserCheck,
-  User,
-  Plus,
-  Trash2,
-  Edit3,
-  AlertTriangle,
-  Mail,
-  MapPin,
-  Key,
-  Search,
-  ArrowLeft,
-  Users , // <-- Add alias here
-  Filter,
-  CheckCircle2,
-  X
-} from 'lucide-react'
+  Activity,AlertCircle,AlertTriangle,ArrowDownRight,ArrowLeft,ArrowUpRight,Award,BarChart3,Bed,Bell,
+  Building2,Calendar,CheckCircle2,ChevronDown,ChevronLeft,ChevronRight,Clock,Copy,Download,Edit3,ExternalLink,
+  Eye,File,FileCheck,FileEdit,FileMinus,FilePlus,FileSearch,FileText,FileX,Filter,HardDrive,Heart,
+  HeartPulse,Key,Laptop,Layers,Loader2,Mail,MapPin,MessageSquare,Monitor,Phone,Pill,Plus,Printer,
+  RefreshCw,Ruler,Save,Scale,Search,Server,Settings,Shield,ShieldAlert,ShieldCheck,Sliders,Smartphone,
+  Stethoscope,TrendingDown,TrendingUp,Trash2,User,UserCheck,UserPlus,Wifi,X
+} from 'lucide-react';
+
 
 <Users className="w-7 h-7" />
 
