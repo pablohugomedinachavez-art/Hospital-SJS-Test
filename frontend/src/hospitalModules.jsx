@@ -3919,38 +3919,84 @@ export function Documents() {
 // ============================================================
 
 export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
+  const [activeArea, setActiveArea] = useState('general');
   const [timeRange, setTimeRange] = useState('month');
   const [alertFilter, setAlertFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
 
-  // 1. CALCULATED METRICS
-  const executiveMetrics = useMemo(() => {
-    const patients = stats.patients ?? 142;
-    const consultations = stats.consultations ?? 389;
-    const appointments = stats.appointments ?? 420;
-    const activeAlertsCount = alertsList.length > 0 ? alertsList.length : 3;
+  // DEFINICIÓN DE PESTAÑAS DE ÁREAS
+  const hospitalAreas = [
+    { id: 'general', label: 'General / Módulos' },
+    { id: 'urgencias', label: 'Urgencias' },
+    { id: 'hospitalizacion', label: 'Hospitalización' },
+    { id: 'cirugia', label: 'Pabellón Quirúrgico' },
+    { id: 'consulta', label: 'Consulta Externa' }
+  ];
 
-    const noShowRate = 7.4;
-    const totalCapacity = 500;
-    const capacityOccupancy = Math.round((consultations / totalCapacity) * 100);
+  // 1. MÉTRICAS DINÁMICAS SEGÚN ÁREA SELECCIONADA
+  const executiveMetrics = useMemo(() => {
+    const areaData = {
+      general: {
+        patients: stats.patients ?? 142,
+        consultations: stats.consultations ?? 389,
+        appointments: stats.appointments ?? 420,
+        alerts: alertsList.length > 0 ? alertsList.length : 3,
+        noShow: 7.4,
+        occupancy: 78
+      },
+      urgencias: {
+        patients: 88,
+        consultations: 215,
+        appointments: 0,
+        alerts: 5,
+        noShow: 1.2,
+        occupancy: 92
+      },
+      hospitalizacion: {
+        patients: 64,
+        consultations: 110,
+        appointments: 45,
+        alerts: 2,
+        noShow: 2.0,
+        occupancy: 85
+      },
+      cirugia: {
+        patients: 18,
+        consultations: 32,
+        appointments: 28,
+        alerts: 1,
+        noShow: 4.5,
+        occupancy: 65
+      },
+      consulta: {
+        patients: 210,
+        consultations: 430,
+        appointments: 510,
+        alerts: 2,
+        noShow: 9.8,
+        occupancy: 72
+      }
+    };
+
+    const current = areaData[activeArea] || areaData.general;
 
     return [
       {
         id: 'patients',
         label: 'PACIENTES ACTIVOS',
-        value: patients.toLocaleString(),
-        subtext: 'Registrados en el sistema',
+        value: current.patients.toLocaleString(),
+        subtext: 'Registrados en el área',
         trend: '+12.4%',
         isUp: true,
         icon: Users,
         badgeClass: 'badge-info',
-        decisionNote: 'Demanda creciente general.'
+        decisionNote: 'Flujo de ingreso constante.'
       },
       {
         id: 'consultations',
         label: 'CONSULTAS REALIZADAS',
-        value: consultations.toLocaleString(),
-        subtext: `${capacityOccupancy}% cap. instalada`,
+        value: current.consultations.toLocaleString(),
+        subtext: `${current.occupancy}% cap. instalada`,
         trend: '+8.1%',
         isUp: true,
         icon: Stethoscope,
@@ -3960,51 +4006,90 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
       {
         id: 'appointments',
         label: 'CITAS PROGRAMADAS',
-        value: appointments.toLocaleString(),
-        subtext: `No-Show: ${noShowRate}%`,
+        value: current.appointments.toLocaleString(),
+        subtext: `Tasa No-Show: ${current.noShow}%`,
         trend: '-3.2%',
         isUp: false,
         icon: Clock,
         badgeClass: 'badge-warning',
-        decisionNote: 'Ausentismo en turnos tarde.'
+        decisionNote: 'Ausentismo bajo monitoreo.'
       },
       {
         id: 'alerts',
         label: 'INCIDENCIAS Y ALERTAS',
-        value: activeAlertsCount,
+        value: current.alerts,
         subtext: 'Atención requerida',
-        trend: activeAlertsCount > 2 ? 'Riesgo Medio' : 'Estable',
+        trend: current.alerts > 2 ? 'Riesgo Medio' : 'Estable',
         isUp: false,
         icon: AlertTriangle,
         badgeClass: 'badge-danger',
-        decisionNote: 'Firma pendiente de docs.'
+        decisionNote: 'Revisiones normativas.'
       }
     ];
-  }, [stats, alertsList]);
+  }, [stats, alertsList, activeArea]);
 
-  // 2. SPECIALTIES DATA
-  const specialtiesData = useMemo(() => [
-    { name: 'Medicina General', count: 185, target: 200, percentage: 48, color: 'var(--info)', doctorCount: 6 },
-    { name: 'Pediatría', count: 112, target: 120, percentage: 29, color: 'var(--success)', doctorCount: 4 },
-    { name: 'Cardiología', count: 58, target: 80, percentage: 15, color: 'var(--warning)', doctorCount: 3 },
-    { name: 'Ginecología', count: 34, target: 50, percentage: 8, color: '#ec4899', doctorCount: 2 }
-  ], []);
+  // 2. ESPECIALIDADES POR ÁREA
+  const specialtiesData = useMemo(() => {
+    const dataByArea = {
+      general: [
+        { name: 'Medicina General', count: 185, target: 200, percentage: 48, color: 'var(--info)', doctorCount: 6 },
+        { name: 'Pediatría', count: 112, target: 120, percentage: 29, color: 'var(--success)', doctorCount: 4 },
+        { name: 'Cardiología', count: 58, target: 80, percentage: 15, color: 'var(--warning)', doctorCount: 3 },
+        { name: 'Ginecología', count: 34, target: 50, percentage: 8, color: '#ec4899', doctorCount: 2 }
+      ],
+      urgencias: [
+        { name: 'Traumatología de Urgencia', count: 95, target: 100, percentage: 55, color: 'var(--danger)', doctorCount: 4 },
+        { name: 'Triaje Crítico', count: 70, target: 80, percentage: 30, color: 'var(--warning)', doctorCount: 3 },
+        { name: 'Soporte Vital', count: 50, target: 60, percentage: 15, color: 'var(--info)', doctorCount: 2 }
+      ],
+      hospitalizacion: [
+        { name: 'Cuidados Intermedios', count: 40, target: 50, percentage: 50, color: 'var(--info)', doctorCount: 3 },
+        { name: 'Recuperación Post-Op', count: 24, target: 30, percentage: 30, color: 'var(--success)', doctorCount: 2 }
+      ],
+      cirugia: [
+        { name: 'Cirugía General', count: 15, target: 20, percentage: 60, color: 'var(--info)', doctorCount: 3 },
+        { name: 'Anestesiología', count: 10, target: 12, percentage: 40, color: 'var(--success)', doctorCount: 2 }
+      ],
+      consulta: [
+        { name: 'Dermatología', count: 120, target: 150, percentage: 40, color: 'var(--info)', doctorCount: 3 },
+        { name: 'Oftalmología', count: 90, target: 100, percentage: 30, color: 'var(--success)', doctorCount: 2 },
+        { name: 'Endocrinología', count: 80, target: 100, percentage: 30, color: 'var(--warning)', doctorCount: 2 }
+      ]
+    };
+    return dataByArea[activeArea] || dataByArea.general;
+  }, [activeArea]);
 
-  // 3. ALERTS DATA
+  // 3. INCIDENCIAS FILTRADAS POR ÁREA Y NIVEL
   const rawAlerts = useMemo(() => {
-    return alertsList.length > 0 ? alertsList : [
-      { id: 1, title: 'Inconsistencia de DNI en registros', scope: 'Módulo Pacientes', level: 'Alta', time: 'Hace 10 min', impact: 'Calidad de Datos' },
-      { id: 2, title: 'Consultas pendientes de firma digital', scope: 'Atención Médica', level: 'Media', time: 'Hace 45 min', impact: 'Cumplimiento Legal' },
-      { id: 3, title: 'Superación de aforo programado en Pediatría', scope: 'Citas', level: 'Alta', time: 'Hace 2 horas', impact: 'Capacidad Operativa' }
-    ];
-  }, [alertsList]);
+    const alertMap = {
+      general: [
+        { id: 1, title: 'Inconsistencia de DNI en registros', scope: 'Módulo Pacientes', level: 'Alta', time: 'Hace 10 min', impact: 'Calidad de Datos' },
+        { id: 2, title: 'Consultas pendientes de firma digital', scope: 'Atención Médica', level: 'Media', time: 'Hace 45 min', impact: 'Cumplimiento Legal' },
+        { id: 3, title: 'Superación de aforo en Pediatría', scope: 'Citas', level: 'Alta', time: 'Hace 2 horas', impact: 'Capacidad Operativa' }
+      ],
+      urgencias: [
+        { id: 101, title: 'Saturación en Box de Triaje 2', scope: 'Urgencias', level: 'Alta', time: 'Hace 5 min', impact: 'Tiempo de Espera' },
+        { id: 102, title: 'Demora en retorno de laboratorio', scope: 'Urgencias', level: 'Media', time: 'Hace 20 min', impact: 'Diagnóstico' }
+      ],
+      hospitalizacion: [
+        { id: 201, title: 'Cama 304 pendiente de alta administrativa', scope: 'Piso 3', level: 'Media', time: 'Hace 1 hora', impact: 'Rotación de Camas' }
+      ],
+      cirugia: [
+        { id: 301, title: 'Mantenimiento preventivo en Quirófano 2', scope: 'Pabellón B', level: 'Alta', time: 'Hace 30 min', impact: 'Disponibilidad' }
+      ],
+      consulta: [
+        { id: 401, title: 'Retraso en inicio de agenda Dermatología', scope: 'Consulta Ext.', level: 'Media', time: 'Hace 15 min', impact: 'Atención al Usuario' }
+      ]
+    };
+    return alertsList.length > 0 ? alertsList : (alertMap[activeArea] || alertMap.general);
+  }, [alertsList, activeArea]);
 
   const filteredAlerts = useMemo(() => {
     if (alertFilter === 'all') return rawAlerts;
     return rawAlerts.filter(a => a.level.toLowerCase() === alertFilter.toLowerCase());
   }, [rawAlerts, alertFilter]);
 
-  // 4. USERS DIRECTORY DATA
+  // 4. DIRECTORIO DE USUARIOS
   const rawUsers = useMemo(() => {
     return usersList.length > 0 ? usersList : [
       { id: 1, name: 'Dr. Roberto Gómez', role: 'Médico General', status: 'Activo', dept: 'Consultorio 1' },
@@ -4022,10 +4107,10 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   }, [rawUsers, userSearch]);
 
   const handleExportReport = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ executiveMetrics, specialtiesData, rawAlerts }, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ activeArea, executiveMetrics, specialtiesData, rawAlerts }, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `Reporte_Ejecutivo_Hospital_TIC_${timeRange}.json`);
+    downloadAnchor.setAttribute("download", `Reporte_${activeArea}_${timeRange}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
@@ -4035,27 +4120,28 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
     <div className="view-container" style={{ width: '100%', boxSizing: 'border-box' }}>
       
       {/* TOOLBAR HEADER */}
-      <header className="app-header toolbar" style={{ marginBottom: '1rem' }}>
+      <header className="app-header toolbar" style={{ marginBottom: '0.75rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Building2 size={20} style={{ color: 'var(--info)' }} />
-            <h1 style={{ fontSize: '1.35rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+            <Building2 size={16} style={{ color: 'var(--info)' }} />
+            <h1 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
               Hospital TIC
             </h1>
-            <span className="badge badge-info">TABLERO MODULAR</span>
+            <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>TABLERO MODULAR</span>
           </div>
-          <p className="text-muted" style={{ fontSize: '0.775rem', margin: '0.2rem 0 0 0' }}>
-            Panel consolidado de rendimiento asistencial, riesgos y directorio de usuarios.
+          <p className="text-muted" style={{ fontSize: '0.675rem', margin: '0.15rem 0 0 0' }}>
+            Análisis de rendimiento asistencial, distribución operativa y gestión de riesgos por área.
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Calendar size={14} className="text-muted" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Calendar size={16} className="text-muted" />
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
               aria-label="Rango de tiempo"
+              style={{ fontSize: '0.725rem' }}
             >
               <option value="today">Hoy</option>
               <option value="week">Esta semana</option>
@@ -4064,11 +4150,38 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             </select>
           </div>
 
-          <button onClick={handleExportReport} className="button primary">
-            <Download size={15} /> Exportar
+          <button onClick={handleExportReport} className="button primary" style={{ fontSize: '0.725rem', padding: '0.35rem 0.75rem' }}>
+            <Download size={16} /> Exportar
           </button>
         </div>
       </header>
+
+      {/* TABS DE ÁREAS HOSPITALARIAS */}
+      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', overflowX: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', paddingRight: '0.5rem', color: 'var(--text-muted)' }}>
+          <Layers size={16} />
+          <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>Área:</span>
+        </div>
+        {hospitalAreas.map((area) => (
+          <button
+            key={area.id}
+            onClick={() => setActiveArea(area.id)}
+            className="action-btn"
+            style={{
+              backgroundColor: activeArea === area.id ? 'var(--info)' : 'transparent',
+              borderColor: activeArea === area.id ? 'var(--info)' : 'var(--border-color)',
+              color: activeArea === area.id ? '#ffffff' : 'var(--text-muted)',
+              padding: '0.25rem 0.65rem',
+              fontSize: '0.7rem',
+              fontWeight: activeArea === area.id ? 700 : 500,
+              borderRadius: 'var(--radius-sm)',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {area.label}
+          </button>
+        ))}
+      </div>
 
       {/* MAIN LAYOUT: 9 COLS DASHBOARD CUBES + 3 COLS SIDEBAR DIRECTORY */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem', width: '100%' }}>
@@ -4079,29 +4192,28 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           {/* ROW 1: 4 KPI MODULAR CUBES */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
             {executiveMetrics.map((item) => {
-              const Icon = item.icon;
               return (
-                <div key={item.id} className="card" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '115px' }}>
+                <div key={item.id} className="card" style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '110px', boxSizing: 'border-box' }}>
                   <div className="flex-between">
-                    <span className="text-muted font-bold" style={{ fontSize: '0.625rem', letterSpacing: '0.04em' }}>
+                    <span className="text-muted font-bold" style={{ fontSize: '0.675rem', letterSpacing: '0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {item.label}
                     </span>
-                    <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.65rem' }}>
-                      {item.isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                    <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.3rem' }}>
+                      {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                       {item.trend}
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', margin: '0.2rem 0' }}>
-                    <div className="font-bold" style={{ fontSize: '1.4rem', color: 'var(--text-primary)', lineHeight: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem', margin: '0.15rem 0' }}>
+                    <div className="font-bold" style={{ fontSize: '1.35rem', color: 'var(--text-primary)', lineHeight: 1 }}>
                       {item.value}
                     </div>
-                    <span className="text-muted" style={{ fontSize: '0.65rem' }}>
+                    <span className="text-muted" style={{ fontSize: '0.675rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {item.subtext}
                     </span>
                   </div>
 
-                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.35rem', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.3rem', fontSize: '0.675rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     💡 {item.decisionNote}
                   </div>
                 </div>
@@ -4109,21 +4221,21 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             })}
           </div>
 
-          {/* ROW 2: GRAPH VISUALIZATION CUBES (CAPACITY DONUT CHART + SPECIALTIES STACK) */}
+          {/* ROW 2: GRAPH VISUALIZATION CUBES */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem' }}>
             
-            {/* CAPACITY DONUT VISUALIZATION CUBE (4 COLS) */}
-            <div className="card" style={{ gridColumn: 'span 4', padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '260px' }}>
-              <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Activity size={15} /> OCUPACIÓN GLOBAL
+            {/* CAPACITY DONUT CUBE (4 COLS) */}
+            <div className="card" style={{ gridColumn: 'span 4', padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '250px', boxSizing: 'border-box' }}>
+              <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Activity size={16} /> OCUPACIÓN GLOBAL
                 </span>
-                <span className="text-muted" style={{ fontSize: '0.675rem' }}>Cap. 500</span>
+                <span className="text-muted" style={{ fontSize: '0.675rem' }}>Cap. Max</span>
               </div>
 
-              {/* SIMULATED SVG DONUT CHART */}
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', margin: '0.75rem 0' }}>
-                <svg width="120" height="120" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
+              {/* DONUT CHART */}
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', margin: '0.5rem 0' }}>
+                <svg width="110" height="110" viewBox="0 0 36 36" style={{ transform: 'rotate(-90deg)' }}>
                   <path
                     stroke="var(--bg-dark)"
                     strokeWidth="3.8"
@@ -4140,38 +4252,38 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                   />
                 </svg>
                 <div style={{ position: 'absolute', textAlign: 'center' }}>
-                  <span className="font-bold" style={{ fontSize: '1.2rem', color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>78%</span>
-                  <span className="text-muted" style={{ fontSize: '0.625rem' }}>Uso Activo</span>
+                  <span className="font-bold" style={{ fontSize: '1.15rem', color: 'var(--text-primary)', display: 'block', lineHeight: 1 }}>78%</span>
+                  <span className="text-muted" style={{ fontSize: '0.675rem' }}>Uso Activo</span>
                 </div>
               </div>
 
-              <div style={{ padding: '0.5rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.675rem' }} className="text-muted">
-                <strong>Estado:</strong> Capacidad dentro de los parámetros de seguridad.
+              <div style={{ padding: '0.45rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.675rem' }} className="text-muted">
+                <strong>Estado:</strong> Capacidad operando dentro de límites seguros.
               </div>
             </div>
 
             {/* SPECIALTIES PROGRESS CUBE (8 COLS) */}
-            <div className="card" style={{ gridColumn: 'span 8', padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '260px' }}>
+            <div className="card" style={{ gridColumn: 'span 8', padding: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '250px', boxSizing: 'border-box' }}>
               <div>
-                <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem', marginBottom: '0.65rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <BarChart3 size={16} /> CARGA POR ESPECIALIDAD
                   </span>
-                  <span className="text-muted" style={{ fontSize: '0.675rem' }}>389 Consultas</span>
+                  <span className="text-muted" style={{ fontSize: '0.675rem' }}>Atenciones Reales</span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   {specialtiesData.map((spec, i) => (
-                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                      <div className="flex-between" style={{ fontSize: '0.75rem' }}>
-                        <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                          {spec.name} <span className="text-muted" style={{ fontSize: '0.65rem' }}>({spec.doctorCount} Médicos)</span>
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <div className="flex-between" style={{ fontSize: '0.7rem' }}>
+                        <span className="font-medium" style={{ color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>
+                          {spec.name} <span className="text-muted" style={{ fontSize: '0.675rem' }}>({spec.doctorCount} Médicos)</span>
                         </span>
-                        <span className="text-muted font-medium" style={{ fontSize: '0.7rem' }}>
+                        <span className="text-muted font-medium" style={{ fontSize: '0.675rem' }}>
                           <strong style={{ color: 'var(--text-primary)' }}>{spec.count}</strong> / {spec.target} ({spec.percentage}%)
                         </span>
                       </div>
-                      <div style={{ width: '100%', height: '7px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                      <div style={{ width: '100%', height: '6px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
                         <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)' }} />
                       </div>
                     </div>
@@ -4179,16 +4291,16 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                 </div>
               </div>
 
-              <div style={{ marginTop: '0.5rem', padding: '0.5rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.675rem' }} className="text-muted">
-                <strong>Recomendación:</strong> Habilitar 1 consultorio adicional en Medicina General.
+              <div style={{ marginTop: '0.5rem', padding: '0.45rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', fontSize: '0.675rem' }} className="text-muted">
+                <strong>Recomendación:</strong> Balancear la asignación de profesionales en turnos pico.
               </div>
             </div>
           </div>
 
           {/* ROW 3: INCIDENTS & RISKS CUBE (FULL 9 COLS WIDTH) */}
-          <div className="card" style={{ padding: '1rem' }}>
-            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div className="card" style={{ padding: '0.85rem', boxSizing: 'border-box' }}>
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem', marginBottom: '0.65rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 <ShieldAlert size={16} /> RIESGOS & INCIDENCIAS OPERATIVAS
               </span>
               <div style={{ display: 'flex', gap: '0.2rem' }}>
@@ -4201,7 +4313,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                       backgroundColor: alertFilter === lvl ? 'var(--bg-surface-hover)' : 'transparent',
                       borderColor: alertFilter === lvl ? 'var(--border-color-strong)' : 'var(--border-color)',
                       color: alertFilter === lvl ? 'var(--text-primary)' : 'var(--text-muted)',
-                      padding: '0.1rem 0.4rem',
+                      padding: '0.1rem 0.35rem',
                       fontSize: '0.65rem'
                     }}
                   >
@@ -4211,7 +4323,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '160px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '150px', overflowY: 'auto' }}>
               {filteredAlerts.length > 0 ? (
                 filteredAlerts.map((alert) => (
                   <div
@@ -4224,28 +4336,28 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                       borderRight: '1px solid var(--border-color)',
                       borderBottom: '1px solid var(--border-color)',
                       borderRadius: 'var(--radius-sm)',
-                      padding: '0.5rem 0.75rem'
+                      padding: '0.45rem 0.65rem'
                     }}
                   >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    <div style={{ overflow: 'hidden', paddingRight: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {alert.title}
                         </h4>
-                        <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.6rem', padding: '0.05rem 0.3rem' }}>
+                        <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.65rem', padding: '0.05rem 0.25rem', flexShrink: 0 }}>
                           {alert.level}
                         </span>
                       </div>
-                      <p className="text-muted" style={{ margin: '0.15rem 0 0 0', fontSize: '0.675rem' }}>
+                      <p className="text-muted" style={{ margin: '0.1rem 0 0 0', fontSize: '0.675rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {alert.scope} • {alert.impact} • {alert.time}
                       </p>
                     </div>
-                    <ChevronRight size={14} className="text-muted" />
+                    <ChevronRight size={16} className="text-muted" style={{ flexShrink: 0 }} />
                   </div>
                 ))
               ) : (
-                <div className="empty-state" style={{ padding: '1rem' }}>
-                  <p style={{ fontSize: '0.75rem' }}>Sin incidencias registradas.</p>
+                <div className="empty-state" style={{ padding: '0.85rem' }}>
+                  <p style={{ fontSize: '0.675rem' }}>Sin incidencias registradas en esta categoría.</p>
                 </div>
               )}
             </div>
@@ -4254,17 +4366,17 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </main>
 
         {/* ================= RIGHT SIDEBAR: DIRECTORIO DE USUARIOS (3 COLS) ================= */}
-        <aside className="card" style={{ gridColumn: 'span 3', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <aside className="card" style={{ gridColumn: 'span 3', padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxSizing: 'border-box' }}>
+          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.4rem' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <UserCheck size={16} style={{ color: 'var(--info)' }} /> DIRECTORIO
             </span>
             <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>{filteredUsers.length}</span>
           </div>
 
-          {/* SEARCH BAR */}
+          {/* BARRA DE BÚSQUEDA */}
           <div style={{ position: 'relative', width: '100%' }}>
-            <Search size={13} className="text-muted" style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)' }} />
+            <Search size={16} className="text-muted" style={{ position: 'absolute', left: '0.45rem', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               type="text"
               placeholder="Buscar personal..."
@@ -4272,33 +4384,34 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               onChange={(e) => setUserSearch(e.target.value)}
               style={{
                 width: '100%',
-                paddingLeft: '1.75rem',
-                paddingRight: '0.5rem',
-                paddingTop: '0.35rem',
-                paddingBottom: '0.35rem',
-                fontSize: '0.725rem',
+                paddingLeft: '1.65rem',
+                paddingRight: '0.4rem',
+                paddingTop: '0.3rem',
+                paddingBottom: '0.3rem',
+                fontSize: '0.675rem',
                 boxSizing: 'border-box'
               }}
             />
           </div>
 
-          {/* USER LIST */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowY: 'auto', maxHeight: '500px' }}>
+          {/* LISTA DE USUARIOS CON TEXT OVERFLOW CONTROL */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', flex: 1, overflowY: 'auto', maxHeight: '480px' }}>
             {filteredUsers.map((user) => (
               <div
                 key={user.id}
                 style={{
-                  padding: '0.6rem',
+                  padding: '0.5rem',
                   backgroundColor: 'var(--bg-dark)',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border-color)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '0.2rem'
+                  gap: '0.15rem',
+                  overflow: 'hidden'
                 }}
               >
                 <div className="flex-between">
-                  <span className="font-bold" style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>
+                  <span className="font-bold" style={{ fontSize: '0.7rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>
                     {user.name}
                   </span>
                   <span
@@ -4309,21 +4422,21 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                         ? 'badge-warning'
                         : 'badge-info'
                     }`}
-                    style={{ fontSize: '0.575rem', padding: '0.05rem 0.3rem' }}
+                    style={{ fontSize: '0.65rem', padding: '0.05rem 0.25rem', flexShrink: 0 }}
                   >
                     {user.status}
                   </span>
                 </div>
                 <div className="text-muted flex-between" style={{ fontSize: '0.675rem' }}>
-                  <span>{user.role}</span>
-                  <span style={{ fontStyle: 'italic' }}>{user.dept}</span>
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%' }}>{user.role}</span>
+                  <span style={{ fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '38%' }}>{user.dept}</span>
                 </div>
               </div>
             ))}
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', textAlign: 'center' }}>
-            <button className="action-btn" style={{ width: '100%', fontSize: '0.7rem', color: 'var(--info)' }}>
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', textAlign: 'center' }}>
+            <button className="action-btn" style={{ width: '100%', fontSize: '0.675rem', color: 'var(--info)' }}>
               Gestionar Accesos
             </button>
           </div>
