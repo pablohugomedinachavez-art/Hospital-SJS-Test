@@ -4390,22 +4390,27 @@ export function Dashboard() {
               </div>
 
               {/* Resolución Alertas */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/40 transition-all cursor-pointer" onClick={() => alert('Detalle de alertas bajo revisión')}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Resolución Alertas</span>
-                  <AlertTriangle size={16} className="text-amber-400" />
-                </div>
-                <div className="my-2">
-                  <span className="text-3xl font-black text-amber-400 tracking-tight">12</span>
-                  <div className="text-[10px] text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
-                    Atención prioritaria
+                <div 
+                  className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/40 transition-all cursor-pointer" 
+                  onClick={() => window.location.hash = '/alerts'}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">
+                      Resolución Alertas
+                    </span>
+                    <AlertTriangle size={16} className="text-amber-400" />
                   </div>
+                  <div className="my-2">
+                    <span className="text-3xl font-black text-amber-400 tracking-tight">12</span>
+                    <div className="text-[10px] text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
+                      Atención prioritaria
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                    Media de respuesta: 14m
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
                 </div>
-                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Media de respuesta: 14m
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
-              </div>
 
               {/* Citas Programadas */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
