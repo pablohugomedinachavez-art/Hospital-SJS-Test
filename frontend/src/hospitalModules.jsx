@@ -12,6 +12,7 @@ import {
   Heart,HeartPulse,Key,Laptop,Layers,Loader2,Mail,MapPin,MessageSquare,Monitor,Phone,Pill,Plus,Printer,
   RefreshCw,Ruler,Save,Scale,Search,Server,Settings,Shield,ShieldAlert,ShieldCheck,Sliders,Smartphone,
   Stethoscope,TrendingDown,TrendingUp,Trash2,User as UsersIcon,UserCheck,UserPlus,Wifi,X,XCircle
+  ,
 
 } from 'lucide-react';
 
@@ -4051,103 +4052,116 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </header>
 
-      {/* METRICAS KPI CON NOTAS DE DECISIÓN */}
+      {/* BLOQUE PRINCIPAL REORGANIZADO: COLUMNA LATERAL KPI + ESPECIALIDADES */}
       <section className="dashboard-grid">
-        {executiveMetrics.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div key={item.id} className="card col-span-3">
-              <div className="flex-between" style={{ marginBottom: '0.75rem' }}>
-                <div className={`badge ${item.badgeClass}`} style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
-                  <Icon size={20} />
-                </div>
-                <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`}>
-                  {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                  {item.trend}
-                </span>
-              </div>
+        {/* PANEL LATERAL: KPI METRICS (4/12 COLS) */}
+        <div className="col-span-4" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {executiveMetrics.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.id} className="card">
+                <div className="flex-between">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div className={`badge ${item.badgeClass}`} style={{ padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                      <Icon size={18} />
+                    </div>
+                    <div>
+                      <label className="text-muted font-bold" style={{ display: 'block', fontSize: '0.65rem', letterSpacing: '0.05em' }}>
+                        {item.label}
+                      </label>
+                      <div className="font-bold" style={{ fontSize: '1.35rem', color: 'var(--text-primary)', lineHeight: 1 }}>
+                        {item.value}
+                      </div>
+                    </div>
+                  </div>
 
-              <div>
-                <label className="text-muted font-bold" style={{ display: 'block', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
-                  {item.label}
-                </label>
-                <div className="font-bold" style={{ fontSize: '1.85rem', color: 'var(--text-primary)', lineHeight: 1.1, margin: '0.2rem 0' }}>
-                  {item.value}
-                </div>
-                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                  {item.subtext}
-                </span>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-color)', marginTop: '0.8rem', paddingTop: '0.6rem', fontSize: '0.725rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                💡 <strong>Análisis:</strong> {item.decisionNote}
-              </div>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* SECCIÓN ANALÍTICA: ESPECIALIDADES + RIESGO & ALERTAS */}
-      <section className="dashboard-grid">
-        {/* DISTRIBUCIÓN Y CAPACIDAD POR ESPECIALIDAD */}
-        <div className="card col-span-6">
-          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--info)' }}>
-              <BarChart3 size={18} /> CARGA Y CAPACIDAD POR ESPECIALIDAD
-            </span>
-            <span className="text-muted" style={{ fontSize: '0.75rem' }}>Total Consultas: 389</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {specialtiesData.map((spec, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <div className="flex-between" style={{ fontSize: '0.8rem' }}>
-                  <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                    {spec.name} ({spec.doctorCount} Médicos)
-                  </span>
-                  <span className="text-muted font-medium">
-                    {spec.count} / {spec.target} atenciones ({spec.percentage}%)
+                  <span className={`badge ${item.isUp ? 'badge-success' : 'badge-danger'}`}>
+                    {item.isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                    {item.trend}
                   </span>
                 </div>
-                <div style={{ width: '100%', height: '8px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                  <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)', fontSize: '0.725rem' }}>
+                  <span className="text-muted">{item.subtext}</span>
+                  <span className="text-muted" style={{ fontStyle: 'italic', fontSize: '0.7rem' }}>
+                    💡 {item.decisionNote}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div style={{ marginTop: '1.25rem', padding: '0.75rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.75rem' }} className="text-muted">
-            <strong>Recomendación Operativa:</strong> La especialidad de Medicina General concentra el 48% de la demanda global. Se sugiere habilitar 1 consultorio de contingencia para reducir la espera.
-          </div>
+            );
+          })}
         </div>
 
-        {/* AUDITORÍA, RIESGOS Y CUMPLIMIENTO */}
-        <div className="card col-span-6">
-          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--danger)' }}>
-              <ShieldAlert size={18} /> RIESGOS & INCIDENCIAS OPERATIVAS
-            </span>
-            <div style={{ display: 'flex', gap: '0.3rem' }}>
-              {['all', 'Alta', 'Media'].map((lvl) => (
-                <button
-                  key={lvl}
-                  onClick={() => setAlertFilter(lvl)}
-                  className="action-btn"
-                  style={{
-                    backgroundColor: alertFilter === lvl ? 'var(--bg-surface-hover)' : 'transparent',
-                    borderColor: alertFilter === lvl ? 'var(--border-color-strong)' : 'var(--border-color)',
-                    color: alertFilter === lvl ? 'var(--text-primary)' : 'var(--text-muted)',
-                    padding: '0.15rem 0.5rem',
-                    fontSize: '0.7rem'
-                  }}
-                >
-                  {lvl === 'all' ? 'Todas' : lvl}
-                </button>
+        {/* CONTENIDO PRINCIPAL: DISTRIBUCIÓN POR ESPECIALIDAD (8/12 COLS) */}
+        <div className="card col-span-8" style={{ justifyContent: 'space-between' }}>
+          <div>
+            <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1.25rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: 700, color: 'var(--info)' }}>
+                <BarChart3 size={18} /> CARGA Y CAPACIDAD POR ESPECIALIDAD
+              </span>
+              <span className="text-muted" style={{ fontSize: '0.75rem' }}>Total Consultas: 389</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {specialtiesData.map((spec, i) => (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div className="flex-between" style={{ fontSize: '0.85rem' }}>
+                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                      {spec.name} <span className="text-muted" style={{ fontSize: '0.75rem' }}>({spec.doctorCount} Médicos)</span>
+                    </span>
+                    <span className="text-muted font-medium" style={{ fontSize: '0.8rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>{spec.count}</strong> / {spec.target} atenciones ({spec.percentage}%)
+                    </span>
+                  </div>
+                  <div style={{ width: '100%', height: '10px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+                    <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)' }} />
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ marginTop: '1.5rem', padding: '0.85rem', backgroundColor: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.775rem' }} className="text-muted">
+            <strong>Recomendación Operativa:</strong> La especialidad de Medicina General concentra el 48% de la demanda global. Se sugiere habilitar 1 consultorio de contingencia para reducir la espera.
+          </div>
+        </div>
+      </section>
+
+      {/* SECCIÓN INFERIOR: AUDITORÍA & INCIDENCIAS A ANCHO COMPLETO (12/12 COLS) */}
+      <section className="dashboard-grid">
+        <div className="card col-span-12">
+          <div className="flex-between" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: 700, color: 'var(--danger)' }}>
+              <ShieldAlert size={18} /> RIESGOS & INCIDENCIAS OPERATIVAS
+            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.3rem' }}>
+                {['all', 'Alta', 'Media'].map((lvl) => (
+                  <button
+                    key={lvl}
+                    onClick={() => setAlertFilter(lvl)}
+                    className="action-btn"
+                    style={{
+                      backgroundColor: alertFilter === lvl ? 'var(--bg-surface-hover)' : 'transparent',
+                      borderColor: alertFilter === lvl ? 'var(--border-color-strong)' : 'var(--border-color)',
+                      color: alertFilter === lvl ? 'var(--text-primary)' : 'var(--text-muted)',
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.725rem'
+                    }}
+                  >
+                    {lvl === 'all' ? 'Todas' : lvl}
+                  </button>
+                ))}
+              </div>
+
+              <button className="action-btn" style={{ color: 'var(--info)', border: 'none', background: 'transparent' }}>
+                Ver bitácora completa <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
             {filteredAlerts.length > 0 ? (
               filteredAlerts.map((alert) => (
                 <div
@@ -4160,23 +4174,27 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                     borderRight: '1px solid var(--border-color)',
                     borderBottom: '1px solid var(--border-color)',
                     borderRadius: 'var(--radius-sm)',
-                    padding: '0.75rem 1rem'
+                    padding: '0.65rem 1rem'
                   }}
                 >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`}>
+                      {alert.level}
+                    </span>
+                    <div>
                       <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>
                         {alert.title}
                       </h4>
-                      <span className={`badge ${alert.level === 'Alta' ? 'badge-danger' : 'badge-warning'}`}>
-                        {alert.level}
-                      </span>
+                      <p className="text-muted" style={{ margin: 0, fontSize: '0.725rem' }}>
+                        {alert.scope} • Impacto: <strong style={{ color: 'var(--text-primary)' }}>{alert.impact}</strong>
+                      </p>
                     </div>
-                    <p className="text-muted" style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem' }}>
-                      {alert.scope} • Impacto: <strong style={{ color: 'var(--text-primary)' }}>{alert.impact}</strong> • {alert.time}
-                    </p>
                   </div>
-                  <ChevronRight size={16} className="text-muted" />
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <span className="text-muted" style={{ fontSize: '0.725rem' }}>{alert.time}</span>
+                    <ChevronRight size={16} className="text-muted" />
+                  </div>
                 </div>
               ))
             ) : (
@@ -4184,12 +4202,6 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                 <p>No se encontraron incidencias para este filtro.</p>
               </div>
             )}
-          </div>
-
-          <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="action-btn" style={{ color: 'var(--info)', border: 'none', background: 'transparent' }}>
-              Ver bitácora completa de auditoría <ChevronRight size={14} />
-            </button>
           </div>
         </div>
       </section>
