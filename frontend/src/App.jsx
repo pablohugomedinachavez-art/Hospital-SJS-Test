@@ -89,7 +89,7 @@ const ROUTES_MAP = {
 
 const normalizeRoute = (hash) => {
   const route = String(hash || '').replace(/^#/, '')
-  if (!route || route === '/' || route === '/home') return '/login'
+  if (!route || route === '/' || route === '/home') return '/dashboard'
   return route
 }
 
@@ -429,7 +429,7 @@ function AppHeader({ onOpenChat, unreadChatCount }) {
 
   return (
     <header className="app-header">
-      <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', items: 'center', gap: '0.5rem' }}>
+      <div style={{ fontSize: '1.1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <span style={{ color: 'var(--primary)' }}>•</span> Panel General
       </div>
 
