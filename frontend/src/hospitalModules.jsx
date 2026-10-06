@@ -706,7 +706,7 @@ export function DeviceManagementDashboard() {
             <div className="space-y-6 pt-4">
 
               {/* Toolbar */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-950/60 p-4 rounded-xl border border-slate-800/80 mb-[20px]">
                 <div className="relative w-full sm:w-96">
                   <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
