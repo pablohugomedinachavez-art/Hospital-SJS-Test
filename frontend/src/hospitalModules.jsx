@@ -531,6 +531,7 @@ export const COLOR_PALETTE = {
   cardBg: '#1e293b'
 };
 
+// HELPER COMPONENT FOR ANIMATED KPI COUNTER (SPEED UP)
 function AnimatedNumber({ value }) {
   const [displayValue, setDisplayValue] = useState(0);
 
@@ -543,8 +544,8 @@ function AnimatedNumber({ value }) {
     }
 
     let start = 0;
-    const duration = 1200; // 1.2 seconds
-    const steps = 40;
+    const duration = 400; // Fast count-up duration: 0.4 seconds
+    const steps = 20;
     const increment = numericTarget / steps;
     const stepTime = duration / steps;
 
@@ -3958,7 +3959,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   const [alertFilter, setAlertFilter] = useState('all');
   const [userSearch, setUserSearch] = useState('');
 
-  // 1. REORDERED HOSPITAL TABS
+  // 1. HOSPITAL TABS
   const hospitalAreas = [
     { id: 'general', label: 'General / Módulos' },
     { id: 'consulta', label: 'Consulta Externa' },
@@ -4076,13 +4077,13 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   };
 
   const handleMouseEnter = (e) => {
-    e.currentTarget.style.transform = 'scale(1.02)';
+    e.currentTarget.style.transform = 'translateY(-2px)';
     e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.4)';
     e.currentTarget.style.borderColor = 'var(--info)';
   };
 
   const handleMouseLeave = (e) => {
-    e.currentTarget.style.transform = 'scale(1)';
+    e.currentTarget.style.transform = 'translateY(0)';
     e.currentTarget.style.boxShadow = 'none';
     e.currentTarget.style.borderColor = 'var(--border-color)';
   };
@@ -4090,18 +4091,18 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
   return (
     <div className="view-container" style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '0.5rem', paddingRight: '0.5rem' }}>
       
-      {/* EMBEDDED STYLES FOR BLUR-SCALE FADE-IN ANIMATION */}
+      {/* SIMULTANEOUS SLIDE-FADE ANIMATION STYLES */}
       <style>{`
-        @keyframes blurScaleIn {
+        @keyframes slideFadeUp {
           0% {
             opacity: 0;
-            filter: blur(8px);
-            transform: scale(0.95);
+            filter: blur(4px);
+            transform: translateY(16px);
           }
           100% {
             opacity: 1;
             filter: blur(0px);
-            transform: scale(1);
+            transform: translateY(0);
           }
         }
 
@@ -4115,18 +4116,30 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         }
 
         .animated-card {
-          animation: blurScaleIn 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+          animation: slideFadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
           cursor: pointer;
         }
 
+        .tab-btn {
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tab-btn:hover {
+          transform: translateY(-1px);
+        }
+
+        .tab-btn:active {
+          transform: scale(0.96);
+        }
+
         .donut-animated-path {
-          animation: fillDonut 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: fillDonut 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}</style>
 
       {/* TOOLBAR HEADER */}
-      <header className="app-header toolbar animated-card" style={{ animationDelay: '0ms', marginBottom: '0.75rem', padding: '0.5rem 0.75rem' }}>
+      <header className="app-header toolbar animated-card" style={{ marginBottom: '0.75rem', padding: '0.5rem 0.75rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Building2 size={16} style={{ color: 'var(--info)' }} />
@@ -4162,8 +4175,8 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         </div>
       </header>
 
-      {/* TABS */}
-      <div className="animated-card" style={{ animationDelay: '60ms', display: 'flex', gap: '0.35rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.45rem', overflowX: 'auto' }}>
+      {/* TABS WITH SLIDE-FADE ANIMATION */}
+      <div className="animated-card" style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.45rem', overflowX: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', paddingRight: '0.4rem', color: 'var(--text-muted)' }}>
           <Layers size={16} />
           <span style={{ fontSize: '0.675rem', fontWeight: 600 }}>Área:</span>
@@ -4172,7 +4185,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           <button
             key={area.id}
             onClick={() => setActiveArea(area.id)}
-            className="action-btn"
+            className="action-btn tab-btn"
             style={{
               backgroundColor: activeArea === area.id ? 'var(--info)' : 'transparent',
               borderColor: activeArea === area.id ? 'var(--info)' : 'var(--border-color)',
@@ -4182,7 +4195,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
               fontWeight: activeArea === area.id ? 700 : 500,
               borderRadius: 'var(--radius-sm)',
               whiteSpace: 'nowrap',
-              transition: 'all 0.2s ease'
+              boxShadow: activeArea === area.id ? '0 2px 8px rgba(0,0,0,0.25)' : 'none'
             }}
           >
             {area.label}
@@ -4198,11 +4211,11 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           
           {/* TOP KPI CUBES */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
-            {executiveMetrics.map((item, index) => (
+            {executiveMetrics.map((item) => (
               <div
                 key={item.id}
                 className="card animated-card"
-                style={{ animationDelay: `${120 + index * 70}ms`, padding: '0.65rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '105px', boxSizing: 'border-box' }}
+                style={{ padding: '0.65rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '105px', boxSizing: 'border-box' }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
               >
@@ -4238,7 +4251,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             {/* DONUT CHART CUBE */}
             <div
               className="card animated-card"
-              style={{ animationDelay: '400ms', gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
+              style={{ gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -4277,7 +4290,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
             {/* SPECIALTIES PROGRESS CUBE */}
             <div
               className="card animated-card"
-              style={{ animationDelay: '480ms', gridColumn: 'span 8', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
+              style={{ gridColumn: 'span 8', padding: '0.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '235px', boxSizing: 'border-box' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -4301,7 +4314,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                         </span>
                       </div>
                       <div style={{ width: '100%', height: '5px', background: 'var(--bg-dark)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                        <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)', transition: 'width 1s ease-out' }} />
+                        <div style={{ width: `${spec.percentage}%`, height: '100%', backgroundColor: spec.color, borderRadius: 'var(--radius-sm)', transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }} />
                       </div>
                     </div>
                   ))}
@@ -4317,7 +4330,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           {/* INCIDENTS CUBE */}
           <div
             className="card animated-card"
-            style={{ animationDelay: '560ms', padding: '0.75rem', boxSizing: 'border-box' }}
+            style={{ padding: '0.75rem', boxSizing: 'border-box' }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
@@ -4330,7 +4343,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
                   <button
                     key={lvl}
                     onClick={(e) => { e.stopPropagation(); setAlertFilter(lvl); }}
-                    className="action-btn"
+                    className="action-btn tab-btn"
                     style={{
                       backgroundColor: alertFilter === lvl ? 'var(--bg-surface-hover)' : 'transparent',
                       borderColor: alertFilter === lvl ? 'var(--border-color-strong)' : 'var(--border-color)',
@@ -4390,7 +4403,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
         {/* RIGHT SIDEBAR USER DIRECTORY */}
         <aside
           className="card animated-card"
-          style={{ animationDelay: '640ms', gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', boxSizing: 'border-box' }}
+          style={{ gridColumn: 'span 4', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.65rem', boxSizing: 'border-box' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -4461,7 +4474,7 @@ export function Reports({ stats = {}, alertsList = [], usersList = [] }) {
           </div>
 
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.35rem', textAlign: 'center' }}>
-            <button className="action-btn" style={{ width: '100%', fontSize: '0.65rem', color: 'var(--info)' }}>
+            <button className="action-btn tab-btn" style={{ width: '100%', fontSize: '0.65rem', color: 'var(--info)' }}>
               Gestionar Accesos
             </button>
           </div>
