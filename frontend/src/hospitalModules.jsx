@@ -3496,13 +3496,11 @@ export function Documents() {
           <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem' }}>Control estricto de campos dinámicos, documentos generados y plantillas.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: '100%', maxWidth: 'max-content' }}>
-          <button style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', flex: '1 1 auto', textAlign: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={() => setShowTemplateBuilder(v => !v)}>
-            {showTemplateBuilder ? <X size={16} /> : <Settings size={16} />}
-            <span>{showTemplateBuilder ? 'Cerrar Diseñador' : 'Diseñador de Plantillas (Grid Libre)'}</span>
+          <button style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#38bdf8', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', flex: '1 1 auto', textAlign: 'center' }} onClick={() => setShowTemplateBuilder(v => !v)}>
+            {showTemplateBuilder ? 'Cerrar Diseñador' : '⚙️ Diseñador de Plantillas (Grid Libre)'}
           </button>
-          <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', textAlign: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }} onClick={() => setShowForm(v => !v)}>
-            {showForm ? <X size={16} /> : <Plus size={16} />}
-            <span>{showForm ? 'Cancelar' : 'Asignar Formulario a Paciente'}</span>
+          <button style={{ backgroundColor: '#3b82f6', border: 'none', color: '#fff', borderRadius: '12px', padding: '0.5rem 1rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', textAlign: 'center' }} onClick={() => setShowForm(v => !v)}>
+            {showForm ? 'Cancelar' : '＋ Asignar Formulario a Paciente'}
           </button>
         </div>
       </div>
@@ -3520,12 +3518,8 @@ export function Documents() {
                 <span style={{ fontSize: '0.75rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '6px', display: 'inline-block' }}>Versión {tpl.version}</span>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                <button onClick={() => duplicateTemplate(tpl)} title="Copiar / Duplicar" style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.6rem', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Copy size={14} />
-                </button>
-                <button onClick={() => deleteTemplate(tpl.id)} title="Eliminar" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.6rem', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Trash2 size={14} />
-                </button>
+                <button onClick={() => duplicateTemplate(tpl)} title="Copiar / Duplicar" style={{ background: '#1e293b', border: '1px solid #475569', color: '#cbd5e1', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>📋</button>
+                <button onClick={() => deleteTemplate(tpl.id)} title="Eliminar" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>🗑️</button>
               </div>
             </div>
           ))}
@@ -3571,9 +3565,7 @@ export function Documents() {
                         onChange={e => updateCellConfig(rIdx, cIdx, 'nombre_campo', e.target.value)}
                         placeholder="Etiqueta"
                       />
-                      <button onClick={() => removeCell(rIdx, cIdx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}>
-                        <X size={14} />
-                      </button>
+                      <button onClick={() => removeCell(rIdx, cIdx)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '1rem' }}>×</button>
                     </div>
 
                     <select style={{ background: '#0f172a', color: '#38bdf8', fontSize: '0.65rem', border: 'none', borderRadius: '4px', padding: '0.1rem' }} value={cell.tipo_campo} onChange={e => updateCellConfig(rIdx, cIdx, 'tipo_campo', e.target.value)}>
@@ -3591,9 +3583,7 @@ export function Documents() {
                 ))}
 
                 {row.length < 5 && (
-                  <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Plus size={14} /> Columna
-                  </button>
+                  <button onClick={() => addCellToRow(rIdx)} style={{ background: '#1e293b', color: '#38bdf8', border: '1px solid #334155', borderRadius: '8px', padding: '0.4rem 0.8rem', cursor: 'pointer', fontSize: '0.8rem', flexShrink: 0 }}>+ Columna</button>
                 )}
 
                 <button onClick={() => removeRow(rIdx)} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '8px', padding: '0.4rem 0.6rem', cursor: 'pointer', fontSize: '0.75rem', marginLeft: 'auto', flexShrink: 0 }}>
@@ -3604,10 +3594,7 @@ export function Documents() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #334155', flexWrap: 'wrap', gap: '1rem' }}>
-            <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', width: '100%', maxWidth: '200px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-              <PlusCircle size={16} />
-              <span>Agregar Nueva Fila</span>
-            </button>
+            <button onClick={addRow} style={{ background: '#0f172a', border: '1px solid #334155', color: '#38bdf8', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', width: '100%', maxWidth: '200px' }}>＋ Agregar Nueva Fila</button>
             <div style={{ display: 'flex', gap: '1rem', width: '100%', maxWidth: '300px', justifyContent: 'flex-end' }}>
               <button onClick={() => setShowTemplateBuilder(false)} style={{ background: '#0f172a', border: '1px solid #334155', color: '#fff', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer', flex: 1 }}>Cancelar</button>
               <button onClick={saveTemplate} style={{ background: '#3b82f6', border: 'none', color: '#fff', padding: '0.5rem 1.25rem', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, flex: 1 }}>Guardar Plantilla</button>
