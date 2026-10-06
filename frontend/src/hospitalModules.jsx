@@ -1738,9 +1738,7 @@ export function Consultations() {
             ) : consultations.length === 0 ? (
               <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
             ) : (
-              <div className="grid-cards"style="
-              margin-top: 20px;
-                margin-bottom: 20px;">
+              <div className="grid-cards">
                 {consultations.map(item => (
                   <article key={item.id} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between gap-3 transition-all shadow-md">
                     <div className="flex justify-between items-start gap-2">
