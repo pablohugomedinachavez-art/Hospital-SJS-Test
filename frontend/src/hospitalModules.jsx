@@ -1665,6 +1665,8 @@ export function Consultations() {
           grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           gap: 1rem;
           width: 100%;
+          margin-top: 20px;
+          margin-bottom: 20px;
         }
 
         .grid-form-2col {
