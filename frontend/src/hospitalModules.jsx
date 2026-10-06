@@ -865,28 +865,55 @@ export function DeviceManagementDashboard() {
               {loading ? (
                 <LoadingState label="Cargando bitácora del sistema..." />
               ) : (
-                <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/40 shadow-xl">
+                <div className="border border-slate-800/80 rounded-2xl overflow-hidden bg-slate-950/40 shadow-2xl backdrop-blur-xl">
                   <DataTable
                     columns={[
                       {
                         key: 'entity_type',
                         label: 'Entidad',
-                        render: (log) => <div className="py-2"><span className="font-semibold text-purple-300">{log.entity_type}</span></div>
+                        render: (log) => (
+                          <div className="py-2.5">
+                            <span className="inline-flex items-center gap-1.5 font-semibold text-xs text-purple-300 bg-purple-950/40 border border-purple-800/50 px-3 py-1.5 rounded-lg">
+                              <Shield className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                              {log.entity_type}
+                            </span>
+                          </div>
+                        )
                       },
                       {
                         key: 'action',
                         label: 'Operación',
-                        render: (log) => <div className="py-2"><span className="bg-purple-950/60 text-purple-300 border border-purple-800/40 px-3 py-1.5 rounded-lg text-xs font-mono">{log.action}</span></div>
+                        render: (log) => (
+                          <div className="py-2.5">
+                            <span className="inline-flex items-center gap-1.5 bg-slate-900 text-purple-300 border border-purple-800/50 px-3 py-1.5 rounded-lg text-xs font-mono font-medium shadow-inner">
+                              <Activity className="w-3 h-3 text-purple-400 shrink-0" />
+                              {log.action}
+                            </span>
+                          </div>
+                        )
                       },
                       {
                         key: 'details',
                         label: 'Detalles',
-                        render: (log) => <div className="py-2"><span className="text-slate-300 text-xs">{log.details || 'Sin detalles'}</span></div>
+                        render: (log) => (
+                          <div className="py-2.5 max-w-xs lg:max-w-md truncate">
+                            <span className="text-slate-300 text-xs font-normal leading-relaxed">
+                              {log.details || <em className="text-slate-500 font-normal">Sin detalles adicionales</em>}
+                            </span>
+                          </div>
+                        )
                       },
                       {
                         key: 'created_at',
                         label: 'Fecha Registro',
-                        render: (log) => <div className="py-2"><span className="text-slate-400 text-xs">{formatDate(log.created_at)}</span></div>
+                        render: (log) => (
+                          <div className="py-2.5">
+                            <div className="flex items-center gap-1.5 text-slate-400 text-xs font-medium">
+                              <Clock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                              <span>{formatDate(log.created_at)}</span>
+                            </div>
+                          </div>
+                        )
                       }
                     ]}
                     rows={auditLogs}
@@ -894,7 +921,13 @@ export function DeviceManagementDashboard() {
                 </div>
               )}
               <div className="pt-2">
-                <Pagination page={auditPage} perPage={perPage} total={auditTotal} onPrev={() => setAuditPage(v => Math.max(1, v - 1))} onNext={() => setAuditPage(v => v + 1)} />
+                <Pagination 
+                  page={auditPage} 
+                  perPage={perPage} 
+                  total={auditTotal} 
+                  onPrev={() => setAuditPage(v => Math.max(1, v - 1))} 
+                  onNext={() => setAuditPage(v => v + 1)} 
+                />
               </div>
             </div>
           )}
