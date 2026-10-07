@@ -4,7 +4,6 @@ import './styles.css'
 import { 
   Patients, Consultations, Appointments, Documents, Reports, Locations, 
   Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
-  dashboard2 
 } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
@@ -84,7 +83,7 @@ const ROUTES_MAP = {
   '/users': Users,
   '/reports': Reports,
   '/profile': Profile,
-  '/dashboard2': dashboard2,
+  
 }
 
 const normalizeRoute = (hash) => {
@@ -114,7 +113,7 @@ function Sidebar({ currentRoute }) {
   }
 
   const navGroups = [
-    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' },{ label: 'dashboard2', path: '/dashboard2' }] },
+    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' },] },
     {
       key: 'clinical', title: 'Gestión clínica', icon: <Icons.Clinical />,
       items: [
