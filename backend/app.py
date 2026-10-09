@@ -1610,15 +1610,14 @@ def reports():
             'consultations': (db_query('SELECT COUNT(*) as count FROM consultations WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
             'appointments': (db_query('SELECT COUNT(*) as count FROM appointments WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
             'documents': (db_query('SELECT COUNT(*) as count FROM documents WHERE tenant_id = %s', (tenant_id,), fetchone=True) or {}).get('count', 0),
+            # Alertas activas (no resueltas: is_resolved = 0)
             'active_alerts': (db_query('SELECT COUNT(*) as count FROM alerts WHERE tenant_id = %s AND is_resolved = 0', (tenant_id,), fetchone=True) or {}).get('count', 0),
         }
 
-        recent_consultations = db_query('SELECT id, patient_id, reason, diagnosis, created_at FROM consultations WHERE tenant_id = %s ORDER BY created_at DESC LIMIT 10', (tenant_id,), fetchall=True) or []
-
-        return jsonify({'summary': summary, 'recent_consultations': recent_consultations})
+        return jsonify({'summary': summary})
     except Exception as e:
         print(f"[REPORTS ERROR]: {e}")
-        return jsonify({'message': 'Error generating reports'}), 500
+        return jsonify({'message': 'Error generando reportes'}), 500
 
 
 @app.route('/api/reports/series')
@@ -1664,7 +1663,7 @@ def reports_series():
 @token_required
 def metrics(*args, **kwargs):
     try:
-        # 1. Extracción unificada de claims (soporta kwargs del decorador, request, g o globales)
+        # 1. Extracción unificada de claims
         claims = (
             kwargs.get('claims') or 
             kwargs.get('user') or 
@@ -1676,7 +1675,6 @@ def metrics(*args, **kwargs):
         
         tenant_id = claims.get('tenant_id') if isinstance(claims, dict) else None
 
-        # Fallback opcional por compatibilidad si usas variables globales
         if not tenant_id:
             try:
                 if 'claims' in globals() and isinstance(globals().get('claims'), dict):
@@ -1710,7 +1708,7 @@ def metrics(*args, **kwargs):
             print(f"[DB METRICS ERROR]: {db_err}")
             summary = []
 
-        # 3. Métricas de sesiones con valores por defecto seguros
+        # 3. Métricas de sesiones y usuarios con valores por defecto
         active_users = 0
         avg_seconds = 0
         series = []
@@ -1746,7 +1744,7 @@ def metrics(*args, **kwargs):
         except Exception as e:
             print(f"[DB SESSIONS SERIES ERROR]: {e}")
 
-        # Regresión lineal segura
+        # Regresión lineal para estimación de duración futura
         xs, ys = [], []
         for i, row in enumerate(series or []):
             xs.append(i)
@@ -1765,19 +1763,19 @@ def metrics(*args, **kwargs):
                 a_reg = (sum_y - b_reg*sum_x) / n
                 pred = max(0, a_reg + b_reg * n)
 
+        # Respuesta JSON enriquecida que garantiza retrocompatibilidad total
         return jsonify({
             'hardware_metrics': summary,
+            'summary': summary, # Alias de retrocompatibilidad
             'active_users': active_users,
             'avg_session_seconds': float(avg_seconds) if avg_seconds else 0,
             'session_duration_prediction_seconds': float(pred),
             'series': series
         }), 200
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"[FATAL METRICS ERROR]: {str(e)}")
-        return jsonify({'error': 'Internal Server Error', 'message': str(e)}), 500
+    except Exception as outer_err:
+        print(f"[CRITICAL METRICS ROUTE ERROR]: {outer_err}")
+        return jsonify({'error': 'Internal Server Error', 'details': str(outer_err)}), 500
 
 
 @app.route('/api/users', methods=['GET'])
