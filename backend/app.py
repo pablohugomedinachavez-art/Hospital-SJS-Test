@@ -1665,7 +1665,7 @@ def reports_series():
 # ENDPOINT: MÉTRICAS DETALLADAS CON FILTROS
 # ==========================================
 # ==========================================
-# ENDPOINT: MÉTRICAS PRINCIPALES (Resuelve el 404)
+# ENDPOINT: MÉTRICAS GENERALES CORREGIDO
 # ==========================================
 @app.route('/api/metrics', methods=['GET'])
 @token_required
@@ -1675,33 +1675,38 @@ def get_dashboard_metrics():
     try:
         claims = get_current_user()
         tenant_id = claims.get('tenant_id')
-        print(f"[DEBUG METRICS] Authenticated User Claims: {claims}")
-        print(f"[DEBUG METRICS] Target Tenant ID: {tenant_id}")
 
         # 1. Dispositivos Registrados
-        devices_query = "SELECT COUNT(*) as count FROM devices WHERE tenant_id = %s"
-        devices_res = db_query(devices_query, (tenant_id,), fetchone=True) or {'count': 0}
-        active_devices = devices_query_res = devices_res.get('count', 0) if isinstance(devices_res, dict) else devices_res[0]
+        devices_res = db_query(
+            "SELECT COUNT(*) as count FROM devices WHERE tenant_id = %s",
+            (tenant_id,), fetchone=True
+        ) or {'count': 0}
+        active_devices = devices_res.get('count', 0) if isinstance(devices_res, dict) else devices_res[0]
 
         # 2. Usuarios / Sesiones Activas
-        users_query = """
+        users_res = db_query(
+            """
             SELECT COUNT(DISTINCT user_id) as count 
             FROM sessions 
             WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'
-        """
-        users_res = db_query(users_query, (tenant_id,), fetchone=True) or {'count': 0}
+            """,
+            (tenant_id,), fetchone=True
+        ) or {'count': 0}
         active_users = users_res.get('count', 0) if isinstance(users_res, dict) else users_res[0]
 
-        # Fallback si no hay sesiones en la tabla pero existen usuarios
+        # Fallback si la tabla de sesiones no contiene registros activos
         if active_users == 0:
-            fallback_users_query = "SELECT COUNT(*) as count FROM users WHERE tenant_id = %s"
-            fb_res = db_query(fallback_users_query, (tenant_id,), fetchone=True) or {'count': 0}
+            fb_res = db_query(
+                "SELECT COUNT(*) as count FROM users WHERE tenant_id = %s",
+                (tenant_id,), fetchone=True
+            ) or {'count': 0}
             active_users = fb_res.get('count', 0) if isinstance(fb_res, dict) else fb_res[0]
-            print(f"[DEBUG METRICS] Sessions empty. Applied fallback users count: {active_users}")
 
-        # 3. Alertas Activas
-        alerts_query = "SELECT COUNT(*) as count FROM alerts WHERE tenant_id = %s AND is_resolved = false"
-        alerts_res = db_query(alerts_query, (tenant_id,), fetchone=True) or {'count': 0}
+        # 3. Alertas Activas (Soporta SMALLINT '0' y BOOLEAN 'false')
+        alerts_res = db_query(
+            "SELECT COUNT(*) as count FROM alerts WHERE tenant_id = %s AND (is_resolved = 0 OR is_resolved::text = 'false')",
+            (tenant_id,), fetchone=True
+        ) or {'count': 0}
         active_alerts = alerts_res.get('count', 0) if isinstance(alerts_res, dict) else alerts_res[0]
 
         payload = {
@@ -1718,14 +1723,12 @@ def get_dashboard_metrics():
         error_trace = traceback.format_exc()
         print(f"[DEBUG METRICS CRITICAL ERROR]: {str(e)}", file=sys.stderr)
         print(f"[DEBUG METRICS TRACEBACK]:\n{error_trace}", file=sys.stderr)
-        print("="*50 + "\n")
         return jsonify({
             'active_devices': 0,
             'active_users': 0,
             'active_alerts': 0,
             'error': str(e)
         }), 200
-
 
 # ==========================================
 # ENDPOINT: MÉTRICAS DETALLADAS CON FILTROS Y DEBUG
@@ -1782,7 +1785,7 @@ def get_metric_details():
         elif metric_type == 'alerts':
             sql = '''
                 SELECT a.id, a.alert_type, a.message, a.severity, a.is_resolved, 
-                       d.name as device_name, a.created_at
+               d.name as device_name, a.created_at
                 FROM alerts a
                 LEFT JOIN devices d ON d.id = a.device_id
                 WHERE a.tenant_id = %s
