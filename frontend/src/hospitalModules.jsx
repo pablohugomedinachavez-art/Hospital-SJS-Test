@@ -4568,12 +4568,13 @@ export function Dashboard() {
   const [activeMetricModal, setActiveMetricModal] = useState(null); // 'devices', 'consultations', 'alerts', 'users'
   const [metricDetailData, setMetricDetailData] = useState([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  
+  const [modalSearch, setModalSearch] = useState(''); // Estado para la búsqueda dentro del modal
+
   const [selectedLocation, setSelectedLocation] = useState('all');
   const [selectedDeviceType, setSelectedDeviceType] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [days, setDays] = useState(30);
-  
+
   const [loading, setLoading] = useState(true);
   const [toast, notify, clearToast] = useToast();
 
@@ -4590,16 +4591,16 @@ export function Dashboard() {
       ]);
 
       if (reportsRes.ok) setReports(await reportsRes.json());
-      if (seriesRes.ok) setSeries(await seriesRes.json() || []);
+      if (seriesRes.ok) setSeries((await seriesRes.json()) || []);
       if (metricsRes.ok) setMetrics(await metricsRes.json());
-      if (areasRes.ok) setAreas(await areasRes.json() || []);
+      if (areasRes.ok) setAreas((await areasRes.json()) || []);
       if (devicesRes.ok) {
         const devData = await devicesRes.json();
-        setDevices(Array.isArray(devData) ? devData : (devData.items || []));
+        setDevices(Array.isArray(devData) ? devData : devData.items || []);
       }
       if (locationsRes.ok) {
         const locData = await locationsRes.json();
-        setLocations(Array.isArray(locData) ? locData : (locData.items || []));
+        setLocations(Array.isArray(locData) ? locData : locData.items || []);
       }
     } catch (error) {
       notify(error.message || 'Error al conectar con la base de datos', 'error');
@@ -4612,12 +4613,12 @@ export function Dashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // Función para cargar los detalles reales de la métrica seleccionada
-  const handleOpenMetricDetail = async (type) => {
+  // Función para cargar los detalles reales de la métrica seleccionada (con parámetro de búsqueda 'q')
+  const handleOpenMetricDetail = async (type, searchQuery = '') => {
     setActiveMetricModal(type);
     setLoadingDetail(true);
     try {
-      const res = await apiFetch(`/metrics/details?type=${type}`);
+      const res = await apiFetch(`/metrics/details?type=${type}&q=${encodeURIComponent(searchQuery)}`);
       if (res.ok) {
         const data = await res.json();
         setMetricDetailData(data || []);
@@ -4631,19 +4632,40 @@ export function Dashboard() {
     }
   };
 
+  // Re-ejecutar la búsqueda con debounce cuando cambia modalSearch dentro del modal activo
+  useEffect(() => {
+    if (activeMetricModal) {
+      const timer = setTimeout(() => {
+        handleOpenMetricDetail(activeMetricModal, modalSearch);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [modalSearch, activeMetricModal]);
+
   const availableDeviceTypes = useMemo(() => {
-    const types = devices.map(d => d.type).filter(Boolean);
+    const types = devices.map((d) => d.type).filter(Boolean);
     return Array.from(new Set(types));
   }, [devices]);
 
   const filteredDevices = useMemo(() => {
-    return devices.filter(dev => {
-      const matchesLocation = selectedLocation === 'all' || String(dev.location_id) === String(selectedLocation);
-      const matchesType = selectedDeviceType === 'all' || String(dev.type).toLowerCase() === String(selectedDeviceType).toLowerCase();
-      const matchesStatus = selectedStatus === 'all' || String(dev.status).toLowerCase() === String(selectedStatus).toLowerCase();
+    return devices.filter((dev) => {
+      const matchesLocation =
+        selectedLocation === 'all' || String(dev.location_id) === String(selectedLocation);
+      const matchesType =
+        selectedDeviceType === 'all' ||
+        String(dev.type).toLowerCase() === String(selectedDeviceType).toLowerCase();
+      const matchesStatus =
+        selectedStatus === 'all' ||
+        String(dev.status).toLowerCase() === String(selectedStatus).toLowerCase();
       return matchesLocation && matchesType && matchesStatus;
     });
   }, [devices, selectedLocation, selectedDeviceType, selectedStatus]);
+
+  const closeModal = () => {
+    setActiveMetricModal(null);
+    setModalSearch('');
+    setMetricDetailData([]);
+  };
 
   return (
     <div className="dashboard-wrapper min-h-screen w-full bg-[#090d16] text-slate-100 p-4 sm:p-6 lg:p-8 box-border">
@@ -4828,14 +4850,14 @@ export function Dashboard() {
       </div>
 
       {/* ============================================================ */}
-      {/* MODAL DETALLADO DE RESULTADOS DE BÚSQUEDA Y NAVEGACIÓN */}
+      {/* MODAL DETALLADO CON FILTRO DE BÚSQUEDA Y NAVEGACIÓN */}
       {/* ============================================================ */}
       {activeMetricModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
             
             {/* CABECERA DEL MODAL */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 border-b border-slate-800 bg-slate-950 gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
                   <FileSearch size={20} />
@@ -4850,18 +4872,29 @@ export function Dashboard() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                {/* ENLACE DIRECTO A LA PANTALLA CORRESPONDIENTE */}
+              {/* BARRA DE BÚSQUEDA Y ENLACE DIRECTO */}
+              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                <div className="relative w-full sm:w-60">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={modalSearch}
+                    onChange={(e) => setModalSearch(e.target.value)}
+                    placeholder="Filtrar registros..."
+                    className="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded-xl pl-9 pr-3 py-2 outline-none focus:border-blue-500 transition-colors"
+                  />
+                </div>
+
                 <a
                   href={`#/${activeMetricModal === 'users' ? 'users' : activeMetricModal}`}
-                  onClick={() => setActiveMetricModal(null)}
+                  onClick={closeModal}
                   className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 no-underline transition-all"
                 >
-                  <ExternalLink size={14} /> Ir a la pantalla de {activeMetricModal}
+                  <ExternalLink size={14} /> Ir a {activeMetricModal}
                 </a>
 
                 <button
-                  onClick={() => setActiveMetricModal(null)}
+                  onClick={closeModal}
                   className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all"
                 >
                   <X size={20} />
@@ -4877,7 +4910,7 @@ export function Dashboard() {
                 </div>
               ) : metricDetailData.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 text-xs">
-                  No se encontraron registros para esta métrica.
+                  No se encontraron registros para esta búsqueda.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -4947,7 +4980,7 @@ export function Dashboard() {
                               </td>
                               <td className="p-3">{item.location_name || 'Sin asignación'}</td>
                               <td className="p-3">
-                                <a href="#/devices" onClick={() => setActiveMetricModal(null)} className="text-blue-400 hover:underline flex items-center gap-1">
+                                <a href="#/devices" onClick={closeModal} className="text-blue-400 hover:underline flex items-center gap-1">
                                   Ver <ExternalLink size={12} />
                                 </a>
                               </td>
@@ -4964,7 +4997,7 @@ export function Dashboard() {
                               <td className="p-3 font-medium text-sky-400">{item.diagnosis || '—'}</td>
                               <td className="p-3 max-w-xs truncate">{item.treatment || item.prescription || '—'}</td>
                               <td className="p-3">
-                                <a href="#/consultations" onClick={() => setActiveMetricModal(null)} className="text-blue-400 hover:underline flex items-center gap-1">
+                                <a href="#/consultations" onClick={closeModal} className="text-blue-400 hover:underline flex items-center gap-1">
                                   Ver <ExternalLink size={12} />
                                 </a>
                               </td>
@@ -4984,7 +5017,7 @@ export function Dashboard() {
                               <td className="p-3">{item.device_name || '—'}</td>
                               <td className="p-3 text-slate-400">{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</td>
                               <td className="p-3">
-                                <a href="#/alerts" onClick={() => setActiveMetricModal(null)} className="text-blue-400 hover:underline flex items-center gap-1">
+                                <a href="#/alerts" onClick={closeModal} className="text-blue-400 hover:underline flex items-center gap-1">
                                   Ver <ExternalLink size={12} />
                                 </a>
                               </td>
@@ -5000,7 +5033,7 @@ export function Dashboard() {
                               <td className="p-3 font-medium text-indigo-300">{item.session_topic}</td>
                               <td className="p-3 text-slate-400">{item.last_seen ? new Date(item.last_seen).toLocaleString() : '—'}</td>
                               <td className="p-3">
-                                <a href="#/device-management" onClick={() => setActiveMetricModal(null)} className="text-blue-400 hover:underline flex items-center gap-1">
+                                <a href="#/device-management" onClick={closeModal} className="text-blue-400 hover:underline flex items-center gap-1">
                                   Ver <ExternalLink size={12} />
                                 </a>
                               </td>

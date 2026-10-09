@@ -463,6 +463,9 @@ def register():
 
 
 
+# ==========================================
+# ENDPOINT: LOGIN (REGISTRA SESIÓN ACTIVA)
+# ==========================================
 @app.route('/api/login', methods=['POST'])
 def login():
     try:
@@ -473,7 +476,6 @@ def login():
         if not username or not password:
             return jsonify({'message': 'username and password required'}), 400
 
-        # Autenticación mediante SQLAlchemy
         user = User.query.filter_by(username=username).first()
 
         if not user or not check_password_hash(user.password, password):
@@ -486,22 +488,24 @@ def login():
             'role': user.role
         }
 
-        # Generar token de autenticación
         token = create_token(user_dict)
 
-        # Registro de sesión opcional (mantenido comentado para evitar bloqueos por tablas externas)
-        # try:
-        #     ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
-        #     user_agent = request.headers.get('User-Agent', '')
-        #     session_row = db_query(
-        #         '''
-        #         INSERT INTO sessions (tenant_id, user_id, ip_address, user_agent, created_at, last_seen)
-        #         VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-        #         ''',
-        #         (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), commit=True, fetchone=True
-        #     )
-        # except Exception as session_err:
-        #     print(f"[SESSION WARNING]: No se pudo crear el registro de sesión: {str(session_err)}")
+        # REGISTRO DE SESIÓN PARA EL MONITOREO DE USUARIOS CONECTADOS
+        try:
+            ip_addr = get_client_ip()
+            user_agent = request.headers.get('User-Agent', '')
+            
+            # Registrar o actualizar la sesión activa en la tabla public.sessions
+            db_query(
+                '''
+                INSERT INTO sessions (tenant_id, user_id, ip_address, user_agent, created_at, last_seen)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ''',
+                (user_dict['tenant_id'], user_dict['id'], ip_addr, user_agent, now_utc(), now_utc()), 
+                commit=True
+            )
+        except Exception as session_err:
+            print(f"[SESSION WARNING]: No se pudo registrar la sesión: {str(session_err)}")
 
         return jsonify({
             'token': token,
@@ -511,11 +515,9 @@ def login():
         }), 200
 
     except Exception as e:
-        # Esto imprimirá la traza completa del error en los logs de Render
         error_details = traceback.format_exc()
         print(f"[LOGIN ERROR CRITICAL]:\n{error_details}", file=sys.stderr)
         return jsonify({'message': f'Internal server error: {str(e)}'}), 500
-
 
 
 @app.route('/api/auth/verify', methods=['GET'])
@@ -1660,7 +1662,7 @@ def reports_series():
 
 
 # ==========================================
-# ENDPOINT: DETALLES DE MÉTRICAS COMPLETAS
+# ENDPOINT: MÉTRICAS DETALLADAS CON FILTROS
 # ==========================================
 @app.route('/api/metrics/details', methods=['GET'])
 @token_required
@@ -1668,48 +1670,79 @@ def get_metric_details():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
     metric_type = request.args.get('type') # 'devices', 'consultations', 'alerts', 'users'
+    search = request.args.get('q', '').strip() # Parámetro para filtros de búsqueda
 
     try:
         if metric_type == 'devices':
-            rows = db_query('''
+            sql = '''
                 SELECT d.id, d.name, d.type, d.status, d.ip_address, d.user_agent, 
                        l.name as location_name, d.created_at 
                 FROM devices d 
                 LEFT JOIN locations l ON l.id = d.location_id 
-                WHERE d.tenant_id = %s ORDER BY d.id DESC
-            ''', (tenant_id,), fetchall=True)
+                WHERE d.tenant_id = %s
+            '''
+            params = [tenant_id]
+            if search:
+                sql += " AND (d.name ILIKE %s OR d.type ILIKE %s OR d.ip_address ILIKE %s OR l.name ILIKE %s)"
+                term = f"%{search}%"
+                params.extend([term, term, term, term])
+            sql += " ORDER BY d.id DESC"
+            rows = db_query(sql, tuple(params), fetchall=True)
 
         elif metric_type == 'consultations':
-            rows = db_query('''
+            sql = '''
                 SELECT c.id, c.patient_id, p.full_name as patient_name, c.doctor_name, 
                        c.reason, c.symptoms, c.diagnosis, c.treatment, c.prescription, c.created_at
                 FROM consultations c
                 LEFT JOIN patients p ON p.id = c.patient_id
-                WHERE c.tenant_id = %s ORDER BY c.id DESC
-            ''', (tenant_id,), fetchall=True)
+                WHERE c.tenant_id = %s
+            '''
+            params = [tenant_id]
+            if search:
+                sql += " AND (p.full_name ILIKE %s OR c.doctor_name ILIKE %s OR c.diagnosis ILIKE %s OR c.reason ILIKE %s)"
+                term = f"%{search}%"
+                params.extend([term, term, term, term])
+            sql += " ORDER BY c.id DESC"
+            rows = db_query(sql, tuple(params), fetchall=True)
 
         elif metric_type == 'alerts':
-            rows = db_query('''
+            sql = '''
                 SELECT a.id, a.alert_type, a.message, a.severity, a.is_resolved, 
                        d.name as device_name, a.created_at
                 FROM alerts a
                 LEFT JOIN devices d ON d.id = a.device_id
-                WHERE a.tenant_id = %s ORDER BY a.created_at DESC
-            ''', (tenant_id,), fetchall=True)
+                WHERE a.tenant_id = %s
+            '''
+            params = [tenant_id]
+            if search:
+                sql += " AND (a.alert_type ILIKE %s OR a.message ILIKE %s OR d.name ILIKE %s)"
+                term = f"%{search}%"
+                params.extend([term, term, term])
+            sql += " ORDER BY a.created_at DESC"
+            rows = db_query(sql, tuple(params), fetchall=True)
 
         elif metric_type == 'users':
-            # Incluye todos los campos de usuarios, sesiones y temas/acciones registradas
-            rows = db_query('''
-                SELECT s.id as session_id, u.id as user_id, u.username, u.role, 
-                       s.ip_address, s.created_at as session_start, s.last_seen,
-                       COALESCE(da.action_type, 'N/A') as action_type,
-                       COALESCE(da.details, 'Sin detalles/temas de sesión') as session_topic
-                FROM sessions s
-                JOIN users u ON u.id = s.user_id
-                LEFT JOIN device_actions da ON da.user_id = u.id AND da.tenant_id = s.tenant_id
-                WHERE s.tenant_id = %s AND s.last_seen >= NOW() - INTERVAL '1 day'
-                ORDER BY s.last_seen DESC
-            ''', (tenant_id,), fetchall=True)
+            # Muestra los usuarios registrados y combina las sesiones activas o históricas
+            sql = '''
+                SELECT DISTINCT ON (u.id)
+                       s.id as session_id, u.id as user_id, u.username, u.role, 
+                       COALESCE(s.ip_address, '127.0.0.1') as ip_address, 
+                       s.created_at as session_start, 
+                       COALESCE(s.last_seen, u.created_at) as last_seen,
+                       COALESCE(da.action_type, 'Conectado / Navegación') as action_type,
+                       COALESCE(da.details, 'Sesión Activa de Usuario') as session_topic
+                FROM users u
+                LEFT JOIN sessions s ON u.id = s.user_id AND s.tenant_id = u.tenant_id
+                LEFT JOIN device_actions da ON da.user_id = u.id AND da.tenant_id = u.tenant_id
+                WHERE u.tenant_id = %s
+            '''
+            params = [tenant_id]
+            if search:
+                sql += " AND (u.username ILIKE %s OR u.role ILIKE %s OR s.ip_address ILIKE %s)"
+                term = f"%{search}%"
+                params.extend([term, term, term])
+            sql += " ORDER BY u.id, s.last_seen DESC NULLS LAST"
+            rows = db_query(sql, tuple(params), fetchall=True)
 
         else:
             return jsonify({'message': 'Tipo de métrica no válido'}), 400
