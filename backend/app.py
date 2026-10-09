@@ -1659,123 +1659,65 @@ def reports_series():
         return jsonify({'message': 'Error generating series'}), 500
 
 
-@app.route('/api/metrics', methods=['GET', 'POST', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH', 'TRACE', 'CONNECT'])
+# ==========================================
+# ENDPOINT: DETALLES DE MÉTRICAS COMPLETAS
+# ==========================================
+@app.route('/api/metrics/details', methods=['GET'])
 @token_required
-def metrics(*args, **kwargs):
+def get_metric_details():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    metric_type = request.args.get('type') # 'devices', 'consultations', 'alerts', 'users'
+
     try:
-        # 1. Extracción unificada de claims
-        claims = (
-            kwargs.get('claims') or 
-            kwargs.get('user') or 
-            getattr(request, 'claims', None) or 
-            getattr(request, 'user', None) or 
-            getattr(g, 'claims', None) or 
-            {}
-        )
-        
-        tenant_id = claims.get('tenant_id') if isinstance(claims, dict) else None
+        if metric_type == 'devices':
+            rows = db_query('''
+                SELECT d.id, d.name, d.type, d.status, d.ip_address, d.user_agent, 
+                       l.name as location_name, d.created_at 
+                FROM devices d 
+                LEFT JOIN locations l ON l.id = d.location_id 
+                WHERE d.tenant_id = %s ORDER BY d.id DESC
+            ''', (tenant_id,), fetchall=True)
 
-        if not tenant_id:
-            try:
-                if 'claims' in globals() and isinstance(globals().get('claims'), dict):
-                    tenant_id = globals()['claims'].get('tenant_id')
-            except Exception:
-                pass
+        elif metric_type == 'consultations':
+            rows = db_query('''
+                SELECT c.id, c.patient_id, p.full_name as patient_name, c.doctor_name, 
+                       c.reason, c.symptoms, c.diagnosis, c.treatment, c.prescription, c.created_at
+                FROM consultations c
+                LEFT JOIN patients p ON p.id = c.patient_id
+                WHERE c.tenant_id = %s ORDER BY c.id DESC
+            ''', (tenant_id,), fetchall=True)
 
-        if not tenant_id:
-            return jsonify({'error': 'Unauthorized', 'message': 'Missing or invalid tenant_id in claims'}), 401
+        elif metric_type == 'alerts':
+            rows = db_query('''
+                SELECT a.id, a.alert_type, a.message, a.severity, a.is_resolved, 
+                       d.name as device_name, a.created_at
+                FROM alerts a
+                LEFT JOIN devices d ON d.id = a.device_id
+                WHERE a.tenant_id = %s ORDER BY a.created_at DESC
+            ''', (tenant_id,), fetchall=True)
 
-        device_id = request.args.get('device_id')
+        elif metric_type == 'users':
+            # Incluye todos los campos de usuarios, sesiones y temas/acciones registradas
+            rows = db_query('''
+                SELECT s.id as session_id, u.id as user_id, u.username, u.role, 
+                       s.ip_address, s.created_at as session_start, s.last_seen,
+                       COALESCE(da.action_type, 'N/A') as action_type,
+                       COALESCE(da.details, 'Sin detalles/temas de sesión') as session_topic
+                FROM sessions s
+                JOIN users u ON u.id = s.user_id
+                LEFT JOIN device_actions da ON da.user_id = u.id AND da.tenant_id = s.tenant_id
+                WHERE s.tenant_id = %s AND s.last_seen >= NOW() - INTERVAL '1 day'
+                ORDER BY s.last_seen DESC
+            ''', (tenant_id,), fetchall=True)
 
-        # 2. Hardware metrics con manejo seguro
-        summary = []
-        query = '''
-            SELECT metric_type, component_name, AVG(value) as avg_value, MAX(value) as max_value, MIN(value) as min_value, unit
-            FROM metrics
-            WHERE tenant_id = %s AND recorded_at >= NOW() - INTERVAL '24 hours'
-        '''
-        params = [tenant_id]
+        else:
+            return jsonify({'message': 'Tipo de métrica no válido'}), 400
 
-        if device_id:
-            query += " AND device_id = %s"
-            params.append(device_id)
+        return jsonify(rows or []), 200
 
-        query += " GROUP BY metric_type, component_name, unit"
-        
-        try:
-            summary = db_query(query, tuple(params), fetchall=True) or []
-        except Exception as db_err:
-            print(f"[DB METRICS ERROR]: {db_err}")
-            summary = []
-
-        # 3. Métricas de sesiones y usuarios con valores por defecto
-        active_users = 0
-        avg_seconds = 0
-        series = []
-
-        try:
-            active_res = db_query(
-                "SELECT COUNT(DISTINCT user_id) as count FROM sessions WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'",
-                (tenant_id,),
-                fetchone=True
-            )
-            if active_res and isinstance(active_res, dict):
-                active_users = active_res.get("count", 0) or 0
-        except Exception as e:
-            print(f"[DB SESSIONS ACTIVE ERROR]: {e}")
-
-        try:
-            avg_row = db_query(
-                "SELECT AVG(EXTRACT(EPOCH FROM (last_seen - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND last_seen IS NOT NULL", 
-                (tenant_id,), 
-                fetchone=True
-            )
-            if avg_row and isinstance(avg_row, dict):
-                avg_seconds = avg_row.get('avg_seconds') or 0
-        except Exception as e:
-            print(f"[DB SESSIONS AVG ERROR]: {e}")
-
-        try:
-            series = db_query(
-                "SELECT DATE(created_at) as day, AVG(EXTRACT(EPOCH FROM (COALESCE(last_seen, created_at) - created_at))) as avg_seconds FROM sessions WHERE tenant_id = %s AND created_at >= now() - interval '14 days' GROUP BY day ORDER BY day ASC", 
-                (tenant_id,), 
-                fetchall=True
-            ) or []
-        except Exception as e:
-            print(f"[DB SESSIONS SERIES ERROR]: {e}")
-
-        # Regresión lineal para estimación de duración futura
-        xs, ys = [], []
-        for i, row in enumerate(series or []):
-            xs.append(i)
-            ys.append(row.get('avg_seconds') or 0)
-
-        pred = 0
-        if len(xs) >= 2:
-            n = len(xs)
-            sum_x = sum(xs)
-            sum_y = sum(ys)
-            sum_xx = sum(x*x for x in xs)
-            sum_xy = sum(x*y for x,y in zip(xs,ys))
-            denom = (n*sum_xx - sum_x*sum_x)
-            if denom != 0:
-                b_reg = (n*sum_xy - sum_x*sum_y) / denom
-                a_reg = (sum_y - b_reg*sum_x) / n
-                pred = max(0, a_reg + b_reg * n)
-
-        # Respuesta JSON enriquecida que garantiza retrocompatibilidad total
-        return jsonify({
-            'hardware_metrics': summary,
-            'summary': summary, # Alias de retrocompatibilidad
-            'active_users': active_users,
-            'avg_session_seconds': float(avg_seconds) if avg_seconds else 0,
-            'session_duration_prediction_seconds': float(pred),
-            'series': series
-        }), 200
-
-    except Exception as outer_err:
-        print(f"[CRITICAL METRICS ROUTE ERROR]: {outer_err}")
-        return jsonify({'error': 'Internal Server Error', 'details': str(outer_err)}), 500
+    except Exception as e:
+        return jsonify({'message': f'Error recuperando detalles: {str(e)}'}), 500
 
 
 @app.route('/api/users', methods=['GET'])

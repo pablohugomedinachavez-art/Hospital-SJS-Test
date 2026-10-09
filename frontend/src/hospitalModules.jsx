@@ -4556,28 +4556,27 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
   );
 }
 
-// --- COMPONENTE PRINCIPAL DASHBOARD ---
-
 export function Dashboard() {
-  // --- Estados de Datos Reales de API ---
   const [reports, setReports] = useState(null);
   const [series, setSeries] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [areas, setAreas] = useState([]);
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
+
+  // Estados para el Modal de Métricas Detalladas
+  const [activeMetricModal, setActiveMetricModal] = useState(null); // 'devices', 'consultations', 'alerts', 'users'
+  const [metricDetailData, setMetricDetailData] = useState([]);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   
-  // --- Estados de Filtros Operativos (Conectados a public.devices) ---
-  const [selectedLocation, setSelectedLocation] = useState('all'); // location_id o 'all'
-  const [selectedDeviceType, setSelectedDeviceType] = useState('all'); // type o 'all'
-  const [selectedStatus, setSelectedStatus] = useState('all'); // status o 'all'
+  const [selectedLocation, setSelectedLocation] = useState('all');
+  const [selectedDeviceType, setSelectedDeviceType] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [days, setDays] = useState(30);
   
-  // --- Estados UI ---
   const [loading, setLoading] = useState(true);
   const [toast, notify, clearToast] = useToast();
 
-  // --- Carga de Datos desde API/Base de Datos ---
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
@@ -4586,25 +4585,22 @@ export function Dashboard() {
         apiFetch(`/reports/series?days=${days}`),
         apiFetch('/metrics'),
         apiFetch('/dashboard/areas'),
-        apiFetch('/devices'),   // Carga datos directos de public.devices
-        apiFetch('/locations')  // Carga datos directos de public.locations
+        apiFetch('/devices'),
+        apiFetch('/locations')
       ]);
 
       if (reportsRes.ok) setReports(await reportsRes.json());
       if (seriesRes.ok) setSeries(await seriesRes.json() || []);
       if (metricsRes.ok) setMetrics(await metricsRes.json());
       if (areasRes.ok) setAreas(await areasRes.json() || []);
-      
       if (devicesRes.ok) {
         const devData = await devicesRes.json();
         setDevices(Array.isArray(devData) ? devData : (devData.items || []));
       }
-      
       if (locationsRes.ok) {
         const locData = await locationsRes.json();
         setLocations(Array.isArray(locData) ? locData : (locData.items || []));
       }
-
     } catch (error) {
       notify(error.message || 'Error al conectar con la base de datos', 'error');
     } finally {
@@ -4616,28 +4612,35 @@ export function Dashboard() {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // --- Opciones Dinámicas extraídas de public.devices ---
+  // Función para cargar los detalles reales de la métrica seleccionada
+  const handleOpenMetricDetail = async (type) => {
+    setActiveMetricModal(type);
+    setLoadingDetail(true);
+    try {
+      const res = await apiFetch(`/metrics/details?type=${type}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMetricDetailData(data || []);
+      } else {
+        throw new Error('No se pudieron obtener los detalles');
+      }
+    } catch (err) {
+      notify(err.message, 'error');
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
   const availableDeviceTypes = useMemo(() => {
     const types = devices.map(d => d.type).filter(Boolean);
     return Array.from(new Set(types));
-
   }, [devices]);
 
-  // --- Filtrado en tiempo real basado en la estructura de public.devices ---
   const filteredDevices = useMemo(() => {
     return devices.filter(dev => {
-      // 1. Filtro por location_id (Foreign Key -> locations.id)
-      const matchesLocation = selectedLocation === 'all' || 
-        String(dev.location_id) === String(selectedLocation);
-
-      // 2. Filtro por campo 'type' (text null)
-      const matchesType = selectedDeviceType === 'all' || 
-        String(dev.type).toLowerCase() === String(selectedDeviceType).toLowerCase();
-
-      // 3. Filtro por campo 'status' (text default 'available')
-      const matchesStatus = selectedStatus === 'all' || 
-        String(dev.status).toLowerCase() === String(selectedStatus).toLowerCase();
-      
+      const matchesLocation = selectedLocation === 'all' || String(dev.location_id) === String(selectedLocation);
+      const matchesType = selectedDeviceType === 'all' || String(dev.type).toLowerCase() === String(selectedDeviceType).toLowerCase();
+      const matchesStatus = selectedStatus === 'all' || String(dev.status).toLowerCase() === String(selectedStatus).toLowerCase();
       return matchesLocation && matchesType && matchesStatus;
     });
   }, [devices, selectedLocation, selectedDeviceType, selectedStatus]);
@@ -4658,7 +4661,7 @@ export function Dashboard() {
               Dashboard de Control y Auditoría TI
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Visión integral del desempeño clínico, operativo y de infraestructura en tiempo real.
+              Haz clic en cualquier métrica para ver la lista con todos sus campos de búsqueda y enlaces directos.
             </p>
           </div>
 
@@ -4672,90 +4675,6 @@ export function Dashboard() {
           </button>
         </div>
 
-        {/* FILTROS OPERATIVOS CONECTADOS A public.devices Y public.locations */}
-        <div className="no-print bg-slate-900/40 border border-slate-800/80 p-4 rounded-2xl">
-          <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <ShieldCheck size={15} className="text-blue-400" />
-            <span>Filtros Operativos (Tabla: public.devices)</span>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            
-            {/* 1. Filtro Sede / Ubicación (FK: location_id -> locations.id) */}
-            <div>
-              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Ubicación (location_id)</label>
-              <div className="relative">
-                <select 
-                  value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
-                >
-                  <option value="all">Todas las sedes</option>
-                  {locations.map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* 2. Filtro Tipo de Dispositivo (campo: type) */}
-            <div>
-              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Tipo (type)</label>
-              <div className="relative">
-                <select 
-                  value={selectedDeviceType}
-                  onChange={(e) => setSelectedDeviceType(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
-                >
-                  <option value="all">Todos los tipos</option>
-                  {availableDeviceTypes.map(type => (
-                    <option key={type} value={type}>{type.toUpperCase()}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* 3. Filtro Estado Operativo (campo: status) */}
-            <div>
-              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Estado (status)</label>
-              <div className="relative">
-                <select 
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
-                >
-                  <option value="all">Todos los estados</option>
-                  <option value="available">Disponible (available)</option>
-                  <option value="active">Activo (active)</option>
-                  <option value="in_use">En Uso (in_use)</option>
-                  <option value="maintenance">Mantenimiento (maintenance)</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-            {/* 4. Periodo de Análisis */}
-            <div>
-              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
-              <div className="relative">
-                <select
-                  value={days}
-                  onChange={e => setDays(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
-                >
-                  <option value={7}>Últimos 7 días</option>
-                  <option value={14}>Últimos 14 días</option>
-                  <option value={30}>Últimos 30 días</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
-              </div>
-            </div>
-
-          </div>
-        </div>
-
         <Toast toast={toast} onClose={clearToast} />
 
         {loading ? (
@@ -4765,99 +4684,105 @@ export function Dashboard() {
         ) : (
           <div className="flex flex-col gap-6 w-full">
 
-            {/* GRILLA DE METRICAS CONECTADA A LA BASE DE DATOS Y CÁLCULOS REALES */}
-             {/* 2. GRILLA DEL DASHBOARD LEYENDO DE LA API /api/metrics Y /api/reports */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                
-                {/* EQUIPOS FILTRADOS vs REGISTROS TOTALES */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Equipos Filtrados</span>
-                    <Monitor size={16} className="text-blue-400" />
-                  </div>
-                  <div className="my-2">
-                    <span className="text-3xl font-black text-emerald-400 tracking-tight">
-                      {filteredDevices?.length || 0}
-                    </span>
-                    <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
-                      <CheckCircle2 size={10} /> Registros coincidentes
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Métricas Hardware registradas: {metrics?.hardware_metrics?.length || 0} componentes
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
+            {/* GRILLA DE TARJETAS DE MÉTRICAS CLICABLES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* METRICA 1: EQUIPOS */}
+              <div 
+                onClick={() => handleOpenMetricDetail('devices')}
+                className="bg-slate-900/60 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Equipos Filtrados</span>
+                  <Monitor size={16} className="text-blue-400" />
                 </div>
-
-                {/* CONSULTAS Y REPORTES */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Consultas Clínicas</span>
-                    <CalendarIcon size={16} className="text-indigo-400" />
+                <div className="my-2">
+                  <span className="text-3xl font-black text-emerald-400 tracking-tight">
+                    {filteredDevices?.length || 0}
+                  </span>
+                  <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
+                    <CheckCircle2 size={10} /> Ver lista completa ↗
                   </div>
-                  <div className="my-2">
-                    <span className="text-3xl font-black text-indigo-400 tracking-tight">
-                      {reports?.summary?.consultations ?? 0}
-                    </span>
-                    <div className="text-[10px] text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
-                      Últimos {days || 30} días
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Total Pacientes: {reports?.summary?.patients ?? 0}
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
                 </div>
-
-                {/* ALERTAS ACTIVAS */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Alertas Activas</span>
-                    <ShieldAlert size={16} className="text-amber-400" />
-                  </div>
-                  <div className="my-2">
-                    <span className="text-3xl font-black text-amber-400 tracking-tight">
-                      {reports?.summary?.active_alerts ?? 0}
-                    </span>
-                    <div className="text-[10px] text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
-                      Requieren atención
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Incidencias no resueltas
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Total de dispositivos registrados en red
                 </div>
-
-                {/* USUARIOS ACTIVOS Y DURACIÓN DE SESIÓN */}
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
-                    <Wifi size={16} className="text-sky-400" />
-                  </div>
-                  <div className="my-2">
-                    <span className="text-3xl font-black text-sky-400 tracking-tight">
-                      {metrics?.active_users ?? 0}
-                    </span>
-                    <div className="text-[10px] text-sky-300 font-semibold mt-1 bg-sky-500/10 px-2 py-0.5 rounded w-fit">
-                      Últimas 24 hrs
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Prom. Sesión: {
-                      metrics?.avg_session_seconds 
-                        ? `${Math.floor(metrics.avg_session_seconds / 60)}m ${Math.round(metrics.avg_session_seconds % 60)}s` 
-                        : '0s'
-                    }
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500/40"></div>
-                </div>
-
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
               </div>
 
-            {/* GRÁFICOS ANALÍTICOS */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* METRICA 2: CONSULTAS */}
+              <div 
+                onClick={() => handleOpenMetricDetail('consultations')}
+                className="bg-slate-900/60 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Consultas Clínicas</span>
+                  <CalendarIcon size={16} className="text-indigo-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-indigo-400 tracking-tight">
+                    {reports?.summary?.consultations ?? 0}
+                  </span>
+                  <div className="text-[10px] text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
+                    Ver atenciones médicas ↗
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Total Pacientes: {reports?.summary?.patients ?? 0}
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
+              </div>
 
+              {/* METRICA 3: ALERTAS */}
+              <div 
+                onClick={() => handleOpenMetricDetail('alerts')}
+                className="bg-slate-900/60 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Alertas Activas</span>
+                  <ShieldAlert size={16} className="text-amber-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-amber-400 tracking-tight">
+                    {reports?.summary?.active_alerts ?? 0}
+                  </span>
+                  <div className="text-[10px] text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
+                    Ver eventos de alertas ↗
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Incidencias y monitoreo
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
+              </div>
+
+              {/* METRICA 4: USUARIOS / SESIONES CON TEMAS */}
+              <div 
+                onClick={() => handleOpenMetricDetail('users')}
+                className="bg-slate-900/60 border border-slate-800 hover:border-sky-500/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
+                  <Wifi size={16} className="text-sky-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-sky-400 tracking-tight">
+                    {metrics?.active_users ?? 0}
+                  </span>
+                  <div className="text-[10px] text-sky-300 font-semibold mt-1 bg-sky-500/10 px-2 py-0.5 rounded w-fit">
+                    Ver sesiones & temas ↗
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Sesiones y temas de conversación
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500/40"></div>
+              </div>
+
+            </div>
+
+            {/* GRÁFICOS DEL DASHBOARD */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
                 <div>
                   <h3 className="text-sm font-bold text-white">Tendencia de Pacientes y Consultas</h3>
@@ -4879,7 +4804,7 @@ export function Dashboard() {
 
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Infraestructura y Alertas por Área</h3>
+                  <h3 className="text-sm font-bold text-white">Infraestructura por Área</h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">Distribución de red por sede</p>
                 </div>
                 <div className="pt-2">
@@ -4895,17 +4820,207 @@ export function Dashboard() {
                   </ResponsiveContainer>
                 </div>
               </div>
-
             </div>
 
           </div>
         )}
 
       </div>
+
+      {/* ============================================================ */}
+      {/* MODAL DETALLADO DE RESULTADOS DE BÚSQUEDA Y NAVEGACIÓN */}
+      {/* ============================================================ */}
+      {activeMetricModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+            
+            {/* CABECERA DEL MODAL */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-950">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400">
+                  <FileSearch size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white capitalize">
+                    Lista Detallada: {activeMetricModal}
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Resultados reales de la búsqueda de todos los campos solicitados.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* ENLACE DIRECTO A LA PANTALLA CORRESPONDIENTE */}
+                <a
+                  href={`#/${activeMetricModal === 'users' ? 'users' : activeMetricModal}`}
+                  onClick={() => setActiveMetricModal(null)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 no-underline transition-all"
+                >
+                  <ExternalLink size={14} /> Ir a la pantalla de {activeMetricModal}
+                </a>
+
+                <button
+                  onClick={() => setActiveMetricModal(null)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* CUERPO DEL MODAL */}
+            <div className="p-5 overflow-y-auto flex-1">
+              {loadingDetail ? (
+                <div className="py-12 text-center text-slate-400 text-xs animate-pulse">
+                  Cargando campos detallados...
+                </div>
+              ) : metricDetailData.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 text-xs">
+                  No se encontraron registros para esta métrica.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-950 text-slate-400 border-b border-slate-800 uppercase tracking-wider text-[10px]">
+                        {activeMetricModal === 'devices' && (
+                          <>
+                            <th className="p-3">ID</th>
+                            <th className="p-3">Nombre</th>
+                            <th className="p-3">Tipo</th>
+                            <th className="p-3">IP Address</th>
+                            <th className="p-3">Estado</th>
+                            <th className="p-3">Ubicación</th>
+                            <th className="p-3">Acción</th>
+                          </>
+                        )}
+                        {activeMetricModal === 'consultations' && (
+                          <>
+                            <th className="p-3">ID</th>
+                            <th className="p-3">Paciente</th>
+                            <th className="p-3">Médico</th>
+                            <th className="p-3">Motivo</th>
+                            <th className="p-3">Sintomas</th>
+                            <th className="p-3">Diagnóstico</th>
+                            <th className="p-3">Tratamiento</th>
+                            <th className="p-3">Acción</th>
+                          </>
+                        )}
+                        {activeMetricModal === 'alerts' && (
+                          <>
+                            <th className="p-3">ID</th>
+                            <th className="p-3">Tipo Alerta</th>
+                            <th className="p-3">Mensaje</th>
+                            <th className="p-3">Severidad</th>
+                            <th className="p-3">Dispositivo</th>
+                            <th className="p-3">Fecha</th>
+                            <th className="p-3">Acción</th>
+                          </>
+                        )}
+                        {activeMetricModal === 'users' && (
+                          <>
+                            <th className="p-3">Sesión ID</th>
+                            <th className="p-3">Usuario</th>
+                            <th className="p-3">Rol</th>
+                            <th className="p-3">Dirección IP</th>
+                            <th className="p-3">Tema de Sesión / Acción</th>
+                            <th className="p-3">Última Actividad</th>
+                            <th className="p-3">Acción</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                      {metricDetailData.map((item, index) => (
+                        <tr key={index} className="hover:bg-slate-800/40 transition-colors">
+                          {activeMetricModal === 'devices' && (
+                            <>
+                              <td className="p-3 font-mono text-slate-400">#{item.id}</td>
+                              <td className="p-3 font-semibold text-white">{item.name}</td>
+                              <td className="p-3 capitalize">{item.type}</td>
+                              <td className="p-3 font-mono text-sky-400">{item.ip_address || '—'}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                  {item.status}
+                                </span>
+                              </td>
+                              <td className="p-3">{item.location_name || 'Sin asignación'}</td>
+                              <td className="p-3">
+                                <a href="#/devices" onClick={() => setActiveMetricModal(null)} className="text-blue-400 hover:underline flex items-center gap-1">
+                                  Ver <ExternalLink size={12} />
+                                </a>
+                              </td>
+                            </>
+                          )}
+
+                          {activeMetricModal === 'consultations' && (
+                            <>
+                              <td className="p-3 font-mono text-slate-400">#{item.id}</td>
+                              <td className="p-3 font-semibold text-white">{item.patient_name || `Paciente #${item.patient_id}`}</td>
+                              <td className="p-3">{item.doctor_name}</td>
+                              <td className="p-3">{item.reason || '—'}</td>
+                              <td className="p-3 max-w-xs truncate">{item.symptoms || '—'}</td>
+                              <td className="p-3 font-medium text-sky-400">{item.diagnosis || '—'}</td>
+                              <td className="p-3 max-w-xs truncate">{item.treatment || item.prescription || '—'}</td>
+                              <td className="p-3">
+                                <a href="#/consultations" onClick={() => setActiveMetricModal(null)} className="text-blue-400 hover:underline flex items-center gap-1">
+                                  Ver <ExternalLink size={12} />
+                                </a>
+                              </td>
+                            </>
+                          )}
+
+                          {activeMetricModal === 'alerts' && (
+                            <>
+                              <td className="p-3 font-mono text-slate-400">#{item.id}</td>
+                              <td className="p-3 font-semibold text-amber-400">{item.alert_type}</td>
+                              <td className="p-3">{item.message}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${item.severity === 'high' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                  {item.severity}
+                                </span>
+                              </td>
+                              <td className="p-3">{item.device_name || '—'}</td>
+                              <td className="p-3 text-slate-400">{item.created_at ? new Date(item.created_at).toLocaleString() : '—'}</td>
+                              <td className="p-3">
+                                <a href="#/alerts" onClick={() => setActiveMetricModal(null)} className="text-blue-400 hover:underline flex items-center gap-1">
+                                  Ver <ExternalLink size={12} />
+                                </a>
+                              </td>
+                            </>
+                          )}
+
+                          {activeMetricModal === 'users' && (
+                            <>
+                              <td className="p-3 font-mono text-slate-400">#{item.session_id}</td>
+                              <td className="p-3 font-semibold text-white">{item.username}</td>
+                              <td className="p-3 capitalize">{item.role}</td>
+                              <td className="p-3 font-mono text-sky-400">{item.ip_address || '—'}</td>
+                              <td className="p-3 font-medium text-indigo-300">{item.session_topic}</td>
+                              <td className="p-3 text-slate-400">{item.last_seen ? new Date(item.last_seen).toLocaleString() : '—'}</td>
+                              <td className="p-3">
+                                <a href="#/device-management" onClick={() => setActiveMetricModal(null)} className="text-blue-400 hover:underline flex items-center gap-1">
+                                  Ver <ExternalLink size={12} />
+                                </a>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-
 
 export function Users() {
   const [users, setUsers] = useState([])
