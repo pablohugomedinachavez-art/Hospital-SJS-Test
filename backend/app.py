@@ -1670,8 +1670,6 @@ def reports_series():
 @app.route('/api/metrics', methods=['GET'])
 @token_required
 def get_dashboard_metrics():
-    print("\n" + "="*50)
-    print("[DEBUG METRICS] Executing /api/metrics endpoint...")
     try:
         claims = get_current_user()
         tenant_id = claims.get('tenant_id')
@@ -1683,26 +1681,20 @@ def get_dashboard_metrics():
         ) or {'count': 0}
         active_devices = devices_res.get('count', 0) if isinstance(devices_res, dict) else devices_res[0]
 
-        # 2. Usuarios / Sesiones Activas
+        # 2. Solo contar usuarios ONLINE o AFK cuya última actividad sea menor a 15 minutos (Pestaña abierta)
         users_res = db_query(
             """
             SELECT COUNT(DISTINCT user_id) as count 
             FROM sessions 
-            WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'
+            WHERE tenant_id = %s 
+              AND status IN ('online', 'afk')
+              AND last_seen >= NOW() - INTERVAL '15 minutes'
             """,
             (tenant_id,), fetchone=True
         ) or {'count': 0}
         active_users = users_res.get('count', 0) if isinstance(users_res, dict) else users_res[0]
 
-        # Fallback si la tabla de sesiones no contiene registros activos
-        if active_users == 0:
-            fb_res = db_query(
-                "SELECT COUNT(*) as count FROM users WHERE tenant_id = %s",
-                (tenant_id,), fetchone=True
-            ) or {'count': 0}
-            active_users = fb_res.get('count', 0) if isinstance(fb_res, dict) else fb_res[0]
-
-        # 3. Alertas Activas (Soporta SMALLINT '0' y BOOLEAN 'false')
+        # 3. Alertas Activas
         alerts_res = db_query(
             "SELECT COUNT(*) as count FROM alerts WHERE tenant_id = %s AND (is_resolved = 0 OR is_resolved::text = 'false')",
             (tenant_id,), fetchone=True
@@ -1715,14 +1707,9 @@ def get_dashboard_metrics():
             'active_alerts': active_alerts
         }
 
-        print(f"[DEBUG METRICS] Successfully computed payload: {payload}")
-        print("="*50 + "\n")
         return jsonify(payload), 200
 
     except Exception as e:
-        error_trace = traceback.format_exc()
-        print(f"[DEBUG METRICS CRITICAL ERROR]: {str(e)}", file=sys.stderr)
-        print(f"[DEBUG METRICS TRACEBACK]:\n{error_trace}", file=sys.stderr)
         return jsonify({
             'active_devices': 0,
             'active_users': 0,
@@ -1730,26 +1717,20 @@ def get_dashboard_metrics():
             'error': str(e)
         }), 200
 
+
 # ==========================================
-# ENDPOINT: MÉTRICAS DETALLADAS CON FILTROS Y DEBUG
+# ENDPOINT: MÉTRICAS DETALLADAS CON FILTROS Y ESTADO AFK/ONLINE EN ESPAÑOL
 # ==========================================
 @app.route('/api/metrics/details', methods=['GET'])
 @token_required
 def get_metric_details():
-    print("\n" + "="*50)
-    print("[DEBUG METRICS DETAILS] Incoming request to /api/metrics/details")
     try:
         claims = get_current_user()
         tenant_id = claims.get('tenant_id')
         metric_type = request.args.get('type')
         search = request.args.get('q', '').strip()
 
-        print(f"[DEBUG METRICS DETAILS] Tenant ID: {tenant_id}")
-        print(f"[DEBUG METRICS DETAILS] Metric Type: '{metric_type}'")
-        print(f"[DEBUG METRICS DETAILS] Search Query: '{search}'")
-
         if not metric_type:
-            print("[DEBUG METRICS DETAILS WARNING]: Parameter 'type' is missing")
             return jsonify({'message': 'Parámetro "type" es requerido'}), 400
 
         if metric_type == 'devices':
@@ -1785,7 +1766,7 @@ def get_metric_details():
         elif metric_type == 'alerts':
             sql = '''
                 SELECT a.id, a.alert_type, a.message, a.severity, a.is_resolved, 
-               d.name as device_name, a.created_at
+                       d.name as device_name, a.created_at
                 FROM alerts a
                 LEFT JOIN devices d ON d.id = a.device_id
                 WHERE a.tenant_id = %s
@@ -1807,16 +1788,13 @@ def get_metric_details():
                     COALESCE(s.ip_address, '127.0.0.1') as ip_address, 
                     s.created_at as session_start, 
                     COALESCE(s.last_seen, u.created_at) as last_seen,
-                    COALESCE(da.action_type, 'Navegación / Sistema') as action_type,
                     CASE 
-                        WHEN s.last_seen IS NULL OR s.last_seen < NOW() - INTERVAL '2 minutes' THEN 'Desconectado / Inactivo'
-                        WHEN s.status = 'afk' THEN 'En Espera (AFK)'
-                        WHEN s.status = 'online' THEN 'Conectado / En línea'
-                        ELSE 'Desconectado / Inactivo'
+                        WHEN s.last_seen IS NULL OR s.last_seen < NOW() - INTERVAL '15 minutes' OR s.status = 'offline' THEN 'Desconectado / Inactivo'
+                        WHEN s.status = 'afk' OR s.last_seen < NOW() - INTERVAL '5 minutes' THEN 'En Espera (AFK)'
+                        ELSE 'Conectado / En línea'
                     END as session_topic
                 FROM users u
                 LEFT JOIN sessions s ON u.id = s.user_id AND s.tenant_id = u.tenant_id
-                LEFT JOIN device_actions da ON da.user_id = u.id AND da.tenant_id = u.tenant_id
                 WHERE u.tenant_id = %s
             '''
             params = [tenant_id]
@@ -1827,23 +1805,107 @@ def get_metric_details():
             sql += " ORDER BY u.id, s.last_seen DESC NULLS LAST"
 
         else:
-            print(f"[DEBUG METRICS DETAILS WARNING]: Invalid metric_type '{metric_type}'")
             return jsonify({'message': f'Tipo de métrica no válido: {metric_type}'}), 400
 
-        print(f"[DEBUG METRICS DETAILS SQL Query]:\n{sql}")
-        print(f"[DEBUG METRICS DETAILS SQL Params]: {params}")
-
         rows = db_query(sql, tuple(params), fetchall=True) or []
-        print(f"[DEBUG METRICS DETAILS] Query returned {len(rows)} row(s)")
-        print("="*50 + "\n")
-
         return jsonify(rows), 200
 
     except Exception as e:
-        error_trace = traceback.format_exc()
-        print(f"[DEBUG METRICS DETAILS CRITICAL ERROR]: {str(e)}", file=sys.stderr)
-        print(f"[DEBUG METRICS DETAILS TRACEBACK]:\n{error_trace}", file=sys.stderr)
-        print("="*50 + "\n")
+        return jsonify({'message': f'Error recuperando detalles: {str(e)}'}), 500
+
+# ==========================================
+# ENDPOINT: MÉTRICAS DETALLADAS CON FILTROS Y ESTADO AFK/ONLINE EN ESPAÑOL
+# ==========================================
+@app.route('/api/metrics/details', methods=['GET'])
+@token_required
+def get_metric_details():
+    try:
+        claims = get_current_user()
+        tenant_id = claims.get('tenant_id')
+        metric_type = request.args.get('type')
+        search = request.args.get('q', '').strip()
+
+        if not metric_type:
+            return jsonify({'message': 'Parámetro "type" es requerido'}), 400
+
+        if metric_type == 'devices':
+            sql = '''
+                SELECT d.id, d.name, d.type, d.status, d.ip_address, d.user_agent, 
+                       l.name as location_name, d.created_at 
+                FROM devices d 
+                LEFT JOIN locations l ON l.id = d.location_id 
+                WHERE d.tenant_id = %s
+            '''
+            params = [tenant_id]
+            if search:
+                sql += " AND (d.name ILIKE %s OR d.type ILIKE %s OR d.ip_address ILIKE %s OR l.name ILIKE %s)"
+                term = f"%{search}%"
+                params.extend([term, term, term, term])
+            sql += " ORDER BY d.id DESC"
+
+        elif metric_type == 'consultations':
+            sql = '''
+                SELECT c.id, c.patient_id, p.full_name as patient_name, c.doctor_name, 
+                       c.reason, c.symptoms, c.diagnosis, c.treatment, c.prescription, c.created_at
+                FROM consultations c
+                LEFT JOIN patients p ON p.id = c.patient_id
+                WHERE c.tenant_id = %s
+            '''
+            params = [tenant_id]
+            if search:
+                sql += " AND (p.full_name ILIKE %s OR c.doctor_name ILIKE %s OR c.diagnosis ILIKE %s OR c.reason ILIKE %s)"
+                term = f"%{search}%"
+                params.extend([term, term, term, term])
+            sql += " ORDER BY c.id DESC"
+
+        elif metric_type == 'alerts':
+            sql = '''
+                SELECT a.id, a.alert_type, a.message, a.severity, a.is_resolved, 
+                       d.name as device_name, a.created_at
+                FROM alerts a
+                LEFT JOIN devices d ON d.id = a.device_id
+                WHERE a.tenant_id = %s
+            '''
+            params = [tenant_id]
+            if search:
+                sql += " AND (a.alert_type ILIKE %s OR a.message ILIKE %s OR d.name ILIKE %s)"
+                term = f"%{search}%"
+                params.extend([term, term, term])
+            sql += " ORDER BY a.created_at DESC"
+
+        elif metric_type == 'users':
+            sql = '''
+                SELECT DISTINCT ON (u.id)
+                    s.id as session_id, 
+                    u.id as user_id, 
+                    u.username, 
+                    u.role, 
+                    COALESCE(s.ip_address, '127.0.0.1') as ip_address, 
+                    s.created_at as session_start, 
+                    COALESCE(s.last_seen, u.created_at) as last_seen,
+                    CASE 
+                        WHEN s.last_seen IS NULL OR s.last_seen < NOW() - INTERVAL '15 minutes' OR s.status = 'offline' THEN 'Desconectado / Inactivo'
+                        WHEN s.status = 'afk' OR s.last_seen < NOW() - INTERVAL '5 minutes' THEN 'En Espera (AFK)'
+                        ELSE 'Conectado / En línea'
+                    END as session_topic
+                FROM users u
+                LEFT JOIN sessions s ON u.id = s.user_id AND s.tenant_id = u.tenant_id
+                WHERE u.tenant_id = %s
+            '''
+            params = [tenant_id]
+            if search:
+                sql += " AND (u.username ILIKE %s OR u.role ILIKE %s OR s.ip_address ILIKE %s)"
+                term = f"%{search}%"
+                params.extend([term, term, term])
+            sql += " ORDER BY u.id, s.last_seen DESC NULLS LAST"
+
+        else:
+            return jsonify({'message': f'Tipo de métrica no válido: {metric_type}'}), 400
+
+        rows = db_query(sql, tuple(params), fetchall=True) or []
+        return jsonify(rows), 200
+
+    except Exception as e:
         return jsonify({'message': f'Error recuperando detalles: {str(e)}'}), 500
 
 

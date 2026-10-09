@@ -36,12 +36,11 @@ export function LoadingState({ label = 'Cargando información...' }) {
 export function useUserPresence(token, isLogged) {
   const [userState, setUserState] = useState('online'); // 'online' | 'afk'
   const lastActivityRef = useRef(Date.now());
-  const idleTimeoutMinutes = 5; // Tiempo límite sin interacción para marcar AFK
+  const idleTimeoutMinutes = 5;
 
   useEffect(() => {
     if (!isLogged || !token) return;
 
-    // 1. Detectar actividad del usuario en pantalla
     const handleActivity = () => {
       lastActivityRef.current = Date.now();
       if (userState !== 'online') {
@@ -52,7 +51,6 @@ export function useUserPresence(token, isLogged) {
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
     events.forEach((evt) => window.addEventListener(evt, handleActivity));
 
-    // 2. Intervalo de verificación de AFK e informe Heartbeat al servidor (cada 30 seg)
     const heartbeatInterval = setInterval(() => {
       const timeInactive = Date.now() - lastActivityRef.current;
       const isAfk = timeInactive > idleTimeoutMinutes * 60 * 1000;
@@ -60,7 +58,6 @@ export function useUserPresence(token, isLogged) {
 
       setUserState(currentStatus);
 
-      // Notificar al backend el estado actual
       apiFetch('/presence/heartbeat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,7 +65,6 @@ export function useUserPresence(token, isLogged) {
       }).catch(() => {});
     }, 30000);
 
-    // 3. Manejar cierre de pestaña / navegador mediante navigator.sendBeacon
     const handleUnload = () => {
       const url = '/api/presence/offline';
       const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
