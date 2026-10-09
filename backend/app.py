@@ -2135,7 +2135,7 @@ def device_actions():
     tenant_id = claims.get('tenant_id')
     user_id = claims.get('id')
 
-    # --- MANEJO DE POST ---
+    # --- POST HANDLING ---
     if request.method == 'POST':
         data = request.get_json() or {}
         action_type = data.get('action_type')
@@ -2150,14 +2150,15 @@ def device_actions():
         user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
 
         try:
+            # FIX: Changed tenant_id cast from %s::uuid to %s (INTEGER)
             new_action = db_query(
                 '''
                 INSERT INTO device_actions 
                 (tenant_id, session_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
-                VALUES (%s::uuid, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 ''',
-                (str(tenant_id), user_id, ip_addr, user_agent, action_type, entity_type, entity_id, details, now_utc()),
+                (int(tenant_id), user_id, ip_addr, user_agent, action_type, entity_type, entity_id, details, now_utc()),
                 commit=True,
                 fetchone=True
             )
@@ -2168,32 +2169,30 @@ def device_actions():
             print(f"[ERROR /api/device_actions POST]: {str(e)}")
             return jsonify({'message': f'Error logging action: {str(e)}'}), 500
 
-    # --- VERIFICACIÓN DE PERMISOS PARA GET ---
+    # --- GET PERMISSION CHECK ---
     user_role = claims.get('role')
     if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    # --- PARSEO SEGURO DE PAGINACIÓN ---
+    # --- PAGINATION ---
     try:
         page = max(1, int(request.args.get('page', 1)))
         per_page = max(1, min(100, int(request.args.get('per_page', 25))))
     except (ValueError, TypeError):
         page, per_page = 1, 25
 
-    # --- EJECUCIÓN DE GET ---
+    # --- GET EXECUTION ---
     try:
         where_sql, params = _build_device_actions_query(tenant_id)
 
-        # 1. Obtener conteo total
         count_sql = f'''
             SELECT COUNT(*) as total 
             FROM device_actions da 
-            LEFT JOIN users u ON u.id::text = da.user_id::text 
+            LEFT JOIN users u ON u.id = da.user_id 
             WHERE {where_sql}
         '''
         total_row = db_query(count_sql, tuple(params), fetchone=True)
         
-        # Mapeo defensivo del total según la estructura retornada por db_query
         if isinstance(total_row, dict):
             total = total_row.get('total', 0)
         elif isinstance(total_row, (list, tuple)) and len(total_row) > 0:
@@ -2201,14 +2200,13 @@ def device_actions():
         else:
             total = 0
 
-        # 2. Consulta paginada
         offset = (page - 1) * per_page
         query_sql = f'''
             SELECT da.id, da.session_id, da.user_id, u.username, u.role as user_role, 
                    da.ip_address, da.user_agent, da.action_type, da.entity_type, 
                    da.entity_id, da.details, da.created_at
             FROM device_actions da
-            LEFT JOIN users u ON u.id::text = da.user_id::text
+            LEFT JOIN users u ON u.id = da.user_id
             WHERE {where_sql}
             ORDER BY da.created_at DESC
             LIMIT %s OFFSET %s
@@ -2217,10 +2215,8 @@ def device_actions():
         query_params = list(params) + [per_page, offset]
         rows = db_query(query_sql, tuple(query_params), fetchall=True) or []
 
-        # 3. Serialización
         items = []
         for row in rows:
-            # Convertir a diccionario si retorna un RowProxy o Tuple
             row_dict = dict(row) if hasattr(row, '_asdict') or isinstance(row, dict) else dict(zip([
                 'id', 'session_id', 'user_id', 'username', 'user_role', 
                 'ip_address', 'user_agent', 'action_type', 'entity_type', 
@@ -2239,12 +2235,10 @@ def device_actions():
         }), 200
 
     except Exception as e:
-        # Registrar traza completa en logs de Render
         import traceback
         print(f"[ERROR /api/device_actions GET]: {str(e)}")
         traceback.print_exc()
         return jsonify({'message': f'Error fetching device actions: {str(e)}'}), 500
-
 
 def _build_device_actions_query(tenant_id):
     """

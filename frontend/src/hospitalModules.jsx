@@ -2823,35 +2823,40 @@ export function Appointments() {
   useEffect(() => { if (showForm) searchPatients(debouncedPatientSearch) }, [debouncedPatientSearch, showForm, searchPatients])
 
   // Verificador de solapamientos
-  const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
-    if (newEndTimeStr) {
-      const parts = newEndTimeStr.split(':')
-      const eh = Number(parts[0])
-      const em = Number(parts[1])
-      const startDateObj = new Date(newDateStr)
-      startDateObj.setHours(eh, em, 0, 0)
-      newEnd = startDateObj.getTime()
+  // Fixed checkOverlap in Appointments
+const checkOverlap = (newDateStr, newEndTimeStr, excludeId = null) => {
+  if (!newDateStr) return false;
+  const newStart = new Date(newDateStr).getTime();
+  let newEnd = newStart + 30 * 60000;
+
+  if (newEndTimeStr) {
+    const parts = newEndTimeStr.split(':');
+    const eh = Number(parts[0]);
+    const em = Number(parts[1]);
+    const startDateObj = new Date(newDateStr);
+    startDateObj.setHours(eh, em, 0, 0);
+    newEnd = startDateObj.getTime();
+  }
+
+  return appointments.some(app => {
+    if (excludeId && app.id === excludeId) return false;
+    if (!app.appointment_date) return false;
+
+    const appStart = new Date(app.appointment_date).getTime();
+    let appEnd = appStart + 30 * 60000;
+    if (app.end_time) {
+      const [eh, em] = app.end_time.split(':').map(Number);
+      const endDateObj = new Date(app.appointment_date);
+      endDateObj.setHours(eh, em, 0, 0);
+      appEnd = endDateObj.getTime();
     }
 
-    return appointments.some(app => {
-      if (excludeId && app.id === excludeId) return false
-      if (!app.appointment_date) return false
+    const sameDay = new Date(newDateStr).toDateString() === new Date(app.appointment_date).toDateString();
+    if (!sameDay) return false;
 
-      const appStart = new Date(app.appointment_date).getTime()
-      let appEnd = appStart + 30 * 60000
-      if (app.end_time) {
-        const [eh, em] = app.end_time.split(':').map(Number)
-        const endDateObj = new Date(app.appointment_date)
-        endDateObj.setHours(eh, em, 0, 0)
-        appEnd = endDateObj.getTime()
-      }
-
-      const sameDay = new Date(newDateStr).toDateString() === new Date(app.appointment_date).toDateString()
-      if (!sameDay) return false
-
-      return (newStart < appEnd && newEnd > appStart)
-    })
-  }
+    return (newStart < appEnd && newEnd > appStart);
+  });
+};
 
   const submit = async event => {
     event.preventDefault()
