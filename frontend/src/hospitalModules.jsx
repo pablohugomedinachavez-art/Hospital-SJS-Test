@@ -4612,115 +4612,9 @@ export function Dashboard() {
     }
   }, [days, notify]);
 
-// 1. Efecto de carga en React para obtener la información de las métricas
-useEffect(() => {
-  const fetchMetricsData = async () => {
-    try:
-      const res = await fetch('/api/metrics', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMetrics(data); // Almacena el objeto completo devuelto por /api/metrics
-      }
-    } catch (err) {
-      console.error("Error cargando métricas:", err);
-    }
-  };
-
-  fetchMetricsData();
-}, []);
-
-{/* 2. GRILLA DEL DASHBOARD LEYENDO DE LA API/METRICS */}
-<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-  
-  {/* EQUIPOS FILTRADOS vs REGISTROS TOTALES */}
-  <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Equipos Filtrados</span>
-      <Monitor size={16} className="text-blue-400" />
-    </div>
-    <div className="my-2">
-      <span className="text-3xl font-black text-emerald-400 tracking-tight">
-        {filteredDevices?.length || 0}
-      </span>
-      <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
-        <CheckCircle2 size={10} /> Registros coincidentes
-      </div>
-    </div>
-    <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-      Métricas Hardware registradas: {metrics?.hardware_metrics?.length || 0} componentes
-    </div>
-    <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
-  </div>
-
-  {/* CONSULTAS Y REPORTES */}
-  <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Consultas Clínicas</span>
-      <CalendarIcon size={16} className="text-indigo-400" />
-    </div>
-    <div className="my-2">
-      <span className="text-3xl font-black text-indigo-400 tracking-tight">
-        {reports?.summary?.consultations ?? 0}
-      </span>
-      <div className="text-[10px] text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
-        Últimos {days || 30} días
-      </div>
-    </div>
-    <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-      Total Pacientes: {reports?.summary?.patients ?? 0}
-    </div>
-    <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
-  </div>
-
-  {/* ALERTAS ACTIVAS */}
-  <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Alertas Activas</span>
-      <ShieldAlert size={16} className="text-amber-400" />
-    </div>
-    <div className="my-2">
-      <span className="text-3xl font-black text-amber-400 tracking-tight">
-        {reports?.summary?.active_alerts ?? 0}
-      </span>
-      <div className="text-[10px] text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
-        Requieren atención
-      </div>
-    </div>
-    <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-      Incidencias no resueltas
-    </div>
-    <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
-  </div>
-
-  {/* USUARIOS ACTIVOS Y DURACIÓN DE SESIÓN (API /api/metrics) */}
-  <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
-      <Wifi size={16} className="text-sky-400" />
-    </div>
-    <div className="my-2">
-      <span className="text-3xl font-black text-sky-400 tracking-tight">
-        {metrics?.active_users ?? 0}
-      </span>
-      <div className="text-[10px] text-sky-300 font-semibold mt-1 bg-sky-500/10 px-2 py-0.5 rounded w-fit">
-        Últimas 24 hrs
-      </div>
-    </div>
-    <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-      Prom. Sesión: {
-        metrics?.avg_session_seconds 
-          ? `${Math.floor(metrics.avg_session_seconds / 60)}m ${Math.round(metrics.avg_session_seconds % 60)}s` 
-          : '0s'
-      }
-    </div>
-    <div className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500/40"></div>
-  </div>
-
-</div>
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   // --- Opciones Dinámicas extraídas de public.devices ---
   const availableDeviceTypes = useMemo(() => {
@@ -4872,27 +4766,30 @@ useEffect(() => {
           <div className="flex flex-col gap-6 w-full">
 
             {/* GRILLA DE METRICAS CONECTADA A LA BASE DE DATOS Y CÁLCULOS REALES */}
+             {/* 2. GRILLA DEL DASHBOARD LEYENDO DE LA API /api/metrics Y /api/reports */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
-                {/* 1. EQUIPOS FILTRADOS vs TOTAL EN BD */}
+                {/* EQUIPOS FILTRADOS vs REGISTROS TOTALES */}
                 <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Equipos Filtrados</span>
                     <Monitor size={16} className="text-blue-400" />
                   </div>
                   <div className="my-2">
-                    <span className="text-3xl font-black text-emerald-400 tracking-tight">{filteredDevices.length}</span>
+                    <span className="text-3xl font-black text-emerald-400 tracking-tight">
+                      {filteredDevices?.length || 0}
+                    </span>
                     <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
                       <CheckCircle2 size={10} /> Registros coincidentes
                     </div>
                   </div>
                   <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Total en BD: {devices.length} dispositivos ({devices.length > 0 ? Math.round((filteredDevices.length / devices.length) * 100) : 0}% filtrado)
+                    Métricas Hardware registradas: {metrics?.hardware_metrics?.length || 0} componentes
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
                 </div>
 
-                {/* 2. CONSULTAS CLÍNICAS Y PROMEDIO POR PACIENTE */}
+                {/* CONSULTAS Y REPORTES */}
                 <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Consultas Clínicas</span>
@@ -4907,16 +4804,12 @@ useEffect(() => {
                     </div>
                   </div>
                   <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Total Pacientes: {reports?.summary?.patients ?? 0} | Promedio: {
-                      (reports?.summary?.patients ?? 0) > 0 
-                        ? ((reports?.summary?.consultations ?? 0) / reports.summary.patients).toFixed(1) 
-                        : 0
-                    } cons/paciente
+                    Total Pacientes: {reports?.summary?.patients ?? 0}
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
                 </div>
 
-                {/* 3. ALERTAS ACTIVAS / NO RESUELTAS */}
+                {/* ALERTAS ACTIVAS */}
                 <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Alertas Activas</span>
@@ -4927,17 +4820,16 @@ useEffect(() => {
                       {reports?.summary?.active_alerts ?? 0}
                     </span>
                     <div className="text-[10px] text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
-                      Requieren atención inmediata
+                      Requieren atención
                     </div>
                   </div>
                   <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Incidencias en servidor (is_resolved = 0)
+                    Incidencias no resueltas
                   </div>
-                  
                   <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
                 </div>
 
-                {/* 4. USUARIOS ACTIVOS Y PROMEDIO DE SESIÓN */}
+                {/* USUARIOS ACTIVOS Y DURACIÓN DE SESIÓN */}
                 <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
@@ -4948,13 +4840,13 @@ useEffect(() => {
                       {metrics?.active_users ?? 0}
                     </span>
                     <div className="text-[10px] text-sky-300 font-semibold mt-1 bg-sky-500/10 px-2 py-0.5 rounded w-fit">
-                      Sesiones concurrentes
+                      Últimas 24 hrs
                     </div>
                   </div>
                   <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Promedio sesión: {
+                    Prom. Sesión: {
                       metrics?.avg_session_seconds 
-                        ? Math.floor(metrics.avg_session_seconds / 60) + 'm ' + Math.round(metrics.avg_session_seconds % 60) + 's' 
+                        ? `${Math.floor(metrics.avg_session_seconds / 60)}m ${Math.round(metrics.avg_session_seconds % 60)}s` 
                         : '0s'
                     }
                   </div>
