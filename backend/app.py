@@ -1664,15 +1664,91 @@ def reports_series():
 # ==========================================
 # ENDPOINT: MÉTRICAS DETALLADAS CON FILTROS
 # ==========================================
+# ==========================================
+# ENDPOINT: MÉTRICAS PRINCIPALES (Resuelve el 404)
+# ==========================================
+@app.route('/api/metrics', methods=['GET'])
+@token_required
+def get_dashboard_metrics():
+    print("\n" + "="*50)
+    print("[DEBUG METRICS] Executing /api/metrics endpoint...")
+    try:
+        claims = get_current_user()
+        tenant_id = claims.get('tenant_id')
+        print(f"[DEBUG METRICS] Authenticated User Claims: {claims}")
+        print(f"[DEBUG METRICS] Target Tenant ID: {tenant_id}")
+
+        # 1. Dispositivos Registrados
+        devices_query = "SELECT COUNT(*) as count FROM devices WHERE tenant_id = %s"
+        devices_res = db_query(devices_query, (tenant_id,), fetchone=True) or {'count': 0}
+        active_devices = devices_query_res = devices_res.get('count', 0) if isinstance(devices_res, dict) else devices_res[0]
+
+        # 2. Usuarios / Sesiones Activas
+        users_query = """
+            SELECT COUNT(DISTINCT user_id) as count 
+            FROM sessions 
+            WHERE tenant_id = %s AND last_seen >= NOW() - INTERVAL '1 day'
+        """
+        users_res = db_query(users_query, (tenant_id,), fetchone=True) or {'count': 0}
+        active_users = users_res.get('count', 0) if isinstance(users_res, dict) else users_res[0]
+
+        # Fallback si no hay sesiones en la tabla pero existen usuarios
+        if active_users == 0:
+            fallback_users_query = "SELECT COUNT(*) as count FROM users WHERE tenant_id = %s"
+            fb_res = db_query(fallback_users_query, (tenant_id,), fetchone=True) or {'count': 0}
+            active_users = fb_res.get('count', 0) if isinstance(fb_res, dict) else fb_res[0]
+            print(f"[DEBUG METRICS] Sessions empty. Applied fallback users count: {active_users}")
+
+        # 3. Alertas Activas
+        alerts_query = "SELECT COUNT(*) as count FROM alerts WHERE tenant_id = %s AND is_resolved = false"
+        alerts_res = db_query(alerts_query, (tenant_id,), fetchone=True) or {'count': 0}
+        active_alerts = alerts_res.get('count', 0) if isinstance(alerts_res, dict) else alerts_res[0]
+
+        payload = {
+            'active_devices': active_devices,
+            'active_users': active_users,
+            'active_alerts': active_alerts
+        }
+
+        print(f"[DEBUG METRICS] Successfully computed payload: {payload}")
+        print("="*50 + "\n")
+        return jsonify(payload), 200
+
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"[DEBUG METRICS CRITICAL ERROR]: {str(e)}", file=sys.stderr)
+        print(f"[DEBUG METRICS TRACEBACK]:\n{error_trace}", file=sys.stderr)
+        print("="*50 + "\n")
+        return jsonify({
+            'active_devices': 0,
+            'active_users': 0,
+            'active_alerts': 0,
+            'error': str(e)
+        }), 200
+
+
+# ==========================================
+# ENDPOINT: MÉTRICAS DETALLADAS CON FILTROS Y DEBUG
+# ==========================================
 @app.route('/api/metrics/details', methods=['GET'])
 @token_required
 def get_metric_details():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-    metric_type = request.args.get('type') # 'devices', 'consultations', 'alerts', 'users'
-    search = request.args.get('q', '').strip() # Parámetro para filtros de búsqueda
-
+    print("\n" + "="*50)
+    print("[DEBUG METRICS DETAILS] Incoming request to /api/metrics/details")
     try:
+        claims = get_current_user()
+        tenant_id = claims.get('tenant_id')
+        metric_type = request.args.get('type')
+        search = request.args.get('q', '').strip()
+
+        print(f"[DEBUG METRICS DETAILS] Tenant ID: {tenant_id}")
+        print(f"[DEBUG METRICS DETAILS] Metric Type: '{metric_type}'")
+        print(f"[DEBUG METRICS DETAILS] Search Query: '{search}'")
+
+        if not metric_type:
+            print("[DEBUG METRICS DETAILS WARNING]: Parameter 'type' is missing")
+            return jsonify({'message': 'Parámetro "type" es requerido'}), 400
+
         if metric_type == 'devices':
             sql = '''
                 SELECT d.id, d.name, d.type, d.status, d.ip_address, d.user_agent, 
@@ -1687,7 +1763,6 @@ def get_metric_details():
                 term = f"%{search}%"
                 params.extend([term, term, term, term])
             sql += " ORDER BY d.id DESC"
-            rows = db_query(sql, tuple(params), fetchall=True)
 
         elif metric_type == 'consultations':
             sql = '''
@@ -1703,7 +1778,6 @@ def get_metric_details():
                 term = f"%{search}%"
                 params.extend([term, term, term, term])
             sql += " ORDER BY c.id DESC"
-            rows = db_query(sql, tuple(params), fetchall=True)
 
         elif metric_type == 'alerts':
             sql = '''
@@ -1719,10 +1793,8 @@ def get_metric_details():
                 term = f"%{search}%"
                 params.extend([term, term, term])
             sql += " ORDER BY a.created_at DESC"
-            rows = db_query(sql, tuple(params), fetchall=True)
 
         elif metric_type == 'users':
-            # Muestra los usuarios registrados y combina las sesiones activas o históricas
             sql = '''
                 SELECT DISTINCT ON (u.id)
                        s.id as session_id, u.id as user_id, u.username, u.role, 
@@ -1742,14 +1814,25 @@ def get_metric_details():
                 term = f"%{search}%"
                 params.extend([term, term, term])
             sql += " ORDER BY u.id, s.last_seen DESC NULLS LAST"
-            rows = db_query(sql, tuple(params), fetchall=True)
 
         else:
-            return jsonify({'message': 'Tipo de métrica no válido'}), 400
+            print(f"[DEBUG METRICS DETAILS WARNING]: Invalid metric_type '{metric_type}'")
+            return jsonify({'message': f'Tipo de métrica no válido: {metric_type}'}), 400
 
-        return jsonify(rows or []), 200
+        print(f"[DEBUG METRICS DETAILS SQL Query]:\n{sql}")
+        print(f"[DEBUG METRICS DETAILS SQL Params]: {params}")
+
+        rows = db_query(sql, tuple(params), fetchall=True) or []
+        print(f"[DEBUG METRICS DETAILS] Query returned {len(rows)} row(s)")
+        print("="*50 + "\n")
+
+        return jsonify(rows), 200
 
     except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"[DEBUG METRICS DETAILS CRITICAL ERROR]: {str(e)}", file=sys.stderr)
+        print(f"[DEBUG METRICS DETAILS TRACEBACK]:\n{error_trace}", file=sys.stderr)
+        print("="*50 + "\n")
         return jsonify({'message': f'Error recuperando detalles: {str(e)}'}), 500
 
 
