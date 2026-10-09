@@ -4559,73 +4559,86 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
 export function Dashboard() {
-  // State from old component
+  // --- Estados para Datos Reales de API/BD ---
   const [reports, setReports] = useState(null);
   const [series, setSeries] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [areas, setAreas] = useState([]);
+  const [devices, setDevices] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [users, setUsers] = useState([]);
+  
+  // --- Estados para Filtros Operativos ---
+  const [selectedLocation, setSelectedLocation] = useState('Todas las sedes');
+  const [selectedDevice, setSelectedDevice] = useState('Todos los dispositivos');
   const [days, setDays] = useState(30);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // --- Estados UI ---
   const [loading, setLoading] = useState(true);
   const [toast, notify, clearToast] = useToast();
 
-  // State & mock data from new component
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('Todas las sedes');
-  const [selectedDevice, setSelectedDevice] = useState('Todos los dispositivos');
-  
-  const [users, setUsers] = useState([
-    { id: 5, username: 'int_test_user', email: 'test@hospital.com', role: 'Usuario', status: 'Activo' },
-    { id: 4, username: 'admin', email: 'admin@hospital.com', role: 'Administrador', status: 'Activo' },
-    { id: 2, username: 'admin_user', email: 'sec@hospital.com', role: 'Administrador', status: 'Activo' },
-  ]);
-
-  const load = useCallback(async () => {
+  // --- Carga de Datos desde API ---
+  const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [reportsRes, seriesRes, metricsRes, areasRes] = await Promise.all([
+      const [reportsRes, seriesRes, metricsRes, areasRes, devicesRes, locationsRes, usersRes] = await Promise.all([
         apiFetch('/reports'),
         apiFetch(`/reports/series?days=${days}`),
         apiFetch('/metrics'),
         apiFetch('/dashboard/areas'),
+        apiFetch('/devices'),
+        apiFetch('/locations'),
+        apiFetch('/users')
       ]);
-      if (!reportsRes.ok || !seriesRes.ok || !metricsRes.ok || !areasRes.ok) {
-        throw new Error('No se pudieron actualizar todos los indicadores');
+
+      if (reportsRes.ok) setReports(await reportsRes.json());
+      if (seriesRes.ok) setSeries(await seriesRes.json() || []);
+      if (metricsRes.ok) setMetrics(await metricsRes.json());
+      if (areasRes.ok) setAreas(await areasRes.json() || []);
+      
+      if (devicesRes.ok) {
+        const devData = await devicesRes.json();
+        setDevices(Array.isArray(devData) ? devData : (devData.items || []));
       }
-      setReports(await reportsRes.json());
-      setSeries(await seriesRes.json() || []);
-      setMetrics(await metricsRes.json());
-      setAreas(await areasRes.json() || []);
+      
+      if (locationsRes.ok) {
+        const locData = await locationsRes.json();
+        setLocations(Array.isArray(locData) ? locData : (locData.items || []));
+      }
+
+      if (usersRes.ok) {
+        const userData = await usersRes.json();
+        setUsers(Array.isArray(userData) ? userData : (userData.items || []));
+      }
+
     } catch (error) {
-      notify(error.message, 'error');
+      notify(error.message || 'Error al conectar con la base de datos', 'error');
     } finally {
       setLoading(false);
     }
   }, [days, notify]);
 
-  useEffect(() => { load(); }, [load]);
+  // Recargar datos al cambiar el periodo de días o al montar el componente
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
-  // ============================================================
-  // FUNCIONES DE EXPORTACIÓN (Old + New visual triggers)
-  // ============================================================
+  // --- Filtrado en Tiempo Real de Dispositivos y Datos ---
+  const filteredDevices = useMemo(() => {
+    return devices.filter(dev => {
+      const matchesLocation = selectedLocation === 'Todas las sedes' || 
+        String(dev.location_id) === String(selectedLocation) ||
+        dev.location_name === selectedLocation;
 
-  const exportJSON = () => {
-    try {
-      const exportData = { reports, series, metrics, areas, exportedAt: new Date().toISOString() };
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dashboard_report_${days}d.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      notify('Exportado a JSON exitosamente', 'success');
-    } catch (e) {
-      notify('Error al exportar en JSON', 'error');
-    }
-  };
+      const matchesType = selectedDevice === 'Todos los dispositivos' ||
+        dev.type?.toLowerCase() === selectedDevice.toLowerCase();
 
+      return matchesLocation && matchesType;
+    });
+  }, [devices, selectedLocation, selectedDevice]);
+
+  // --- Funciones de Exportación ---
   const exportCSV = () => {
     try {
       let csvContent = "\uFEFFDía,Pacientes,Consultas\n";
@@ -4662,44 +4675,13 @@ export function Dashboard() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-      notify('Archivo Excel (XLSX) del dashboard generado correctamente', 'success');
+      notify('Archivo Excel generado correctamente', 'success');
     } catch (e) {
       notify(e.message || 'Error al exportar a Excel', 'error');
     }
   };
 
-  const exportPDF = () => {
-    try {
-      const styleId = 'pdf-print-styles';
-      let styleElement = document.getElementById(styleId);
-
-      if (!styleElement) {
-        styleElement = document.createElement('style');
-        styleElement.id = styleId;
-        document.head.appendChild(styleElement);
-      }
-
-      styleElement.innerHTML = `
-        @media print {
-          body * { visibility: hidden; }
-          #printable-dashboard, #printable-dashboard * { visibility: visible; }
-          #printable-dashboard {
-            position: absolute; left: 0; top: 0;
-            width: 100% !important;
-            background-color: #090d16 !important;
-            color: #f8fafc !important;
-            padding: 1rem !important;
-          }
-          .no-print { display: none !important; }
-        }
-      `;
-
-      window.print();
-      notify('Reporte PDF listo para guardar o imprimir', 'success');
-    } catch (e) {
-      notify('Error al preparar el reporte PDF', 'error');
-    }
-  };
+  const exportPDF = () => window.print();
 
   return (
     <div className="dashboard-wrapper min-h-screen w-full bg-[#090d16] text-slate-100 p-4 sm:p-6 lg:p-8 box-border">
@@ -4730,11 +4712,10 @@ export function Dashboard() {
               <button title="Exportar a CSV" onClick={exportCSV} className="px-3 py-1.5 text-xs font-semibold text-sky-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">CSV</button>
               <button title="Exportar a Excel" onClick={exportExcel} className="px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">Excel</button>
               <button title="Exportar a PDF" onClick={exportPDF} className="px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">PDF</button>
-              <button title="Exportar a JSON" onClick={exportJSON} className="px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">JSON</button>
             </div>
 
             <button
-              onClick={load}
+              onClick={loadDashboardData}
               disabled={loading}
               className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 rounded-xl py-2 px-4 text-xs font-medium flex items-center gap-2 cursor-pointer transition-all shadow-sm"
             >
@@ -4743,7 +4724,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* FILTROS OPERATIVOS AVANZADOS */}
+        {/* FILTROS OPERATIVOS AVANZADOS (CONECTADOS A API Y ESTADOS REALES) */}
         <div className="no-print bg-slate-900/40 border border-slate-800/80 p-4 rounded-2xl">
           <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
             <ShieldCheck size={15} className="text-blue-400" />
@@ -4751,6 +4732,7 @@ export function Dashboard() {
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Filtro por Sede / Ubicación dinámico */}
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
               <div className="relative">
@@ -4759,14 +4741,16 @@ export function Dashboard() {
                   onChange={(e) => setSelectedLocation(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
                 >
-                  <option>Todas las sedes</option>
-                  <option>Sede Central</option>
-                  <option>Clínica Norte</option>
+                  <option value="Todas las sedes">Todas las sedes</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                  ))}
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
+            {/* Filtro por Tipo de Dispositivo */}
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
               <div className="relative">
@@ -4775,14 +4759,16 @@ export function Dashboard() {
                   onChange={(e) => setSelectedDevice(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
                 >
-                  <option>Todos los dispositivos</option>
-                  <option>Estaciones de Trabajo</option>
-                  <option>Servidores Core</option>
+                  <option value="Todos los dispositivos">Todos los dispositivos</option>
+                  <option value="pc">Estaciones de Trabajo (PC)</option>
+                  <option value="laptop">Laptops</option>
+                  <option value="server">Servidores Core</option>
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
+            {/* Filtro por Periodo de Análisis */}
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
               <div className="relative">
@@ -4801,80 +4787,74 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* NOTIFICACIÓN TOAST */}
         <Toast toast={toast} onClose={clearToast} />
 
         {loading ? (
           <div className="py-16 text-center text-slate-400 text-sm">
-            Actualizando indicadores del sistema…
+            Actualizando indicadores del sistema desde la base de datos…
           </div>
         ) : (
           <div className="flex flex-col gap-6 w-full">
 
-            {/* GRILLA SUPERIOR DE MÉTRICAS / KPIS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* GRILLA SUPERIOR DE MÉTRICAS CON DATOS REALES DE LA API */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
-              {/* Disponibilidad TI */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+              {/* Total Dispositivos Filtrados */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Disponibilidad TI</span>
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Equipos en Red</span>
                   <Monitor size={16} className="text-blue-400" />
                 </div>
                 <div className="my-2">
-                  <span className="text-3xl font-black text-emerald-400 tracking-tight">99.8%</span>
+                  <span className="text-3xl font-black text-emerald-400 tracking-tight">{filteredDevices.length}</span>
                   <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
-                    <CheckCircle2 size={10} /> +0.2% vs sem. previa
+                    <CheckCircle2 size={10} /> Dispositivos monitoreados
                   </div>
                 </div>
                 <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Estado óptimo de servidores
+                  Total general: {devices.length} dispositivos
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
               </div>
 
-              {/* Resolución Alertas */}
-                <div 
-                  className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-amber-500/40 transition-all cursor-pointer" 
-                  onClick={() => window.location.hash = '/alerts'}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">
-                      Resolución Alertas
-                    </span>
-                    <AlertTriangle size={16} className="text-amber-400" />
-                  </div>
-                  <div className="my-2">
-                    <span className="text-3xl font-black text-amber-400 tracking-tight">12</span>
-                    <div className="text-[10px] text-amber-400 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
-                      Atención prioritaria
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                    Media de respuesta: 14m
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
-                </div>
-
-              {/* Citas Programadas */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+              {/* Consultas Realizadas */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Citas / Consultas</span>
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Consultas Clínicas</span>
                   <CalendarIcon size={16} className="text-indigo-400" />
                 </div>
                 <div className="my-2">
                   <span className="text-3xl font-black text-indigo-400 tracking-tight">{reports?.summary?.consultations ?? 0}</span>
                   <div className="text-[10px] text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
-                    Últimos {days} días
+                    Periodo: últimos {days} días
                   </div>
                 </div>
                 <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Total pacientes: {reports?.summary?.patients ?? 0}
+                  Total Pacientes: {reports?.summary?.patients ?? 0}
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
               </div>
 
+              {/* Alertas Activas */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Alertas Activas</span>
+                  <ShieldCheck size={16} className="text-amber-400" />
+                </div>
+                <div className="my-2">
+                  <span className="text-3xl font-black text-amber-400 tracking-tight">{reports?.summary?.active_alerts ?? 0}</span>
+                  <div className="text-[10px] text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
+                    Requiere atención
+                  </div>
+                </div>
+                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
+                  Incidencias en servidor
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
+              </div>
+
               {/* Usuarios Activos */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
                   <Monitor size={16} className="text-sky-400" />
@@ -4882,43 +4862,25 @@ export function Dashboard() {
                 <div className="my-2">
                   <span className="text-3xl font-black text-sky-400 tracking-tight">{metrics?.active_users ?? 0}</span>
                   <div className="text-[10px] text-sky-300 font-semibold mt-1 bg-sky-500/10 px-2 py-0.5 rounded w-fit">
-                    Sesiones recientes
+                    Sesiones concurrentes
                   </div>
                 </div>
                 <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Sesión media: {Math.round(metrics?.avg_session_seconds || 0)}s
+                  Duración promedio: {Math.round(metrics?.avg_session_seconds || 0)}s
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500/40"></div>
               </div>
 
-              {/* Métrica predictiva / adicional */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group hover:border-slate-700 transition-all">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Predicción Carga</span>
-                  <ShieldCheck size={16} className="text-purple-400" />
-                </div>
-                <div className="my-2">
-                  <span className="text-3xl font-black text-purple-400 tracking-tight">Estable</span>
-                  <div className="text-[10px] text-purple-300 font-semibold mt-1 bg-purple-500/10 px-2 py-0.5 rounded w-fit">
-                    IA Monitor
-                  </div>
-                </div>
-                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Sin anomalías de red
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-purple-500/40"></div>
-              </div>
-
             </div>
 
-            {/* SECCIÓN INTERMEDIA: GRÁFICOS Y DIRECTORIO DE USUARIOS */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* GRÁFICOS CONEXIÓN A /reports/series Y /dashboard/areas */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* GRÁFICO 1: TENDENCIA DE PACIENTES Y CONSULTAS */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-sm">
+              {/* GRÁFICO 1: TENDENCIA REAL */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Tendencia de Pacientes / Consultas</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Evolución diaria de atención clínica</p>
+                  <h3 className="text-sm font-bold text-white">Tendencia de Pacientes y Consultas</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Evolución en los últimos {days} días (API /reports/series)</p>
                 </div>
                 <div className="pt-2">
                   <ResponsiveContainer width="100%" height={240}>
@@ -4934,11 +4896,11 @@ export function Dashboard() {
                 </div>
               </div>
 
-              {/* GRÁFICO 2: DISPOSITIVOS Y ALERTAS POR ÁREA */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4 shadow-sm">
+              {/* GRÁFICO 2: ÁREAS Y DISPOSITIVOS */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white">Dispositivos y Alertas por Área</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Distribución operativa de infraestructura</p>
+                  <h3 className="text-sm font-bold text-white">Infraestructura y Alertas por Área</h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Distribución de red (API /dashboard/areas)</p>
                 </div>
                 <div className="pt-2">
                   <ResponsiveContainer width="100%" height={240}>
@@ -4951,64 +4913,6 @@ export function Dashboard() {
                       <Bar dataKey="active_alerts" fill="#ef4444" radius={[4, 4, 0, 0]} name="Alertas" />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* DIRECTORIO DE USUARIOS INTEGRADO */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between shadow-sm">
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div>
-                      <h3 className="text-sm font-bold text-white">Directorio de Usuarios</h3>
-                      <p className="text-[11px] text-slate-400">{users.length} cuentas con acceso activo.</p>
-                    </div>
-                  </div>
-
-                  <div className="relative mb-3">
-                    <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
-                    <input
-                      type="text"
-                      placeholder="    Buscar usuario..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs focus:outline-none focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="w-full overflow-y-auto max-h-[175px] pr-1">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-800 text-slate-400 text-[10px] uppercase">
-                          <th className="pb-2 text-left">Usuario / Rol</th>
-                          <th className="pb-2 text-right">Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/60">
-                        {users
-                          .filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase()))
-                          .map((user) => (
-                            <tr key={user.id} className="hover:bg-slate-800/30 transition-colors">
-                              <td className="py-2 flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-400 flex items-center justify-center font-bold text-[10px] shrink-0 border border-indigo-500/20">
-                                  {user.username.charAt(0).toUpperCase()}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="font-semibold text-slate-200 text-xs truncate">{user.username}</div>
-                                  <div className="text-[9px] text-slate-400 truncate">{user.role}</div>
-                                </div>
-                              </td>
-                              <td className="py-2 text-right whitespace-nowrap">
-                                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" title="Activo"></span>
-                              </td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                
-                <div className="text-[10px] text-slate-500 text-center pt-3 border-t border-slate-800/60 mt-2">
-                  Multi-tenant • ISO 27001 Secure
                 </div>
               </div>
 
