@@ -1804,11 +1804,14 @@ def get_metric_details():
                        COALESCE(s.ip_address, '127.0.0.1') as ip_address, 
                        s.created_at as session_start, 
                        COALESCE(s.last_seen, u.created_at) as last_seen,
-                       COALESCE(da.action_type, 'Conectado / Navegación') as action_type,
-                       COALESCE(da.details, 'Sesión Activa de Usuario') as session_topic
+                       CASE 
+                           WHEN s.last_seen < NOW() - INTERVAL '2 minutes' THEN 'Desconectado / Inactivo'
+                           WHEN s.status = 'afk' THEN 'En Espera (AFK)'
+                           WHEN s.status = 'online' THEN 'Conectado / En línea'
+                           ELSE 'Inactivo'
+                       END as session_topic
                 FROM users u
                 LEFT JOIN sessions s ON u.id = s.user_id AND s.tenant_id = u.tenant_id
-                LEFT JOIN device_actions da ON da.user_id = u.id AND da.tenant_id = u.tenant_id
                 WHERE u.tenant_id = %s
             '''
             params = [tenant_id]
@@ -2576,6 +2579,87 @@ def upload_chat_media():
         traceback.print_exc()
         return jsonify({'message': f'Error al subir archivo: {str(e)}'}), 500
 
+
+# ==========================================
+# ENDPOINT: HEARTBEAT / PRESENCIA DE USUARIO
+# ==========================================
+@app.route('/api/presence/heartbeat', methods=['POST'])
+@token_required
+def presence_heartbeat():
+    claims = get_current_user()
+    user_id = claims.get('id')
+    tenant_id = claims.get('tenant_id')
+    data = request.get_json(silent=True) or {}
+    
+    # Estado enviado por la aplicación frontend: 'online' o 'afk'
+    status = data.get('status', 'online')
+    now = now_utc()
+
+    try:
+        # Actualizar última actividad en la sesión del usuario
+        db_query(
+            '''
+            UPDATE sessions 
+            SET last_seen = %s, status = %s
+            WHERE user_id = %s AND tenant_id = %s 
+              AND id = (SELECT max(id) FROM sessions WHERE user_id = %s)
+            ''',
+            (now, status, user_id, tenant_id, user_id),
+            commit=True
+        )
+
+        # Actualizar estado global en la tabla user_presence
+        db_query(
+            '''
+            INSERT INTO user_presence (user_id, status, last_seen)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (user_id) 
+            DO UPDATE SET status = EXCLUDED.status, last_seen = EXCLUDED.last_seen
+            ''',
+            (user_id, status, now),
+            commit=True
+        )
+        return jsonify({'status': 'ok', 'user_status': status}), 200
+    except Exception as e:
+        return jsonify({'message': f'Error en heartbeat: {str(e)}'}), 500
+
+
+# ==========================================
+# ENDPOINT: MARCAR DESCONEXIÓN AL CERRAR PESTAÑA / LOGOUT
+# ==========================================
+@app.route('/api/presence/offline', methods=['POST'])
+@token_required
+def presence_offline():
+    claims = get_current_user()
+    user_id = claims.get('id')
+    tenant_id = claims.get('tenant_id')
+    now = now_utc()
+
+    try:
+        db_query(
+            '''
+            UPDATE sessions SET status = 'offline', last_seen = %s
+            WHERE user_id = %s AND tenant_id = %s
+            ''',
+            (now, user_id, tenant_id),
+            commit=True
+        )
+
+        db_query(
+            '''
+            INSERT INTO user_presence (user_id, status, last_seen)
+            VALUES (%s, 'offline', %s)
+            ON CONFLICT (user_id) 
+            DO UPDATE SET status = 'offline', last_seen = EXCLUDED.last_seen
+            ''',
+            (user_id, now),
+            commit=True
+        )
+        return jsonify({'status': 'offline'}), 200
+    except Exception as e:
+        return jsonify({'message': f'Error al desconectar: {str(e)}'}), 500
+
+
     
 @app.route('/api/dashboard/export/excel', methods=['GET'])
 @token_required
@@ -2659,3 +2743,5 @@ def export_dashboard_excel():
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
+
+

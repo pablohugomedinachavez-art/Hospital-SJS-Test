@@ -33,6 +33,62 @@ export function LoadingState({ label = 'Cargando información...' }) {
   );
 }
 
+export function useUserPresence(token, isLogged) {
+  const [userState, setUserState] = useState('online'); // 'online' | 'afk'
+  const lastActivityRef = useRef(Date.now());
+  const idleTimeoutMinutes = 5; // Tiempo límite sin interacción para marcar AFK
+
+  useEffect(() => {
+    if (!isLogged || !token) return;
+
+    // 1. Detectar actividad del usuario en pantalla
+    const handleActivity = () => {
+      lastActivityRef.current = Date.now();
+      if (userState !== 'online') {
+        setUserState('online');
+      }
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, handleActivity));
+
+    // 2. Intervalo de verificación de AFK e informe Heartbeat al servidor (cada 30 seg)
+    const heartbeatInterval = setInterval(() => {
+      const timeInactive = Date.now() - lastActivityRef.current;
+      const isAfk = timeInactive > idleTimeoutMinutes * 60 * 1000;
+      const currentStatus = isAfk ? 'afk' : 'online';
+
+      setUserState(currentStatus);
+
+      // Notificar al backend el estado actual
+      apiFetch('/presence/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: currentStatus })
+      }).catch(() => {});
+    }, 30000);
+
+    // 3. Manejar cierre de pestaña / navegador mediante navigator.sendBeacon
+    const handleUnload = () => {
+      const url = '/api/presence/offline';
+      const blob = new Blob([JSON.stringify({})], { type: 'application/json' });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, blob);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, handleActivity));
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [isLogged, token, userState]);
+
+  return userState;
+}
+
 export function EmptyState({ icon: Icon, title = 'Sin datos', description = 'No encontramos registros para mostrar.' }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-950/30">
