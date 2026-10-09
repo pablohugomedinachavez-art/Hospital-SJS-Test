@@ -4559,37 +4559,35 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 // --- COMPONENTE PRINCIPAL DASHBOARD ---
 
 export function Dashboard() {
-  // --- Estados para Datos Reales de API/BD ---
+  // --- Estados de Datos Reales de API ---
   const [reports, setReports] = useState(null);
   const [series, setSeries] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [areas, setAreas] = useState([]);
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
-  const [users, setUsers] = useState([]);
   
-  // --- Estados para Filtros Operativos ---
-  const [selectedLocation, setSelectedLocation] = useState('Todas las sedes');
-  const [selectedDevice, setSelectedDevice] = useState('Todos los dispositivos');
+  // --- Estados de Filtros Operativos (Conectados a public.devices) ---
+  const [selectedLocation, setSelectedLocation] = useState('all'); // location_id o 'all'
+  const [selectedDeviceType, setSelectedDeviceType] = useState('all'); // type o 'all'
+  const [selectedStatus, setSelectedStatus] = useState('all'); // status o 'all'
   const [days, setDays] = useState(30);
-  const [searchTerm, setSearchTerm] = useState('');
   
   // --- Estados UI ---
   const [loading, setLoading] = useState(true);
   const [toast, notify, clearToast] = useToast();
 
-  // --- Carga de Datos desde API ---
+  // --- Carga de Datos desde API/Base de Datos ---
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [reportsRes, seriesRes, metricsRes, areasRes, devicesRes, locationsRes, usersRes] = await Promise.all([
+      const [reportsRes, seriesRes, metricsRes, areasRes, devicesRes, locationsRes] = await Promise.all([
         apiFetch('/reports'),
         apiFetch(`/reports/series?days=${days}`),
         apiFetch('/metrics'),
         apiFetch('/dashboard/areas'),
-        apiFetch('/devices'),
-        apiFetch('/locations'),
-        apiFetch('/users')
+        apiFetch('/devices'),   // Carga datos directos de public.devices
+        apiFetch('/locations')  // Carga datos directos de public.locations
       ]);
 
       if (reportsRes.ok) setReports(await reportsRes.json());
@@ -4607,11 +4605,6 @@ export function Dashboard() {
         setLocations(Array.isArray(locData) ? locData : (locData.items || []));
       }
 
-      if (usersRes.ok) {
-        const userData = await usersRes.json();
-        setUsers(Array.isArray(userData) ? userData : (userData.items || []));
-      }
-
     } catch (error) {
       notify(error.message || 'Error al conectar con la base de datos', 'error');
     } finally {
@@ -4619,78 +4612,40 @@ export function Dashboard() {
     }
   }, [days, notify]);
 
-  // Recargar datos al cambiar el periodo de días o al montar el componente
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
 
-  // --- Filtrado en Tiempo Real de Dispositivos y Datos ---
+  // --- Opciones Dinámicas extraídas de public.devices ---
+  const availableDeviceTypes = useMemo(() => {
+    const types = devices.map(d => d.type).filter(Boolean);
+    return Array.from(new Set(types));
+  }, [devices]);
+
+  // --- Filtrado en tiempo real basado en la estructura de public.devices ---
   const filteredDevices = useMemo(() => {
     return devices.filter(dev => {
-      const matchesLocation = selectedLocation === 'Todas las sedes' || 
-        String(dev.location_id) === String(selectedLocation) ||
-        dev.location_name === selectedLocation;
+      // 1. Filtro por location_id (Foreign Key -> locations.id)
+      const matchesLocation = selectedLocation === 'all' || 
+        String(dev.location_id) === String(selectedLocation);
 
-      const matchesType = selectedDevice === 'Todos los dispositivos' ||
-        dev.type?.toLowerCase() === selectedDevice.toLowerCase();
+      // 2. Filtro por campo 'type' (text null)
+      const matchesType = selectedDeviceType === 'all' || 
+        String(dev.type).toLowerCase() === String(selectedDeviceType).toLowerCase();
 
-      return matchesLocation && matchesType;
+      // 3. Filtro por campo 'status' (text default 'available')
+      const matchesStatus = selectedStatus === 'all' || 
+        String(dev.status).toLowerCase() === String(selectedStatus).toLowerCase();
+
+      return matchesLocation && matchesType && matchesStatus;
     });
-  }, [devices, selectedLocation, selectedDevice]);
-
-  // --- Funciones de Exportación ---
-  const exportCSV = () => {
-    try {
-      let csvContent = "\uFEFFDía,Pacientes,Consultas\n";
-      series.forEach(row => {
-        csvContent += `"${row.day}","${row.patients}","${row.consultations}"\n`;
-      });
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `tendencia_pacientes_${days}d.csv`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      notify('Exportado a CSV exitosamente', 'success');
-    } catch (e) {
-      notify('Error al exportar en CSV', 'error');
-    }
-  };
-
-  const exportExcel = async () => {
-    try {
-      const currentToken = localStorage.getItem('token') || '';
-      const res = await apiFetch('/dashboard/export/excel', {
-        headers: { 'Authorization': `Bearer ${currentToken}` }
-      });
-      if (!res.ok) throw new Error('Error al generar el archivo Excel en el servidor');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dashboard_reporte_${Date.now()}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      notify('Archivo Excel generado correctamente', 'success');
-    } catch (e) {
-      notify(e.message || 'Error al exportar a Excel', 'error');
-    }
-  };
-
-  const exportPDF = () => window.print();
+  }, [devices, selectedLocation, selectedDeviceType, selectedStatus]);
 
   return (
     <div className="dashboard-wrapper min-h-screen w-full bg-[#090d16] text-slate-100 p-4 sm:p-6 lg:p-8 box-border">
-      <div 
-        id="printable-dashboard" 
-        className="printable-container p-4 sm:p-6 lg:p-8 bg-[#0f172a]/45 border border-slate-800 rounded-3xl shadow-2xl flex flex-col gap-6"
-      >
+      <div className="printable-container p-4 sm:p-6 lg:p-8 bg-[#0f172a]/45 border border-slate-800 rounded-3xl shadow-2xl flex flex-col gap-6">
         
-        {/* CABECERA Y METADATOS COMPLIANT */}
+        {/* CABECERA */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
@@ -4706,42 +4661,35 @@ export function Dashboard() {
             </p>
           </div>
 
-          {/* BARRA DE ACCIONES Y EXPORTACIÓN */}
-          <div className="no-print flex items-center gap-3 flex-wrap">
-            <div className="export-buttons-group flex items-center gap-1.5 bg-slate-900/80 p-1.5 border border-slate-800 rounded-xl">
-              <button title="Exportar a CSV" onClick={exportCSV} className="px-3 py-1.5 text-xs font-semibold text-sky-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">CSV</button>
-              <button title="Exportar a Excel" onClick={exportExcel} className="px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">Excel</button>
-              <button title="Exportar a PDF" onClick={exportPDF} className="px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer">PDF</button>
-            </div>
-
-            <button
-              onClick={loadDashboardData}
-              disabled={loading}
-              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 rounded-xl py-2 px-4 text-xs font-medium flex items-center gap-2 cursor-pointer transition-all shadow-sm"
-            >
-              <span className={loading ? "animate-spin" : ""}>↻</span> Actualizar
-            </button>
-          </div>
+          <button
+            onClick={loadDashboardData}
+            disabled={loading}
+            className="no-print bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 rounded-xl py-2 px-4 text-xs font-medium flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            <span>Actualizar</span>
+          </button>
         </div>
 
-        {/* FILTROS OPERATIVOS AVANZADOS (CONECTADOS A API Y ESTADOS REALES) */}
+        {/* FILTROS OPERATIVOS CONECTADOS A public.devices Y public.locations */}
         <div className="no-print bg-slate-900/40 border border-slate-800/80 p-4 rounded-2xl">
           <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
             <ShieldCheck size={15} className="text-blue-400" />
-            <span>Filtros Operativos Activos:</span>
+            <span>Filtros Operativos (Tabla: public.devices)</span>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Filtro por Sede / Ubicación dinámico */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            
+            {/* 1. Filtro Sede / Ubicación (FK: location_id -> locations.id) */}
             <div>
-              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Sede / Ubicación</label>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Ubicación (location_id)</label>
               <div className="relative">
                 <select 
                   value={selectedLocation}
                   onChange={(e) => setSelectedLocation(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
                 >
-                  <option value="Todas las sedes">Todas las sedes</option>
+                  <option value="all">Todas las sedes</option>
                   {locations.map(loc => (
                     <option key={loc.id} value={loc.id}>{loc.name}</option>
                   ))}
@@ -4750,25 +4698,44 @@ export function Dashboard() {
               </div>
             </div>
 
-            {/* Filtro por Tipo de Dispositivo */}
+            {/* 2. Filtro Tipo de Dispositivo (campo: type) */}
             <div>
-              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Dispositivo</label>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Tipo (type)</label>
               <div className="relative">
                 <select 
-                  value={selectedDevice}
-                  onChange={(e) => setSelectedDevice(e.target.value)}
+                  value={selectedDeviceType}
+                  onChange={(e) => setSelectedDeviceType(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
                 >
-                  <option value="Todos los dispositivos">Todos los dispositivos</option>
-                  <option value="pc">Estaciones de Trabajo (PC)</option>
-                  <option value="laptop">Laptops</option>
-                  <option value="server">Servidores Core</option>
+                  <option value="all">Todos los tipos</option>
+                  {availableDeviceTypes.map(type => (
+                    <option key={type} value={type}>{type.toUpperCase()}</option>
+                  ))}
                 </select>
                 <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
 
-            {/* Filtro por Periodo de Análisis */}
+            {/* 3. Filtro Estado Operativo (campo: status) */}
+            <div>
+              <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Estado (status)</label>
+              <div className="relative">
+                <select 
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-200 rounded-xl py-2 px-3 text-xs appearance-none pr-8 cursor-pointer focus:outline-none focus:border-blue-500"
+                >
+                  <option value="all">Todos los estados</option>
+                  <option value="available">Disponible (available)</option>
+                  <option value="active">Activo (active)</option>
+                  <option value="in_use">En Uso (in_use)</option>
+                  <option value="maintenance">Mantenimiento (maintenance)</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* 4. Periodo de Análisis */}
             <div>
               <label className="block text-[11px] text-slate-400 uppercase mb-1.5 font-semibold">Periodo de Análisis</label>
               <div className="relative">
@@ -4784,6 +4751,7 @@ export function Dashboard() {
                 <ChevronDown size={14} className="absolute right-3 top-2.5 text-slate-400 pointer-events-none" />
               </div>
             </div>
+
           </div>
         </div>
 
@@ -4791,33 +4759,31 @@ export function Dashboard() {
 
         {loading ? (
           <div className="py-16 text-center text-slate-400 text-sm">
-            Actualizando indicadores del sistema desde la base de datos…
+            Consultando registros reales de la base de datos…
           </div>
         ) : (
           <div className="flex flex-col gap-6 w-full">
 
-            {/* GRILLA SUPERIOR DE MÉTRICAS CON DATOS REALES DE LA API */}
+            {/* GRILLA DE METRICAS (FILTRADAS SEGUN PUBLIC.DEVICES) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
-              {/* Total Dispositivos Filtrados */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Equipos en Red</span>
+                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Equipos Filtrados</span>
                   <Monitor size={16} className="text-blue-400" />
                 </div>
                 <div className="my-2">
                   <span className="text-3xl font-black text-emerald-400 tracking-tight">{filteredDevices.length}</span>
                   <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
-                    <CheckCircle2 size={10} /> Dispositivos monitoreados
+                    <CheckCircle2 size={10} /> Registros coincidentes
                   </div>
                 </div>
                 <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Total general: {devices.length} dispositivos
+                  Total en BD: {devices.length} dispositivos
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
               </div>
 
-              {/* Consultas Realizadas */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Consultas Clínicas</span>
@@ -4826,7 +4792,7 @@ export function Dashboard() {
                 <div className="my-2">
                   <span className="text-3xl font-black text-indigo-400 tracking-tight">{reports?.summary?.consultations ?? 0}</span>
                   <div className="text-[10px] text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
-                    Periodo: últimos {days} días
+                    Últimos {days} días
                   </div>
                 </div>
                 <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
@@ -4835,16 +4801,15 @@ export function Dashboard() {
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
               </div>
 
-              {/* Alertas Activas */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Alertas Activas</span>
-                  <ShieldCheck size={16} className="text-amber-400" />
+                  <ShieldAlert size={16} className="text-amber-400" />
                 </div>
                 <div className="my-2">
                   <span className="text-3xl font-black text-amber-400 tracking-tight">{reports?.summary?.active_alerts ?? 0}</span>
                   <div className="text-[10px] text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
-                    Requiere atención
+                    Requieren atención
                   </div>
                 </div>
                 <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
@@ -4853,11 +4818,10 @@ export function Dashboard() {
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
               </div>
 
-              {/* Usuarios Activos */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
-                  <Monitor size={16} className="text-sky-400" />
+                  <Wifi size={16} className="text-sky-400" />
                 </div>
                 <div className="my-2">
                   <span className="text-3xl font-black text-sky-400 tracking-tight">{metrics?.active_users ?? 0}</span>
@@ -4866,21 +4830,20 @@ export function Dashboard() {
                   </div>
                 </div>
                 <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Duración promedio: {Math.round(metrics?.avg_session_seconds || 0)}s
+                  Promedio sesión: {Math.round(metrics?.avg_session_seconds || 0)}s
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500/40"></div>
               </div>
 
             </div>
 
-            {/* GRÁFICOS CONEXIÓN A /reports/series Y /dashboard/areas */}
+            {/* GRÁFICOS ANALÍTICOS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* GRÁFICO 1: TENDENCIA REAL */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
                 <div>
                   <h3 className="text-sm font-bold text-white">Tendencia de Pacientes y Consultas</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Evolución en los últimos {days} días (API /reports/series)</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Evolución en los últimos {days} días</p>
                 </div>
                 <div className="pt-2">
                   <ResponsiveContainer width="100%" height={240}>
@@ -4896,11 +4859,10 @@ export function Dashboard() {
                 </div>
               </div>
 
-              {/* GRÁFICO 2: ÁREAS Y DISPOSITIVOS */}
               <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
                 <div>
                   <h3 className="text-sm font-bold text-white">Infraestructura y Alertas por Área</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Distribución de red (API /dashboard/areas)</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Distribución de red por sede</p>
                 </div>
                 <div className="pt-2">
                   <ResponsiveContainer width="100%" height={240}>
