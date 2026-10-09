@@ -1800,18 +1800,23 @@ def get_metric_details():
         elif metric_type == 'users':
             sql = '''
                 SELECT DISTINCT ON (u.id)
-                       s.id as session_id, u.id as user_id, u.username, u.role, 
-                       COALESCE(s.ip_address, '127.0.0.1') as ip_address, 
-                       s.created_at as session_start, 
-                       COALESCE(s.last_seen, u.created_at) as last_seen,
-                       CASE 
-                           WHEN s.last_seen < NOW() - INTERVAL '2 minutes' THEN 'Desconectado / Inactivo'
-                           WHEN s.status = 'afk' THEN 'En Espera (AFK)'
-                           WHEN s.status = 'online' THEN 'Conectado / En línea'
-                           ELSE 'Inactivo'
-                       END as session_topic
+                    s.id as session_id, 
+                    u.id as user_id, 
+                    u.username, 
+                    u.role, 
+                    COALESCE(s.ip_address, '127.0.0.1') as ip_address, 
+                    s.created_at as session_start, 
+                    COALESCE(s.last_seen, u.created_at) as last_seen,
+                    COALESCE(da.action_type, 'Navegación / Sistema') as action_type,
+                    CASE 
+                        WHEN s.last_seen IS NULL OR s.last_seen < NOW() - INTERVAL '2 minutes' THEN 'Desconectado / Inactivo'
+                        WHEN s.status = 'afk' THEN 'En Espera (AFK)'
+                        WHEN s.status = 'online' THEN 'Conectado / En línea'
+                        ELSE 'Desconectado / Inactivo'
+                    END as session_topic
                 FROM users u
                 LEFT JOIN sessions s ON u.id = s.user_id AND s.tenant_id = u.tenant_id
+                LEFT JOIN device_actions da ON da.user_id = u.id AND da.tenant_id = u.tenant_id
                 WHERE u.tenant_id = %s
             '''
             params = [tenant_id]
