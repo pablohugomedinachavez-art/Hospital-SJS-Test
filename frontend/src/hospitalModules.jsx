@@ -1153,7 +1153,12 @@ export function Patients() {
   }
 
   const openCreate = () => {
-    setForm(INITIAL_PATIENT)
+    setForm({
+      ...INITIAL_PATIENT,
+      tenant_id: user?.tenant_id || '',
+      status: 'active',
+      medical_record_number: ''
+    })
     setSelectedPatient(null)
     setDocumentError('')
     clearToast()
@@ -1174,6 +1179,7 @@ export function Patients() {
     })
 
     setForm({
+      tenant_id: selectedPatient.tenant_id || user?.tenant_id || '',
       document_type: selectedPatient.document_type || 'dni',
       document_number: selectedPatient.dni || selectedPatient.document_number || '',
       full_name: selectedPatient.full_name || '',
@@ -1184,6 +1190,8 @@ export function Patients() {
       sex: selectedPatient.sex || '',
       blood_type: selectedPatient.blood_type || '',
       allergies: selectedPatient.allergies || '',
+      status: selectedPatient.status || 'active',
+      medical_record_number: selectedPatient.medical_record_number || '',
     })
     setDocumentError('')
     setIsEditingPatient(true)
@@ -1395,8 +1403,8 @@ export function Patients() {
               {patients.map(pat => {
                 const docVal = pat.dni || pat.document_number || '—'
                 const nacVal = pat.date_of_birth ? pat.date_of_birth.slice(0, 10).split('-').reverse().join('/') : '—'
-                const lastVisitVal = pat.last_visit || '10/10/2023' // Fallback o dato real si existe
-                const isFemale = pat.sex?.toLowerCase() === 'f' || pat.sex?.toLowerCase() === 'femenino'
+                const lastVisitVal = pat.last_visit || '10/10/2023'
+                const isActive = (pat.status || 'active') === 'active'
 
                 return (
                   <div
@@ -1422,20 +1430,23 @@ export function Patients() {
                         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: theme.textPrimary, margin: 0, lineHeight: '1.3' }}>
                           {pat.full_name}
                         </h3>
+                        {pat.medical_record_number && (
+                          <span style={{ fontSize: '0.7rem', color: theme.textMuted }}>H. Clínico: {pat.medical_record_number}</span>
+                        )}
                       </div>
                       <span style={{
-                        backgroundColor: '#064e3b',
-                        color: '#6ee7b7',
+                        backgroundColor: isActive ? '#064e3b' : '#7f1d1d',
+                        color: isActive ? '#6ee7b7' : '#fca5a5',
                         padding: '0.15rem 0.5rem',
                         borderRadius: '12px',
                         fontSize: '0.65rem',
                         fontWeight: 700,
                         display: 'flex',
-                        alignId: 'center',
+                        alignItems: 'center',
                         gap: '0.25rem',
                         flexShrink: 0
                       }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#6ee7b7', display: 'inline-block' }}></span> Active
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: isActive ? '#6ee7b7' : '#fca5a5', display: 'inline-block' }}></span> {pat.status || 'active'}
                       </span>
                     </div>
 
@@ -1523,7 +1534,7 @@ export function Patients() {
               </div>
             </div>
 
-            {/* SECCIÓN 2: CONTACTO Y SALUD */}
+            {/* SECCIÓN 2: CONTACTO Y SALUD (Incluyendo columnas adicionales como medical_record_number y status) */}
             <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Código País / Teléfono</label>
@@ -1558,6 +1569,20 @@ export function Patients() {
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Alergias</label>
                 <input placeholder="Ej. Penicilina, NINGUNA" value={form.allergies} onChange={e => setForm(p => ({ ...p, allergies: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Nro. de Historia Clínica</label>
+                <input placeholder="Ej. HC-2026-001" value={form.medical_record_number} onChange={e => setForm(p => ({ ...p, medical_record_number: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Estado</label>
+                <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="suspended">Suspended</option>
+                </select>
               </div>
             </div>
 
@@ -1613,6 +1638,7 @@ export function Patients() {
                   <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>F. Nacimiento:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.date_of_birth?.slice(0, 10) || '—'}</strong></div>
                   <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>Documento / DNI:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.dni || selectedPatient.document_number || '—'}</strong></div>
                   <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>Sexo:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.sex || '—'}</strong></div>
+                  <div><span style={{ color: theme.textMuted, display: 'inline-block', width: '120px' }}>H. Clínico:</span><strong style={{ color: theme.textPrimary }}>{selectedPatient.medical_record_number || '—'}</strong></div>
                 </div>
               </div>
 
@@ -1692,7 +1718,7 @@ export function Patients() {
                       {/* Diagnóstico y Tratamiento */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', borderTop: `1px solid ${theme.border}`, paddingTop: '0.5rem' }}>
                         <div>
-                          <span style={{ color: theme.textMuted, display: 'block', fontSize: '0.70rem', fontWeight: 600 }}>DIAGNÓSTICO</span>
+                          <span style={{ color: theme.textMuted, display: 'block', fontSize: '0.7rem', fontWeight: 600 }}>DIAGNÓSTICO</span>
                           <strong style={{ color: theme.textPrimary }}>{consult.diagnosis || '—'}</strong>
                         </div>
                         <div>
