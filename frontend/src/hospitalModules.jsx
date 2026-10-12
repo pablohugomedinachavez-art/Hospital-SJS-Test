@@ -617,6 +617,41 @@ function AnimatedNumber({ value }) {
   return <span>{displayValue.toLocaleString()}</span>;
 }
 
+const ConsultationCard = React.memo(({ item, onClick }) => {
+  return (
+    <article 
+      className="animated-consultation-card bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between gap-3 shadow-md"
+      onClick={() => onClick(item)}
+    >
+      <div className="flex justify-between items-start gap-2">
+        <div>
+          <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
+            <Calendar size={12} /> {formatDate(item.created_at || item.date)}
+          </span>
+          <h3 className="text-sm font-semibold text-white line-clamp-1">
+            {item.patient_name || `Paciente #${item.patient_id}`}
+          </h3>
+        </div>
+        <span className="bg-sky-950/60 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
+          #{item.id}
+        </span>
+      </div>
+
+      <div className="bg-[#090d16] p-3 rounded-lg border border-slate-800/80 text-xs space-y-1.5">
+        <p><strong className="text-slate-400">Motivo: </strong><span className="text-slate-300 line-clamp-1">{item.reason || 'Sin especificar'}</span></p>
+        <p><strong className="text-slate-400">Diagnóstico: </strong><span className="text-sky-400 font-medium line-clamp-1">{item.diagnosis || 'Pendiente'}</span></p>
+        <p><strong className="text-slate-400">Médico: </strong><span className="text-slate-300 line-clamp-1">{item.doctor_name || 'No asignado'}</span></p>
+      </div>
+
+      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
+        <span className="flex items-center gap-1"><Scale size={13} className="text-sky-400" /> {item.weight_kg ?? '—'} kg</span>
+        <span className="flex items-center gap-1"><Ruler size={13} className="text-sky-400" /> {item.height_cm ?? '—'} cm</span>
+        <span className="flex items-center gap-1 font-semibold text-slate-200"><Activity size={13} className="text-sky-400" /> IMC {item.bmi ?? '—'}</span>
+      </div>
+    </article>
+  );
+});
+
 
 // ============================================================
 // --- COMPONENTE PRINCIPAL: Dashboard de Dispositivos ---
