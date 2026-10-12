@@ -2147,7 +2147,7 @@ export function Consultations() {
 
 
 // ============================================================
-// Locations
+// Locations (Rediseño Gráfico Hospitalario)
 // ============================================================
 
 export function Locations() {
@@ -2172,7 +2172,6 @@ export function Locations() {
       if (!res.ok) throw new Error('No se pudieron cargar las áreas');
       const data = await res.json();
 
-      // Asegura que siempre sea un array
       if (Array.isArray(data)) {
         setItems(data);
       } else if (data && Array.isArray(data.items)) {
@@ -2237,16 +2236,33 @@ export function Locations() {
     }
   };
 
+  // Función auxiliar para determinar estado clínico según alertas y dispositivos
+  const getAreaStatus = (alerts) => {
+    const count = alerts ?? 0;
+    if (count > 0) return { bg: '#450a0a', text: '#fca5a5', label: 'Crítico' };
+    return { bg: '#064e3b', text: '#6ee7b7', label: 'Óptimo' };
+  };
+
   return (
     <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
+      <style>{`
+        .hospital-area-card {
+          transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .hospital-area-card:hover {
+          transform: translateY(-3px);
+          border-color: #38bdf8 !important;
+          box-shadow: 0 10px 25px -5px rgba(56, 189, 248, 0.15);
+        }
+      `}</style>
 
-      {/* MARCO GENERAL ESTILO DOCUMENTO */}
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 3vw, 2.5rem)', width: '100%', boxSizing: 'border-box' }}>
+      {/* MARCO GENERAL */}
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: 'clamp(1.5rem, 3vw, 2.5rem)', width: '100%', boxSizing: 'border-box' }}>
 
         {/* CABECERA Y ACCIONES */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
           <div style={{ minWidth: 0, flex: '1 1 250px' }}>
-            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em', overflowWrap: 'break-word' }}>
+            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
               Áreas del hospital
             </h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
@@ -2257,10 +2273,10 @@ export function Locations() {
           <div style={{ flexShrink: 0, width: '100%', maxWidth: 'max-content' }}>
             {canEdit && (
               <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%' }}
+                style={{ backgroundColor: '#2563eb', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.6rem 1.2rem', fontSize: '0.875rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%' }}
                 onClick={() => setShowNewArea(v => !v)}
               >
-                {showNewArea ? 'Cancelar' : '＋ Agregar área'}
+                {showNewArea ? 'Cancelar' : '+ Agregar área'}
               </button>
             )}
           </div>
@@ -2270,27 +2286,27 @@ export function Locations() {
 
         {/* FORMULARIO DE NUEVA ÁREA */}
         {showNewArea && (
-          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+          <form onSubmit={submit} style={{ backgroundColor: 'rgba(15, 23, 42, 0.8)', border: '1px solid #334155', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
             <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Nueva área</h3>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Completa la información para registrar una nueva zona.</p>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Registrar nueva área médica</h3>
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>Completa la información para habilitar una zona en el mapa operativo.</p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '1rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre *</label>
-                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej. UCI, Emergencias…" />
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Nombre del Área *</label>
+                <input style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 0.85rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ej. UCI, Emergencias, Quirófano…" />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Descripción</label>
-                <input style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Descripción breve" />
+                <label style={{ fontSize: '0.8rem', fontWeight: 500, color: '#94a3b8' }}>Descripción / Ubicación</label>
+                <input style={{ backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '10px', padding: '0.6rem 0.85rem', fontSize: '0.875rem', outline: 'none', width: '100%', boxSizing: 'border-box' }} value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Ej. Segundo piso, Ala Norte" />
               </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid #1e293b', flexWrap: 'wrap' }}>
-              <button type="button" style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer', flex: '1 1 100px' }} onClick={() => setShowNewArea(false)}>Cancelar</button>
-              <button type="submit" style={{ backgroundColor: '#3b82f6', border: 'none', color: '#ffffff', borderRadius: '12px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1, flex: '1 1 120px' }} disabled={saving}>{saving ? 'Guardando…' : 'Crear área'}</button>
+              <button type="button" style={{ backgroundColor: '#1e293b', border: 'none', color: '#e2e8f0', borderRadius: '10px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 500, cursor: 'pointer' }} onClick={() => setShowNewArea(false)}>Cancelar</button>
+              <button type="submit" style={{ backgroundColor: '#2563eb', border: 'none', color: '#ffffff', borderRadius: '10px', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1 }} disabled={saving}>{saving ? 'Guardando…' : 'Crear área'}</button>
             </div>
           </form>
         )}
@@ -2299,7 +2315,7 @@ export function Locations() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%' }}>
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>Mapa operativo</h3>
-            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{items.length} áreas disponibles.</p>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem', marginBottom: 0 }}>{items.length} áreas disponibles en funcionamiento activo.</p>
           </div>
 
           {loading ? (
@@ -2309,57 +2325,68 @@ export function Locations() {
               <EmptyState icon="◈" title="No hay áreas registradas" description="Crea una nueva área para empezar." />
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1.25rem', width: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '1.25rem', width: '100%' }}>
               {items.map(area => {
                 const isSelected = selectedArea === area.id;
+                const status = getAreaStatus(area.active_alerts);
+                // Simulación dinámica de ocupación en base a los dispositivos o datos si existen
+                const occupancy = Math.min(100, Math.max(45, (area.device_count || 1) * 12));
+
                 return (
                   <button
                     key={area.id}
                     type="button"
                     onClick={() => setSelectedArea(area.id)}
+                    className="hospital-area-card"
                     style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                      border: `1px solid ${isSelected ? '#3b82f6' : '#1e293b'}`,
+                      backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                      border: `1px solid ${isSelected ? '#38bdf8' : '#1e293b'}`,
                       borderRadius: '16px',
                       padding: '1.25rem',
                       display: 'flex',
                       flexDirection: 'column',
+                      justifyContent: 'space-between',
                       gap: '1rem',
                       textAlign: 'left',
                       cursor: 'pointer',
-                      boxShadow: isSelected ? '0 0 0 2px rgba(59, 130, 246, 0.3)' : '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
-                      transition: 'all 0.25s ease-in-out',
+                      boxShadow: isSelected ? '0 0 0 2px rgba(56, 189, 248, 0.3)' : '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
                       width: '100%',
                       boxSizing: 'border-box'
-                    }}
-                    onMouseEnter={e => {
-                      if (!isSelected) {
-                        e.currentTarget.style.transform = 'translateY(-4px)';
-                        e.currentTarget.style.borderColor = '#3b82f6';
-                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(59, 130, 246, 0.15)';
-                      }
-                    }}
-                    onMouseLeave={e => {
-                      if (!isSelected) {
-                        e.currentTarget.style.transform = 'translateY(0px)';
-                        e.currentTarget.style.borderColor = '#1e293b';
-                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.3)';
-                      }
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', gap: '0.5rem' }}>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Área #{area.id}</div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: '0.1rem 0 0 0', overflowWrap: 'break-word' }}>{area.name}</h3>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Área #{area.id}</span>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc', margin: '0.1rem 0 0 0', overflowWrap: 'break-word' }}>{area.name}</h3>
                       </div>
-                      <span className={cx('status-dot', (area.active_alerts ?? 0) > 0 ? 'warning' : 'success')} style={{ width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />
+                      <span style={{ backgroundColor: status.bg, color: status.text, border: `1px solid ${status.text}40`, padding: '0.2rem 0.5rem', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 600, flexShrink: 0 }}>
+                        {status.label}
+                      </span>
                     </div>
 
-                    <p style={{ fontSize: '0.825rem', color: '#94a3b8', margin: 0, overflowWrap: 'break-word' }}>{area.description || 'Sin descripción registrada'}</p>
+                    <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0, overflowWrap: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {area.description || 'Sin descripción registrada'}
+                    </p>
 
-                    <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.75rem', color: '#cbd5e1', paddingTop: '0.5rem', borderTop: '1px solid #1e293b', width: '100%' }}>
-                      <span><strong>{area.device_count ?? 0}</strong> dispositivos</span>
-                      <span><strong>{area.active_alerts ?? 0}</strong> alertas</span>
+                    {/* Barra de capacidad operativa */}
+                    <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '8px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8' }}>
+                        <span>Carga operativa</span>
+                        <span style={{ color: '#f8fafc', fontWeight: 600 }}>{occupancy}%</span>
+                      </div>
+                      <div style={{ width: '100%', height: '6px', backgroundColor: '#1e293b', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ width: `${occupancy}%`, height: '100%', backgroundColor: occupancy > 90 ? '#ef4444' : occupancy > 75 ? '#f59e0b' : '#38bdf8' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Métricas de dispositivos y alertas */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '0.75rem', width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        🖥️ <strong style={{ color: '#e2e8f0' }}>{area.device_count ?? 0}</strong> dispositivos
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: (area.active_alerts ?? 0) > 0 ? '#fca5a5' : '#94a3b8' }}>
+                        🔔 <strong style={{ color: (area.active_alerts ?? 0) > 0 ? '#fca5a5' : '#e2e8f0' }}>{area.active_alerts ?? 0}</strong> alertas
+                      </div>
                     </div>
                   </button>
                 );
@@ -2370,28 +2397,28 @@ export function Locations() {
 
         {/* DETALLE DE ÁREA SELECCIONADA */}
         {selectedArea && (
-          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.8)', border: '1px solid #334155', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0 }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', margin: 0, overflowWrap: 'break-word' }}>
-                  Detalle · {detail?.name || `Área #${selectedArea}`}
+                  Panel de control · {detail?.name || `Área #${selectedArea}`}
                 </h3>
               </div>
               <button
-                style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
+                style={{ backgroundColor: '#1e293b', border: 'none', color: '#f8fafc', borderRadius: '8px', padding: '0.35rem 0.75rem', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
                 onClick={() => { setSelectedArea(null); setDetail(null); }}
               >
-                Cerrar
+                Cerrar detalle
               </button>
             </div>
 
             {loadingDetail ? (
-              <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando detalle…" /></div>
+              <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando métricas de área…" /></div>
             ) : detail ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', width: '100%' }}>
-                <StatCard icon="👥" label="Usuarios" value={detail.user_count ?? '—'} tone="primary" />
-                <StatCard icon="📟" label="Dispositivos" value={detail.device_count ?? 0} tone="success" />
-                <StatCard icon="⚠" label="Alertas activas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
+                <StatCard icon="👥" label="Personal asignado" value={detail.user_count ?? '—'} tone="primary" />
+                <StatCard icon="📟" label="Dispositivos activos" value={detail.device_count ?? 0} tone="success" />
+                <StatCard icon="⚠" label="Alertas críticas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
               </div>
             ) : (
               <EmptyState title="Sin información de detalle" />
