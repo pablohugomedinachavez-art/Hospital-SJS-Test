@@ -1787,7 +1787,7 @@ export function Patients() {
 }
 
 // ============================================================
-// Consultations (Alto Rendimiento + Animaciones Suaves)
+// Componente Consultations (Popup Detallado y Animaciones Suaves)
 // ============================================================
 
 export function Consultations() {
@@ -1925,6 +1925,13 @@ export function Consultations() {
           border-color: #38bdf8;
           box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.15);
         }
+        @keyframes fadeInPopup {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .modal-animated-content {
+          animation: fadeInPopup 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
       `}</style>
       
       <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -2047,34 +2054,82 @@ export function Consultations() {
         )}
       </div>
 
-      {/* POPUP DE DETALLE RÁPIDO */}
+      {/* POPUP DE DETALLE CLÍNICO DETALLADO */}
       {selectedConsultation && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' }} onClick={() => setSelectedConsultation(null)}>
-          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', width: '90%', maxWidth: '550px', maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, backdropFilter: 'blur(4px)', padding: '1rem' }} onClick={() => setSelectedConsultation(null)}>
+          <div className="modal-animated-content" style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
+            
+            {/* Cabecera del Popup */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #334155', paddingBottom: '0.75rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ffffff', margin: 0 }}>
-                Detalle de Consulta #{selectedConsultation.id}
-              </h2>
-              <button onClick={() => setSelectedConsultation(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Stethoscope size={20} color="#38bdf8" />
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ffffff', margin: 0 }}>
+                  Detalle de Consulta #{selectedConsultation.id}
+                </h2>
+              </div>
+              <button onClick={() => setSelectedConsultation(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
                 <X size={20} />
               </button>
             </div>
             
+            {/* Contenido Detallado Organizado por Tarjetas Internas */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
-              <div style={{ backgroundColor: '#0f172a', padding: '0.85rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div><strong style={{ color: '#94a3b8' }}>Fecha:</strong> {formatDate(selectedConsultation.created_at || selectedConsultation.date)}</div>
+              
+              {/* Sección 1: Datos Generales */}
+              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>
+                  <Calendar size={14} /> INFORMACIÓN GENERAL
+                </div>
+                <div><strong style={{ color: '#94a3b8' }}>Fecha de Atención:</strong> {formatDate(selectedConsultation.created_at || selectedConsultation.date)}</div>
                 <div><strong style={{ color: '#94a3b8' }}>Paciente:</strong> {selectedConsultation.patient_name || `Paciente #${selectedConsultation.patient_id}`}</div>
-                <div><strong style={{ color: '#94a3b8' }}>Médico:</strong> {selectedConsultation.doctor_name || 'No asignado'}</div>
+                <div><strong style={{ color: '#94a3b8' }}>Médico Tratante:</strong> {selectedConsultation.doctor_name || 'No asignado'}</div>
               </div>
 
-              <div style={{ backgroundColor: '#0f172a', padding: '0.85rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {/* Sección 2: Motivo y Sintomatología */}
+              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>
+                  <FileEdit size={14} /> MOTIVO Y SINTOMATOLOGÍA
+                </div>
                 <div><strong style={{ color: '#94a3b8' }}>Motivo:</strong> {selectedConsultation.reason || 'Sin especificar'}</div>
-                <div><strong style={{ color: '#94a3b8' }}>Diagnóstico:</strong> <span style={{ color: '#38bdf8' }}>{selectedConsultation.diagnosis || 'Pendiente'}</span></div>
-                <div><strong style={{ color: '#94a3b8' }}>Tratamiento:</strong> {selectedConsultation.treatment || 'No registrado'}</div>
+                <div><strong style={{ color: '#94a3b8' }}>Síntomas:</strong> {selectedConsultation.symptoms || 'No registrados en esta atención'}</div>
               </div>
+
+              {/* Sección 3: Signos Vitales y Triaje */}
+              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>
+                  <HeartPulse size={14} /> SIGNOS VITALES Y TRIAJE
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                  <div><strong style={{ color: '#94a3b8' }}>Peso:</strong> {selectedConsultation.weight_kg ? `${selectedConsultation.weight_kg} kg` : '—'}</div>
+                  <div><strong style={{ color: '#94a3b8' }}>Talla:</strong> {selectedConsultation.height_cm ? `${selectedConsultation.height_cm} cm` : '—'}</div>
+                  <div><strong style={{ color: '#94a3b8' }}>Presión Arterial:</strong> {selectedConsultation.blood_pressure || '—'}</div>
+                  <div><strong style={{ color: '#94a3b8' }}>IMC:</strong> <span style={{ color: '#38bdf8', fontWeight: 600 }}>{selectedConsultation.bmi || '—'}</span></div>
+                </div>
+              </div>
+
+              {/* Sección 4: Diagnóstico y Tratamiento */}
+              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>
+                  <ClipboardCheck size={14} /> DIAGNÓSTICO Y TRATAMIENTO
+                </div>
+                <div>
+                  <strong style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Diagnóstico Principal:</strong>
+                  <div style={{ backgroundColor: '#090d16', padding: '8px 10px', borderRadius: '6px', border: '1px solid #334155', color: '#38bdf8', fontWeight: 500 }}>
+                    {selectedConsultation.diagnosis || 'Pendiente'}
+                  </div>
+                </div>
+                <div style={{ marginTop: '4px' }}>
+                  <strong style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Tratamiento / Receta:</strong>
+                  <div style={{ backgroundColor: '#090d16', padding: '8px 10px', borderRadius: '6px', border: '1px solid #334155', color: '#cbd5e1' }}>
+                    {selectedConsultation.treatment || 'No registrado'}
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', borderTop: '1px solid #334155', paddingTop: '1rem' }}>
+            {/* Pie del Popup */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem', borderTop: '1px solid #334155', paddingTop: '1rem' }}>
               <button 
                 onClick={() => setSelectedConsultation(null)}
                 style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
@@ -2082,6 +2137,7 @@ export function Consultations() {
                 Cerrar
               </button>
             </div>
+
           </div>
         </div>
       )}
