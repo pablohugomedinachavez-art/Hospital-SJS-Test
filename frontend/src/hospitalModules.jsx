@@ -1787,7 +1787,7 @@ export function Patients() {
 }
 
 // ============================================================
-// Consultations (Máxima Fluidez y Cero Lag)
+// Consultations (Alto Rendimiento + Animaciones Suaves)
 // ============================================================
 
 export function Consultations() {
@@ -1906,6 +1906,27 @@ export function Consultations() {
 
   return (
     <div style={{ padding: '1rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', width: '100%', boxSizing: 'border-box' }}>
+      <style>{`
+        .consultation-card-animated {
+          background-color: rgba(15, 23, 42, 0.9);
+          border: 1px solid #1e293b;
+          border-radius: 12px;
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          gap: 0.75rem;
+          cursor: pointer;
+          transform: translateY(0);
+          transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
+        }
+        .consultation-card-animated:hover {
+          transform: translateY(-3px);
+          border-color: #38bdf8;
+          box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.15);
+        }
+      `}</style>
+      
       <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         
         {/* ENCABEZADO */}
@@ -1966,17 +1987,7 @@ export function Consultations() {
                     <article 
                       key={item.id}
                       onClick={() => setSelectedConsultation(item)}
-                      style={{
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                        border: '1px solid #1e293b',
-                        borderRadius: '12px',
-                        padding: '1rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                        gap: '0.75rem',
-                        cursor: 'pointer'
-                      }}
+                      className="consultation-card-animated"
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                         <div>
