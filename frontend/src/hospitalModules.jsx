@@ -1524,7 +1524,7 @@ export function Patients() {
             </div>
 
             {/* SECCIÓN 2: CONTACTO Y SALUD */}
-            <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+            <div className="mobile-stack-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Código País / Teléfono</label>
                 <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
@@ -1538,6 +1538,16 @@ export function Patients() {
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Correo Electrónico</label>
                 <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: theme.textMuted, marginBottom: '0.3rem' }}>Sexo</label>
+                <select value={form.sex} onChange={e => setForm(p => ({ ...p, sex: e.target.value }))} style={{ width: '100%', padding: '0.6rem', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bgApp, color: theme.textPrimary, boxSizing: 'border-box' }}>
+                  <option value="">Seleccione...</option>
+                  <option value="Masculino">Masculino</option>
+                  <option value="Femenino">Femenino</option>
+                  <option value="Otro">Otro</option>
+                </select>
               </div>
 
               <div>
@@ -1682,7 +1692,7 @@ export function Patients() {
                       {/* Diagnóstico y Tratamiento */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.8rem', borderTop: `1px solid ${theme.border}`, paddingTop: '0.5rem' }}>
                         <div>
-                          <span style={{ color: theme.textMuted, display: 'block', fontSize: '0.7rem', fontWeight: 600 }}>DIAGNÓSTICO</span>
+                          <span style={{ color: theme.textMuted, display: 'block', fontSize: '0.70rem', fontWeight: 600 }}>DIAGNÓSTICO</span>
                           <strong style={{ color: theme.textPrimary }}>{consult.diagnosis || '—'}</strong>
                         </div>
                         <div>
