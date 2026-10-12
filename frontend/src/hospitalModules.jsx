@@ -1798,8 +1798,12 @@ export function Consultations() {
   const [toast, notify, clearToast] = useToast();
 
   const [selectedConsultation, setSelectedConsultation] = useState(null);
+  
+  // Paginación para evitar lag por exceso de elementos en el DOM
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
-  const debouncedQuery = useDebouncedValue(query, 300); // Debounce incrementado para evitar llamadas excesivas
+  const debouncedQuery = useDebouncedValue(query, 350);
   const debouncedPatientQuery = useDebouncedValue(patientQuery, 300);
 
   const loadConsultations = useCallback(async (q = '') => {
@@ -1807,7 +1811,9 @@ export function Consultations() {
     try {
       const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`);
       if (!res.ok) throw new Error('No se pudo cargar el historial de consultas');
-      setConsultations(await res.json() || []);
+      const data = await res.json() || [];
+      setConsultations(data);
+      setCurrentPage(1); // Reiniciar a la primera página en cada búsqueda
     } catch (error) {
       notify(error.message, 'error');
     } finally {
@@ -1878,18 +1884,13 @@ export function Consultations() {
     }
   }, [form, notify, loadConsultations, query]);
 
-  // Memorizar la lista de elementos renderizados para evitar cálculos innecesarios
-  const renderedConsultations = useMemo(() => {
-    return consultations.map((item) => (
-      <ConsultationCard 
-        key={item.id} 
-        item={item} 
-        onClick={setSelectedConsultation} 
-      />
-    ));
-  }, [consultations]);
+  // Subconjunto paginado para renderizar únicamente lo visible y eliminar el lag
+  const paginatedConsultations = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return consultations.slice(start, start + itemsPerPage);
+  }, [consultations, currentPage]);
 
-  const bmiState = useMemo(() => getBMIState(form.bmi), [form.bmi]);
+  const totalPages = Math.ceil(consultations.length / itemsPerPage);
 
   return (
     <div className="consultations-container">
@@ -1943,15 +1944,23 @@ export function Consultations() {
           margin-bottom: 20px;
         }
 
-        .animated-consultation-card {
-          transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
+        /* Tarjetas optimizadas sin keyframes pesados para evitar bloqueos de UI */
+        .consultation-card-fast {
+          background-color: rgba(15, 23, 42, 0.9);
+          border: 1px solid #1e293b;
+          border-radius: 12px;
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          gap: 0.75rem;
           cursor: pointer;
+          transition: border-color 0.15s ease, background-color 0.15s ease;
         }
 
-        .animated-consultation-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 25px -8px rgba(56, 189, 248, 0.15);
-          border-color: #38bdf8 !important;
+        .consultation-card-fast:hover {
+          border-color: #38bdf8;
+          background-color: rgba(30, 41, 59, 0.9);
         }
 
         .grid-form-2col {
@@ -2049,9 +2058,68 @@ export function Consultations() {
             ) : consultations.length === 0 ? (
               <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
             ) : (
-              <div className="grid-cards">
-                {renderedConsultations}
-              </div>
+              <>
+                <div className="grid-cards">
+                  {paginatedConsultations.map((item) => (
+                    <article 
+                      key={item.id} 
+                      className="consultation-card-fast shadow-md"
+                      onClick={() => setSelectedConsultation(item)}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
+                            <Calendar size={12} /> {formatDate(item.created_at || item.date)}
+                          </span>
+                          <h3 className="text-sm font-semibold text-white line-clamp-1">
+                            {item.patient_name || `Paciente #${item.patient_id}`}
+                          </h3>
+                        </div>
+                        <span className="bg-sky-950/60 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
+                          #{item.id}
+                        </span>
+                      </div>
+
+                      <div className="bg-[#090d16] p-3 rounded-lg border border-slate-800/80 text-xs space-y-1.5">
+                        <p><strong className="text-slate-400">Motivo: </strong><span className="text-slate-300 line-clamp-1">{item.reason || 'Sin especificar'}</span></p>
+                        <p><strong className="text-slate-400">Diagnóstico: </strong><span className="text-sky-400 font-medium line-clamp-1">{item.diagnosis || 'Pendiente'}</span></p>
+                        <p><strong className="text-slate-400">Médico: </strong><span className="text-slate-300 line-clamp-1">{item.doctor_name || 'No asignado'}</span></p>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
+                        <span className="flex items-center gap-1"><Scale size={13} className="text-sky-400" /> {item.weight_kg ?? '—'} kg</span>
+                        <span className="flex items-center gap-1"><Ruler size={13} className="text-sky-400" /> {item.height_cm ?? '—'} cm</span>
+                        <span className="flex items-center gap-1 font-semibold text-slate-200"><Activity size={13} className="text-sky-400" /> IMC {item.bmi ?? '—'}</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                {/* Controles de Paginación */}
+                {totalPages > 1 && (
+                  <div className="flex justify-between items-center pt-4 border-t border-slate-800 text-xs">
+                    <span className="text-slate-400">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      >
+                        Anterior
+                      </button>
+                      <button
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         ) : (
