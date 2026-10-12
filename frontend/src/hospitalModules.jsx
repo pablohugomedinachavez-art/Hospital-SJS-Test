@@ -1786,6 +1786,10 @@ export function Patients() {
   )
 }
 
+// ============================================================
+// Consultations (Máxima Fluidez y Cero Lag)
+// ============================================================
+
 export function Consultations() {
   const [consultations, setConsultations] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -1798,50 +1802,56 @@ export function Consultations() {
   const [toast, notify, clearToast] = useToast();
 
   const [selectedConsultation, setSelectedConsultation] = useState(null);
-  
-  // Paginación para evitar lag por exceso de elementos en el DOM
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9;
+  const itemsPerPage = 8;
 
-  const debouncedQuery = useDebouncedValue(query, 350);
-  const debouncedPatientQuery = useDebouncedValue(patientQuery, 300);
-
-  const loadConsultations = useCallback(async (q = '') => {
-    setLoading(true);
-    try {
-      const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`);
-      if (!res.ok) throw new Error('No se pudo cargar el historial de consultas');
-      const data = await res.json() || [];
-      setConsultations(data);
-      setCurrentPage(1); // Reiniciar a la primera página en cada búsqueda
-    } catch (error) {
-      notify(error.message, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [notify]);
-
-  const searchPatients = useCallback(async (q = '') => {
-    try {
-      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`);
-      if (!res.ok) return;
-      const data = await res.json() || [];
-      setPatients(data);
-      if (data.length === 1) setForm(prev => ({ ...prev, patient_id: data[0].id }));
-    } catch (error) {
-      console.error(error);
-    }
-  }, []);
-
-  useEffect(() => { loadConsultations(); }, [loadConsultations]);
-
+  // Carga optimizada con AbortController para prevenir cuellos de botella en peticiones concurrentes
   useEffect(() => {
-    if (!showForm) loadConsultations(debouncedQuery);
-  }, [debouncedQuery, showForm, loadConsultations]);
+    const controller = new AbortController();
+    const fetchConsul = async () => {
+      setLoading(true);
+      try {
+        const res = await apiFetch(`/consultations?q=${encodeURIComponent(query)}`, { signal: controller.signal });
+        if (!res.ok) throw new Error('No se pudo cargar el historial');
+        const data = await res.json() || [];
+        setConsultations(data);
+        setCurrentPage(1);
+      } catch (error) {
+        if (error.name !== 'AbortError') notify(error.message, 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    const timer = setTimeout(fetchConsul, 300); // Debounce manual nativo
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, notify]);
+
+  // Búsqueda de pacientes optimizada
   useEffect(() => {
-    if (showForm) searchPatients(debouncedPatientQuery);
-  }, [debouncedPatientQuery, showForm, searchPatients]);
+    if (!showForm) return;
+    const controller = new AbortController();
+    const fetchPatients = async () => {
+      try {
+        const res = await apiFetch(`/patients?q=${encodeURIComponent(patientQuery)}`, { signal: controller.signal });
+        if (!res.ok) return;
+        const data = await res.json() || [];
+        setPatients(data);
+        if (data.length === 1) setForm(prev => ({ ...prev, patient_id: data[0].id }));
+      } catch (error) {
+        if (error.name !== 'AbortError') console.error(error);
+      }
+    };
+
+    const timer = setTimeout(fetchPatients, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [patientQuery, showForm]);
 
   const calculateBMI = useCallback((weight, height) => {
     const w = parseFloat(weight);
@@ -1876,15 +1886,17 @@ export function Consultations() {
       setForm(INITIAL_CONSULTATION);
       setPatientQuery('');
       setShowForm(false);
-      await loadConsultations(query);
+      
+      // Recarga manual ligera
+      const reloadRes = await apiFetch(`/consultations?q=`);
+      if (reloadRes.ok) setConsultations(await reloadRes.json() || []);
     } catch (error) {
       notify(error.message, 'error');
     } finally {
       setSubmitting(false);
     }
-  }, [form, notify, loadConsultations, query]);
+  }, [form, notify]);
 
-  // Subconjunto paginado para renderizar únicamente lo visible y eliminar el lag
   const paginatedConsultations = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return consultations.slice(start, start + itemsPerPage);
@@ -1893,226 +1905,123 @@ export function Consultations() {
   const totalPages = Math.ceil(consultations.length / itemsPerPage);
 
   return (
-    <div className="consultations-container">
-      <style>{`
-        .consultations-container,
-        .consultations-container * {
-          box-sizing: border-box !important;
-        }
-
-        .consultations-container {
-          padding: 1rem;
-          background-color: #090d16;
-          color: #f8fafc;
-          min-height: 100vh;
-          font-family: system-ui, -apple-system, sans-serif;
-          width: 100%;
-        }
-
-        .main-card {
-          background-color: rgba(15, 23, 42, 0.6);
-          border: 1px solid #1e293b;
-          border-radius: 16px;
-          padding: 1.25rem;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(12px);
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
-          width: 100%;
-          max-width: 1200px;
-          margin: 0 auto;
-        }
-
-        .header-wrapper {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 1px solid #1e293b;
-          padding-bottom: 1rem;
-          flex-wrap: wrap;
-          gap: 0.75rem;
-          width: 100%;
-        }
-
-        .grid-cards {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 1rem;
-          width: 100%;
-          margin-top: 20px;
-          margin-bottom: 20px;
-        }
-
-        /* Tarjetas optimizadas sin keyframes pesados para evitar bloqueos de UI */
-        .consultation-card-fast {
-          background-color: rgba(15, 23, 42, 0.9);
-          border: 1px solid #1e293b;
-          border-radius: 12px;
-          padding: 1rem;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          gap: 0.75rem;
-          cursor: pointer;
-          transition: border-color 0.15s ease, background-color 0.15s ease;
-        }
-
-        .consultation-card-fast:hover {
-          border-color: #38bdf8;
-          background-color: rgba(30, 41, 59, 0.9);
-        }
-
-        .grid-form-2col {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 1rem;
-          width: 100%;
-        }
-
-        .input-mobile {
-          width: 100% !important;
-          background-color: #090d16 !important;
-          border: 1px solid #334155 !important;
-          color: #f8fafc !important;
-          border-radius: 8px !important;
-          padding: 0.65rem 0.85rem !important;
-          font-size: 0.875rem !important;
-          outline: none !important;
-        }
-
-        .input-mobile:focus {
-          border-color: #38bdf8 !important;
-          box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
-        }
-
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-color: rgba(0, 0, 0, 0.75);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 1000;
-          backdrop-filter: blur(4px);
-        }
-
-        .modal-content {
-          background-color: #1e293b;
-          border: 1px solid #334155;
-          border-radius: 16px;
-          padding: 2rem;
-          width: 90%;
-          max-width: 600px;
-          max-height: 80vh;
-          overflow-y: auto;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-        }
-      `}</style>
-
-      <div className="main-card">
-        <div className="header-wrapper">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400">
+    <div style={{ padding: '1rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        
+        {/* ENCABEZADO */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.6rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '12px', color: '#38bdf8' }}>
               <Stethoscope size={22} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">
+              <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#ffffff', margin: 0 }}>
                 {showForm ? 'Nueva Consulta Médica' : 'Consultas Médicas'}
               </h1>
-              <p className="text-xs text-slate-400">
+              <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>
                 {showForm ? 'Gestión de triaje, diagnóstico y prescripción.' : 'Historial de atenciones clínicas.'}
               </p>
             </div>
           </div>
 
           <button
-            className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer"
+            style={{ backgroundColor: '#2563eb', color: '#ffffff', borderRadius: '8px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             onClick={() => {
               if (!showForm) setForm(INITIAL_CONSULTATION);
               setShowForm(!showForm);
             }}
           >
-            {showForm ? <><ArrowLeft size={16} /> Volver al Historial</> : <><Plus size={16} /> Nueva Consulta</>}
+            {showForm ? <><ArrowLeft size={16} /> Volver</> : <><Plus size={16} /> Nueva Consulta</>}
           </button>
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
+        {/* LISTADO */}
         {!showForm ? (
-          <div className="space-y-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row gap-3 justify-between items-center">
-              <span className="text-xs text-slate-400 font-medium">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
                 {consultations.length} {consultations.length === 1 ? 'consulta registrada' : 'consultas registradas'}
               </span>
-              <div className="w-full sm:w-80">
-                <SearchField value={query} onChange={setQuery} placeholder="Buscar por paciente, diagnóstico o médico..." loading={loading} />
+              <div style={{ width: '100px', flex: '1', maxWidth: '320px' }}>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Buscar por paciente, diagnóstico o médico..."
+                  style={{ width: '100%', backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
+                />
               </div>
             </div>
 
-            {loading ? (
-              <LoadingState label="Cargando atenciones clínicas..." />
+            {loading && consultations.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.85rem' }}>Cargando atenciones clínicas...</div>
             ) : consultations.length === 0 ? (
-              <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
+              <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.85rem' }}>No se encontraron consultas registradas.</div>
             ) : (
               <>
-                <div className="grid-cards">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', marginTop: '10px' }}>
                   {paginatedConsultations.map((item) => (
                     <article 
-                      key={item.id} 
-                      className="consultation-card-fast shadow-md"
+                      key={item.id}
                       onClick={() => setSelectedConsultation(item)}
+                      style={{
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        border: '1px solid #1e293b',
+                        borderRadius: '12px',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        gap: '0.75rem',
+                        cursor: 'pointer'
+                      }}
                     >
-                      <div className="flex justify-between items-start gap-2">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                         <div>
-                          <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
+                          <span style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
                             <Calendar size={12} /> {formatDate(item.created_at || item.date)}
                           </span>
-                          <h3 className="text-sm font-semibold text-white line-clamp-1">
+                          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#ffffff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '190px' }}>
                             {item.patient_name || `Paciente #${item.patient_id}`}
                           </h3>
                         </div>
-                        <span className="bg-sky-950/60 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
+                        <span style={{ backgroundColor: '#0c4a6e', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontFamily: 'monospace', fontWeight: 600 }}>
                           #{item.id}
                         </span>
                       </div>
 
-                      <div className="bg-[#090d16] p-3 rounded-lg border border-slate-800/80 text-xs space-y-1.5">
-                        <p><strong className="text-slate-400">Motivo: </strong><span className="text-slate-300 line-clamp-1">{item.reason || 'Sin especificar'}</span></p>
-                        <p><strong className="text-slate-400">Diagnóstico: </strong><span className="text-sky-400 font-medium line-clamp-1">{item.diagnosis || 'Pendiente'}</span></p>
-                        <p><strong className="text-slate-400">Médico: </strong><span className="text-slate-300 line-clamp-1">{item.doctor_name || 'No asignado'}</span></p>
+                      <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(30, 41, 59, 0.8)', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div><strong style={{ color: '#94a3b8' }}>Motivo: </strong><span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></div>
+                        <div><strong style={{ color: '#94a3b8' }}>Diagnóstico: </strong><span style={{ color: '#38bdf8', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></div>
+                        <div><strong style={{ color: '#94a3b8' }}>Médico: </strong><span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></div>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
-                        <span className="flex items-center gap-1"><Scale size={13} className="text-sky-400" /> {item.weight_kg ?? '—'} kg</span>
-                        <span className="flex items-center gap-1"><Ruler size={13} className="text-sky-400" /> {item.height_cm ?? '—'} cm</span>
-                        <span className="flex items-center gap-1 font-semibold text-slate-200"><Activity size={13} className="text-sky-400" /> IMC {item.bmi ?? '—'}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #1e293b' }}>
+                        <span>⚖️ {item.weight_kg ?? '—'} kg</span>
+                        <span>📏 {item.height_cm ?? '—'} cm</span>
+                        <span style={{ fontWeight: 600, color: '#e2e8f0' }}>IMC {item.bmi ?? '—'}</span>
                       </div>
                     </article>
                   ))}
                 </div>
 
-                {/* Controles de Paginación */}
                 {totalPages > 1 && (
-                  <div className="flex justify-between items-center pt-4 border-t border-slate-800 text-xs">
-                    <span className="text-slate-400">
-                      Página {currentPage} de {totalPages}
-                    </span>
-                    <div className="flex gap-2">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #1e293b', fontSize: '0.75rem' }}>
+                    <span style={{ color: '#94a3b8' }}>Página {currentPage} de {totalPages}</span>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button
-                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+                        style={{ backgroundColor: '#1e293b', color: '#e2e8f0', padding: '0.4rem 0.8rem', borderRadius: '6px', border: 'none', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.4 : 1 }}
                         disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        onClick={() => setCurrentPage(p => p - 1)}
                       >
                         Anterior
                       </button>
                       <button
-                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg disabled:opacity-40 transition-colors"
+                        style={{ backgroundColor: '#1e293b', color: '#e2e8f0', padding: '0.4rem 0.8rem', borderRadius: '6px', border: 'none', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.4 : 1 }}
                         disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        onClick={() => setCurrentPage(p => p + 1)}
                       >
                         Siguiente
                       </button>
@@ -2127,62 +2036,37 @@ export function Consultations() {
         )}
       </div>
 
+      {/* POPUP DE DETALLE RÁPIDO */}
       {selectedConsultation && (
-        <div className="modal-overlay" onClick={() => setSelectedConsultation(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                <Stethoscope size={24} className="text-sky-400" />
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, backdropFilter: 'blur(4px)' }} onClick={() => setSelectedConsultation(null)}>
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', width: '90%', maxWidth: '550px', maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #334155', paddingBottom: '0.75rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ffffff', margin: 0 }}>
                 Detalle de Consulta #{selectedConsultation.id}
               </h2>
-              <button 
-                onClick={() => setSelectedConsultation(null)}
-                className="text-slate-500 hover:text-white transition-colors"
-              >
-                <X size={24} />
+              <button onClick={() => setSelectedConsultation(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                <X size={20} />
               </button>
             </div>
             
-            <div className="space-y-6 text-sm">
-              <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
-                <p className="flex items-center gap-2"><Calendar size={16} className="text-sky-400"/> <strong className="text-slate-300">Fecha:</strong> {formatDate(selectedConsultation.created_at || selectedConsultation.date)}</p>
-                <p className="flex items-center gap-2"><UserCheck size={16} className="text-sky-400"/> <strong className="text-slate-300">Paciente:</strong> {selectedConsultation.patient_name || `Paciente #${selectedConsultation.patient_id}`}</p>
-                <p className="flex items-center gap-2"><User size={16} className="text-sky-400"/> <strong className="text-slate-300">Médico:</strong> {selectedConsultation.doctor_name || 'No asignado'}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
+              <div style={{ backgroundColor: '#0f172a', padding: '0.85rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div><strong style={{ color: '#94a3b8' }}>Fecha:</strong> {formatDate(selectedConsultation.created_at || selectedConsultation.date)}</div>
+                <div><strong style={{ color: '#94a3b8' }}>Paciente:</strong> {selectedConsultation.patient_name || `Paciente #${selectedConsultation.patient_id}`}</div>
+                <div><strong style={{ color: '#94a3b8' }}>Médico:</strong> {selectedConsultation.doctor_name || 'No asignado'}</div>
               </div>
 
-              <div className="space-y-2">
-                <h4 className="font-semibold text-white flex items-center gap-2"><FileEdit size={16} className="text-sky-400" /> Motivo y Sintomatología</h4>
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 text-slate-300 space-y-2">
-                  <p><strong className="text-slate-400">Motivo:</strong> {selectedConsultation.reason || 'Sin especificar'}</p>
-                  <p><strong className="text-slate-400">Síntomas:</strong> {selectedConsultation.symptoms || 'No registrados'}</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-semibold text-white flex items-center gap-2"><HeartPulse size={16} className="text-sky-400" /> Signos Vitales y Triaje</h4>
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 grid grid-cols-2 gap-x-6 gap-y-2 text-slate-300">
-                  <p><strong className="text-slate-400">Peso:</strong> {selectedConsultation.weight_kg ?? '—'} kg</p>
-                  <p><strong className="text-slate-400">Talla:</strong> {selectedConsultation.height_cm ?? '—'} cm</p>
-                  <p><strong className="text-slate-400">Presión Arterial:</strong> {selectedConsultation.blood_pressure || '—'}</p>
-                  <p className="font-semibold text-slate-100"><strong className="text-slate-400">IMC:</strong> {selectedConsultation.bmi ?? '—'}</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <h4 className="font-semibold text-white flex items-center gap-2"><ClipboardCheck size={16} className="text-sky-400" /> Diagnóstico y Tratamiento</h4>
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
-                  <p><strong className="text-slate-400">Diagnóstico Principal:</strong></p>
-                  <p className="bg-[#090d16] p-3 rounded border border-slate-800 text-sky-400 font-medium">{selectedConsultation.diagnosis || 'Pendiente'}</p>
-                  <p><strong className="text-slate-400">Tratamiento / Receta:</strong></p>
-                  <p className="bg-[#090d16] p-3 rounded border border-slate-800 text-slate-300">{selectedConsultation.treatment || 'No registrado'}</p>
-                </div>
+              <div style={{ backgroundColor: '#0f172a', padding: '0.85rem', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div><strong style={{ color: '#94a3b8' }}>Motivo:</strong> {selectedConsultation.reason || 'Sin especificar'}</div>
+                <div><strong style={{ color: '#94a3b8' }}>Diagnóstico:</strong> <span style={{ color: '#38bdf8' }}>{selectedConsultation.diagnosis || 'Pendiente'}</span></div>
+                <div><strong style={{ color: '#94a3b8' }}>Tratamiento:</strong> {selectedConsultation.treatment || 'No registrado'}</div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-6 mt-6 border-t border-slate-700">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', borderTop: '1px solid #334155', paddingTop: '1rem' }}>
               <button 
                 onClick={() => setSelectedConsultation(null)}
-                className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-6 py-2 text-sm font-semibold transition-colors"
+                style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
               >
                 Cerrar
               </button>
