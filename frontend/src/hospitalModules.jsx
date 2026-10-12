@@ -12,7 +12,7 @@ import {
   Heart,HeartPulse,Key,Laptop,Layers,Loader2,Mail,MapPin,MessageSquare,Monitor,Phone,Pill,Plus,Printer,
   RefreshCw,Ruler,Save,Scale,Search,Server,Settings,Shield,ShieldAlert,ShieldCheck,Sliders,Smartphone,
   Stethoscope,TrendingDown,TrendingUp,Trash2,User as UsersIcon,UserCheck,UserPlus,Wifi,X,XCircle
-  ,
+  ,ClipboardCheck
 
 } from 'lucide-react';
 
