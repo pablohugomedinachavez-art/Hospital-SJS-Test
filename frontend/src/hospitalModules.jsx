@@ -1786,10 +1786,6 @@ export function Patients() {
   )
 }
 
-// ============================================================
-// Consultations 
-// ============================================================
-
 export function Consultations() {
   const [consultations, setConsultations] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -1801,11 +1797,10 @@ export function Consultations() {
   const [form, setForm] = useState(INITIAL_CONSULTATION);
   const [toast, notify, clearToast] = useToast();
 
-  // Estado para controlar el popup de detalle
   const [selectedConsultation, setSelectedConsultation] = useState(null);
 
-  const debouncedQuery = useDebouncedValue(query);
-  const debouncedPatientQuery = useDebouncedValue(patientQuery, 250);
+  const debouncedQuery = useDebouncedValue(query, 300); // Debounce incrementado para evitar llamadas excesivas
+  const debouncedPatientQuery = useDebouncedValue(patientQuery, 300);
 
   const loadConsultations = useCallback(async (q = '') => {
     setLoading(true);
@@ -1842,25 +1837,27 @@ export function Consultations() {
     if (showForm) searchPatients(debouncedPatientQuery);
   }, [debouncedPatientQuery, showForm, searchPatients]);
 
-  const calculateBMI = (weight, height) => {
+  const calculateBMI = useCallback((weight, height) => {
     const w = parseFloat(weight);
     const h = parseFloat(height) / 100;
     if (!w || !h || h === 0) return '';
     return (w / (h * h)).toFixed(1);
-  };
+  }, []);
 
-  const updateTriage = (field, value) => {
-    const next = { ...form, [field]: value };
-    if (field === 'weight_kg' || field === 'height_cm') {
-      next.bmi = calculateBMI(
-        field === 'weight_kg' ? value : form.weight_kg,
-        field === 'height_cm' ? value : form.height_cm
-      );
-    }
-    setForm(next);
-  };
+  const updateTriage = useCallback((field, value) => {
+    setForm(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'weight_kg' || field === 'height_cm') {
+        next.bmi = calculateBMI(
+          field === 'weight_kg' ? value : prev.weight_kg,
+          field === 'height_cm' ? value : prev.height_cm
+        );
+      }
+      return next;
+    });
+  }, [calculateBMI]);
 
-  const submit = async event => {
+  const submit = useCallback(async event => {
     event.preventDefault();
     if (!form.patient_id) return notify('Selecciona un paciente antes de guardar.', 'error');
     setSubmitting(true);
@@ -1879,10 +1876,20 @@ export function Consultations() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [form, notify, loadConsultations, query]);
 
-  const selectedPatient = useMemo(() => patients.find(p => String(p.id) === String(form.patient_id)), [patients, form.patient_id]);
-  const bmiState = getBMIState(form.bmi);
+  // Memorizar la lista de elementos renderizados para evitar cálculos innecesarios
+  const renderedConsultations = useMemo(() => {
+    return consultations.map((item) => (
+      <ConsultationCard 
+        key={item.id} 
+        item={item} 
+        onClick={setSelectedConsultation} 
+      />
+    ));
+  }, [consultations]);
+
+  const bmiState = useMemo(() => getBMIState(form.bmi), [form.bmi]);
 
   return (
     <div className="consultations-container">
@@ -1936,20 +1943,7 @@ export function Consultations() {
           margin-bottom: 20px;
         }
 
-        /* Animación de entrada y hover para las tarjetas */
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
         .animated-consultation-card {
-          animation: fadeInUp 0.35s ease-out forwards;
           transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
           cursor: pointer;
         }
@@ -1983,7 +1977,6 @@ export function Consultations() {
           box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
         }
 
-        /* Estilos para el popup/modal */
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -1996,7 +1989,6 @@ export function Consultations() {
           align-items: center;
           z-index: 1000;
           backdrop-filter: blur(4px);
-          animation: fadeIn 0.25s ease-out;
         }
 
         .modal-content {
@@ -2009,22 +2001,10 @@ export function Consultations() {
           max-height: 80vh;
           overflow-y: auto;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-          animation: scaleIn 0.3s ease-out;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        @keyframes scaleIn {
-          from { transform: scale(0.95); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
         }
       `}</style>
 
       <div className="main-card">
-        {/* ENCABEZADO */}
         <div className="header-wrapper">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400">
@@ -2053,7 +2033,6 @@ export function Consultations() {
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* LISTADO DE CONSULTAS */}
         {!showForm ? (
           <div className="space-y-4">
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row gap-3 justify-between items-center">
@@ -2071,50 +2050,15 @@ export function Consultations() {
               <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
             ) : (
               <div className="grid-cards">
-                {consultations.map((item, index) => (
-                  <article 
-                    key={item.id} 
-                    className="animated-consultation-card bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col justify-between gap-3 shadow-md"
-                    style={{ animationDelay: `${index * 0.05}s` }}
-                    onClick={() => setSelectedConsultation(item)} // Abre el popup
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
-                          <Calendar size={12} /> {formatDate(item.created_at || item.date)}
-                        </span>
-                        <h3 className="text-sm font-semibold text-white line-clamp-1">
-                          {item.patient_name || `Paciente #${item.patient_id}`}
-                        </h3>
-                      </div>
-                      <span className="bg-sky-950/60 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
-                        #{item.id}
-                      </span>
-                    </div>
-
-                    <div className="bg-[#090d16] p-3 rounded-lg border border-slate-800/80 text-xs space-y-1.5">
-                      <p><strong className="text-slate-400">Motivo: </strong><span className="text-slate-300 line-clamp-1">{item.reason || 'Sin especificar'}</span></p>
-                      <p><strong className="text-slate-400">Diagnóstico: </strong><span className="text-sky-400 font-medium line-clamp-1">{item.diagnosis || 'Pendiente'}</span></p>
-                      <p><strong className="text-slate-400">Médico: </strong><span className="text-slate-300 line-clamp-1">{item.doctor_name || 'No asignado'}</span></p>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
-                      <span className="flex items-center gap-1"><Scale size={13} className="text-sky-400" /> {item.weight_kg ?? '—'} kg</span>
-                      <span className="flex items-center gap-1"><Ruler size={13} className="text-sky-400" /> {item.height_cm ?? '—'} cm</span>
-                      <span className="flex items-center gap-1 font-semibold text-slate-200"><Activity size={13} className="text-sky-400" /> IMC {item.bmi ?? '—'}</span>
-                    </div>
-                  </article>
-                ))}
+                {renderedConsultations}
               </div>
             )}
           </div>
         ) : (
-          /* FORMULARIO DE NUEVA CONSULTA (Oculto en esta vista) */
           <div>... (Formulario de nueva consulta) ...</div>
         )}
       </div>
 
-      {/* POPUP DE DETALLE DE CONSULTA */}
       {selectedConsultation && (
         <div className="modal-overlay" onClick={() => setSelectedConsultation(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -2159,7 +2103,7 @@ export function Consultations() {
               <div className="space-y-2">
                 <h4 className="font-semibold text-white flex items-center gap-2"><ClipboardCheck size={16} className="text-sky-400" /> Diagnóstico y Tratamiento</h4>
                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 space-y-3">
-                  <p><strong className="text-slate-400">Diagnóstico Principial:</strong></p>
+                  <p><strong className="text-slate-400">Diagnóstico Principal:</strong></p>
                   <p className="bg-[#090d16] p-3 rounded border border-slate-800 text-sky-400 font-medium">{selectedConsultation.diagnosis || 'Pendiente'}</p>
                   <p><strong className="text-slate-400">Tratamiento / Receta:</strong></p>
                   <p className="bg-[#090d16] p-3 rounded border border-slate-800 text-slate-300">{selectedConsultation.treatment || 'No registrado'}</p>
