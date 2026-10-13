@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from './api.js';
-import { useToast, Toast, LoadingState, EmptyState } from './hospitalModules_2.jsx';
+import { useToast, Toast, LoadingState, EmptyState } from './hospitalModules';
 import { Bed, UserPlus, ArrowRightLeft, LogOut, ShieldAlert, CheckCircle2, Clock, Filter, Layers, X, Plus } from 'lucide-react';
 
 export function InpatientManagement() {
