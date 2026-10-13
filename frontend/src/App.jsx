@@ -19,7 +19,7 @@ import {
   TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, 
   ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
-
+import { InpatientManagement } from './InpatientManagement'; // Ajusta la ruta si está en otra carpeta
 import { createClient } from '@supabase/supabase-js'
 
 // Inicialización del cliente Supabase
@@ -70,6 +70,7 @@ export class ErrorBoundary extends React.Component {
 
 // Mapa de rutas de navegación
 const ROUTES_MAP = {
+  '/ipd': InpatientManagement,
   '/dashboard': Dashboard,
   '/patients': Patients,
   '/consultations': Consultations,
@@ -121,6 +122,7 @@ function Sidebar({ currentRoute }) {
         { label: 'Consultas', path: '/consultations' },
         { label: 'Citas', path: '/appointments' },
         { label: 'Documentos', path: '/documents' }
+        { label: 'Camas e IPD', path: '/ipd' },
       ]
     },
     {
