@@ -2625,7 +2625,6 @@ def presence_offline():
     except Exception as e:
         return jsonify({'message': f'Error al desconectar: {str(e)}'}), 500
 
-
 # ==========================================
 # ENDPOINTS: IPD & BED MANAGEMENT (ADT)
 # ==========================================
@@ -2636,14 +2635,12 @@ def get_ipd_beds():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
     try:
-        # Puedes reemplazar esto por una consulta real a tu tabla 'beds' si ya la creaste
         rows = db_query('''
             SELECT id, wing, room, status, patient 
             FROM beds WHERE tenant_id = %s
         ''', (tenant_id,), fetchall=True)
         return jsonify(rows or []), 200
     except Exception as e:
-        # Datos mock de respaldo si la tabla aún no existe en tu BD
         mock_beds = [
             { "id": 101, "wing": "Ala Norte - Piso 1", "room": "101-A", "status": "available", "patient": None },
             { "id": 102, "wing": "Ala Norte - Piso 1", "room": "101-B", "status": "occupied", "patient": { "id": 12, "name": "Juan Pérez", "admission_date": "2026-10-10" } },
@@ -2652,31 +2649,32 @@ def get_ipd_beds():
         ]
         return jsonify(mock_beds), 200
 
-@app.route('/api/ipd/admission', methods=['POST'])
-@token_required
-def admit_patient_bed():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-    data = request.get_json() or {}
-    patient_id = data.get('patient_id')
-    bed_id = data.get('bed_id')
-    
-    # Lógica para actualizar el estado de la cama a 'occupied' en tu BD
-    return jsonify({'message': f'Paciente {patient_id} admitido en cama {bed_id} con éxito'}), 200
+        @app.route('/api/ipd/admission', methods=['POST'])
+        @token_required
+        def admit_patient_bed():
+            claims = get_current_user()
+            tenant_id = claims['tenant_id']
+            data = request.get_json() or {}
+            patient_id = data.get('patient_id')
+            bed_id = data.get('bed_id')
+            return jsonify({'message': f'Paciente {patient_id} admitido en cama {bed_id} con éxito'}), 200
 
-@app.route('/api/ipd/transfer', methods=['POST'])
-@token_required
-def transfer_patient_bed():
-    data = request.get_json() or {}
-    # Lógica para reasignar la cama
-    return jsonify({'message': 'Traslado de cama ejecutado con éxito'}), 200
+        @app.route('/api/ipd/transfer', methods=['POST'])
+        @token_required
+        def transfer_patient_bed():
+            data = request.get_json() or {}
+            return jsonify({'message': 'Traslado de cama ejecutado con éxito'}), 200
 
-@app.route('/api/ipd/discharge', methods=['POST'])
-@token_required
-def discharge_patient_bed():
-    data = request.get_json() or {}
-    # Lógica para liberar la cama y generar alta
-    return jsonify({'message': 'Alta procesada y cama liberada'}), 200
+        @app.route('/api/ipd/discharge', methods=['POST'])
+        @token_required
+        def discharge_patient_bed():
+            data = request.get_json() or {}
+            return jsonify({'message': 'Alta procesada y cama liberada'}), 200
+
+
+        if __name__ == '__main__':
+            port = int(os.environ.get("PORT", 5000))
+            app.run(host='0.0.0.0', port=port, debug=False)
 
     
 @app.route('/api/dashboard/export/excel', methods=['GET'])
@@ -2762,55 +2760,3 @@ def export_dashboard_excel():
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
 
-
-# ==========================================
-# ENDPOINTS: IPD & BED MANAGEMENT (ADT)
-# ==========================================
-
-@app.route('/api/ipd/beds', methods=['GET'])
-@token_required
-def get_ipd_beds():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-    try:
-        # Puedes reemplazar esto por una consulta real a tu tabla 'beds' si ya la creaste
-        rows = db_query('''
-            SELECT id, wing, room, status, patient 
-            FROM beds WHERE tenant_id = %s
-        ''', (tenant_id,), fetchall=True)
-        return jsonify(rows or []), 200
-    except Exception as e:
-        # Datos mock de respaldo si la tabla aún no existe en tu BD
-        mock_beds = [
-            { "id": 101, "wing": "Ala Norte - Piso 1", "room": "101-A", "status": "available", "patient": None },
-            { "id": 102, "wing": "Ala Norte - Piso 1", "room": "101-B", "status": "occupied", "patient": { "id": 12, "name": "Juan Pérez", "admission_date": "2026-10-10" } },
-            { "id": 103, "wing": "Ala Sur - Piso 2", "room": "202-A", "status": "maintenance", "patient": None },
-            { "id": 104, "wing": "UCI - Piso 3", "room": "UCI-01", "status": "occupied", "patient": { "id": 15, "name": "María Gómez", "admission_date": "2026-10-12" } }
-        ]
-        return jsonify(mock_beds), 200
-
-@app.route('/api/ipd/admission', methods=['POST'])
-@token_required
-def admit_patient_bed():
-    claims = get_current_user()
-    tenant_id = claims['tenant_id']
-    data = request.get_json() or {}
-    patient_id = data.get('patient_id')
-    bed_id = data.get('bed_id')
-    
-    # Lógica para actualizar el estado de la cama a 'occupied' en tu BD
-    return jsonify({'message': f'Paciente {patient_id} admitido en cama {bed_id} con éxito'}), 200
-
-@app.route('/api/ipd/transfer', methods=['POST'])
-@token_required
-def transfer_patient_bed():
-    data = request.get_json() or {}
-    # Lógica para reasignar la cama
-    return jsonify({'message': 'Traslado de cama ejecutado con éxito'}), 200
-
-@app.route('/api/ipd/discharge', methods=['POST'])
-@token_required
-def discharge_patient_bed():
-    data = request.get_json() or {}
-    # Lógica para liberar la cama y generar alta
-    return jsonify({'message': 'Alta procesada y cama liberada'}), 200
