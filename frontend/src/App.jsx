@@ -116,13 +116,15 @@ function Sidebar({ currentRoute }) {
   const navGroups = [
     { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' },] },
     {
-      key: 'clinical', title: 'Gestión clínica', icon: <Icons.Clinical />,
+      key: 'operations', 
+      title: 'Gestión operativa', 
+      icon: <Icons.Operations />,
       items: [
-        { label: 'Pacientes', path: '/patients' },
-        { label: 'Consultas', path: '/consultations' },
-        { label: 'Citas', path: '/appointments' },
-        { label: 'Documentos', path: '/documents' }
-        { label: 'Camas e IPD', path: '/ipd' },
+        { label: 'Ubicaciones', path: '/locations' },
+        { label: 'Dispositivos', path: '/devices' },
+        { label: 'Alertas', path: '/alerts' },
+        { label: 'Camas e IPD', path: '/ipd' }, // 👈 ENLACE EN LA SIDEBAR
+        { label: 'Auditoría & IP', path: '/device-management' }
       ]
     },
     {
@@ -132,7 +134,7 @@ function Sidebar({ currentRoute }) {
       items: [
         { label: 'Ubicaciones', path: '/locations' },
         { label: 'Dispositivos', path: '/devices' },
-        { label: 'Alertas', path: '/alerts' },
+        { label: 'Alertas', path: '/alerts' },{ label: 'Camas e IPD', path: '/ipd' },
         { label: 'Auditoría & IP', path: '/device-management' }
       ]
     },
