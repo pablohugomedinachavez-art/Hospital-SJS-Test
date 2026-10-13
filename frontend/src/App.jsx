@@ -19,7 +19,7 @@ import {
   TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, 
   ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
-import { InpatientManagement } from './InpatientManagement'; // Ajusta la ruta si está en otra carpeta
+import { InpatientManagement,BedManagement } from './InpatientManagement'; // Ajusta la ruta si está en otra carpeta
 import { createClient } from '@supabase/supabase-js'
 
 // Inicialización del cliente Supabase
