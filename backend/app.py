@@ -2591,41 +2591,6 @@ def presence_heartbeat():
 
 
 # ==========================================
-# ENDPOINT: MARCAR DESCONEXIÓN AL CERRAR PESTAÑA / LOGOUT
-# ==========================================
-@app.route('/api/presence/offline', methods=['POST'])
-@token_required
-def presence_offline():
-    claims = get_current_user()
-    user_id = claims.get('id')
-    tenant_id = claims.get('tenant_id')
-    now = now_utc()
-
-    try:
-        db_query(
-            '''
-            UPDATE sessions SET status = 'offline', last_seen = %s
-            WHERE user_id = %s AND tenant_id = %s
-            ''',
-            (now, user_id, tenant_id),
-            commit=True
-        )
-
-        db_query(
-            '''
-            INSERT INTO user_presence (user_id, status, last_seen)
-            VALUES (%s, 'offline', %s)
-            ON CONFLICT (user_id) 
-            DO UPDATE SET status = 'offline', last_seen = EXCLUDED.last_seen
-            ''',
-            (user_id, now),
-            commit=True
-        )
-        return jsonify({'status': 'offline'}), 200
-    except Exception as e:
-        return jsonify({'message': f'Error al desconectar: {str(e)}'}), 500
-
-# ==========================================
 # ENDPOINTS: IPD & BED MANAGEMENT (ADT)
 # ==========================================
 
@@ -2649,32 +2614,99 @@ def get_ipd_beds():
         ]
         return jsonify(mock_beds), 200
 
-        @app.route('/api/ipd/admission', methods=['POST'])
-        @token_required
-        def admit_patient_bed():
-            claims = get_current_user()
-            tenant_id = claims['tenant_id']
-            data = request.get_json() or {}
-            patient_id = data.get('patient_id')
-            bed_id = data.get('bed_id')
-            return jsonify({'message': f'Paciente {patient_id} admitido en cama {bed_id} con éxito'}), 200
+@app.route('/api/ipd/admission', methods=['POST'])
+@token_required
+def admit_patient_bed():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    data = request.get_json() or {}
+    patient_id = data.get('patient_id')
+    bed_id = data.get('bed_id')
+    return jsonify({'message': f'Paciente {patient_id} admitido en cama {bed_id} con éxito'}), 200
 
-        @app.route('/api/ipd/transfer', methods=['POST'])
-        @token_required
-        def transfer_patient_bed():
-            data = request.get_json() or {}
-            return jsonify({'message': 'Traslado de cama ejecutado con éxito'}), 200
+@app.route('/api/ipd/transfer', methods=['POST'])
+@token_required
+def transfer_patient_bed():
+    data = request.get_json() or {}
+    return jsonify({'message': 'Traslado de cama ejecutado con éxito'}), 200
 
-        @app.route('/api/ipd/discharge', methods=['POST'])
-        @token_required
-        def discharge_patient_bed():
-            data = request.get_json() or {}
-            return jsonify({'message': 'Alta procesada y cama liberada'}), 200
+@app.route('/api/ipd/discharge', methods=['POST'])
+@token_required
+def discharge_patient_bed():
+    data = request.get_json() or {}
+    return jsonify({'message': 'Alta procesada y cama liberada'}), 200
 
+@app.route('/api/dashboard/export/excel', methods=['GET'])
+@token_required
+def export_dashboard_excel():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
 
-        if __name__ == '__main__':
-            port = int(os.environ.get("PORT", 5000))
-            app.run(host='0.0.0.0', port=port, debug=False)
+    total_patients = db_query("SELECT COUNT(*) as count FROM patients WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    total_consultations = db_query("SELECT COUNT(*) as count FROM documents WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    
+    try:
+        total_sessions = db_query("SELECT COUNT(*) as count FROM sessions WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+    except Exception:
+        total_sessions = 0 
+
+    active_users = db_query("SELECT COUNT(*) as count FROM users WHERE tenant_id = %s", (tenant_id,), fetchone=True)['count']
+
+    series_sql = '''
+        SELECT DATE(created_at) as dia, COUNT(DISTINCT patient_id) as pacientes, COUNT(*) as consultas
+        FROM documents
+        WHERE tenant_id = %s
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at) ASC
+    '''
+    series_rows = db_query(series_sql, (tenant_id,), fetchall=True)
+
+    wb = openpyxl.Workbook()
+    
+    ws_summary = wb.active
+    ws_summary.title = "Resumen General"
+    ws_summary.append(["Métrica del Sistema", "Valor Total"])
+    ws_summary.append(["Total Pacientes Registrados", total_patients])
+    ws_summary.append(["Total Consultas Médicas", total_consultations])
+    ws_summary.append(["Total Sesiones Registradas", total_sessions])
+    ws_summary.append(["Usuarios Activos", active_users])
+
+    ws_trend = wb.create_sheet(title="Tendencia Diaria")
+    ws_trend.append(["Día", "Pacientes", "Consultas"])
+
+    if series_rows:
+        for row in series_rows:
+            dia_str = pd.to_datetime(row['dia']).strftime('%Y-%m-%d')
+            ws_trend.append([dia_str, row['pacientes'], row['consultas']])
+
+        chart = BarChart()
+        chart.type = "col"
+        chart.style = 10
+        chart.title = "Evolución Diaria de Pacientes y Consultas"
+        chart.y_axis.title = "Cantidad"
+        chart.x_axis.title = "Día"
+
+        data_ref = Reference(ws_trend, min_col=2, min_row=1, max_col=3, max_row=len(series_rows) + 1)
+        cats_ref = Reference(ws_trend, min_col=1, min_row=2, max_row=len(series_rows) + 1)
+        
+        chart.add_data(data_ref, titles_from_data=True)
+        chart.set_categories(cats_ref)
+        ws_trend.add_chart(chart, "E2")
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'dashboard_analitico_{int(time.time())}.xlsx'
+    )
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
 
     
 @app.route('/api/dashboard/export/excel', methods=['GET'])
