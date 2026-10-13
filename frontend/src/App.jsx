@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { InpatientManagement,BedManagement } from './InpatientManagement'; // Ajusta la ruta si está en otra carpeta
 import { createClient } from '@supabase/supabase-js'
-
+import { FaBed, FaUserInjured, FaExchangeAlt, FaSignOutAlt, FaPlusCircle, FaTools, FaFilter } from 'react-icons/fa';
 // Inicialización del cliente Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
