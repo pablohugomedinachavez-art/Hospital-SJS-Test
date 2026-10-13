@@ -4,7 +4,6 @@ import './styles.css'
 import { 
   Patients, Consultations, Appointments, Documents, Reports, Locations, 
   Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
-  dashboard2 
 } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
@@ -20,9 +19,9 @@ import {
   TrendingUp, TrendingDown, BarChart3, HardDrive, RefreshCw, Building2, Sliders, 
   ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
-
+import { InpatientManagement,BedManagement } from './InpatientManagement'; // Ajusta la ruta si está en otra carpeta
 import { createClient } from '@supabase/supabase-js'
-
+import { FaBed, FaUserInjured, FaExchangeAlt, FaSignOutAlt, FaPlusCircle, FaTools, FaFilter } from 'react-icons/fa';
 // Inicialización del cliente Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "YOUR_SUPABASE_URL";
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
@@ -71,6 +70,7 @@ export class ErrorBoundary extends React.Component {
 
 // Mapa de rutas de navegación
 const ROUTES_MAP = {
+  '/ipd': InpatientManagement,
   '/dashboard': Dashboard,
   '/patients': Patients,
   '/consultations': Consultations,
@@ -84,7 +84,7 @@ const ROUTES_MAP = {
   '/users': Users,
   '/reports': Reports,
   '/profile': Profile,
-  '/dashboard2': dashboard2,
+  
 }
 
 const normalizeRoute = (hash) => {
@@ -114,14 +114,17 @@ function Sidebar({ currentRoute }) {
   }
 
   const navGroups = [
-    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' },{ label: 'dashboard2', path: '/dashboard2' }] },
+    { key: 'dashboard', title: 'Panel', icon: <Icons.Dashboard />, items: [{ label: 'Dashboard', path: '/dashboard' },] },
     {
-      key: 'clinical', title: 'Gestión clínica', icon: <Icons.Clinical />,
+      key: 'operations', 
+      title: 'Gestión operativa', 
+      icon: <Icons.Operations />,
       items: [
-        { label: 'Pacientes', path: '/patients' },
-        { label: 'Consultas', path: '/consultations' },
-        { label: 'Citas', path: '/appointments' },
-        { label: 'Documentos', path: '/documents' }
+        { label: 'Ubicaciones', path: '/locations' },
+        { label: 'Dispositivos', path: '/devices' },
+        { label: 'Alertas', path: '/alerts' },
+        { label: 'Camas e IPD', path: '/ipd' }, // 👈 ENLACE EN LA SIDEBAR
+        { label: 'Auditoría & IP', path: '/device-management' }
       ]
     },
     {
@@ -131,7 +134,7 @@ function Sidebar({ currentRoute }) {
       items: [
         { label: 'Ubicaciones', path: '/locations' },
         { label: 'Dispositivos', path: '/devices' },
-        { label: 'Alertas', path: '/alerts' },
+        { label: 'Alertas', path: '/alerts' },{ label: 'Camas e IPD', path: '/ipd' },
         { label: 'Auditoría & IP', path: '/device-management' }
       ]
     },
