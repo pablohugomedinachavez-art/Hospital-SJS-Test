@@ -123,7 +123,6 @@ function Sidebar({ currentRoute }) {
         { label: 'Ubicaciones', path: '/locations' },
         { label: 'Dispositivos', path: '/devices' },
         { label: 'Alertas', path: '/alerts' },
-        { label: 'Camas e IPD', path: '/ipd' }, // 👈 ENLACE EN LA SIDEBAR
         { label: 'Auditoría & IP', path: '/device-management' }
       ]
     },
@@ -133,7 +132,8 @@ function Sidebar({ currentRoute }) {
         { label: 'Pacientes', path: '/patients' },
         { label: 'Consultas', path: '/consultations' },
         { label: 'Citas', path: '/appointments' },
-        { label: 'Documentos', path: '/documents' }
+        { label: 'Documentos', path: '/documents' },
+        { label: 'Camas e IPD', path: '/ipd' }
       ]
     },
     { key: 'users', title: 'Usuarios', icon: <Icons.Users />, items: [{ label: 'Usuarios', path: '/users', permission: 'manage_users' }] },
