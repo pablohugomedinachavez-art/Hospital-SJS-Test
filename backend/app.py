@@ -2603,42 +2603,190 @@ def get_ipd_beds():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
     try:
+        # Consulta segura uniendo camas con los datos básicos del paciente si está ocupada
         rows = db_query('''
-            SELECT id, wing, room, status, patient 
-            FROM beds WHERE tenant_id = %s
+            SELECT b.id, b.wing, b.room, b.status, 
+                   CASE 
+                       WHEN b.patient_id IS NOT NULL THEN json_build_object(
+                           'id', p.id, 
+                           'name', p.full_name, 
+                           'admission_date', b.admission_date
+                       )
+                       ELSE NULL 
+                   END AS patient
+            FROM beds b
+            LEFT JOIN patients p ON p.id = b.patient_id
+            WHERE b.tenant_id = %s
+            ORDER BY b.wing, b.room
         ''', (tenant_id,), fetchall=True)
         return jsonify(rows or []), 200
     except Exception as e:
-        mock_beds = [
-            { "id": 101, "wing": "Ala Norte - Piso 1", "room": "101-A", "status": "available", "patient": None },
-            { "id": 102, "wing": "Ala Norte - Piso 1", "room": "101-B", "status": "occupied", "patient": { "id": 12, "name": "Juan Pérez", "admission_date": "2026-10-10" } },
-            { "id": 103, "wing": "Ala Sur - Piso 2", "room": "202-A", "status": "maintenance", "patient": None },
-            { "id": 104, "wing": "UCI - Piso 3", "room": "UCI-01", "status": "occupied", "patient": { "id": 15, "name": "María Gómez", "admission_date": "2026-10-12" } }
-        ]
-        return jsonify(mock_beds), 200
+        print(f"[ERROR /api/ipd/beds GET]: {str(e)}")
+        return jsonify({'message': f'Error al obtener camas: {str(e)}'}), 500
+
 
 @app.route('/api/ipd/admission', methods=['POST'])
 @token_required
 def admit_patient_bed():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
+    user_id = claims.get('id')
     data = request.get_json() or {}
+    
     patient_id = data.get('patient_id')
     bed_id = data.get('bed_id')
-    return jsonify({'message': f'Paciente {patient_id} admitido en cama {bed_id} con éxito'}), 200
+
+    if not patient_id or not bed_id:
+        return jsonify({'message': 'patient_id y bed_id son obligatorios'}), 400
+
+    try:
+        # 1. Verificar que la cama esté disponible
+        bed = db_query('SELECT status FROM beds WHERE id = %s AND tenant_id = %s', (bed_id, tenant_id), fetchone=True)
+        if not bed or bed['status'] != 'available':
+            return jsonify({'message': 'La cama seleccionada no se encuentra disponible'}), 400
+
+        # 2. Actualizar estado de la cama a ocupada y vincular paciente
+        db_query(
+            '''
+            UPDATE beds 
+            SET status = 'occupied', patient_id = %s, admission_date = %s, updated_at = %s
+            WHERE id = %s AND tenant_id = %s
+            ''',
+            (patient_id, now_utc(), now_utc(), bed_id, tenant_id),
+            commit=True
+        )
+
+        # 3. Registrar en el historial de movimientos ADT
+        db_query(
+            '''
+            INSERT INTO ipd_movements (tenant_id, patient_id, bed_id, movement_type, performed_by, notes, created_at)
+            VALUES (%s, %s, %s, 'ADMISSION', %s, %s, %s)
+            ''',
+            (tenant_id, patient_id, bed_id, user_id, 'Admisión inicial a piso', now_utc()),
+            commit=True
+        )
+
+        record_audit('create', 'ipd_admission', bed_id, f'Admitted patient {patient_id} to bed {bed_id}', tenant_id, user_id)
+        return jsonify({'message': 'Paciente admitido con éxito'}), 201
+
+    except Exception as e:
+        print(f"[ERROR /api/ipd/admission POST]: {str(e)}")
+        return jsonify({'message': f'Error interno en la admisión: {str(e)}'}), 500
+
 
 @app.route('/api/ipd/transfer', methods=['POST'])
 @token_required
 def transfer_patient_bed():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user_id = claims.get('id')
     data = request.get_json() or {}
-    return jsonify({'message': 'Traslado de cama ejecutado con éxito'}), 200
+
+    patient_id = data.get('patient_id')
+    origin_bed_id = data.get('origin_bed_id')
+    target_bed_id = data.get('target_bed_id')
+    notes = data.get('notes', 'Traslado entre habitaciones/alas')
+
+    if not patient_id or not origin_bed_id or not target_bed_id:
+        return jsonify({'message': 'patient_id, origin_bed_id y target_bed_id son requeridos'}), 400
+
+    try:
+        # 1. Validar que la cama de destino esté disponible
+        target_bed = db_query('SELECT status FROM beds WHERE id = %s AND tenant_id = %s', (target_bed_id, tenant_id), fetchone=True)
+        if not target_bed or target_bed['status'] != 'available':
+            return jsonify({'message': 'La cama de destino seleccionada no está disponible'}), 400
+
+        # 2. Obtener fecha de admisión original para mantener la trazabilidad de la estancia
+        origin_bed = db_query('SELECT admission_date FROM beds WHERE id = %s AND tenant_id = %s', (origin_bed_id, tenant_id), fetchone=True)
+        admission_date = origin_bed['admission_date'] if origin_bed else now_utc()
+
+        # 3. Liberar cama de origen
+        db_query(
+            '''
+            UPDATE beds 
+            SET status = 'available', patient_id = NULL, admission_date = NULL, updated_at = %s
+            WHERE id = %s AND tenant_id = %s
+            ''',
+            (now_utc(), origin_bed_id, tenant_id),
+            commit=True
+        )
+
+        # 4. Ocupar cama de destino con los datos del paciente
+        db_query(
+            '''
+            UPDATE beds 
+            SET status = 'occupied', patient_id = %s, admission_date = %s, updated_at = %s
+            WHERE id = %s AND tenant_id = %s
+            ''',
+            (patient_id, admission_date, now_utc(), target_bed_id, tenant_id),
+            commit=True
+        )
+
+        # 5. Registrar movimiento de traslado en auditoría IPD
+        db_query(
+            '''
+            INSERT INTO ipd_movements (tenant_id, patient_id, bed_id, movement_type, origin_bed_id, performed_by, notes, created_at)
+            VALUES (%s, %s, %s, 'TRANSFER', %s, %s, %s, %s)
+            ''',
+            (tenant_id, patient_id, target_bed_id, origin_bed_id, user_id, notes, now_utc()),
+            commit=True
+        )
+
+        record_audit('update', 'ipd_transfer', target_bed_id, f'Transferred patient {patient_id} from bed {origin_bed_id} to {target_bed_id}', tenant_id, user_id)
+        return jsonify({'message': 'Traslado ejecutado con éxito'}), 200
+
+    except Exception as e:
+        print(f"[ERROR /api/ipd/transfer POST]: {str(e)}")
+        return jsonify({'message': f'Error interno en el traslado: {str(e)}'}), 500
+
+
 
 @app.route('/api/ipd/discharge', methods=['POST'])
 @token_required
 def discharge_patient_bed():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    user_id = claims.get('id')
     data = request.get_json() or {}
-    return jsonify({'message': 'Alta procesada y cama liberada'}), 200
 
+    bed_id = data.get('bed_id')
+    patient_id = data.get('patient_id')
+    notes = data.get('notes', 'Alta médica procesada')
+
+    if not bed_id:
+        return jsonify({'message': 'bed_id es obligatorio'}), 400
+
+    try:
+        # 1. Cambiar estado de la cama a mantenimiento/limpieza preventiva o disponible directamente
+        db_query(
+            '''
+            UPDATE beds 
+            SET status = 'maintenance', patient_id = NULL, admission_date = NULL, updated_at = %s
+            WHERE id = %s AND tenant_id = %s
+            ''',
+            (now_utc(), bed_id, tenant_id),
+            commit=True
+        )
+
+        # 2. Registrar el movimiento de alta si hay paciente vinculado
+        if patient_id:
+            db_query(
+                '''
+                INSERT INTO ipd_movements (tenant_id, patient_id, bed_id, movement_type, performed_by, notes, created_at)
+                VALUES (%s, %s, %s, 'DISCHARGE', %s, %s, %s)
+                ''',
+                (tenant_id, patient_id, bed_id, user_id, notes, now_utc()),
+                commit=True
+            )
+
+        record_audit('update', 'ipd_discharge', bed_id, f'Processed discharge for bed {bed_id}', tenant_id, user_id)
+        return jsonify({'message': 'Alta procesada y cama en mantenimiento preventivo'}), 200
+
+    except Exception as e:
+        print(f"[ERROR /api/ipd/discharge POST]: {str(e)}")
+        return jsonify({'message': f'Error interno al procesar el alta: {str(e)}'}), 500
+
+        
 @app.route('/api/dashboard/export/excel', methods=['GET'])
 @token_required
 def export_dashboard_excel():

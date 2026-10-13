@@ -302,11 +302,20 @@ export function InpatientManagement() {
 }
 
 
-export default function BedManagement() {
+// Importar los modales creados en los pasos anteriores
+import AdmissionModal from './AdmissionModal';
+import TransferModal from './TransferModal';
+import DischargeModal from './DischargeModal';
+
+export function BedManagement() {
   const [beds, setBeds] = useState([]);
   const [filterWing, setFilterWing] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [loading, setLoading] = useState(true);
+
+  // Estados para controlar los modales activos y la cama seleccionada
+  const [selectedBed, setSelectedBed] = useState(null);
+  const [activeModal, setActiveModal] = useState(null); // 'admission', 'transfer', 'discharge'
 
   useEffect(() => {
     fetchBeds();
@@ -339,6 +348,20 @@ export default function BedManagement() {
   const availableBeds = beds.filter(b => b.status === 'available').length;
   const occupiedBeds = beds.filter(b => b.status === 'occupied').length;
   const maintenanceBeds = beds.filter(b => b.status === 'maintenance').length;
+
+  const handleOpenModal = (bed, type) => {
+    setSelectedBed(bed);
+    setActiveModal(type); // 'admission' | 'transfer' | 'discharge'
+  };
+
+  const handleCloseModal = () => {
+    setSelectedBed(null);
+    setActiveModal(null);
+  };
+
+  const handleSuccessAction = () => {
+    fetchBeds(); // Recargar el mapa de camas tras una acción ADT exitosa
+  };
 
   return (
     <div className="p-6 bg-[#0B0F19] min-h-screen text-slate-100 font-sans">
@@ -469,11 +492,11 @@ export default function BedManagement() {
                   )}
                 </div>
 
-                {/* Acciones inferiores ADT */}
+                {/* Acciones inferiores ADT conectadas a los modales */}
                 <div className="pt-2">
                   {isAvailable && (
                     <button 
-                      onClick={() => alert(`Abrir modal de admisión para cama ${bed.room}`)}
+                      onClick={() => handleOpenModal(bed, 'admission')}
                       className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-2.5 px-4 rounded-xl transition shadow-md shadow-emerald-900/20 cursor-pointer"
                     >
                       <FaPlusCircle /> Admitir Paciente
@@ -483,13 +506,13 @@ export default function BedManagement() {
                   {isOccupied && (
                     <div className="grid grid-cols-2 gap-2">
                       <button 
-                        onClick={() => alert(`Trasladar paciente de cama ${bed.room}`)}
+                        onClick={() => handleOpenModal(bed, 'transfer')}
                         className="flex items-center justify-center gap-1.5 bg-blue-600/80 hover:bg-blue-600 text-white text-xs font-semibold py-2 px-3 rounded-xl transition shadow-md cursor-pointer"
                       >
                         <FaExchangeAlt /> Trasladar
                       </button>
                       <button 
-                        onClick={() => alert(`Procesar alta para cama ${bed.room}`)}
+                        onClick={() => handleOpenModal(bed, 'discharge')}
                         className="flex items-center justify-center gap-1.5 bg-rose-600/80 hover:bg-rose-600 text-white text-xs font-semibold py-2 px-3 rounded-xl transition shadow-md cursor-pointer"
                       >
                         <FaSignOutAlt /> Alta
@@ -511,6 +534,32 @@ export default function BedManagement() {
           })}
         </div>
       )}
+
+      {/* Renderizado condicional de los Modales ADT */}
+      {activeModal === 'admission' && selectedBed && (
+        <AdmissionModal 
+          bed={selectedBed} 
+          onClose={handleCloseModal} 
+          onSuccess={handleSuccessAction} 
+        />
+      )}
+
+      {activeModal === 'transfer' && selectedBed && (
+        <TransferModal 
+          bed={selectedBed} 
+          onClose={handleCloseModal} 
+          onSuccess={handleSuccessAction} 
+        />
+      )}
+
+      {activeModal === 'discharge' && selectedBed && (
+        <DischargeModal 
+          bed={selectedBed} 
+          onClose={handleCloseModal} 
+          onSuccess={handleSuccessAction} 
+        />
+      )}
+
     </div>
   );
 }
