@@ -67,7 +67,24 @@ export class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+useEffect(() => {
+  const registerDeviceAutomatically = async () => {
+    try {
+      const platform = navigator.platform || '';
+      await apiFetch('/devices/auto-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform })
+      });
+    } catch (err) {
+      console.error("Error al registrar el dispositivo automáticamente:", err);
+    }
+  };
 
+  if (user?.id) {
+    registerDeviceAutomatically();
+  }
+}, [user]);
 // Mapa de rutas de navegación
 const ROUTES_MAP = {
   '/ipd': InpatientManagement,
@@ -273,6 +290,9 @@ function Alerts() {
     } catch (err) {
       setInfo('Error al conectar con el servidor')
     }
+
+      
+
   }
 
   useEffect(() => { load() }, [])
