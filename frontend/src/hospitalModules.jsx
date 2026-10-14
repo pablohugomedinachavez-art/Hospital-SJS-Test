@@ -2483,6 +2483,7 @@ export function Devices() {
   useEffect(() => {
     loadData();
 
+    // Fetch the client IP automatically on mount
     (async () => {
       try {
         const res = await fetch('https://api.ipify.org?format=json');
