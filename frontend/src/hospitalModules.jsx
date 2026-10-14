@@ -2446,11 +2446,16 @@ export function Devices() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [showForm, setShowForm] = useState(false);
+  
+  // Expanded form data matching your database table columns
   const [formData, setFormData] = useState({
     name: '',
     type: 'pc',
     location_id: '',
-    status: 'active'
+    status: 'available',
+    serial_number: '',
+    mac_address: '',
+    os_version: ''
   });
 
   const { user } = useAuth();
@@ -2506,7 +2511,11 @@ export function Devices() {
         status: formData.status,
         location_id: formData.location_id ? parseInt(formData.location_id, 10) : null,
         ip_address: clientInfo.ip || null,
-        user_agent: clientInfo.userAgent
+        user_agent: clientInfo.userAgent,
+        serial_number: formData.serial_number ? formData.serial_number.trim() : null,
+        mac_address: formData.mac_address ? formData.mac_address.trim() : null,
+        os_version: formData.os_version ? formData.os_version.trim() : null,
+        tenant_id: user?.tenant_id ? parseInt(user.tenant_id, 10) : undefined // Included for the required tenant_id constraint
       };
 
       const res = await apiFetch('/devices', {
@@ -2523,7 +2532,15 @@ export function Devices() {
 
       notify('Dispositivo registrado con éxito', 'success');
       setShowForm(false);
-      setFormData({ name: '', type: 'pc', location_id: '', status: 'active' });
+      setFormData({
+        name: '',
+        type: 'pc',
+        location_id: '',
+        status: 'available',
+        serial_number: '',
+        mac_address: '',
+        os_version: ''
+      });
       loadData();
     } catch (error) {
       notify(error.message, 'error');
@@ -2533,7 +2550,7 @@ export function Devices() {
   const filteredDevices = useMemo(() => {
     const q = search.trim().toLowerCase();
     return devices.filter(device => {
-      const matchesQuery = !q || [device.name, device.type, device.ip_address]
+      const matchesQuery = !q || [device.name, device.type, device.ip_address, device.serial_number, device.mac_address]
         .filter(Boolean)
         .some(value => String(value).toLowerCase().includes(q));
       const matchesStatus = status === 'all' || device.status === status;
@@ -2606,8 +2623,8 @@ export function Devices() {
               onChange={e => setFormData({ ...formData, status: e.target.value })}
               style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
             >
-              <option value="active">Activo</option>
               <option value="available">Disponible</option>
+              <option value="active">Activo</option>
               <option value="in_use">En uso</option>
               <option value="maintenance">Mantenimiento</option>
             </select>
@@ -2619,9 +2636,30 @@ export function Devices() {
               <option value="">Sin ubicación</option>
               {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
+            <input
+              type="text"
+              placeholder="Número de serie (opcional)"
+              value={formData.serial_number}
+              onChange={e => setFormData({ ...formData, serial_number: e.target.value })}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            />
+            <input
+              type="text"
+              placeholder="Dirección MAC (opcional)"
+              value={formData.mac_address}
+              onChange={e => setFormData({ ...formData, mac_address: e.target.value })}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            />
+            <input
+              type="text"
+              placeholder="Versión de OS (opcional)"
+              value={formData.os_version}
+              onChange={e => setFormData({ ...formData, os_version: e.target.value })}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+            />
             <button
               type="submit"
-              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem', width: '100%' }}
+              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem', width: '100%', gridColumn: '1 / -1' }}
             >
               Guardar Dispositivo
             </button>
@@ -2634,7 +2672,7 @@ export function Devices() {
           {/* BARRA DE BÚSQUEDA Y FILTRO */}
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
             <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-              <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo o IP…" loading={loading} />
+              <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo, IP, serie o MAC…" loading={loading} />
             </div>
             <select
               style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', flex: '1 1 140px', minWidth: 0 }}
@@ -2642,8 +2680,8 @@ export function Devices() {
               onChange={e => setStatus(e.target.value)}
             >
               <option value="all">Todos los estados</option>
-              <option value="active">Activo</option>
               <option value="available">Disponible</option>
+              <option value="active">Activo</option>
               <option value="in_use">En uso</option>
               <option value="maintenance">Mantenimiento</option>
             </select>
@@ -2655,7 +2693,7 @@ export function Devices() {
           ) : filteredDevices.length === 0 ? (
             <EmptyState icon="📟" title="No hay dispositivos" description="No se encontraron elementos con los filtros seleccionados." />
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: '1rem', width: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1rem', width: '100%' }}>
               {filteredDevices.map(row => (
                 <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)', width: '100%', boxSizing: 'border-box' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
@@ -2666,13 +2704,12 @@ export function Devices() {
                     <strong style={{ fontSize: '1rem', color: '#f8fafc', display: 'block', overflowWrap: 'break-word' }}>{row.name}</strong>
                     <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.1rem' }}>{row.type || '—'}</div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', fontSize: '0.75rem', color: '#94a3b8', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                    <span style={{ overflowWrap: 'break-word', wordBreak: 'break-all' }}>
-                      IP: <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code>
-                    </span>
-                    <span style={{ textAlign: 'right', overflowWrap: 'break-word' }}>
-                      Ubicación: {locationMap.get(String(row.location_id)) || 'Sin asignación'}
-                    </span>
+                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
+                    <div><strong>IP:</strong> <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></div>
+                    <div><strong>Serial:</strong> {row.serial_number || '—'}</div>
+                    <div><strong>MAC:</strong> {row.mac_address || '—'}</div>
+                    <div><strong>OS:</strong> {row.os_version || '—'}</div>
+                    <div><strong>Ubicación:</strong> {locationMap.get(String(row.location_id)) || 'Sin asignación'}</div>
                   </div>
                 </div>
               ))}
@@ -2684,8 +2721,6 @@ export function Devices() {
     </div>
   );
 }
-
-
 
 
 export function DeviceActions() {
