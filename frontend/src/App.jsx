@@ -122,6 +122,7 @@ function Sidebar({ currentRoute }) {
       items: [
         { label: 'Servicios', path: '/locations' },
         { label: 'Dispositivos', path: '/devices' },
+        { label: 'Alertas', path: '/alerts' },
         { label: 'Auditoría & IP', path: '/device-management' }
       ]
     },
