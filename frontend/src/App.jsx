@@ -120,9 +120,8 @@ function Sidebar({ currentRoute }) {
       title: 'Gestión operativa', 
       icon: <Icons.Operations />,
       items: [
-        { label: 'Ubicaciones', path: '/locations' },
+        { label: 'Servicios', path: '/locations' },
         { label: 'Dispositivos', path: '/devices' },
-        { label: 'Alertas', path: '/alerts' },
         { label: 'Auditoría & IP', path: '/device-management' }
       ]
     },

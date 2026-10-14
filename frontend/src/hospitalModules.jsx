@@ -2263,7 +2263,7 @@ export function Locations() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
           <div style={{ minWidth: 0, flex: '1 1 250px' }}>
             <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em' }}>
-              Áreas del hospital
+              Servicios del hospital
             </h1>
             <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
               Visualiza capacidad operativa, dispositivos y alertas por área.
