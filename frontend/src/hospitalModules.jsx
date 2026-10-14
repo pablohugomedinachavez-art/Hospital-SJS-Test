@@ -2550,7 +2550,7 @@ export function Devices() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
           <div>
             <h1>Dispositivos y Auditoría (User ID: {user?.id || 'N/A'})</h1>
-            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>IP Real Configurada: <code>{clientInfo.ip}</code></p>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>IP Configurada: <code>{clientInfo.ip}</code></p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
