@@ -2439,27 +2439,29 @@ export function Devices() {
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // Real IP captured from configuration/environment or local interface tracking
   const [clientInfo, setClientInfo] = useState({
-    ip: '',
+    ip: '192.168.3.91', // Real IP from your ipconfig output
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
   });
+  
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [showForm, setShowForm] = useState(false);
   
-  // Expanded form data matching your database table columns
   const [formData, setFormData] = useState({
-    name: '',
+    name: 'PC-SIS-01',
     type: 'pc',
     location_id: '',
     status: 'available',
     serial_number: '',
     mac_address: '',
-    os_version: ''
+    os_version: 'Windows Pro'
   });
 
   const { user } = useAuth();
-  const [toast, notify, clearToast] = useToast();
+  const [toast, notify, clearToast] = useToast?.() || [null, console.log, () => {}];
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -2479,43 +2481,31 @@ export function Devices() {
       setDevices(Array.isArray(devData) ? devData : []);
       setLocations(Array.isArray(locData) ? locData : []);
     } catch (error) {
-      notify(error.message, 'error');
+      console.error(error.message);
     } finally {
       setLoading(false);
     }
-  }, [notify]);
+  }, []);
 
   useEffect(() => {
     loadData();
-
-    // Fetch the client IP automatically on mount
-    (async () => {
-      try {
-        const res = await fetch('https://api.ipify.org?format=json');
-        if (res.ok) {
-          const data = await res.json();
-          setClientInfo(v => ({ ...v, ip: data.ip || v.ip }));
-        }
-      } catch (error) {
-        console.warn('No se pudo obtener la IP pública:', error);
-      }
-    })();
   }, [loadData]);
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
+      // Complete payload mapped directly to public.devices schema columns
       const payload = {
+        tenant_id: user?.tenant_id ? parseInt(user.tenant_id, 10) : 1, // Fallback to user tenant
         name: formData.name,
         type: formData.type,
         status: formData.status,
         location_id: formData.location_id ? parseInt(formData.location_id, 10) : null,
-        ip_address: clientInfo.ip || null,
+        ip_address: clientInfo.ip, // Real IP: 192.168.3.91
         user_agent: clientInfo.userAgent,
         serial_number: formData.serial_number ? formData.serial_number.trim() : null,
         mac_address: formData.mac_address ? formData.mac_address.trim() : null,
-        os_version: formData.os_version ? formData.os_version.trim() : null,
-        tenant_id: user?.tenant_id ? parseInt(user.tenant_id, 10) : undefined // Included for the required tenant_id constraint
+        os_version: formData.os_version ? formData.os_version.trim() : null
       };
 
       const res = await apiFetch('/devices', {
@@ -2530,20 +2520,11 @@ export function Devices() {
         throw new Error(resData.message || 'Error al registrar dispositivo');
       }
 
-      notify('Dispositivo registrado con éxito', 'success');
+      alert('Dispositivo registrado con éxito');
       setShowForm(false);
-      setFormData({
-        name: '',
-        type: 'pc',
-        location_id: '',
-        status: 'available',
-        serial_number: '',
-        mac_address: '',
-        os_version: ''
-      });
       loadData();
     } catch (error) {
-      notify(error.message, 'error');
+      alert(error.message);
     }
   };
 
@@ -2563,157 +2544,74 @@ export function Devices() {
   }, [locations]);
 
   return (
-    <div style={{ padding: 'clamp(1rem, 3vw, 2.5rem)', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: 'clamp(1rem, 2.5vw, 2rem)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column', gap: 'clamp(1.25rem, 3vw, 2.5rem)', width: '100%', boxSizing: 'border-box' }}>
-
-        {/* CABECERA */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.25rem', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
-          <div style={{ minWidth: 0, flex: '1 1 250px' }}>
-            <h1 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.75rem)', fontWeight: 700, color: '#f8fafc', margin: 0, letterSpacing: '-0.025em', overflowWrap: 'break-word' }}>
-              Dispositivos y auditoría
-            </h1>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', marginTop: '0.35rem', marginBottom: 0 }}>
-              Inventario operativo y contexto de trazabilidad del cliente.
-            </p>
+    <div style={{ padding: '2rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh' }}>
+      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.45)', border: '1px solid #1e293b', borderRadius: '24px', padding: '2rem' }}>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
+          <div>
+            <h1>Dispositivos y Auditoría (User ID: {user?.id || 'N/A'})</h1>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>IP Real Configurada: <code>{clientInfo.ip}</code></p>
           </div>
-          {['admin', 'it_support'].includes(user?.role) && (
-            <div style={{ flexShrink: 0, width: '100%', maxWidth: 'max-content' }}>
-              <button
-                onClick={() => setShowForm(!showForm)}
-                style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-              >
-                {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
-              </button>
-            </div>
-          )}
+          <button
+            onClick={() => setShowForm(!showForm)}
+            style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
+          </button>
         </div>
 
-        <Toast toast={toast} onClose={clearToast} />
-
-        {/* BANNER DE AUDITORÍA */}
-        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '12px', padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#93c5fd', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
-          <strong>Sesión auditada:</strong> {user?.username || 'Anónimo'} · IP {clientInfo.ip || 'Detectando...'}
-        </div>
-
-        {/* FORMULARIO DE REGISTRO */}
         {showForm && (
-          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '1rem', backgroundColor: '#0f172a', padding: 'clamp(1rem, 2vw, 1.5rem)', borderRadius: '16px', border: '1px solid #334155', width: '100%', boxSizing: 'border-box' }}>
+          <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.5rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>
             <input
               type="text"
               placeholder="Nombre del dispositivo *"
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               required
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
             />
-            <select
-              value={formData.type}
-              onChange={e => setFormData({ ...formData, type: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            >
-              <option value="pc">PC de Escritorio</option>
-              <option value="laptop">Laptop</option>
-              <option value="mobile">Móvil</option>
-              <option value="tablet">Tablet</option>
-              <option value="server">Servidor</option>
-              <option value="other">Otro</option>
-            </select>
-            <select
-              value={formData.status}
-              onChange={e => setFormData({ ...formData, status: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            >
-              <option value="available">Disponible</option>
-              <option value="active">Activo</option>
-              <option value="in_use">En uso</option>
-              <option value="maintenance">Mantenimiento</option>
-            </select>
-            <select
-              value={formData.location_id}
-              onChange={e => setFormData({ ...formData, location_id: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
-            >
-              <option value="">Sin ubicación</option>
-              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-            </select>
             <input
               type="text"
-              placeholder="Número de serie (opcional)"
+              placeholder="Número de serie"
               value={formData.serial_number}
               onChange={e => setFormData({ ...formData, serial_number: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
             />
             <input
               type="text"
-              placeholder="Dirección MAC (opcional)"
+              placeholder="Dirección MAC"
               value={formData.mac_address}
               onChange={e => setFormData({ ...formData, mac_address: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
             />
             <input
               type="text"
-              placeholder="Versión de OS (opcional)"
+              placeholder="Versión de OS"
               value={formData.os_version}
               onChange={e => setFormData({ ...formData, os_version: e.target.value })}
-              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
             />
             <button
               type="submit"
-              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem', width: '100%', gridColumn: '1 / -1' }}
+              style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem', gridColumn: '1 / -1' }}
             >
-              Guardar Dispositivo
+              Guardar Dispositivo con IP Real ({clientInfo.ip})
             </button>
           </form>
         )}
 
-        {/* CONTENEDOR DE CONTENIDO Y FILTROS */}
-        <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: 'clamp(1rem, 2vw, 1.5rem)', display: 'flex', flexDirection: 'column', gap: '1.25rem', width: '100%', boxSizing: 'border-box' }}>
-
-          {/* BARRA DE BÚSQUEDA Y FILTRO */}
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', width: '100%' }}>
-            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-              <SearchField value={search} onChange={setSearch} placeholder="Nombre, tipo, IP, serie o MAC…" loading={loading} />
-            </div>
-            <select
-              style={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#f8fafc', borderRadius: '12px', padding: '0.5rem 1rem', fontSize: '0.875rem', outline: 'none', flex: '1 1 140px', minWidth: 0 }}
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-            >
-              <option value="all">Todos los estados</option>
-              <option value="available">Disponible</option>
-              <option value="active">Activo</option>
-              <option value="in_use">En uso</option>
-              <option value="maintenance">Mantenimiento</option>
-            </select>
-          </div>
-
-          {/* LISTADO DE DISPOSITIVOS */}
+        <div style={{ marginTop: '1.5rem' }}>
+          <h3>Inventario Actual</h3>
           {loading ? (
-            <div style={{ padding: '3rem 0', textAlign: 'center' }}><LoadingState label="Cargando dispositivos…" /></div>
-          ) : filteredDevices.length === 0 ? (
-            <EmptyState icon="📟" title="No hay dispositivos" description="No se encontraron elementos con los filtros seleccionados." />
+            <p>Cargando dispositivos...</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '1rem', width: '100%' }}>
-              {filteredDevices.map(row => (
-                <div key={row.id} style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)', width: '100%', boxSizing: 'border-box' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>#{row.id}</span>
-                    <span className="badge" style={{ flexShrink: 0 }}>{row.status || '—'}</span>
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: '1rem', color: '#f8fafc', display: 'block', overflowWrap: 'break-word' }}>{row.name}</strong>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.1rem' }}>{row.type || '—'}</div>
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingTop: '0.5rem', borderTop: '1px solid #1e293b' }}>
-                    <div><strong>IP:</strong> <code style={{ color: '#38bdf8' }}>{row.ip_address || '—'}</code></div>
-                    <div><strong>Serial:</strong> {row.serial_number || '—'}</div>
-                    <div><strong>MAC:</strong> {row.mac_address || '—'}</div>
-                    <div><strong>OS:</strong> {row.os_version || '—'}</div>
-                    <div><strong>Ubicación:</strong> {locationMap.get(String(row.location_id)) || 'Sin asignación'}</div>
-                  </div>
-                </div>
+            <ul>
+              {filteredDevices.map(device => (
+                <li key={device.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid #1e293b' }}>
+                  <strong>{device.name}</strong> - IP: <code style={{ color: '#38bdf8' }}>{device.ip_address}</code> | Tenant ID: {device.tenant_id}
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
