@@ -2442,7 +2442,7 @@ export function Devices() {
   
   // Real IP captured from configuration/environment or local interface tracking
   const [clientInfo, setClientInfo] = useState({
-    ip: '192.168.3.91', // Real IP from your ipconfig output
+    ip: 'asas', // Real IP from your ipconfig output
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
   });
   
