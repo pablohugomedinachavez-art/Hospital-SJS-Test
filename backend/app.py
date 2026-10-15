@@ -816,10 +816,10 @@ def consultations_handler():
         end_date = request.args.get('end_date', '').strip()
 
         sql = '''
-            SELECT c.id, c.patient_id, p.full_name as patient_name, c.doctor_name, 
+            SELECT c.id, c.patient_id, p.full_name as patient_name, p.date_of_birth as patient_date_of_birth, c.doctor_name,
                    c.reason, c.symptoms, c.diagnosis, c.treatment, c.prescription, 
                    c.triage_id, t.weight_kg, t.height_cm, t.blood_pressure, t.bmi, 
-                   t.abdominal_perimeter_cm, c.created_at
+                   t.abdominal_perimeter_cm, c.priority, c.created_at
             FROM consultations c
             LEFT JOIN patients p ON p.id = c.patient_id
             LEFT JOIN triages t ON t.id = c.triage_id
@@ -865,22 +865,25 @@ def consultations_handler():
         treatment = data.get('treatment')
         prescription = data.get('prescription')
         triage_id = data.get('triage_id')
+        priority = data.get('priority', 'Media')
 
         if not patient_id or not diagnosis:
             return jsonify({'message': 'patient_id and diagnosis are required'}), 400
+        if priority not in ('Baja', 'Media', 'Alta', 'Urgente'):
+            return jsonify({'message': 'priority must be Baja, Media, Alta, or Urgente'}), 400
 
         new_consultation = db_query(
             '''
             INSERT INTO consultations (
                 tenant_id, patient_id, doctor_name, reason, symptoms, 
-                diagnosis, treatment, prescription, triage_id, created_at
+                diagnosis, treatment, prescription, triage_id, priority, created_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             ''',
             (
                 tenant_id, patient_id, doctor_name, reason, symptoms,
-                diagnosis, treatment, prescription, triage_id, now_utc()
+                diagnosis, treatment, prescription, triage_id, priority, now_utc()
             ),
             commit=True,
             fetchone=True
@@ -888,6 +891,40 @@ def consultations_handler():
 
         record_audit('create', 'consultation', new_consultation['id'], f'Consultation for patient {patient_id}', tenant_id, user_id)
         return jsonify({'message': 'Consultation created', 'id': new_consultation['id']}), 201
+
+
+@app.route('/api/consultations/<int:consultation_id>', methods=['PUT'])
+@token_required
+def update_consultation(consultation_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    data = request.get_json() or {}
+    priority = data.get('priority', 'Media')
+
+    if priority not in ('Baja', 'Media', 'Alta', 'Urgente'):
+        return jsonify({'message': 'priority must be Baja, Media, Alta, or Urgente'}), 400
+
+    updated = db_query(
+        '''
+        UPDATE consultations
+        SET doctor_name = %s, reason = %s, symptoms = %s, diagnosis = %s,
+            treatment = %s, prescription = %s, priority = %s
+        WHERE id = %s AND tenant_id = %s
+        RETURNING id
+        ''',
+        (
+            data.get('doctor_name'), data.get('reason'), data.get('symptoms'),
+            data.get('diagnosis'), data.get('treatment'), data.get('prescription'),
+            priority, consultation_id, tenant_id
+        ),
+        commit=True,
+        fetchone=True
+    )
+    if not updated:
+        return jsonify({'message': 'Consultation not found'}), 404
+
+    record_audit('update', 'consultation', consultation_id, 'Updated consultation details', tenant_id, claims.get('id'))
+    return jsonify({'message': 'Consultation updated'}), 200
 
 
 

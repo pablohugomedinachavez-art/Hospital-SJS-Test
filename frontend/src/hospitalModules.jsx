@@ -198,6 +198,7 @@ export const INITIAL_CONSULTATION = {
   diagnosis: '',
   treatment: '',
   prescription: '',
+  priority: 'Media',
 };
 
 export const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -392,6 +393,42 @@ export const formatDate = (value, options = { dateStyle: 'medium' }) => {
 
 export const formatDateTime = (value) =>
   formatDate(value, { dateStyle: 'medium', timeStyle: 'short' });
+
+const getLocalDateInputValue = (value = new Date()) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getDateKey = value => {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return String(value);
+  return getLocalDateInputValue(value);
+};
+
+const calculateAge = value => {
+  if (!value) return null;
+  const birthDate = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const birthdayHasPassed =
+    today.getMonth() > birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+  if (!birthdayHasPassed) age -= 1;
+  return age >= 0 ? age : null;
+};
+
+const getPatientInitials = name =>
+  String(name || '?')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(part => part[0]?.toLocaleUpperCase() || '')
+    .join('');
 
 export const useDebouncedValue = (value, delay = 350) => {
   const [debounced, setDebounced] = useState(value);
@@ -1976,20 +2013,25 @@ export function Consultations() {
   const [patients, setPatients] = useState([]);
   const [query, setQuery] = useState('');
   const [consultationFilter, setConsultationFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState(() => getLocalDateInputValue());
   const [patientQuery, setPatientQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState(INITIAL_CONSULTATION);
+  const [selectedConsultation, setSelectedConsultation] = useState(null);
+  const [editingConsultation, setEditingConsultation] = useState(null);
+  const [printConsultationId, setPrintConsultationId] = useState(null);
   const [toast, notify, clearToast] = useToast();
+  const searchInputRef = useRef(null);
 
   const debouncedQuery = useDebouncedValue(query);
   const debouncedPatientQuery = useDebouncedValue(patientQuery, 250);
 
-  const loadConsultations = useCallback(async (q = '') => {
+  const loadConsultations = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`);
+      const res = await apiFetch('/consultations');
       if (!res.ok) throw new Error('No se pudo cargar el historial de consultas');
       setConsultations(await res.json() || []);
     } catch (error) {
@@ -2011,15 +2053,48 @@ export function Consultations() {
     }
   }, []);
 
-  useEffect(() => { loadConsultations(); }, [loadConsultations]);
+  useEffect(() => {
+    if (!showForm) loadConsultations();
+  }, [showForm, loadConsultations]);
 
   useEffect(() => {
-    if (!showForm) loadConsultations(debouncedQuery);
-  }, [debouncedQuery, showForm, loadConsultations]);
+    if (showForm) return undefined;
+    const refreshInterval = window.setInterval(loadConsultations, 60_000);
+    return () => window.clearInterval(refreshInterval);
+  }, [showForm, loadConsultations]);
 
   useEffect(() => {
     if (showForm) searchPatients(debouncedPatientQuery);
   }, [debouncedPatientQuery, showForm, searchPatients]);
+
+  useEffect(() => {
+    if (!selectedConsultation) return undefined;
+    const closeOnEscape = event => {
+      if (event.key === 'Escape') setSelectedConsultation(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [selectedConsultation]);
+
+  useEffect(() => {
+    const handleSearchShortcut = event => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleSearchShortcut);
+    return () => window.removeEventListener('keydown', handleSearchShortcut);
+  }, []);
+
+  useEffect(() => {
+    if (!printConsultationId) return undefined;
+    const timeout = window.setTimeout(() => {
+      window.print();
+      setPrintConsultationId(null);
+    }, 100);
+    return () => window.clearTimeout(timeout);
+  }, [printConsultationId]);
 
   const calculateBMI = (weight, height) => {
     const w = parseFloat(weight);
@@ -2044,15 +2119,25 @@ export function Consultations() {
     if (!form.patient_id) return notify('Selecciona un paciente antes de guardar.', 'error');
     setSubmitting(true);
     try {
-      const res = await apiFetch('/consultations', { method: 'POST', body: JSON.stringify(form) });
+      const endpoint = editingConsultation
+        ? `/consultations/${editingConsultation.id}`
+        : '/consultations';
+      const res = await apiFetch(endpoint, {
+        method: editingConsultation ? 'PUT' : 'POST',
+        body: JSON.stringify(form)
+      });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.message || 'No se pudo registrar la consulta');
+      if (!res.ok) throw new Error(json.message || 'No se pudo guardar la consulta');
 
-      notify('Consulta registrada correctamente.', 'success', 'Atención guardada');
+      notify(
+        editingConsultation ? 'Consulta actualizada correctamente.' : 'Consulta registrada correctamente.',
+        'success',
+        editingConsultation ? 'Atención actualizada' : 'Atención guardada'
+      );
       setForm(INITIAL_CONSULTATION);
       setPatientQuery('');
+      setEditingConsultation(null);
       setShowForm(false);
-      await loadConsultations(query);
     } catch (error) {
       notify(error.message, 'error');
     } finally {
@@ -2060,17 +2145,95 @@ export function Consultations() {
     }
   };
 
-  const selectedPatient = useMemo(() => patients.find(p => String(p.id) === String(form.patient_id)), [patients, form.patient_id]);
   const bmiState = getBMIState(form.bmi);
-  const filteredConsultations = useMemo(() => {
-    if (consultationFilter === 'diagnosed') {
-      return consultations.filter(item => String(item.diagnosis || '').trim());
+  const matchingConsultations = useMemo(() => {
+    const normalizedQuery = debouncedQuery.trim().toLocaleLowerCase();
+    return consultations.filter(item => {
+      const searchable = [
+        item.patient_name, item.diagnosis, item.reason, item.doctor_name, item.priority
+      ].join(' ').toLocaleLowerCase();
+      const matchesQuery = !normalizedQuery || searchable.includes(normalizedQuery);
+      const matchesDate = !dateFilter || getDateKey(item.created_at) === dateFilter;
+      return matchesQuery && matchesDate;
+    });
+  }, [consultations, debouncedQuery, dateFilter]);
+
+  const filteredConsultations = useMemo(() => matchingConsultations.filter(item => {
+    if (consultationFilter === 'diagnosed') return Boolean(String(item.diagnosis || '').trim());
+    if (consultationFilter === 'pending') return !String(item.diagnosis || '').trim();
+    if (consultationFilter === 'priority') return String(item.priority || '').toLocaleLowerCase() === 'alta';
+    return true;
+  }), [matchingConsultations, consultationFilter]);
+
+  const todayKey = getLocalDateInputValue();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = getLocalDateInputValue(yesterday);
+  const todayConsultations = consultations.filter(item => getDateKey(item.created_at) === todayKey);
+  const yesterdayConsultations = consultations.filter(item => getDateKey(item.created_at) === yesterdayKey);
+  const countDiagnosed = list => list.filter(item => String(item.diagnosis || '').trim()).length;
+  const countPending = list => list.filter(item => !String(item.diagnosis || '').trim()).length;
+  const averageBmi = list => {
+    const values = list.map(item => Number.parseFloat(item.bmi)).filter(value => Number.isFinite(value) && value > 0);
+    return values.length ? values.reduce((total, value) => total + value, 0) / values.length : null;
+  };
+  const percentChange = (current, previous) => {
+    if (!previous) return current ? 'Nuevo' : '—';
+    const change = ((current - previous) / previous) * 100;
+    return `${change > 0 ? '+' : ''}${change.toFixed(0)}%`;
+  };
+  const bmiToday = averageBmi(todayConsultations);
+  const bmiYesterday = averageBmi(yesterdayConsultations);
+  const bmiChange = bmiToday !== null && bmiYesterday
+    ? `${bmiToday - bmiYesterday > 0 ? '+' : ''}${(((bmiToday - bmiYesterday) / bmiYesterday) * 100).toFixed(0)}%`
+    : '—';
+
+  const exportConsultations = () => {
+    if (!filteredConsultations.length) {
+      notify('No hay consultas para exportar con los filtros actuales.', 'error');
+      return;
     }
-    if (consultationFilter === 'pending') {
-      return consultations.filter(item => !String(item.diagnosis || '').trim());
-    }
-    return consultations;
-  }, [consultations, consultationFilter]);
+    const columns = [
+      ['id', 'ID'], ['patient_name', 'Paciente'], ['doctor_name', 'Médico'],
+      ['created_at', 'Fecha y hora'], ['reason', 'Motivo'], ['diagnosis', 'Diagnóstico'],
+      ['priority', 'Prioridad'], ['weight_kg', 'Peso kg'], ['height_cm', 'Talla cm'], ['bmi', 'IMC']
+    ];
+    const escapeCsv = value => {
+      const text = String(value ?? '').replace(/^[=+@-]/, "'$&");
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const content = [
+      columns.map(([, label]) => escapeCsv(label)).join(','),
+      ...filteredConsultations.map(item => columns.map(([key]) => escapeCsv(item[key])).join(','))
+    ].join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\ufeff', content], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `consultas-${dateFilter || todayKey}.csv`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const editConsultation = item => {
+    setEditingConsultation(item);
+    setForm({
+      ...INITIAL_CONSULTATION,
+      patient_id: item.patient_id,
+      doctor_name: item.doctor_name || '',
+      reason: item.reason || '',
+      symptoms: item.symptoms || '',
+      weight_kg: item.weight_kg ?? '',
+      height_cm: item.height_cm ?? '',
+      blood_pressure: item.blood_pressure || '',
+      bmi: item.bmi ?? '',
+      diagnosis: item.diagnosis || '',
+      treatment: item.treatment || '',
+      prescription: item.prescription || '',
+      priority: item.priority || 'Media'
+    });
+    setPatientQuery(item.patient_name || '');
+    setShowForm(true);
+  };
 
   return (
     <div className="consultations-container">
@@ -2090,7 +2253,7 @@ export function Consultations() {
         }
 
         .main-card {
-          background-color: #0b0f17;
+          background-color: #0f1420;
           border: 1px solid #1c2433;
           border-radius: 24px;
           padding: clamp(1rem, 2.5vw, 2rem);
@@ -2120,6 +2283,82 @@ export function Consultations() {
           gap: 1.25rem;
           width: 100%;
           margin-top: 0.5rem;
+        }
+
+        @keyframes consultation-loader-glow {
+          0%, 100% { opacity: 0.45; transform: scale(0.92); }
+          50% { opacity: 1; transform: scale(1.08); }
+        }
+
+        @keyframes consultation-card-enter {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .consultation-loader-glow {
+          animation: consultation-loader-glow 1.6s ease-in-out infinite;
+        }
+
+        .consultation-card-enter {
+          animation: consultation-card-enter 280ms ease-out both;
+        }
+
+        @keyframes consultation-live-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.35); }
+          50% { box-shadow: 0 0 0 5px rgba(52, 211, 153, 0); }
+        }
+
+        .consultation-live-dot {
+          animation: consultation-live-pulse 1.8s ease-out infinite;
+        }
+
+        @media (hover: hover) and (pointer: fine) {
+          .consultation-card-actions {
+            opacity: 0;
+            transform: translateY(3px);
+            transition: opacity 160ms ease, transform 160ms ease;
+          }
+
+          .consultation-card:hover .consultation-card-actions,
+          .consultation-card:focus-within .consultation-card-actions {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .consultation-loader-glow,
+          .consultation-loader-ring,
+          .consultation-card-enter,
+          .consultation-live-dot {
+            animation: none;
+          }
+
+          .consultation-card-actions {
+            transition: none;
+          }
+        }
+
+        @media print {
+          body * { visibility: hidden !important; }
+          .consultations-container,
+          .consultations-container * { visibility: visible !important; }
+          .consultations-container {
+            position: absolute !important;
+            inset: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            color: black !important;
+          }
+          .consultations-container .main-card > :not(.consultation-list-section) {
+            display: none !important;
+          }
+          .consultation-list-section > :not(.grid-cards) { display: none !important; }
+          .consultation-list-section .grid-cards { display: block !important; }
+          .consultation-list-section .grid-cards > article:not([data-print="true"]) {
+            display: none !important;
+          }
+          .consultation-card-actions { display: none !important; }
         }
 
         @media (min-width: 768px) {
@@ -2161,46 +2400,200 @@ export function Consultations() {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
-                {showForm ? 'Nueva Consulta Médica' : 'Consultas Médicas'}
+                {showForm
+                  ? (editingConsultation ? 'Editar Consulta Médica' : 'Nueva Consulta Médica')
+                  : 'Consultas Médicas'}
               </h1>
               <p className="mt-1 text-sm text-slate-400">
-                {showForm ? 'Gestión de triaje, diagnóstico y prescripción.' : 'Historial de atenciones clínicas.'}
+                {showForm
+                  ? (editingConsultation ? `Editar consulta #${editingConsultation.id}.` : 'Gestión de triaje, diagnóstico y prescripción.')
+                  : 'Historial de atenciones clínicas.'}
               </p>
+              {!showForm && (
+                <span className="mt-2 inline-flex items-center gap-2 text-[11px] font-medium text-emerald-300">
+                  <span className="consultation-live-dot h-2 w-2 rounded-full bg-emerald-400" />
+                  Registro clínico en vivo
+                </span>
+              )}
             </div>
           </div>
 
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-950/30 transition hover:from-blue-500 hover:to-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090e]"
-            onClick={() => {
-              if (!showForm) setForm(INITIAL_CONSULTATION);
-              setShowForm(!showForm);
-            }}
-          >
-            {showForm ? <><ArrowLeft size={16} /> Volver al Historial</> : <><Plus size={16} /> Nueva Consulta</>}
-          </button>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            {!showForm && (
+              <button
+                type="button"
+                onClick={exportConsultations}
+                disabled={!filteredConsultations.length}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
+              >
+                <Download size={16} /> Exportar
+              </button>
+            )}
+            <button
+              type="button"
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-900/40 transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090e] sm:flex-none"
+              onClick={() => {
+                if (!showForm) {
+                  setEditingConsultation(null);
+                  setForm(INITIAL_CONSULTATION);
+                } else {
+                  setEditingConsultation(null);
+                }
+                setShowForm(!showForm);
+              }}
+            >
+              {showForm ? <><ArrowLeft size={16} /> Volver al Historial</> : <><Plus size={16} /> Nueva Consulta</>}
+            </button>
+          </div>
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
+        {selectedConsultation && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+            role="presentation"
+            onMouseDown={event => {
+              if (event.target === event.currentTarget) setSelectedConsultation(null);
+            }}
+          >
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="consultation-detail-title"
+              className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-700 bg-[#0f1420] p-5 shadow-2xl sm:p-7"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-blue-300">Consulta #{selectedConsultation.id}</p>
+                  <h2 id="consultation-detail-title" className="mt-1 text-xl font-bold text-white">
+                    {selectedConsultation.patient_name || `Paciente #${selectedConsultation.patient_id}`}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {formatDateTime(selectedConsultation.created_at)} · {calculateAge(selectedConsultation.patient_date_of_birth) ?? 'Edad no disponible'}
+                    {calculateAge(selectedConsultation.patient_date_of_birth) !== null ? ' años' : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedConsultation(null)}
+                  aria-label="Cerrar detalles"
+                  className="rounded-lg border border-slate-700 p-2 text-slate-300 hover:bg-slate-800"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+                {[
+                  ['Motivo', selectedConsultation.reason],
+                  ['Diagnóstico', selectedConsultation.diagnosis],
+                  ['Médico tratante', selectedConsultation.doctor_name],
+                  ['Prioridad', selectedConsultation.priority || 'Media'],
+                  ['Síntomas / Anamnesis', selectedConsultation.symptoms],
+                  ['Tratamiento', selectedConsultation.treatment],
+                  ['Prescripción', selectedConsultation.prescription],
+                  ['Presión arterial', selectedConsultation.blood_pressure],
+                  ['Peso', selectedConsultation.weight_kg ? `${selectedConsultation.weight_kg} kg` : '—'],
+                  ['Talla', selectedConsultation.height_cm ? `${selectedConsultation.height_cm} cm` : '—'],
+                  ['IMC', selectedConsultation.bmi ?? '—']
+                ].map(([label, value]) => (
+                  <div key={label} className="min-w-0 rounded-xl border border-slate-800 bg-[#0b0f17] p-3">
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</dt>
+                    <dd className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-200">{value || '—'}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const item = selectedConsultation;
+                    setSelectedConsultation(null);
+                    editConsultation(item);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+                >
+                  <Edit3 size={15} /> Editar consulta
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
         {/* LISTADO DE CONSULTAS */}
         {!showForm ? (
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-800/90 bg-[#111622] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
-              <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center">
-                <div className="w-full lg:max-w-md">
-                  <SearchField
+          <>
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resumen de consultas">
+              {[
+                { label: 'Atenciones hoy', value: todayConsultations.length, change: percentChange(todayConsultations.length, yesterdayConsultations.length), icon: Stethoscope, iconClass: 'bg-blue-500/10 text-blue-300', note: 'vs. ayer' },
+                { label: 'Completadas', value: countDiagnosed(todayConsultations), change: percentChange(countDiagnosed(todayConsultations), countDiagnosed(yesterdayConsultations)), icon: CheckCircle2, iconClass: 'bg-emerald-500/10 text-emerald-300', note: 'con diagnóstico · vs. ayer' },
+                { label: 'Pendientes', value: countPending(todayConsultations), change: percentChange(countPending(todayConsultations), countPending(yesterdayConsultations)), icon: Clock, iconClass: 'bg-amber-500/10 text-amber-300', note: 'sin diagnóstico · vs. ayer' },
+                { label: 'IMC promedio', value: bmiToday === null ? '—' : bmiToday.toFixed(1), change: bmiChange, icon: Activity, iconClass: 'bg-indigo-500/10 text-indigo-300', note: 'registros de hoy · vs. ayer' }
+              ].map(metric => (
+                <article key={metric.label} className="rounded-2xl border border-slate-800 bg-[#111622] p-4 shadow-lg shadow-black/10">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-slate-400">{metric.label}</p>
+                      <p className="mt-2 text-2xl font-bold tracking-tight text-white">{metric.value}</p>
+                    </div>
+                    <span className={`rounded-xl p-2.5 ${metric.iconClass}`}>
+                      <metric.icon size={18} aria-hidden="true" />
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-800/80 pt-3">
+                    <span className="text-[10px] text-slate-500">{metric.note}</span>
+                    <span className={`text-[11px] font-semibold ${metric.change.startsWith('-') ? 'text-amber-300' : 'text-emerald-300'}`}>
+                      {metric.change}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </section>
+
+            <div className="consultation-list-section space-y-4">
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-800/90 bg-[#111622] p-3 sm:p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative min-w-0 flex-1 lg:max-w-xl">
+                  <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                  <input
+                    ref={searchInputRef}
+                    type="search"
                     value={query}
-                    onChange={setQuery}
+                    onChange={event => setQuery(event.target.value)}
                     placeholder="Buscar paciente, diagnóstico o médico..."
-                    loading={loading}
+                    aria-label="Buscar consultas médicas"
+                    className="w-full rounded-xl border border-slate-800 bg-[#0b0f17] py-3 pl-10 pr-16 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-blue-500/60 focus:ring-2 focus:ring-blue-500/15"
                   />
+                  <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-slate-700 bg-slate-900 px-1.5 py-1 text-[10px] text-slate-500">⌘K</kbd>
                 </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-slate-800 bg-[#0b0f17] px-3 py-2 text-xs text-slate-400">
+                    <Calendar size={15} className="text-blue-300" aria-hidden="true" />
+                    <span className="sr-only">Filtrar por fecha</span>
+                    <input
+                      type="date"
+                      value={dateFilter}
+                      onChange={event => setDateFilter(event.target.value)}
+                      className="min-w-0 bg-transparent text-xs text-slate-200 outline-none [color-scheme:dark]"
+                      aria-label="Filtrar por fecha"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setDateFilter('')}
+                    className={`rounded-lg border px-3 py-2 text-xs font-medium transition ${dateFilter ? 'border-slate-800 text-slate-400 hover:bg-slate-800' : 'border-blue-400/30 bg-blue-500/10 text-blue-200'}`}
+                  >
+                    Todo el historial
+                  </button>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 border-t border-slate-800/80 pt-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar consultas">
                   {[
                     { id: 'all', label: 'Todas' },
                     { id: 'diagnosed', label: 'Con diagnóstico' },
-                    { id: 'pending', label: 'Pendientes' }
+                    { id: 'pending', label: 'Pendientes' },
+                    { id: 'priority', label: 'Prioridad Alta' }
                   ].map(filter => (
                     <button
                       key={filter.id}
@@ -2209,7 +2602,9 @@ export function Consultations() {
                       onClick={() => setConsultationFilter(filter.id)}
                       className={`rounded-lg border px-3 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                         consultationFilter === filter.id
-                          ? 'border-blue-400/30 bg-blue-500/15 text-blue-200'
+                          ? filter.id === 'priority'
+                            ? 'border-amber-400/30 bg-amber-500/10 text-amber-200'
+                            : 'border-blue-400/30 bg-blue-500/15 text-blue-200'
                           : 'border-transparent text-slate-400 hover:border-slate-700 hover:bg-slate-800/70 hover:text-slate-200'
                       }`}
                     >
@@ -2219,38 +2614,71 @@ export function Consultations() {
                 </div>
               </div>
               <span className="shrink-0 text-xs font-medium text-slate-400" aria-live="polite">
-                {filteredConsultations.length} {filteredConsultations.length === 1 ? 'consulta' : 'consultas'}
+                {filteredConsultations.length} {filteredConsultations.length === 1 ? 'consulta' : 'consultas'} · {dateFilter ? formatDate(`${dateFilter}T12:00:00`, { dateStyle: 'long' }) : 'todas las fechas'}
               </span>
             </div>
 
             {loading ? (
-              <LoadingState label="Cargando atenciones clínicas..." />
+              <div className="flex min-h-64 flex-col items-center justify-center gap-4 py-16 text-slate-400" role="status" aria-live="polite">
+                <div className="relative flex h-14 w-14 items-center justify-center">
+                  <div className="consultation-loader-ring absolute inset-0 rounded-full border-2 border-blue-500/20 border-t-blue-400 animate-spin" />
+                  <div className="consultation-loader-glow absolute inset-2 rounded-full bg-blue-500/15" />
+                  <Stethoscope size={21} className="relative text-blue-300" aria-hidden="true" />
+                </div>
+                <span className="text-sm font-medium">Cargando atenciones clínicas…</span>
+              </div>
             ) : filteredConsultations.length === 0 ? (
               <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
             ) : (
               <div className="grid-cards">
-                {filteredConsultations.map(item => {
+                {filteredConsultations.map((item, index) => {
                   const bmiValue = Number.parseFloat(item.bmi);
                   const isStableBMI = Number.isFinite(bmiValue) && bmiValue >= 18.5 && bmiValue < 25;
                   const diagnosis = String(item.diagnosis || '').trim();
+                  const isComplete = Boolean(diagnosis);
+                  const isHighPriority = ['alta', 'urgente'].includes(String(item.priority || '').toLocaleLowerCase());
+                  const patientAge = calculateAge(item.patient_date_of_birth);
 
                   return (
-                    <article key={item.id} className="group relative flex min-w-0 overflow-hidden rounded-2xl border border-slate-800/90 bg-[#111622] shadow-lg shadow-black/10 transition hover:border-blue-500/40 hover:bg-[#131a28]">
-                      <div className="w-1 shrink-0 bg-blue-500" aria-hidden="true" />
+                    <article
+                      key={item.id}
+                      data-print={String(printConsultationId) === String(item.id) ? 'true' : 'false'}
+                      style={{ animationDelay: `${Math.min(index * 55, 330)}ms` }}
+                      className={`consultation-card consultation-card-enter group relative flex min-w-0 overflow-hidden rounded-2xl border border-slate-800/90 bg-[#111622] shadow-lg shadow-black/10 transition hover:border-blue-500/40 hover:bg-[#131a28] ${printConsultationId && String(printConsultationId) !== String(item.id) ? 'print:hidden' : ''}`}
+                    >
+                      <div
+                        className={`shrink-0 ${isComplete ? 'bg-blue-500' : 'bg-amber-400'}`}
+                        style={{ width: '1.5px' }}
+                        aria-hidden="true"
+                      />
                       <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5">
                         <div className="flex min-w-0 items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <span className="mb-1.5 flex items-center gap-1.5 text-xs text-slate-500">
-                              <Calendar size={13} aria-hidden="true" />
-                              {formatDate(item.created_at || item.date)}
-                            </span>
-                            <h3 className="truncate text-base font-semibold text-white sm:text-lg">
-                              {item.patient_name || `Paciente #${item.patient_id}`}
-                            </h3>
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border text-sm font-bold ${isComplete ? 'border-blue-400/20 bg-blue-500/10 text-blue-200' : 'border-amber-400/20 bg-amber-500/10 text-amber-200'}`}>
+                              {getPatientInitials(item.patient_name)}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="truncate text-base font-semibold text-white sm:text-lg">
+                                {item.patient_name || `Paciente #${item.patient_id}`}
+                              </h3>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-500">
+                                <span>{patientAge === null ? 'Edad no disponible' : `${patientAge} años`}</span>
+                                <span aria-hidden="true">·</span>
+                                <span className="inline-flex items-center gap-1">
+                                  <Calendar size={12} aria-hidden="true" />
+                                  {formatDateTime(item.created_at || item.date)}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <span className="shrink-0 rounded-lg border border-slate-700/80 bg-slate-900/80 px-2.5 py-1 text-xs font-mono font-semibold text-slate-300">
-                            #{item.id}
-                          </span>
+                          <div className="flex shrink-0 items-start gap-2">
+                            {isHighPriority && (
+                              <span className="rounded-lg border border-amber-400/20 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-200">
+                                Prioridad {item.priority}
+                              </span>
+                            )}
+                            <span className="rounded-lg border border-slate-700/80 bg-slate-900/80 px-2.5 py-1 text-xs font-mono font-semibold text-slate-300">#{item.id}</span>
+                          </div>
                         </div>
 
                         <div className="consultation-summary-grid grid grid-cols-1 gap-3 rounded-xl border border-slate-800/80 bg-[#0b0f17] p-3 sm:grid-cols-2">
@@ -2294,6 +2722,35 @@ export function Consultations() {
                             <strong className="font-semibold">IMC {item.bmi ?? '—'}</strong>
                           </span>
                         </div>
+                        <div className="consultation-card-actions flex items-center justify-end gap-1 border-t border-slate-800/80 pt-2 md:absolute md:right-3 md:top-3 md:border-0 md:pt-0">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedConsultation(item)}
+                            aria-label={`Ver consulta de ${item.patient_name || `paciente ${item.patient_id}`}`}
+                            title="Ver consulta"
+                            className="rounded-lg border border-slate-700 bg-slate-900/90 p-2 text-slate-300 transition hover:border-blue-400/40 hover:text-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                          >
+                            <Eye size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => editConsultation(item)}
+                            aria-label={`Editar consulta ${item.id}`}
+                            title="Editar consulta"
+                            className="rounded-lg border border-slate-700 bg-slate-900/90 p-2 text-slate-300 transition hover:border-blue-400/40 hover:text-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPrintConsultationId(String(item.id))}
+                            aria-label={`Imprimir consulta ${item.id}`}
+                            title="Imprimir consulta"
+                            className="rounded-lg border border-slate-700 bg-slate-900/90 p-2 text-slate-300 transition hover:border-blue-400/40 hover:text-blue-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                          >
+                            <Printer size={15} />
+                          </button>
+                        </div>
                       </div>
                     </article>
                   );
@@ -2301,6 +2758,7 @@ export function Consultations() {
               </div>
             )}
           </div>
+          </>
         ) : (
           /* FORMULARIO DE NUEVA CONSULTA */
           <form onSubmit={submit} className="space-y-6">
@@ -2370,6 +2828,20 @@ export function Consultations() {
                     onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
                     placeholder="Ej. Control de rutina, dolor abdominal..."
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Prioridad de atención</label>
+                  <select
+                    className="input-mobile"
+                    value={form.priority}
+                    onChange={event => setForm(current => ({ ...current, priority: event.target.value }))}
+                  >
+                    <option value="Baja">Baja</option>
+                    <option value="Media">Media</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Urgente">Urgente</option>
+                  </select>
                 </div>
               </div>
 
@@ -2476,6 +2948,7 @@ export function Consultations() {
                 onClick={() => {
                   setShowForm(false);
                   setForm(INITIAL_CONSULTATION);
+                  setEditingConsultation(null);
                 }}
                 disabled={submitting}
               >
@@ -2487,7 +2960,7 @@ export function Consultations() {
                 disabled={submitting}
               >
                 <Save size={16} />
-                {submitting ? 'Guardando...' : 'Guardar Consulta'}
+                {submitting ? 'Guardando...' : editingConsultation ? 'Guardar Cambios' : 'Guardar Consulta'}
               </button>
             </div>
           </form>

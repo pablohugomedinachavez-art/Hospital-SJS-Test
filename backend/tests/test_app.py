@@ -140,6 +140,40 @@ class AppTests(unittest.TestCase):
 
         query.assert_not_called()
 
+    def test_consultation_update_is_tenant_scoped_and_validates_priority(self):
+        token = self.make_role_token('doctor')
+        headers = {'Authorization': f'Bearer {token}'}
+
+        with patch.object(app_module, 'db_query', return_value={'id': 17}) as query, \
+                patch.object(app_module, 'record_audit'):
+            response = self.client.put(
+                '/api/consultations/17',
+                json={
+                    'doctor_name': 'Dra. Test',
+                    'reason': 'Control',
+                    'symptoms': 'Sin síntomas',
+                    'diagnosis': 'Estable',
+                    'treatment': 'Seguimiento',
+                    'prescription': '',
+                    'priority': 'Alta'
+                },
+                headers=headers
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(query.call_args.args[1][-2:], (17, 1))
+        self.assertEqual(query.call_args.args[1][-3], 'Alta')
+        self.assertIn('tenant_id = %s', query.call_args.args[0])
+
+        with patch.object(app_module, 'db_query') as query:
+            invalid_priority_response = self.client.put(
+                '/api/consultations/17',
+                json={'priority': 'Crítica'},
+                headers=headers
+            )
+        self.assertEqual(invalid_priority_response.status_code, 400)
+        query.assert_not_called()
+
     def test_non_admin_can_still_auto_register_its_device(self):
         token = self.make_role_token('doctor')
         with patch.object(app_module, 'db_query', side_effect=[None, {'id': 42}]), \
