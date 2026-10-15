@@ -1881,7 +1881,7 @@ def get_metric_details():
         return jsonify({'message': f'Error recuperando detalles: {str(e)}'}), 500
 
 
-@app.route('/api/users', methods=['GET'])
+@app.route('/api/users', methods=['GET','POST'])
 @token_required
 def list_users():
     claims = get_current_user()
