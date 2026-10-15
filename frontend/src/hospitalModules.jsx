@@ -5414,6 +5414,7 @@ export function Dashboard() {
 }
 
 export function Users() {
+  const { user: currentUser } = useAuth()
   const [users, setUsers] = useState([])
   const [locations, setLocations] = useState([])
   const [loading, setLoading] = useState(false)
@@ -5504,11 +5505,12 @@ export function Users() {
         body: JSON.stringify(formData)
       })
 
-      if (!res.ok) throw new Error('Error al guardar el usuario')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || 'Error al guardar el usuario')
 
       notify(editingUser ? 'Usuario actualizado exitosamente' : 'Usuario creado exitosamente', 'success')
       setViewMode('list')
-      load()
+      await load()
     } catch (error) {
       notify(error.message, 'error')
     } finally {
@@ -5521,10 +5523,11 @@ export function Users() {
     setDeleting(true)
     try {
       const res = await apiFetch(`/users/${deleteModalUser.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('No se pudo eliminar el usuario')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || 'No se pudo eliminar el usuario')
       notify('Usuario eliminado correctamente', 'success')
       setDeleteModalUser(null)
-      load()
+      await load()
     } catch (error) {
       notify(error.message, 'error')
     } finally {
@@ -5596,14 +5599,13 @@ export function Users() {
                   <div className="space-y-1.5">
                     <label className="flex items-center gap-2 text-xs font-medium text-slate-400">
                       <Mail className="w-3.5 h-3.5 text-indigo-400" />
-                      Correo Electrónico *
+                      Correo Electrónico
                     </label>
                     <input
                       type="email"
-                      required
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="correo@institucion.com"
+                      placeholder="correo@institucion.com (opcional)"
                       className="w-full bg-slate-900 border border-slate-800 text-slate-200 placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
                     />
                   </div>
@@ -5843,8 +5845,9 @@ export function Users() {
                                 <button
                                   type="button"
                                   onClick={() => setDeleteModalUser(u)}
+                                  disabled={String(currentUser?.id) === String(u.id)}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-medium transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                                  title="Eliminar usuario"
+                                  title={String(currentUser?.id) === String(u.id) ? 'No puedes eliminar tu propia cuenta' : 'Eliminar usuario'}
                                 >
                                   <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                                   <span>Eliminar</span>

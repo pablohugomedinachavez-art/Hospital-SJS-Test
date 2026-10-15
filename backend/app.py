@@ -1889,9 +1889,86 @@ def list_users():
     if not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
+    user_columns = get_user_columns()
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        username = str(data.get('username') or '').strip()
+        password = data.get('password')
+        role = str(data.get('role') or 'user').strip()
+
+        if not username or not isinstance(password, str) or not password:
+            return jsonify({'message': 'username and password are required'}), 400
+
+        available_roles = get_all_roles()
+        valid_roles = set(available_roles) if available_roles else {
+            'admin', 'doctor', 'nurse', 'user', 'viewer'
+        }
+        if role not in valid_roles:
+            return jsonify({'message': 'The selected role is invalid'}), 400
+
+        if db_query(
+            'SELECT id FROM users WHERE username = %s',
+            (username,), fetchone=True
+        ):
+            return jsonify({'message': 'A user with this username already exists'}), 409
+
+        columns = ['username', 'password', 'role', 'tenant_id']
+        values = [
+            username,
+            generate_password_hash(password),
+            role,
+            tenant_id
+        ]
+
+        email = str(data.get('email') or '').strip()
+        if 'email' in user_columns:
+            columns.append('email')
+            values.append(email or None)
+
+        if 'location_id' in user_columns:
+            location_id = data.get('location_id') or None
+            if location_id is not None:
+                try:
+                    location_id = int(location_id)
+                except (TypeError, ValueError):
+                    return jsonify({'message': 'location_id must be a valid number'}), 400
+                location = db_query(
+                    'SELECT id FROM locations WHERE id = %s AND tenant_id = %s',
+                    (location_id, tenant_id), fetchone=True
+                )
+                if not location:
+                    return jsonify({'message': 'The selected location was not found'}), 400
+            columns.append('location_id')
+            values.append(location_id)
+
+        placeholders = ', '.join(['%s'] * len(columns))
+        try:
+            created_user = db_query(
+                f"""INSERT INTO users ({', '.join(columns)})
+                    VALUES ({placeholders}) RETURNING id""",
+                tuple(values), commit=True, fetchone=True
+            )
+        except psycopg2.IntegrityError:
+            app.logger.warning('User creation rejected by a database constraint', exc_info=True)
+            return jsonify({'message': 'A user with this username already exists'}), 409
+        except Exception:
+            app.logger.exception('Failed to create a user')
+            return jsonify({'message': 'Unable to create the user due to a server error.'}), 500
+
+        if not created_user:
+            return jsonify({'message': 'The user could not be created'}), 500
+
+        user_id = created_user['id']
+        record_audit('create', 'user', user_id, f'Created user {username}', tenant_id, claims.get('id'))
+        return jsonify({'message': 'User created successfully', 'id': user_id}), 201
+
+    email_column = 'u.email' if 'email' in user_columns else 'NULL AS email'
+    location_column = 'u.location_id' if 'location_id' in user_columns else 'NULL AS location_id'
     users = db_query(
-        '''
-        SELECT u.id, u.username, u.role, u.tenant_id, u.created_at
+        f'''
+        SELECT u.id, u.username, {email_column}, u.role, u.tenant_id,
+               {location_column}, u.created_at
         FROM users u
         WHERE u.tenant_id = %s
         ORDER BY u.id DESC
@@ -1909,32 +1986,72 @@ def update_user(user_id):
     if not has_permission(claims.get('role'), 'manage_users'):
         return jsonify({'message': 'Permission denied'}), 403
 
-    data = request.get_json() or {}
-    role = data.get('role')
-    location_id = data.get('location_id')
-    active = data.get('active')
-
-    # Only update allowed fields.
-    # location_id is optional and may not exist in the current database schema.
+    data = request.get_json(silent=True) or {}
+    user_columns = get_user_columns()
     updates = []
     params = []
+
+    if 'username' in data:
+        username = str(data.get('username') or '').strip()
+        if not username:
+            return jsonify({'message': 'username cannot be empty'}), 400
+        duplicate = db_query(
+            'SELECT id FROM users WHERE username = %s AND id != %s',
+            (username, user_id), fetchone=True
+        )
+        if duplicate:
+            return jsonify({'message': 'A user with this username already exists'}), 409
+        updates.append('username = %s')
+        params.append(username)
+
+    role = data.get('role')
     if role:
+        role = str(role).strip()
+        available_roles = get_all_roles()
+        valid_roles = set(available_roles) if available_roles else {
+            'admin', 'doctor', 'nurse', 'user', 'viewer', 'disabled'
+        }
+        if role not in valid_roles:
+            return jsonify({'message': 'The selected role is invalid'}), 400
         updates.append('role = %s')
         params.append(role)
-    if location_id is not None and 'location_id' in get_user_columns():
+
+    if 'email' in data and 'email' in user_columns:
+        updates.append('email = %s')
+        params.append(str(data.get('email') or '').strip() or None)
+
+    if 'location_id' in data and 'location_id' in user_columns:
+        location_id = data.get('location_id') or None
+        if location_id is not None:
+            try:
+                location_id = int(location_id)
+            except (TypeError, ValueError):
+                return jsonify({'message': 'location_id must be a valid number'}), 400
+            location = db_query(
+                'SELECT id FROM locations WHERE id = %s AND tenant_id = %s',
+                (location_id, tenant_id), fetchone=True
+            )
+            if not location:
+                return jsonify({'message': 'The selected location was not found'}), 400
         updates.append('location_id = %s')
         params.append(location_id)
-    if active is not None:
-        if not active:
-            updates.append("role = %s")
-            params.append('disabled')
+
+    password = data.get('password')
+    if password:
+        if not isinstance(password, str):
+            return jsonify({'message': 'password must be a string'}), 400
+        updates.append('password = %s')
+        params.append(generate_password_hash(password))
 
     if not updates:
         return jsonify({'message': 'No fields to update'}), 400
 
     params.extend([user_id, tenant_id])
-    sql = f"UPDATE users SET {', '.join(updates)} WHERE id = %s AND tenant_id = %s"
-    db_query(sql, tuple(params), commit=True)
+    sql = f"UPDATE users SET {', '.join(updates)} WHERE id = %s AND tenant_id = %s RETURNING id"
+    updated_user = db_query(sql, tuple(params), commit=True, fetchone=True)
+    if not updated_user:
+        return jsonify({'message': 'User not found'}), 404
+
     field_names = ', '.join([u.split('=')[0].strip() for u in updates])
     record_audit('update', 'user', user_id, f'Updated user fields: {field_names}', tenant_id, claims.get('id'))
     return jsonify({'message': 'User updated'})
@@ -1971,7 +2088,21 @@ def delete_user(user_id):
         return jsonify({'message': 'No puedes eliminar tu propia cuenta'}), 400
 
     # Ejecutar la eliminación asegurando el aislamiento por tenant_id
-    db_query('DELETE FROM users WHERE id = %s AND tenant_id = %s', (user_id, tenant_id), commit=True)
+    try:
+        deleted_user = db_query(
+            'DELETE FROM users WHERE id = %s AND tenant_id = %s RETURNING id',
+            (user_id, tenant_id), commit=True, fetchone=True
+        )
+    except psycopg2.IntegrityError:
+        app.logger.warning(
+            'User deletion blocked by related records (user_id=%s, tenant_id=%s)',
+            user_id, tenant_id, exc_info=True
+        )
+        return jsonify({
+            'message': 'This user cannot be deleted because related records still reference the account.'
+        }), 409
+    if not deleted_user:
+        return jsonify({'message': 'User not found'}), 404
     
     record_audit('delete', 'user', user_id, f'Deleted user id {user_id}', tenant_id, claims.get('id'))
     return jsonify({'message': 'User deleted successfully'})

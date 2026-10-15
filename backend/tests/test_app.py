@@ -15,6 +15,11 @@ class AppTests(unittest.TestCase):
     def setUp(self):
         self.client = app.test_client()
 
+    def make_admin_token(self):
+        claims = {'id': 1, 'username': 'admin', 'tenant_id': 1, 'role': 'admin'}
+        with patch.object(app_module, 'get_role_permissions', return_value=[]):
+            return app_module.create_token(claims)
+
     def test_login_and_patients_endpoint(self):
         login_response = self.client.post('/api/login', json={
             'username': 'admin',
@@ -30,6 +35,79 @@ class AppTests(unittest.TestCase):
         payload = patients_response.get_json()
         self.assertIsInstance(payload, list)
         self.assertGreaterEqual(len(payload), 1)
+
+    def test_users_can_be_created_updated_and_deleted(self):
+        token = self.make_admin_token()
+        headers = {'Authorization': f'Bearer {token}'}
+        user_columns = {'username', 'password', 'role', 'tenant_id', 'email', 'location_id'}
+        roles = {'admin': {}, 'doctor': {}, 'nurse': {}, 'user': {}}
+
+        with patch.object(app_module, 'has_permission', return_value=True), \
+                patch.object(app_module, 'get_user_columns', return_value=user_columns), \
+                patch.object(app_module, 'get_all_roles', return_value=roles), \
+                patch.object(app_module, 'db_query', side_effect=[None, {'id': 27}]) as query, \
+                patch.object(app_module, 'record_audit'):
+            create_response = self.client.post(
+                '/api/users',
+                json={
+                    'username': 'new-doctor',
+                    'password': 'SecurePassword123',
+                    'email': 'doctor@example.test',
+                    'role': 'doctor',
+                    'location_id': ''
+                },
+                headers=headers
+            )
+
+        self.assertEqual(create_response.status_code, 201)
+        self.assertEqual(create_response.get_json()['id'], 27)
+        self.assertEqual(query.call_count, 2)
+        insert_values = query.call_args.args[1]
+        self.assertEqual(insert_values[0], 'new-doctor')
+        self.assertNotEqual(insert_values[1], 'SecurePassword123')
+        self.assertEqual(insert_values[2:5], ('doctor', 1, 'doctor@example.test'))
+
+        with patch.object(app_module, 'has_permission', return_value=True), \
+                patch.object(app_module, 'get_user_columns', return_value=user_columns), \
+                patch.object(app_module, 'get_all_roles', return_value=roles), \
+                patch.object(app_module, 'db_query', side_effect=[None, {'id': 27}]) as query, \
+                patch.object(app_module, 'record_audit'):
+            update_response = self.client.put(
+                '/api/users/27',
+                json={
+                    'username': 'renamed-doctor',
+                    'role': 'doctor',
+                    'email': 'updated@example.test',
+                    'location_id': '',
+                    'password': 'NewSecurePassword123'
+                },
+                headers=headers
+            )
+
+        self.assertEqual(update_response.status_code, 200)
+        update_values = query.call_args.args[1]
+        self.assertEqual(update_values[-2:], (27, 1))
+        self.assertIn('renamed-doctor', update_values)
+        self.assertIn('updated@example.test', update_values)
+        self.assertNotIn('NewSecurePassword123', update_values)
+
+        with patch.object(app_module, 'has_permission', return_value=True), \
+                patch.object(app_module, 'db_query', return_value={'id': 27}), \
+                patch.object(app_module, 'record_audit'):
+            delete_response = self.client.delete('/api/users/27', headers=headers)
+
+        self.assertEqual(delete_response.status_code, 200)
+
+        with patch.object(app_module, 'has_permission', return_value=True), \
+                patch.object(
+                    app_module,
+                    'db_query',
+                    side_effect=app_module.psycopg2.IntegrityError('referenced user')
+                ):
+            blocked_delete_response = self.client.delete('/api/users/28', headers=headers)
+
+        self.assertEqual(blocked_delete_response.status_code, 409)
+        self.assertIn('related records', blocked_delete_response.get_json()['message'])
 
     def test_auto_register_uses_request_ip_and_logs_without_database_actions(self):
         claims = {
