@@ -1543,7 +1543,7 @@ def triage_handler():
         return jsonify({'message': 'Triage record created successfully', 'triage_id': new_triage['id']}), 201
 
 
-@app.route('/api/locations', methods=['GET', 'POST'])
+@app.route('/api/locations', methods=['GET', 'POST', 'OPTIONS'])
 @token_required
 def locations():
     claims = get_current_user()
@@ -1587,7 +1587,7 @@ def locations():
     return jsonify({'message': 'Location created', 'id': new_row['id']})
 
 
-@app.route('/api/locations/<int:location_id>', methods=['GET', 'PUT'])
+@app.route('/api/locations/<int:location_id>', methods=['GET', 'PUT', 'DELETE', 'POST'])
 @token_required
 def location_detail(location_id):
     claims = get_current_user()
