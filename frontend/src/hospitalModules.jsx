@@ -5582,13 +5582,15 @@ function KpiCard({ title, value, subtitle, subtitleColor = "text-slate-500", ico
 export function Dashboard() {
   const [reports, setReports] = useState(null);
   const [series, setSeries] = useState([]);
-  const [metrics, setMetrics] = useState(null);
   const [areas, setAreas] = useState([]);
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [auditEntries, setAuditEntries] = useState([]);
+  const [devicesAvailable, setDevicesAvailable] = useState(false);
+  const [telemetry, setTelemetry] = useState({ latencyMs: null, payloadKb: null, throughputKbps: null, available: 0, total: 6 });
 
   // Estados para el Modal de Métricas Detalladas
-  const [activeMetricModal, setActiveMetricModal] = useState(null); // 'devices', 'consultations', 'alerts', 'users'
+  const [activeMetricModal, setActiveMetricModal] = useState(null); // 'devices', 'consultations', 'alerts'
   const [metricDetailData, setMetricDetailData] = useState([]);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [modalSearch, setModalSearch] = useState(''); // Estado para la búsqueda dentro del modal
@@ -5602,30 +5604,58 @@ export function Dashboard() {
   const [toast, notify, clearToast] = useToast();
 
   const loadDashboardData = useCallback(async () => {
+    const startedAt = performance.now();
     setLoading(true);
     try {
-      const [reportsRes, seriesRes, metricsRes, areasRes, devicesRes, locationsRes] = await Promise.all([
+      const [reportsRes, seriesRes, areasRes, devicesRes, locationsRes, auditRes] = await Promise.all([
         apiFetch('/reports'),
         apiFetch(`/reports/series?days=${days}`),
-        apiFetch('/metrics'),
         apiFetch('/dashboard/areas'),
         apiFetch('/devices'),
-        apiFetch('/locations')
+        apiFetch('/locations'),
+        apiFetch('/audit_logs?page=1&per_page=8')
       ]);
 
-      if (reportsRes.ok) setReports(await reportsRes.json());
-      if (seriesRes.ok) setSeries((await seriesRes.json()) || []);
-      if (metricsRes.ok) setMetrics(await metricsRes.json());
-      if (areasRes.ok) setAreas((await areasRes.json()) || []);
+      const responses = [reportsRes, seriesRes, areasRes, devicesRes, locationsRes, auditRes];
+      const elapsedMs = Math.max(performance.now() - startedAt, 1);
+      const available = responses.filter(response => response.ok).length;
+      const payloads = await Promise.all(responses.map(response =>
+        response.ok ? response.json() : Promise.resolve(null)
+      ));
+      const payloadBytes = payloads.reduce((total, payload) => {
+        if (payload === null) return total;
+        return total + new TextEncoder().encode(JSON.stringify(payload)).length;
+      }, 0);
+
+      setTelemetry({
+        latencyMs: Math.round(elapsedMs),
+        payloadKb: payloadBytes / 1024,
+        throughputKbps: payloadBytes / elapsedMs,
+        available,
+        total: responses.length
+      });
+      if (available < responses.length) {
+        notify(`${responses.length - available} fuente(s) del dashboard no respondieron correctamente.`, 'error');
+      }
+      if (reportsRes.ok) setReports(payloads[0]);
+      if (seriesRes.ok) setSeries(payloads[1] || []);
+      if (areasRes.ok) setAreas(payloads[2] || []);
       if (devicesRes.ok) {
-        const devData = await devicesRes.json();
+        const devData = payloads[3];
         setDevices(Array.isArray(devData) ? devData : devData.items || []);
       }
+      setDevicesAvailable(devicesRes.ok);
       if (locationsRes.ok) {
-        const locData = await locationsRes.json();
+        const locData = payloads[4];
         setLocations(Array.isArray(locData) ? locData : locData.items || []);
       }
+      if (auditRes.ok) setAuditEntries(payloads[5]?.items || []);
     } catch (error) {
+      setTelemetry(current => ({
+        ...current,
+        latencyMs: Math.round(performance.now() - startedAt),
+        available: 0
+      }));
       notify(error.message || 'Error al conectar con la base de datos', 'error');
     } finally {
       setLoading(false);
@@ -5684,6 +5714,27 @@ export function Dashboard() {
     });
   }, [devices, selectedLocation, selectedDeviceType, selectedStatus]);
 
+  const deviceStatusCounts = useMemo(() => {
+    const active = devices.filter(device =>
+      ['active', 'online', 'connected'].includes(String(device.status || '').toLowerCase())
+    ).length;
+    return { active, inactive: Math.max(devices.length - active, 0) };
+  }, [devices]);
+
+  const nodeSummaries = useMemo(() => locations.map(location => {
+    const locationDevices = devices.filter(device => String(device.location_id) === String(location.id));
+    const onlineCount = locationDevices.filter(device =>
+      ['active', 'online', 'connected'].includes(String(device.status || '').toLowerCase())
+    ).length;
+    const area = areas.find(item => String(item.id) === String(location.id));
+    return {
+      id: location.id,
+      name: location.name,
+      deviceCount: devicesAvailable ? locationDevices.length : Number(area?.device_count || 0),
+      onlineCount
+    };
+  }), [locations, devices, areas, devicesAvailable]);
+
   const closeModal = () => {
     setActiveMetricModal(null);
     setModalSearch('');
@@ -5691,32 +5742,42 @@ export function Dashboard() {
   };
 
   return (
-    <div className="dashboard-wrapper min-h-screen w-full bg-[#090d16] text-slate-100 p-4 sm:p-6 lg:p-8 box-border">
-      <div className="printable-container p-4 sm:p-6 lg:p-8 bg-[#0f172a]/45 border border-slate-800 rounded-3xl shadow-2xl flex flex-col gap-6">
+    <div className="dashboard-wrapper relative min-h-screen w-full overflow-hidden bg-[#05070e] p-4 text-slate-100 sm:p-6 lg:p-8">
+      <div className="pointer-events-none absolute -left-24 top-12 h-72 w-72 rounded-full bg-cyan-500/10 blur-[120px]" />
+      <div className="pointer-events-none absolute right-0 top-1/3 h-80 w-80 rounded-full bg-fuchsia-500/[0.07] blur-[120px]" />
+      <div className="pointer-events-none absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-emerald-500/[0.06] blur-[120px]" />
+      <div className="printable-container relative flex flex-col gap-6 rounded-3xl border border-slate-800/80 bg-[#0b0f19]/95 p-4 shadow-2xl shadow-black/40 sm:p-6 lg:p-8">
         
         {/* CABECERA */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div className="flex flex-col justify-between gap-4 border-b border-cyan-950/80 pb-5 md:flex-row md:items-center">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider mb-1">
-              <span>Enterprise Analytics</span>
-              <span>•</span>
-              <span className="text-slate-400">ISO 27001 & HIPAA Compliant</span>
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+              <span className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-3 py-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                </span>
+                NCI · SISTEMA ACTIVO
+              </span>
+              <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-3 py-1.5 text-slate-400 tracking-[0.12em]">
+                ISO 27001 / HIPAA
+              </span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            <h1 className="bg-gradient-to-r from-white via-cyan-100 to-fuchsia-300 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl lg:text-3xl">
               Dashboard de Control y Auditoría TI
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Haz clic en cualquier métrica para ver la lista con todos sus campos de búsqueda y enlaces directos.
+            <p className="mt-1.5 text-xs text-slate-500 sm:text-sm">
+              Centro de monitoreo operativo · Estado de infraestructura y actividad clínica
             </p>
           </div>
 
           <button
             onClick={loadDashboardData}
             disabled={loading}
-            className="no-print bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 rounded-xl py-2 px-4 text-xs font-medium flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+            className="no-print inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2.5 text-xs font-bold tracking-wider text-cyan-100 shadow-[0_0_20px_rgba(6,182,212,0.16)] transition hover:border-cyan-300/60 hover:bg-cyan-400/15 hover:shadow-[0_0_28px_rgba(6,182,212,0.28)] disabled:cursor-wait disabled:opacity-60"
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            <span>Actualizar</span>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>ACTUALIZAR NCI</span>
           </button>
         </div>
 
@@ -5729,138 +5790,277 @@ export function Dashboard() {
         ) : (
           <div className="flex flex-col gap-6 w-full">
 
+            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-cyan-950/80 bg-[#080c15]/90 p-3 sm:grid-cols-2 xl:grid-cols-4">
+              <label className="flex flex-col gap-1.5 px-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                Área
+                <select value={selectedLocation} onChange={event => setSelectedLocation(event.target.value)} className="rounded-lg border border-slate-800 bg-[#0b111a] px-3 py-2 text-xs font-medium normal-case tracking-normal text-slate-200 outline-none focus:border-cyan-500/50">
+                  <option value="all">Todas las áreas</option>
+                  {locations.map(location => <option key={location.id} value={location.id}>{location.name}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 px-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                Tipo de equipo
+                <select value={selectedDeviceType} onChange={event => setSelectedDeviceType(event.target.value)} className="rounded-lg border border-slate-800 bg-[#0b111a] px-3 py-2 text-xs font-medium normal-case tracking-normal text-slate-200 outline-none focus:border-cyan-500/50">
+                  <option value="all">Todos los tipos</option>
+                  {availableDeviceTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 px-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                Estado de equipo
+                <select value={selectedStatus} onChange={event => setSelectedStatus(event.target.value)} className="rounded-lg border border-slate-800 bg-[#0b111a] px-3 py-2 text-xs font-medium normal-case tracking-normal text-slate-200 outline-none focus:border-cyan-500/50">
+                  <option value="all">Todos los estados</option>
+                  {[...new Set(devices.map(device => device.status).filter(Boolean))].map(status => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 px-1 text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                Periodo de gráficos
+                <select value={days} onChange={event => setDays(Number(event.target.value))} className="rounded-lg border border-slate-800 bg-[#0b111a] px-3 py-2 text-xs font-medium normal-case tracking-normal text-slate-200 outline-none focus:border-cyan-500/50">
+                  {[7, 14, 30, 90].map(period => <option key={period} value={period}>{period} días</option>)}
+                </select>
+              </label>
+            </div>
+
             {/* GRILLA DE TARJETAS DE MÉTRICAS CLICABLES */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               
               {/* METRICA 1: EQUIPOS */}
               <div 
                 onClick={() => handleOpenMetricDetail('devices')}
-                className="bg-slate-900/60 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
+                className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b111a]/90 p-5 transition duration-300 hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-[0_0_24px_rgba(16,185,129,0.18)]"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Equipos Filtrados</span>
-                  <Monitor size={16} className="text-blue-400" />
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-300">Equipos Filtrados</span>
+                  <Monitor size={18} className="text-emerald-400" />
                 </div>
-                <div className="my-2">
-                  <span className="text-3xl font-black text-emerald-400 tracking-tight">
+                <div className="my-3">
+                  <span className="text-4xl font-black tracking-tight text-emerald-300 drop-shadow-[0_0_12px_rgba(16,185,129,0.5)]">
                     {filteredDevices?.length || 0}
                   </span>
-                  <div className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
-                    <CheckCircle2 size={10} /> Ver lista completa ↗
+                  <div className="mt-1 flex w-fit items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">
+                    <CheckCircle2 size={11} /> Ver equipos ↗
                   </div>
                 </div>
-                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Total de dispositivos registrados en red
+                <div className="border-t border-slate-800/80 pt-3 text-[10px] text-slate-500">
+                  Equipos según los filtros activos
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500/40"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400/90 to-transparent opacity-70 transition group-hover:opacity-100" />
               </div>
 
               {/* METRICA 2: CONSULTAS */}
               <div 
                 onClick={() => handleOpenMetricDetail('consultations')}
-                className="bg-slate-900/60 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
+                className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border border-fuchsia-500/20 bg-[#0b111a]/90 p-5 transition duration-300 hover:-translate-y-1 hover:border-fuchsia-400/60 hover:shadow-[0_0_24px_rgba(217,70,239,0.2)]"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Consultas Clínicas</span>
-                  <CalendarIcon size={16} className="text-indigo-400" />
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-300">Consultas Clínicas</span>
+                  <Calendar size={18} className="text-fuchsia-400" />
                 </div>
-                <div className="my-2">
-                  <span className="text-3xl font-black text-indigo-400 tracking-tight">
+                <div className="my-3">
+                  <span className="text-4xl font-black tracking-tight text-fuchsia-300 drop-shadow-[0_0_12px_rgba(217,70,239,0.5)]">
                     {reports?.summary?.consultations ?? 0}
                   </span>
-                  <div className="text-[10px] text-indigo-300 font-semibold mt-1 bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
-                    Ver atenciones médicas ↗
+                  <div className="mt-1 w-fit rounded-full bg-fuchsia-500/10 px-2.5 py-1 text-[10px] font-semibold text-fuchsia-300">
+                    Ver atenciones ↗
                   </div>
                 </div>
-                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Total Pacientes: {reports?.summary?.patients ?? 0}
+                <div className="border-t border-slate-800/80 pt-3 text-[10px] text-slate-500">
+                  Total pacientes: {reports?.summary?.patients ?? 0}
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-indigo-500/40"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-fuchsia-400/90 to-transparent opacity-70 transition group-hover:opacity-100" />
               </div>
 
               {/* METRICA 3: ALERTAS */}
               <div 
                 onClick={() => handleOpenMetricDetail('alerts')}
-                className="bg-slate-900/60 border border-slate-800 hover:border-amber-500/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
+                className="group relative flex cursor-pointer flex-col justify-between overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0b111a]/90 p-5 transition duration-300 hover:-translate-y-1 hover:border-amber-400/70 hover:shadow-[0_0_26px_rgba(245,158,11,0.2)]"
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Alertas Activas</span>
-                  <ShieldAlert size={16} className="text-amber-400" />
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-300">Alertas Activas</span>
+                  <ShieldAlert size={18} className="text-amber-400" />
                 </div>
-                <div className="my-2">
-                  <span className="text-3xl font-black text-amber-400 tracking-tight">
+                <div className="my-3">
+                  <span className={`text-4xl font-black tracking-tight text-amber-300 drop-shadow-[0_0_12px_rgba(245,158,11,0.5)] ${Number(reports?.summary?.active_alerts) > 0 ? 'animate-pulse' : ''}`}>
                     {reports?.summary?.active_alerts ?? 0}
                   </span>
-                  <div className="text-[10px] text-amber-300 font-semibold mt-1 bg-amber-500/10 px-2 py-0.5 rounded w-fit">
-                    Ver eventos de alertas ↗
+                  <div className="mt-1 w-fit rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-300">
+                    Ver eventos ↗
                   </div>
                 </div>
-                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Incidencias y monitoreo
+                <div className="border-t border-slate-800/80 pt-3 text-[10px] text-slate-500">
+                  Incidencias sin resolver
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/40"></div>
-              </div>
-
-              {/* METRICA 4: USUARIOS / SESIONES CON TEMAS */}
-              <div 
-                onClick={() => handleOpenMetricDetail('users')}
-                className="bg-slate-900/60 border border-slate-800 hover:border-sky-500/50 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all hover:scale-[1.02]"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold tracking-wider text-slate-300 uppercase">Usuarios Activos</span>
-                  <Wifi size={16} className="text-sky-400" />
-                </div>
-                <div className="my-2">
-                  <span className="text-3xl font-black text-sky-400 tracking-tight">
-                    {metrics?.active_users ?? 0}
-                  </span>
-                  <div className="text-[10px] text-sky-300 font-semibold mt-1 bg-sky-500/10 px-2 py-0.5 rounded w-fit">
-                    Ver sesiones & temas ↗
-                  </div>
-                </div>
-                <div className="text-[10px] text-slate-400 pt-2 border-t border-slate-800">
-                  Sesiones y temas de conversación
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-sky-500/40"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-amber-400/90 to-transparent opacity-70 transition group-hover:opacity-100" />
               </div>
 
             </div>
 
+            {/* TELEMETRÍA, MATRIZ DE NODOS Y CONSOLA DE AUDITORÍA */}
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+              <section className="rounded-2xl border border-cyan-500/20 bg-[#090e18]/90 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] xl:col-span-1">
+                <div className="mb-5 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Salud de Red</h3>
+                    <p className="mt-1 text-[11px] text-slate-500">Medición de esta actualización</p>
+                  </div>
+                  <Wifi size={17} className="text-cyan-300" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Respuesta agregada</div>
+                    <div className="mt-1.5 text-xl font-black text-cyan-300">
+                      {telemetry.latencyMs === null ? '—' : `${telemetry.latencyMs} ms`}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Endpoints OK</div>
+                    <div className="mt-1.5 text-xl font-black text-emerald-300">
+                      {telemetry.available}<span className="text-sm text-slate-500">/{telemetry.total}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Carga recibida</div>
+                    <div className="mt-1.5 text-lg font-bold text-indigo-300">
+                      {telemetry.payloadKb === null ? '—' : `${telemetry.payloadKb.toFixed(1)} KB`}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3">
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500">Caudal estimado</div>
+                    <div className="mt-1.5 text-lg font-bold text-fuchsia-300">
+                      {telemetry.throughputKbps === null ? '—' : `${telemetry.throughputKbps.toFixed(1)} KB/s`}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="mb-1.5 flex justify-between text-[10px] text-slate-500">
+                    <span>Disponibilidad de fuentes en esta carga</span>
+                    <span>{telemetry.total ? Math.round((telemetry.available / telemetry.total) * 100) : 0}%</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-[width] duration-700"
+                      style={{ width: `${telemetry.total ? (telemetry.available / telemetry.total) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+                <p className="mt-3 text-[9px] leading-relaxed text-slate-600">
+                  Caudal calculado sobre el tamaño JSON y el tiempo de carga; no equivale a ancho de banda de red. No hay telemetría de uptime histórico disponible.
+                </p>
+              </section>
+
+              <section className="rounded-2xl border border-emerald-500/20 bg-[#090e18]/90 p-5 xl:col-span-1">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Matriz de Nodos TI</h3>
+                    <p className="mt-1 text-[11px] text-slate-500">Equipos agrupados por área</p>
+                  </div>
+                  <Server size={17} className="text-emerald-300" />
+                </div>
+                {nodeSummaries.length === 0 ? (
+                  <div className="flex min-h-36 items-center justify-center rounded-xl border border-dashed border-slate-800 text-xs text-slate-500">
+                    No hay áreas disponibles
+                  </div>
+                ) : (
+                  <div className="grid max-h-[255px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
+                    {nodeSummaries.map(node => (
+                      <div key={node.id} className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 transition hover:border-emerald-500/30">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`relative flex h-2 w-2 shrink-0 ${node.onlineCount ? '' : 'opacity-40'}`}>
+                            {node.onlineCount > 0 && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />}
+                            <span className={`relative inline-flex h-2 w-2 rounded-full ${node.onlineCount ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                          </span>
+                          <span className="font-mono text-[9px] text-slate-600">#{node.id}</span>
+                        </div>
+                        <div className="mt-3 truncate text-[11px] font-semibold text-slate-200" title={node.name}>{node.name}</div>
+                        <div className="mt-1.5 flex items-center justify-between gap-1 text-[9px] text-slate-500">
+                          <span>{devicesAvailable ? `${node.onlineCount}/${node.deviceCount} en línea` : 'Estado no disponible'}</span>
+                          <span>{node.deviceCount} nodo{node.deviceCount === 1 ? '' : 's'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-4 flex items-center gap-4 border-t border-slate-800/70 pt-3 text-[10px] text-slate-500">
+                  {devicesAvailable ? (
+                    <>
+                      <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> {deviceStatusCounts.active} en línea</span>
+                      <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-slate-600" /> {deviceStatusCounts.inactive} otros</span>
+                    </>
+                  ) : <span>Inventario de dispositivos no disponible</span>}
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-fuchsia-500/20 bg-[#090e18]/90 p-5 xl:col-span-1">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white">Consola de Auditoría</h3>
+                    <p className="mt-1 text-[11px] text-slate-500">Eventos recientes · {auditEntries.length}</p>
+                  </div>
+                  <Activity size={17} className="text-fuchsia-300" />
+                </div>
+                <div className="max-h-[255px] min-h-36 space-y-1 overflow-y-auto rounded-xl border border-slate-800/70 bg-[#05080f] p-3 font-mono">
+                  {auditEntries.length === 0 ? (
+                    <div className="flex h-28 items-center justify-center text-[10px] text-slate-600">Sin registros recientes</div>
+                  ) : auditEntries.map((entry, index) => (
+                    <div key={entry.log_id ?? entry.id ?? index} className="grid grid-cols-[auto_1fr] gap-x-2 border-b border-slate-800/40 py-2 last:border-0">
+                      <span className="text-[9px] text-slate-600">{entry.created_at ? new Date(entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                      <div className="min-w-0">
+                        <div className="truncate text-[10px] text-cyan-300">{entry.action || 'Evento'}</div>
+                        <div className="truncate text-[9px] text-slate-500">
+                          {entry.entity_type || 'sistema'}{entry.entity_id ? ` · #${entry.entity_id}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[9px] text-slate-600">Se omiten identificadores de cuenta en esta vista.</p>
+              </section>
+            </div>
+
             {/* GRÁFICOS DEL DASHBOARD */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="flex flex-col gap-4 rounded-2xl border border-cyan-500/15 bg-[#090e18]/90 p-5">
                 <div>
                   <h3 className="text-sm font-bold text-white">Tendencia de Pacientes y Consultas</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Evolución en los últimos {days} días</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">Evolución en los últimos {days} días</p>
                 </div>
                 <div className="pt-2">
                   <ResponsiveContainer width="100%" height={240}>
                     <LineChart data={series}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#182536" vertical={false} />
                       <XAxis dataKey="day" stroke="#64748b" tick={{ fontSize: 10 }} />
                       <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 10 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', fontSize: '12px' }} />
-                      <Line type="monotone" dataKey="patients" stroke="#3b82f6" strokeWidth={2.5} dot={false} name="Pacientes" />
-                      <Line type="monotone" dataKey="consultations" stroke="#10b981" strokeWidth={2.5} dot={false} name="Consultas" />
+                      <Tooltip contentStyle={{ backgroundColor: '#090e18', borderColor: '#164e63', borderRadius: '12px', color: '#f8fafc', fontSize: '12px' }} />
+                      <Line type="monotone" dataKey="patients" stroke="#06b6d4" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: '#67e8f9' }} name="Pacientes" />
+                      <Line type="monotone" dataKey="consultations" stroke="#d946ef" strokeWidth={2.5} dot={false} activeDot={{ r: 4, fill: '#f0abfc' }} name="Consultas" />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-4 rounded-2xl border border-amber-500/15 bg-[#090e18]/90 p-5">
                 <div>
                   <h3 className="text-sm font-bold text-white">Infraestructura por Área</h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Distribución de red por sede</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">Distribución de red por sede</p>
                 </div>
                 <div className="pt-2">
                   <ResponsiveContainer width="100%" height={240}>
                     <BarChart data={areas} margin={{ left: -15, right: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <defs>
+                        <linearGradient id="nodeGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.95} />
+                          <stop offset="100%" stopColor="#0891b2" stopOpacity={0.38} />
+                        </linearGradient>
+                        <linearGradient id="alertGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f472b6" stopOpacity={0.95} />
+                          <stop offset="100%" stopColor="#d946ef" stopOpacity={0.4} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#182536" vertical={false} />
                       <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={45} />
                       <YAxis allowDecimals={false} stroke="#64748b" tick={{ fontSize: 10 }} />
-                      <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', fontSize: '12px' }} />
-                      <Bar dataKey="device_count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Dispositivos" />
-                      <Bar dataKey="active_alerts" fill="#ef4444" radius={[4, 4, 0, 0]} name="Alertas" />
+                      <Tooltip contentStyle={{ backgroundColor: '#090e18', borderColor: '#334155', borderRadius: '12px', color: '#f8fafc', fontSize: '12px' }} />
+                      <Bar dataKey="device_count" fill="url(#nodeGradient)" radius={[4, 4, 0, 0]} name="Dispositivos" />
+                      <Bar dataKey="active_alerts" fill="url(#alertGradient)" radius={[4, 4, 0, 0]} name="Alertas" />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -5909,7 +6109,7 @@ export function Dashboard() {
                 </div>
 
                 <a
-                  href={`#/${activeMetricModal === 'users' ? 'users' : activeMetricModal}`}
+                  href={`#/${activeMetricModal}`}
                   onClick={closeModal}
                   className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 no-underline transition-all"
                 >
@@ -5971,17 +6171,6 @@ export function Dashboard() {
                             <th className="p-3">Severidad</th>
                             <th className="p-3">Dispositivo</th>
                             <th className="p-3">Fecha</th>
-                            <th className="p-3">Acción</th>
-                          </>
-                        )}
-                        {activeMetricModal === 'users' && (
-                          <>
-                            <th className="p-3">Sesión ID</th>
-                            <th className="p-3">Usuario</th>
-                            <th className="p-3">Rol</th>
-                            <th className="p-3">Dirección IP</th>
-                            <th className="p-3">Tema de Sesión / Acción</th>
-                            <th className="p-3">Última Actividad</th>
                             <th className="p-3">Acción</th>
                           </>
                         )}
@@ -6047,21 +6236,6 @@ export function Dashboard() {
                             </>
                           )}
 
-                          {activeMetricModal === 'users' && (
-                            <>
-                              <td className="p-3 font-mono text-slate-400">#{item.session_id}</td>
-                              <td className="p-3 font-semibold text-white">{item.username}</td>
-                              <td className="p-3 capitalize">{item.role}</td>
-                              <td className="p-3 font-mono text-sky-400">{item.ip_address || '—'}</td>
-                              <td className="p-3 font-medium text-indigo-300">{item.session_topic}</td>
-                              <td className="p-3 text-slate-400">{item.last_seen ? new Date(item.last_seen).toLocaleString() : '—'}</td>
-                              <td className="p-3">
-                                <a href="#/device-management" onClick={closeModal} className="text-blue-400 hover:underline flex items-center gap-1">
-                                  Ver <ExternalLink size={12} />
-                                </a>
-                              </td>
-                            </>
-                          )}
                         </tr>
                       ))}
                     </tbody>
