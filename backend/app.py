@@ -1553,43 +1553,21 @@ def locations():
         return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     if request.method == 'GET':
-        if 'location_id' not in get_user_columns():
-            app.logger.error('Cannot list locations: users.location_id is missing; apply the location assignment migration.')
-            return jsonify({
-                'message': 'La base de datos no tiene habilitada la asignación de cuentas por área. Aplique las migraciones pendientes.'
-            }), 503
-        try:
-            rows = db_query(
-                '''
-                SELECT l.id, l.name, l.description, l.created_at,
-                    (
-                        SELECT COUNT(*)
-                        FROM users u
-                        WHERE u.tenant_id = l.tenant_id AND u.location_id = l.id
-                    ) AS user_count,
-                    (
-                        SELECT COUNT(DISTINCT d.id)
-                        FROM devices d
-                        JOIN users u
-                          ON u.tenant_id = d.tenant_id
-                         AND LEFT(d.name, LENGTH(u.username) + 3) = u.username || ' - '
-                        WHERE d.tenant_id = l.tenant_id
-                          AND u.location_id = l.id
-                    ) AS device_count,
-                    COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
-                    COUNT(a.id) AS total_alerts
-                FROM locations l
-                LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
-                LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
-                WHERE l.tenant_id = %s
-                GROUP BY l.id
-                ORDER BY l.id DESC
-                ''',
-                (tenant_id, tenant_id, tenant_id), fetchall=True
-            )
-        except Exception:
-            app.logger.exception('Failed to load locations for tenant %s', tenant_id)
-            return jsonify({'message': 'No se pudieron cargar las áreas. Revise el esquema de la base de datos y los registros del servidor.'}), 500
+        rows = db_query(
+            '''
+            SELECT l.id, l.name, l.description, l.created_at,
+                COUNT(DISTINCT d.id) AS device_count,
+                COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
+                COUNT(a.id) AS total_alerts
+            FROM locations l
+            LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
+            LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
+            WHERE l.tenant_id = %s
+            GROUP BY l.id
+            ORDER BY l.id DESC
+            ''',
+            (tenant_id, tenant_id, tenant_id), fetchall=True
+        )
         return jsonify(rows or [])
 
     if not has_permission(claims.get('role'), 'manage_locations'):
@@ -1619,48 +1597,24 @@ def location_detail(location_id):
         return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     if request.method == 'GET':
-        if 'location_id' not in get_user_columns():
-            app.logger.error('Cannot load location detail: users.location_id is missing; apply the location assignment migration.')
-            return jsonify({
-                'message': 'La base de datos no tiene habilitada la asignación de cuentas por área. Aplique las migraciones pendientes.'
-            }), 503
-        try:
-            row = db_query(
-                '''
-                SELECT l.id, l.name, l.description, l.created_at,
-                    (
-                        SELECT COUNT(*)
-                        FROM users u
-                        WHERE u.tenant_id = l.tenant_id AND u.location_id = l.id
-                    ) AS user_count,
-                    (
-                        SELECT COUNT(DISTINCT d.id)
-                        FROM devices d
-                        JOIN users u
-                          ON u.tenant_id = d.tenant_id
-                         AND LEFT(d.name, LENGTH(u.username) + 3) = u.username || ' - '
-                        WHERE d.tenant_id = l.tenant_id
-                          AND u.location_id = l.id
-                    ) AS device_count,
-                    COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
-                    COUNT(a.id) AS total_alerts
-                FROM locations l
-                LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
-                LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
-                WHERE l.tenant_id = %s AND l.id = %s
-                GROUP BY l.id
-                ''',
-                (tenant_id, tenant_id, tenant_id, location_id), fetchone=True
-            )
-        except Exception:
-            app.logger.exception(
-                'Failed to load location %s for tenant %s',
-                location_id, tenant_id
-            )
-            return jsonify({'message': 'No se pudo cargar el detalle del área. Revise el esquema de la base de datos y los registros del servidor.'}), 500
+        row = db_query(
+            '''
+            SELECT l.id, l.name, l.description, l.created_at,
+                COUNT(DISTINCT d.id) AS device_count,
+                COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
+                COUNT(a.id) AS total_alerts
+            FROM locations l
+            LEFT JOIN devices d ON d.location_id = l.id AND d.tenant_id = %s
+            LEFT JOIN alerts a ON a.device_id = d.id AND a.tenant_id = %s
+            WHERE l.tenant_id = %s AND l.id = %s
+            GROUP BY l.id
+            ''',
+            (tenant_id, tenant_id, tenant_id, location_id), fetchone=True
+        )
         if not row:
             return jsonify({'message': 'Location not found'}), 404
 
+        row['user_count'] = 0
         row['hospital_position'] = ''
         return jsonify(row)
 
