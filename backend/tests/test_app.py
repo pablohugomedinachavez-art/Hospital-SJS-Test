@@ -170,6 +170,47 @@ class AppTests(unittest.TestCase):
         self.assertIn('devices d', query.call_args.args[0])
         self.assertNotIn('u.location_id', query.call_args.args[0])
 
+    def test_location_detail_counts_assigned_accounts_and_connected_devices(self):
+        token = self.make_admin_token()
+        expected = {
+            'id': 7,
+            'name': 'Urgencias',
+            'user_count': 4,
+            'device_count': 3,
+            'active_alerts': 1,
+            'total_alerts': 2
+        }
+
+        with patch.object(app_module, 'get_user_columns', return_value={'location_id'}), \
+                patch.object(app_module, 'db_query', return_value=expected) as query:
+            response = self.client.get(
+                '/api/locations/7',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()['user_count'], 4)
+        self.assertEqual(response.get_json()['device_count'], 3)
+        sql = query.call_args.args[0]
+        self.assertIn('u.location_id = l.id', sql)
+        self.assertIn('COUNT(DISTINCT da.entity_id)', sql)
+        self.assertIn("da.action_type = 'connect'", sql)
+        self.assertIn("da.entity_type = 'device'", sql)
+
+    def test_location_detail_requires_account_assignment_migration(self):
+        token = self.make_admin_token()
+
+        with patch.object(app_module, 'get_user_columns', return_value=set()), \
+                patch.object(app_module, 'db_query') as query:
+            response = self.client.get(
+                '/api/locations/7',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn('migración', response.get_json()['message'])
+        query.assert_not_called()
+
     def test_auto_register_uses_request_ip_and_logs_without_database_actions(self):
         claims = {
             'id': 1,

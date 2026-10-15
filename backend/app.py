@@ -1597,10 +1597,35 @@ def location_detail(location_id):
         return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     if request.method == 'GET':
+        if 'location_id' not in get_user_columns():
+            app.logger.error(
+                'Cannot count area users and devices: users.location_id is missing.'
+            )
+            return jsonify({
+                'message': 'Aplique la migración de asignación de usuarios a áreas para ver estos conteos.'
+            }), 503
+
         row = db_query(
             '''
             SELECT l.id, l.name, l.description, l.created_at,
-                COUNT(DISTINCT d.id) AS device_count,
+                (
+                    SELECT COUNT(*)
+                    FROM users u
+                    WHERE u.tenant_id = l.tenant_id
+                      AND u.location_id = l.id
+                ) AS user_count,
+                (
+                    SELECT COUNT(DISTINCT da.entity_id)
+                    FROM device_actions da
+                    JOIN users u
+                      ON u.id = da.user_id
+                     AND u.tenant_id = da.tenant_id
+                    WHERE da.tenant_id = l.tenant_id
+                      AND u.location_id = l.id
+                      AND da.entity_type = 'device'
+                      AND da.action_type = 'connect'
+                      AND da.entity_id IS NOT NULL
+                ) AS device_count,
                 COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
                 COUNT(a.id) AS total_alerts
             FROM locations l
@@ -1614,7 +1639,6 @@ def location_detail(location_id):
         if not row:
             return jsonify({'message': 'Location not found'}), 404
 
-        row['user_count'] = 0
         row['hospital_position'] = ''
         return jsonify(row)
 

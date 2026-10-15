@@ -2464,8 +2464,8 @@ export function Locations() {
     setLoadingDetail(true);
     try {
       const res = await apiFetch(`/locations/${id}`);
-      if (!res.ok) throw new Error('No se pudo cargar el detalle');
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'No se pudo cargar el detalle');
       setDetail(data);
     } catch (error) {
       notify(error.message, 'error');
@@ -2684,8 +2684,8 @@ export function Locations() {
               <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando métricas de área…" /></div>
             ) : detail ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', width: '100%' }}>
-                <StatCard icon="👥" label="Personal asignado" value={detail.user_count ?? '—'} tone="primary" />
-                <StatCard icon="📟" label="Dispositivos activos" value={detail.device_count ?? 0} tone="success" />
+                <StatCard icon="👥" label="Personal asignado (cuentas)" value={detail.user_count ?? 0} tone="primary" />
+                <StatCard icon="📟" label="Equipos que iniciaron sesión" value={detail.device_count ?? 0} tone="success" />
                 <StatCard icon="⚠" label="Alertas críticas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
               </div>
             ) : (
