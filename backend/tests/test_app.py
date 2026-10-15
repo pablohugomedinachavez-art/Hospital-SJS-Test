@@ -177,6 +177,15 @@ class AppTests(unittest.TestCase):
             'name': 'Urgencias',
             'user_count': 4,
             'device_count': 3,
+            'accounts': [{'id': 15, 'username': 'clinician', 'role': 'doctor'}],
+            'devices': [{
+                'id': 22,
+                'name': 'clinician - LAPTOP',
+                'type': 'laptop',
+                'status': 'active',
+                'ip_address': '192.0.2.10',
+                'account_username': 'clinician'
+            }],
             'active_alerts': 1,
             'total_alerts': 2
         }
@@ -191,11 +200,15 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json()['user_count'], 4)
         self.assertEqual(response.get_json()['device_count'], 3)
+        self.assertEqual(response.get_json()['accounts'][0]['username'], 'clinician')
+        self.assertEqual(response.get_json()['devices'][0]['ip_address'], '192.0.2.10')
         sql = query.call_args.args[0]
         self.assertIn('u.location_id = l.id', sql)
-        self.assertIn('COUNT(DISTINCT da.entity_id)', sql)
+        self.assertIn('COUNT(DISTINCT d.id)', sql)
         self.assertIn("da.action_type = 'connect'", sql)
         self.assertIn("da.entity_type = 'device'", sql)
+        self.assertIn('AS accounts', sql)
+        self.assertIn('AS devices', sql)
 
     def test_location_detail_requires_account_assignment_migration(self):
         token = self.make_admin_token()

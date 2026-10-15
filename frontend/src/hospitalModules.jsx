@@ -2424,6 +2424,7 @@ export function Locations() {
   const [items, setItems] = useState([]);
   const [selectedArea, setSelectedArea] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [detailTab, setDetailTab] = useState('users');
   const [loading, setLoading] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showNewArea, setShowNewArea] = useState(false);
@@ -2462,6 +2463,7 @@ export function Locations() {
 
   const loadDetail = useCallback(async (id) => {
     setLoadingDetail(true);
+    setDetail(null);
     try {
       const res = await apiFetch(`/locations/${id}`);
       const data = await res.json().catch(() => ({}));
@@ -2606,7 +2608,10 @@ export function Locations() {
                   <button
                     key={area.id}
                     type="button"
-                    onClick={() => setSelectedArea(area.id)}
+                    onClick={() => {
+                      setDetailTab('users');
+                      setSelectedArea(area.id);
+                    }}
                     className="hospital-area-card"
                     style={{
                       backgroundColor: 'rgba(15, 23, 42, 0.9)',
@@ -2683,11 +2688,100 @@ export function Locations() {
             {loadingDetail ? (
               <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando métricas de área…" /></div>
             ) : detail ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', width: '100%' }}>
-                <StatCard icon="👥" label="Personal asignado (cuentas)" value={detail.user_count ?? 0} tone="primary" />
-                <StatCard icon="📟" label="Equipos que iniciaron sesión" value={detail.device_count ?? 0} tone="success" />
-                <StatCard icon="⚠" label="Alertas críticas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
+            <>
+              <div role="tablist" aria-label="Información del área" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '1rem', width: '100%' }}>
+                <button
+                  id="location-users-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === 'users'}
+                  aria-controls="location-detail-panel"
+                  onClick={() => setDetailTab('users')}
+                  style={{
+                    backgroundColor: detailTab === 'users' ? 'rgba(59, 130, 246, 0.16)' : '#090d16',
+                    border: `1px solid ${detailTab === 'users' ? '#3b82f6' : '#1e293b'}`,
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    color: '#f8fafc',
+                    textAlign: 'left',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>👥 Personal asignado</span>
+                  <strong style={{ display: 'block', fontSize: '1.5rem', marginTop: '0.25rem' }}>{detail.user_count ?? 0}</strong>
+                  <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>cuentas</span>
+                </button>
+                <button
+                  id="location-devices-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected={detailTab === 'devices'}
+                  aria-controls="location-detail-panel"
+                  onClick={() => setDetailTab('devices')}
+                  style={{
+                    backgroundColor: detailTab === 'devices' ? 'rgba(16, 185, 129, 0.16)' : '#090d16',
+                    border: `1px solid ${detailTab === 'devices' ? '#10b981' : '#1e293b'}`,
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    color: '#f8fafc',
+                    textAlign: 'left',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>📟 Equipos que iniciaron sesión</span>
+                  <strong style={{ display: 'block', fontSize: '1.5rem', marginTop: '0.25rem' }}>{detail.device_count ?? 0}</strong>
+                  <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>equipos</span>
+                </button>
+                <div style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem' }}>
+                  <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>⚠ Alertas críticas</span>
+                  <strong style={{ display: 'block', fontSize: '1.5rem', marginTop: '0.25rem', color: detail.active_alerts ? '#fca5a5' : '#f8fafc' }}>{detail.active_alerts ?? 0}</strong>
+                  <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>alertas activas</span>
+                </div>
               </div>
+
+              <div
+                id="location-detail-panel"
+                role="tabpanel"
+                aria-labelledby={detailTab === 'users' ? 'location-users-tab' : 'location-devices-tab'}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+              >
+                <h4 style={{ margin: 0, color: '#e2e8f0', fontSize: '0.95rem' }}>
+                  {detailTab === 'users' ? 'Cuentas asignadas a este servicio' : 'Equipos que iniciaron sesión con estas cuentas'}
+                </h4>
+                {detailTab === 'users' ? (
+                  Array.isArray(detail.accounts) && detail.accounts.length ? (
+                    detail.accounts.map(account => (
+                      <div key={account.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.85rem 1rem' }}>
+                        <div>
+                          <strong style={{ display: 'block', color: '#f8fafc' }}>{account.username}</strong>
+                          <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Cuenta #{account.id}</span>
+                        </div>
+                        <span style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>{account.role || 'Sin rol'}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState title="No hay cuentas asignadas a esta área" />
+                  )
+                ) : Array.isArray(detail.devices) && detail.devices.length ? (
+                  detail.devices.map(device => (
+                    <div key={device.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.85rem 1rem' }}>
+                      <div>
+                        <strong style={{ display: 'block', color: '#f8fafc' }}>{device.name || `Equipo #${device.id}`}</strong>
+                        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
+                          Cuenta: {device.account_username || 'Desconocida'} · {device.type || 'Tipo desconocido'}
+                        </span>
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '0.8rem' }}>
+                        <span style={{ display: 'block', color: '#cbd5e1' }}>IP: {device.ip_address || 'No disponible'}</span>
+                        <span style={{ color: '#94a3b8' }}>Último acceso: {device.last_login ? new Date(device.last_login).toLocaleString() : 'No disponible'}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyState title="Ningún equipo ha iniciado sesión con cuentas de esta área" />
+                )}
+              </div>
+            </>
             ) : (
               <EmptyState title="Sin información de detalle" />
             )}

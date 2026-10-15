@@ -1615,17 +1615,52 @@ def location_detail(location_id):
                       AND u.location_id = l.id
                 ) AS user_count,
                 (
-                    SELECT COUNT(DISTINCT da.entity_id)
+                    SELECT COUNT(DISTINCT d.id)
                     FROM device_actions da
                     JOIN users u
                       ON u.id = da.user_id
                      AND u.tenant_id = da.tenant_id
+                    JOIN devices d
+                      ON d.id = da.entity_id
+                     AND d.tenant_id = da.tenant_id
                     WHERE da.tenant_id = l.tenant_id
                       AND u.location_id = l.id
                       AND da.entity_type = 'device'
                       AND da.action_type = 'connect'
                       AND da.entity_id IS NOT NULL
                 ) AS device_count,
+                COALESCE((
+                    SELECT json_agg(account_row)
+                    FROM (
+                        SELECT u.id, u.username, u.role, u.created_at
+                        FROM users u
+                        WHERE u.tenant_id = l.tenant_id
+                          AND u.location_id = l.id
+                        ORDER BY u.username
+                    ) AS account_row
+                ), '[]'::json) AS accounts,
+                COALESCE((
+                    SELECT json_agg(device_row)
+                    FROM (
+                        SELECT DISTINCT ON (d.id)
+                            d.id, d.name, d.type, d.status, d.ip_address,
+                            d.os_version, da.created_at AS last_login,
+                            u.username AS account_username
+                        FROM device_actions da
+                        JOIN users u
+                          ON u.id = da.user_id
+                         AND u.tenant_id = da.tenant_id
+                        JOIN devices d
+                          ON d.id = da.entity_id
+                         AND d.tenant_id = da.tenant_id
+                        WHERE da.tenant_id = l.tenant_id
+                          AND u.location_id = l.id
+                          AND da.entity_type = 'device'
+                          AND da.action_type = 'connect'
+                          AND da.entity_id IS NOT NULL
+                        ORDER BY d.id, da.created_at DESC
+                    ) AS device_row
+                ), '[]'::json) AS devices,
                 COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
                 COUNT(a.id) AS total_alerts
             FROM locations l
