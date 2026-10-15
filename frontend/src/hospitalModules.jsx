@@ -1968,7 +1968,7 @@ export function Patients() {
 }
 
 // ============================================================
-// Componente Consultations (Popup Detallado y Animaciones Suaves)
+// Consultations (Corregido y Completado)
 // ============================================================
 
 export function Consultations() {
@@ -1982,79 +1982,63 @@ export function Consultations() {
   const [form, setForm] = useState(INITIAL_CONSULTATION);
   const [toast, notify, clearToast] = useToast();
 
-  const [selectedConsultation, setSelectedConsultation] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const debouncedQuery = useDebouncedValue(query);
+  const debouncedPatientQuery = useDebouncedValue(patientQuery, 250);
 
-  // Carga optimizada con AbortController para prevenir cuellos de botella en peticiones concurrentes
+  const loadConsultations = useCallback(async (q = '') => {
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/consultations?q=${encodeURIComponent(q)}`);
+      if (!res.ok) throw new Error('No se pudo cargar el historial de consultas');
+      setConsultations(await res.json() || []);
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [notify]);
+
+  const searchPatients = useCallback(async (q = '') => {
+    try {
+      const res = await apiFetch(`/patients?q=${encodeURIComponent(q)}`);
+      if (!res.ok) return;
+      const data = await res.json() || [];
+      setPatients(data);
+      if (data.length === 1) setForm(prev => ({ ...prev, patient_id: data[0].id }));
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  useEffect(() => { loadConsultations(); }, [loadConsultations]);
+
   useEffect(() => {
-    const controller = new AbortController();
-    const fetchConsul = async () => {
-      setLoading(true);
-      try {
-        const res = await apiFetch(`/consultations?q=${encodeURIComponent(query)}`, { signal: controller.signal });
-        if (!res.ok) throw new Error('No se pudo cargar el historial');
-        const data = await res.json() || [];
-        setConsultations(data);
-        setCurrentPage(1);
-      } catch (error) {
-        if (error.name !== 'AbortError') notify(error.message, 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!showForm) loadConsultations(debouncedQuery);
+  }, [debouncedQuery, showForm, loadConsultations]);
 
-    const timer = setTimeout(fetchConsul, 300); // Debounce manual nativo
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query, notify]);
-
-  // Búsqueda de pacientes optimizada
   useEffect(() => {
-    if (!showForm) return;
-    const controller = new AbortController();
-    const fetchPatients = async () => {
-      try {
-        const res = await apiFetch(`/patients?q=${encodeURIComponent(patientQuery)}`, { signal: controller.signal });
-        if (!res.ok) return;
-        const data = await res.json() || [];
-        setPatients(data);
-        if (data.length === 1) setForm(prev => ({ ...prev, patient_id: data[0].id }));
-      } catch (error) {
-        if (error.name !== 'AbortError') console.error(error);
-      }
-    };
+    if (showForm) searchPatients(debouncedPatientQuery);
+  }, [debouncedPatientQuery, showForm, searchPatients]);
 
-    const timer = setTimeout(fetchPatients, 300);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [patientQuery, showForm]);
-
-  const calculateBMI = useCallback((weight, height) => {
+  const calculateBMI = (weight, height) => {
     const w = parseFloat(weight);
     const h = parseFloat(height) / 100;
     if (!w || !h || h === 0) return '';
     return (w / (h * h)).toFixed(1);
-  }, []);
+  };
 
-  const updateTriage = useCallback((field, value) => {
-    setForm(prev => {
-      const next = { ...prev, [field]: value };
-      if (field === 'weight_kg' || field === 'height_cm') {
-        next.bmi = calculateBMI(
-          field === 'weight_kg' ? value : prev.weight_kg,
-          field === 'height_cm' ? value : prev.height_cm
-        );
-      }
-      return next;
-    });
-  }, [calculateBMI]);
+  const updateTriage = (field, value) => {
+    const next = { ...form, [field]: value };
+    if (field === 'weight_kg' || field === 'height_cm') {
+      next.bmi = calculateBMI(
+        field === 'weight_kg' ? value : form.weight_kg,
+        field === 'height_cm' ? value : form.height_cm
+      );
+    }
+    setForm(next);
+  };
 
-  const submit = useCallback(async event => {
+  const submit = async event => {
     event.preventDefault();
     if (!form.patient_id) return notify('Selecciona un paciente antes de guardar.', 'error');
     setSubmitting(true);
@@ -2067,264 +2051,369 @@ export function Consultations() {
       setForm(INITIAL_CONSULTATION);
       setPatientQuery('');
       setShowForm(false);
-      
-      // Recarga manual ligera
-      const reloadRes = await apiFetch(`/consultations?q=`);
-      if (reloadRes.ok) setConsultations(await reloadRes.json() || []);
+      await loadConsultations(query);
     } catch (error) {
       notify(error.message, 'error');
     } finally {
       setSubmitting(false);
     }
-  }, [form, notify]);
+  };
 
-  const paginatedConsultations = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return consultations.slice(start, start + itemsPerPage);
-  }, [consultations, currentPage]);
-
-  const totalPages = Math.ceil(consultations.length / itemsPerPage);
+  const selectedPatient = useMemo(() => patients.find(p => String(p.id) === String(form.patient_id)), [patients, form.patient_id]);
+  const bmiState = getBMIState(form.bmi);
 
   return (
-    <div style={{ padding: '1rem', backgroundColor: '#090d16', color: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', width: '100%', boxSizing: 'border-box' }}>
+    <div className="consultations-container">
       <style>{`
-        .consultation-card-animated {
-          background-color: rgba(15, 23, 42, 0.9);
-          border: 1px solid #1e293b;
-          border-radius: 12px;
+        .consultations-container,
+        .consultations-container * {
+          box-sizing: border-box !important;
+        }
+
+        .consultations-container {
           padding: 1rem;
+          background-color: #090d16;
+          color: #f8fafc;
+          min-height: 100vh;
+          font-family: system-ui, -apple-system, sans-serif;
+          width: 100%;
+        }
+
+        .main-card {
+          background-color: rgba(15, 23, 42, 0.6);
+          border: 1px solid #1e293b;
+          border-radius: 16px;
+          padding: 1.25rem;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(12px);
           display: flex;
           flex-direction: column;
+          gap: 1.25rem;
+          width: 100%;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .header-wrapper {
+          display: flex;
           justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid #1e293b;
+          padding-bottom: 1rem;
+          flex-wrap: wrap;
           gap: 0.75rem;
-          cursor: pointer;
-          transform: translateY(0);
-          transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
+          width: 100%;
         }
-        .consultation-card-animated:hover {
-          transform: translateY(-3px);
-          border-color: #38bdf8;
-          box-shadow: 0 10px 20px -5px rgba(56, 189, 248, 0.15);
+
+        .grid-cards {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 1rem;
+          width: 100%;
+          margin-top: 20px;
+          margin-bottom: 20px;
         }
-        @keyframes fadeInPopup {
-          from { opacity: 0; transform: scale(0.96); }
-          to { opacity: 1; transform: scale(1); }
+
+        .grid-form-2col {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 1rem;
+          width: 100%;
         }
-        .modal-animated-content {
-          animation: fadeInPopup 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+        .input-mobile {
+          width: 100% !important;
+          background-color: #090d16 !important;
+          border: 1px solid #334155 !important;
+          color: #f8fafc !important;
+          border-radius: 8px !important;
+          padding: 0.65rem 0.85rem !important;
+          font-size: 0.875rem !important;
+          outline: none !important;
+        }
+
+        .input-mobile:focus {
+          border-color: #38bdf8 !important;
+          box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
         }
       `}</style>
-      
-      <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)', border: '1px solid #1e293b', borderRadius: '16px', padding: '1.25rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        
+
+      <div className="main-card">
         {/* ENCABEZADO */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ padding: '0.6rem', backgroundColor: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '12px', color: '#38bdf8' }}>
+        <div className="header-wrapper">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400">
               <Stethoscope size={22} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#ffffff', margin: 0 }}>
+              <h1 className="text-xl font-bold text-white">
                 {showForm ? 'Nueva Consulta Médica' : 'Consultas Médicas'}
               </h1>
-              <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>
+              <p className="text-xs text-slate-400">
                 {showForm ? 'Gestión de triaje, diagnóstico y prescripción.' : 'Historial de atenciones clínicas.'}
               </p>
             </div>
           </div>
 
           <button
-            style={{ backgroundColor: '#2563eb', color: '#ffffff', borderRadius: '8px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer"
             onClick={() => {
               if (!showForm) setForm(INITIAL_CONSULTATION);
               setShowForm(!showForm);
             }}
           >
-            {showForm ? <><ArrowLeft size={16} /> Volver</> : <><Plus size={16} /> Nueva Consulta</>}
+            {showForm ? <><ArrowLeft size={16} /> Volver al Historial</> : <><Plus size={16} /> Nueva Consulta</>}
           </button>
         </div>
 
         <Toast toast={toast} onClose={clearToast} />
 
-        {/* LISTADO */}
+        {/* LISTADO DE CONSULTAS */}
         {!showForm ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
+          <div className="space-y-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row gap-3 justify-between items-center">
+              <span className="text-xs text-slate-400 font-medium">
                 {consultations.length} {consultations.length === 1 ? 'consulta registrada' : 'consultas registradas'}
               </span>
-              <div style={{ width: '100px', flex: '1', maxWidth: '320px' }}>
-                <input
-                  type="text"
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  placeholder="Buscar por paciente, diagnóstico o médico..."
-                  style={{ width: '100%', backgroundColor: '#090d16', border: '1px solid #334155', color: '#f8fafc', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '0.85rem', outline: 'none' }}
+              <div className="w-full sm:w-80">
+                <SearchField value={query} onChange={setQuery} placeholder="Buscar por paciente, diagnóstico o médico..." loading={loading} />
+              </div>
+            </div>
+
+            {loading ? (
+              <LoadingState label="Cargando atenciones clínicas..." />
+            ) : consultations.length === 0 ? (
+              <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
+            ) : (
+              <div className="grid-cards">
+                {consultations.map(item => (
+                  <article key={item.id} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between gap-3 transition-all shadow-md">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
+                          <Calendar size={12} /> {formatDate(item.created_at || item.date)}
+                        </span>
+                        <h3 className="text-sm font-semibold text-white line-clamp-1">
+                          {item.patient_name || `Paciente #${item.patient_id}`}
+                        </h3>
+                      </div>
+                      <span className="bg-sky-950/60 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
+                        #{item.id}
+                      </span>
+                    </div>
+
+                    <div className="bg-[#090d16] p-3 rounded-lg border border-slate-800/80 text-xs space-y-1.5">
+                      <p><strong className="text-slate-400">Motivo: </strong><span className="text-slate-300">{item.reason || 'Sin especificar'}</span></p>
+                      <p><strong className="text-slate-400">Diagnóstico: </strong><span className="text-sky-400 font-medium">{item.diagnosis || 'Pendiente'}</span></p>
+                      <p><strong className="text-slate-400">Médico: </strong><span className="text-slate-300">{item.doctor_name || 'No asignado'}</span></p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
+                      <span className="flex items-center gap-1"><Scale size={13} className="text-sky-400" /> {item.weight_kg ?? '—'} kg</span>
+                      <span className="flex items-center gap-1"><Ruler size={13} className="text-sky-400" /> {item.height_cm ?? '—'} cm</span>
+                      <span className="flex items-center gap-1 font-semibold text-slate-200"><Activity size={13} className="text-sky-400" /> IMC {item.bmi ?? '—'}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* FORMULARIO DE NUEVA CONSULTA */
+          <form onSubmit={submit} className="space-y-6">
+
+            {/* SECCIÓN 1: PACIENTE Y ATENCIÓN */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <UserCheck size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">1. Identificación y Motivo</h3>
+              </div>
+
+              <div className="grid-form-2col">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Buscar Paciente *</label>
+                  <input
+                    type="text"
+                    className="input-mobile"
+                    value={patientQuery}
+                    onChange={e => setPatientQuery(e.target.value)}
+                    placeholder="Escriba nombre o DNI..."
+                  />
+                  {patients.length > 0 && (
+                    <div className="mt-1 bg-slate-950 border border-slate-800 rounded-lg p-1.5 max-h-36 overflow-y-auto space-y-1">
+                      {patients.slice(0, 5).map(patient => (
+                        <button
+                          type="button"
+                          key={patient.id}
+                          onClick={() => { setForm(p => ({ ...p, patient_id: patient.id })); setPatientQuery(patient.full_name); }}
+                          className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between ${String(patient.id) === String(form.patient_id) ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'text-slate-300 hover:bg-slate-900'}`}
+                        >
+                          <span className="font-medium">{patient.full_name}</span>
+                          <span className="text-[10px] text-slate-500">DNI: {patient.dni || patient.document_number || 'S/D'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Paciente Seleccionado *</label>
+                  <select
+                    required
+                    className="input-mobile"
+                    value={form.patient_id}
+                    onChange={e => setForm(p => ({ ...p, patient_id: e.target.value }))}
+                  >
+                    <option value="">-- Seleccionar de la lista --</option>
+                    {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} — DNI {p.dni || p.document_number || 'S/D'}</option>)}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Médico Tratante</label>
+                  <input
+                    className="input-mobile"
+                    value={form.doctor_name}
+                    onChange={e => setForm(p => ({ ...p, doctor_name: e.target.value }))}
+                    placeholder="Dr. Nombre Apellido"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Motivo de Consulta</label>
+                  <input
+                    className="input-mobile"
+                    value={form.reason}
+                    onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
+                    placeholder="Ej. Control de rutina, dolor abdominal..."
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1 pt-2">
+                <label className="text-xs font-medium text-slate-400">Sintomatología / Anamnesis</label>
+                <textarea
+                  rows={2}
+                  className="input-mobile"
+                  value={form.symptoms}
+                  onChange={e => setForm(p => ({ ...p, symptoms: e.target.value }))}
+                  placeholder="Detalles clínicos o síntomas manifestados por el paciente..."
                 />
               </div>
             </div>
 
-            {loading && consultations.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.85rem' }}>Cargando atenciones clínicas...</div>
-            ) : consultations.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.85rem' }}>No se encontraron consultas registradas.</div>
-            ) : (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem', marginTop: '10px' }}>
-                  {paginatedConsultations.map((item) => (
-                    <article 
-                      key={item.id}
-                      onClick={() => setSelectedConsultation(item)}
-                      className="consultation-card-animated"
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                        <div>
-                          <span style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
-                            <Calendar size={12} /> {formatDate(item.created_at || item.date)}
-                          </span>
-                          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#ffffff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '190px' }}>
-                            {item.patient_name || `Paciente #${item.patient_id}`}
-                          </h3>
-                        </div>
-                        <span style={{ backgroundColor: '#0c4a6e', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontFamily: 'monospace', fontWeight: 600 }}>
-                          #{item.id}
-                        </span>
-                      </div>
+            {/* SECCIÓN 2: TRIAJE Y SIGNOS VITALES */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <HeartPulse size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">2. Signos Vitales y Triaje</h3>
+              </div>
 
-                      <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(30, 41, 59, 0.8)', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div><strong style={{ color: '#94a3b8' }}>Motivo: </strong><span style={{ color: '#cbd5e1' }}>{item.reason || 'Sin especificar'}</span></div>
-                        <div><strong style={{ color: '#94a3b8' }}>Diagnóstico: </strong><span style={{ color: '#38bdf8', fontWeight: 500 }}>{item.diagnosis || 'Pendiente'}</span></div>
-                        <div><strong style={{ color: '#94a3b8' }}>Médico: </strong><span style={{ color: '#cbd5e1' }}>{item.doctor_name || 'No asignado'}</span></div>
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8', paddingTop: '8px', borderTop: '1px solid #1e293b' }}>
-                        <span>⚖️ {item.weight_kg ?? '—'} kg</span>
-                        <span>📏 {item.height_cm ?? '—'} cm</span>
-                        <span style={{ fontWeight: 600, color: '#e2e8f0' }}>IMC {item.bmi ?? '—'}</span>
-                      </div>
-                    </article>
-                  ))}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Peso (kg)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    className="input-mobile"
+                    value={form.weight_kg}
+                    onChange={e => updateTriage('weight_kg', e.target.value)}
+                    placeholder="Ej. 70.5"
+                  />
                 </div>
 
-                {totalPages > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #1e293b', fontSize: '0.75rem' }}>
-                    <span style={{ color: '#94a3b8' }}>Página {currentPage} de {totalPages}</span>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        style={{ backgroundColor: '#1e293b', color: '#e2e8f0', padding: '0.4rem 0.8rem', borderRadius: '6px', border: 'none', cursor: currentPage === 1 ? 'not-allowed' : 'pointer', opacity: currentPage === 1 ? 0.4 : 1 }}
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(p => p - 1)}
-                      >
-                        Anterior
-                      </button>
-                      <button
-                        style={{ backgroundColor: '#1e293b', color: '#e2e8f0', padding: '0.4rem 0.8rem', borderRadius: '6px', border: 'none', cursor: currentPage === totalPages ? 'not-allowed' : 'pointer', opacity: currentPage === totalPages ? 0.4 : 1 }}
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(p => p + 1)}
-                      >
-                        Siguiente
-                      </button>
-                    </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Talla (cm)</label>
+                  <input
+                    type="number"
+                    className="input-mobile"
+                    value={form.height_cm}
+                    onChange={e => updateTriage('height_cm', e.target.value)}
+                    placeholder="Ej. 170"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Presión Arterial</label>
+                  <input
+                    className="input-mobile"
+                    value={form.blood_pressure}
+                    onChange={e => updateTriage('blood_pressure', e.target.value)}
+                    placeholder="120/80"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">IMC (Calculado)</label>
+                  <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-sm font-mono text-sky-400 font-semibold flex items-center justify-between">
+                    <span>{form.bmi || '—'}</span>
+                    {form.bmi && <span className="text-[10px] text-slate-400 uppercase font-sans">{bmiState.label}</span>}
                   </div>
-                )}
-              </>
-            )}
-          </div>
-        ) : (
-          <div>... (Formulario de nueva consulta) ...</div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECCIÓN 3: DIAGNÓSTICO Y RECETA */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-800">
+                <FileEdit size={18} className="text-sky-400" />
+                <h3 className="text-sm font-semibold text-white">3. Diagnóstico y Prescripción</h3>
+              </div>
+
+              <div className="grid-form-2col">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Diagnóstico Principal</label>
+                  <textarea
+                    rows={3}
+                    className="input-mobile"
+                    value={form.diagnosis}
+                    onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))}
+                    placeholder="Diagnóstico clínico, código CIE-10..."
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-slate-400">Tratamiento / Receta Médica</label>
+                  <textarea
+                    rows={3}
+                    className="input-mobile"
+                    value={form.treatment}
+                    onChange={e => setForm(p => ({ ...p, treatment: e.target.value }))}
+                    placeholder="Medicamentos, posología e indicaciones generales..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* BOTONES DE ACCIÓN */}
+            <div className="flex justify-end gap-3 pt-4 mt-6 border-t border-slate-800">
+              <button
+                type="button"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg px-5 py-2.5 text-sm font-semibold transition-all disabled:opacity-50"
+                onClick={() => {
+                  setShowForm(false);
+                  setForm(INITIAL_CONSULTATION);
+                }}
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-6 py-2.5 text-sm font-semibold flex items-center gap-2 transition-all disabled:opacity-50"
+                disabled={submitting}
+              >
+                <Save size={16} />
+                {submitting ? 'Guardando...' : 'Guardar Consulta'}
+              </button>
+            </div>
+          </form>
         )}
       </div>
-
-      {/* POPUP DE DETALLE CLÍNICO DETALLADO */}
-      {selectedConsultation && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.75)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, backdropFilter: 'blur(4px)', padding: '1rem' }} onClick={() => setSelectedConsultation(null)}>
-          <div className="modal-animated-content" style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '16px', padding: '1.5rem', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box' }} onClick={e => e.stopPropagation()}>
-            
-            {/* Cabecera del Popup */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #334155', paddingBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Stethoscope size={20} color="#38bdf8" />
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#ffffff', margin: 0 }}>
-                  Detalle de Consulta #{selectedConsultation.id}
-                </h2>
-              </div>
-              <button onClick={() => setSelectedConsultation(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}>
-                <X size={20} />
-              </button>
-            </div>
-            
-            {/* Contenido Detallado Organizado por Tarjetas Internas */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.85rem', color: '#cbd5e1' }}>
-              
-              {/* Sección 1: Datos Generales */}
-              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>
-                  <Calendar size={14} /> INFORMACIÓN GENERAL
-                </div>
-                <div><strong style={{ color: '#94a3b8' }}>Fecha de Atención:</strong> {formatDate(selectedConsultation.created_at || selectedConsultation.date)}</div>
-                <div><strong style={{ color: '#94a3b8' }}>Paciente:</strong> {selectedConsultation.patient_name || `Paciente #${selectedConsultation.patient_id}`}</div>
-                <div><strong style={{ color: '#94a3b8' }}>Médico Tratante:</strong> {selectedConsultation.doctor_name || 'No asignado'}</div>
-              </div>
-
-              {/* Sección 2: Motivo y Sintomatología */}
-              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>
-                  <FileEdit size={14} /> MOTIVO Y SINTOMATOLOGÍA
-                </div>
-                <div><strong style={{ color: '#94a3b8' }}>Motivo:</strong> {selectedConsultation.reason || 'Sin especificar'}</div>
-                <div><strong style={{ color: '#94a3b8' }}>Síntomas:</strong> {selectedConsultation.symptoms || 'No registrados en esta atención'}</div>
-              </div>
-
-              {/* Sección 3: Signos Vitales y Triaje */}
-              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>
-                  <HeartPulse size={14} /> SIGNOS VITALES Y TRIAJE
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
-                  <div><strong style={{ color: '#94a3b8' }}>Peso:</strong> {selectedConsultation.weight_kg ? `${selectedConsultation.weight_kg} kg` : '—'}</div>
-                  <div><strong style={{ color: '#94a3b8' }}>Talla:</strong> {selectedConsultation.height_cm ? `${selectedConsultation.height_cm} cm` : '—'}</div>
-                  <div><strong style={{ color: '#94a3b8' }}>Presión Arterial:</strong> {selectedConsultation.blood_pressure || '—'}</div>
-                  <div><strong style={{ color: '#94a3b8' }}>IMC:</strong> <span style={{ color: '#38bdf8', fontWeight: 600 }}>{selectedConsultation.bmi || '—'}</span></div>
-                </div>
-              </div>
-
-              {/* Sección 4: Diagnóstico y Tratamiento */}
-              <div style={{ backgroundColor: '#0f172a', padding: '1rem', borderRadius: '10px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600, marginBottom: '2px' }}>
-                  <ClipboardCheck size={14} /> DIAGNÓSTICO Y TRATAMIENTO
-                </div>
-                <div>
-                  <strong style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Diagnóstico Principal:</strong>
-                  <div style={{ backgroundColor: '#090d16', padding: '8px 10px', borderRadius: '6px', border: '1px solid #334155', color: '#38bdf8', fontWeight: 500 }}>
-                    {selectedConsultation.diagnosis || 'Pendiente'}
-                  </div>
-                </div>
-                <div style={{ marginTop: '4px' }}>
-                  <strong style={{ color: '#94a3b8', display: 'block', marginBottom: '4px' }}>Tratamiento / Receta:</strong>
-                  <div style={{ backgroundColor: '#090d16', padding: '8px 10px', borderRadius: '6px', border: '1px solid #334155', color: '#cbd5e1' }}>
-                    {selectedConsultation.treatment || 'No registrado'}
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Pie del Popup */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.25rem', borderTop: '1px solid #334155', paddingTop: '1rem' }}>
-              <button 
-                onClick={() => setSelectedConsultation(null)}
-                style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Cerrar
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
 
 
 // ============================================================
