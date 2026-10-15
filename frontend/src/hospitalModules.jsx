@@ -2652,15 +2652,6 @@ export function Locations() {
                         <div style={{ width: `${occupancy}%`, height: '100%', backgroundColor: occupancy > 90 ? '#ef4444' : occupancy > 75 ? '#f59e0b' : '#38bdf8' }}></div>
                       </div>
                     </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '0.75rem', width: '100%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        🖥️ <strong style={{ color: '#e2e8f0' }}>{area.device_count ?? 0}</strong> dispositivos
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: (area.active_alerts ?? 0) > 0 ? '#fca5a5' : '#94a3b8' }}>
-                        🔔 <strong style={{ color: (area.active_alerts ?? 0) > 0 ? '#fca5a5' : '#e2e8f0' }}>{area.active_alerts ?? 0}</strong> alertas
-                      </div>
-                    </div>
                   </button>
                 );
               })}
