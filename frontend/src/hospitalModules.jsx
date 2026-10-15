@@ -2689,7 +2689,7 @@ export function Locations() {
               <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando métricas de área…" /></div>
             ) : detail ? (
             <>
-              <div role="tablist" aria-label="Información del área" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '1rem', width: '100%' }}>
+              <div role="tablist" aria-label="Información del área" style={{ display: 'flex', alignItems: 'flex-end', gap: '0.35rem', borderBottom: '1px solid #334155', overflowX: 'auto' }}>
                 <button
                   id="location-users-tab"
                   type="button"
@@ -2698,18 +2698,23 @@ export function Locations() {
                   aria-controls="location-detail-panel"
                   onClick={() => setDetailTab('users')}
                   style={{
-                    backgroundColor: detailTab === 'users' ? 'rgba(59, 130, 246, 0.16)' : '#090d16',
-                    border: `1px solid ${detailTab === 'users' ? '#3b82f6' : '#1e293b'}`,
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    color: '#f8fafc',
-                    textAlign: 'left',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    flexShrink: 0,
+                    backgroundColor: detailTab === 'users' ? '#111827' : 'transparent',
+                    border: `1px solid ${detailTab === 'users' ? '#334155' : 'transparent'}`,
+                    borderBottom: detailTab === 'users' ? '1px solid #111827' : '1px solid transparent',
+                    borderRadius: '8px 8px 0 0',
+                    marginBottom: '-1px',
+                    padding: '0.55rem 0.8rem',
+                    color: detailTab === 'users' ? '#f8fafc' : '#94a3b8',
+                    fontSize: '0.8rem',
                     cursor: 'pointer'
                   }}
                 >
-                  <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>👥 Personal asignado</span>
-                  <strong style={{ display: 'block', fontSize: '1.5rem', marginTop: '0.25rem' }}>{detail.user_count ?? 0}</strong>
-                  <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>cuentas</span>
+                  <span>👥 Personal asignado</span>
+                  <strong style={{ minWidth: '1.4rem', padding: '0.1rem 0.35rem', borderRadius: '999px', backgroundColor: detailTab === 'users' ? '#1d4ed8' : '#1e293b', color: '#e2e8f0', textAlign: 'center', fontSize: '0.7rem' }}>{detail.user_count ?? 0}</strong>
                 </button>
                 <button
                   id="location-devices-tab"
@@ -2719,67 +2724,88 @@ export function Locations() {
                   aria-controls="location-detail-panel"
                   onClick={() => setDetailTab('devices')}
                   style={{
-                    backgroundColor: detailTab === 'devices' ? 'rgba(16, 185, 129, 0.16)' : '#090d16',
-                    border: `1px solid ${detailTab === 'devices' ? '#10b981' : '#1e293b'}`,
-                    borderRadius: '12px',
-                    padding: '1rem',
-                    color: '#f8fafc',
-                    textAlign: 'left',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    flexShrink: 0,
+                    backgroundColor: detailTab === 'devices' ? '#111827' : 'transparent',
+                    border: `1px solid ${detailTab === 'devices' ? '#334155' : 'transparent'}`,
+                    borderBottom: detailTab === 'devices' ? '1px solid #111827' : '1px solid transparent',
+                    borderRadius: '8px 8px 0 0',
+                    marginBottom: '-1px',
+                    padding: '0.55rem 0.8rem',
+                    color: detailTab === 'devices' ? '#f8fafc' : '#94a3b8',
+                    fontSize: '0.8rem',
                     cursor: 'pointer'
                   }}
                 >
-                  <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>📟 Equipos que iniciaron sesión</span>
-                  <strong style={{ display: 'block', fontSize: '1.5rem', marginTop: '0.25rem' }}>{detail.device_count ?? 0}</strong>
-                  <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>equipos</span>
+                  <span>📟 Equipos que iniciaron sesión</span>
+                  <strong style={{ minWidth: '1.4rem', padding: '0.1rem 0.35rem', borderRadius: '999px', backgroundColor: detailTab === 'devices' ? '#047857' : '#1e293b', color: '#e2e8f0', textAlign: 'center', fontSize: '0.7rem' }}>{detail.device_count ?? 0}</strong>
                 </button>
-                <div style={{ backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '12px', padding: '1rem' }}>
-                  <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem' }}>⚠ Alertas críticas</span>
-                  <strong style={{ display: 'block', fontSize: '1.5rem', marginTop: '0.25rem', color: detail.active_alerts ? '#fca5a5' : '#f8fafc' }}>{detail.active_alerts ?? 0}</strong>
-                  <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>alertas activas</span>
-                </div>
               </div>
 
               <div
                 id="location-detail-panel"
                 role="tabpanel"
                 aria-labelledby={detailTab === 'users' ? 'location-users-tab' : 'location-devices-tab'}
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', backgroundColor: '#111827', border: '1px solid #334155', borderRadius: '0 10px 10px 10px', padding: '1rem', overflowX: 'auto' }}
               >
-                <h4 style={{ margin: 0, color: '#e2e8f0', fontSize: '0.95rem' }}>
-                  {detailTab === 'users' ? 'Cuentas asignadas a este servicio' : 'Equipos que iniciaron sesión con estas cuentas'}
-                </h4>
                 {detailTab === 'users' ? (
                   Array.isArray(detail.accounts) && detail.accounts.length ? (
-                    detail.accounts.map(account => (
-                      <div key={account.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.85rem 1rem' }}>
-                        <div>
-                          <strong style={{ display: 'block', color: '#f8fafc' }}>{account.username}</strong>
-                          <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Cuenta #{account.id}</span>
-                        </div>
-                        <span style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>{account.role || 'Sin rol'}</span>
-                      </div>
-                    ))
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                      <thead>
+                        <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                          <th style={{ padding: '0.7rem', whiteSpace: 'nowrap' }}>ID de cuenta</th>
+                          <th style={{ padding: '0.7rem' }}>Usuario</th>
+                          <th style={{ padding: '0.7rem' }}>Rol</th>
+                          <th style={{ padding: '0.7rem', whiteSpace: 'nowrap' }}>Creada</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detail.accounts.map(account => (
+                          <tr key={account.id} style={{ color: '#e2e8f0', borderBottom: '1px solid #1e293b' }}>
+                            <td style={{ padding: '0.7rem' }}>{account.id}</td>
+                            <td style={{ padding: '0.7rem' }}>{account.username}</td>
+                            <td style={{ padding: '0.7rem' }}>{account.role || 'Sin rol'}</td>
+                            <td style={{ padding: '0.7rem', whiteSpace: 'nowrap' }}>{account.created_at ? new Date(account.created_at).toLocaleDateString() : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   ) : (
                     <EmptyState title="No hay cuentas asignadas a esta área" />
                   )
-                ) : Array.isArray(detail.devices) && detail.devices.length ? (
-                  detail.devices.map(device => (
-                    <div key={device.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', backgroundColor: '#090d16', border: '1px solid #1e293b', borderRadius: '10px', padding: '0.85rem 1rem' }}>
-                      <div>
-                        <strong style={{ display: 'block', color: '#f8fafc' }}>{device.name || `Equipo #${device.id}`}</strong>
-                        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
-                          Cuenta: {device.account_username || 'Desconocida'} · {device.type || 'Tipo desconocido'}
-                        </span>
-                      </div>
-                      <div style={{ textAlign: 'right', fontSize: '0.8rem' }}>
-                        <span style={{ display: 'block', color: '#cbd5e1' }}>IP: {device.ip_address || 'No disponible'}</span>
-                        <span style={{ color: '#94a3b8' }}>Último acceso: {device.last_login ? new Date(device.last_login).toLocaleString() : 'No disponible'}</span>
-                      </div>
-                    </div>
-                  ))
+              ) : Array.isArray(detail.devices) && detail.devices.length ? (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ color: '#94a3b8', borderBottom: '1px solid #334155' }}>
+                        <th style={{ padding: '0.7rem', whiteSpace: 'nowrap' }}>ID del equipo</th>
+                        <th style={{ padding: '0.7rem' }}>Equipo</th>
+                        <th style={{ padding: '0.7rem' }}>Tipo</th>
+                        <th style={{ padding: '0.7rem' }}>Cuenta</th>
+                        <th style={{ padding: '0.7rem' }}>IP</th>
+                        <th style={{ padding: '0.7rem', whiteSpace: 'nowrap' }}>Último inicio de sesión</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detail.devices.map(device => (
+                        <tr key={device.id} style={{ color: '#e2e8f0', borderBottom: '1px solid #1e293b' }}>
+                          <td style={{ padding: '0.7rem' }}>{device.id}</td>
+                          <td style={{ padding: '0.7rem', minWidth: '150px' }}>{device.name || `Equipo #${device.id}`}</td>
+                          <td style={{ padding: '0.7rem' }}>{device.type || 'Desconocido'}</td>
+                          <td style={{ padding: '0.7rem' }}>{device.account_username || 'Desconocida'}</td>
+                          <td style={{ padding: '0.7rem', whiteSpace: 'nowrap' }}>{device.ip_address || 'No disponible'}</td>
+                          <td style={{ padding: '0.7rem', whiteSpace: 'nowrap' }}>{device.last_login ? new Date(device.last_login).toLocaleString() : 'No disponible'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 ) : (
                   <EmptyState title="Ningún equipo ha iniciado sesión con cuentas de esta área" />
                 )}
+              </div>
+              <div style={{ color: detail.active_alerts ? '#fca5a5' : '#94a3b8', fontSize: '0.8rem', textAlign: 'right' }}>
+                ⚠ Alertas críticas activas: <strong>{detail.active_alerts ?? 0}</strong>
               </div>
             </>
             ) : (
