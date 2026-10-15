@@ -1975,6 +1975,7 @@ export function Consultations() {
   const [consultations, setConsultations] = useState([]);
   const [patients, setPatients] = useState([]);
   const [query, setQuery] = useState('');
+  const [consultationFilter, setConsultationFilter] = useState('all');
   const [patientQuery, setPatientQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -2061,6 +2062,15 @@ export function Consultations() {
 
   const selectedPatient = useMemo(() => patients.find(p => String(p.id) === String(form.patient_id)), [patients, form.patient_id]);
   const bmiState = getBMIState(form.bmi);
+  const filteredConsultations = useMemo(() => {
+    if (consultationFilter === 'diagnosed') {
+      return consultations.filter(item => String(item.diagnosis || '').trim());
+    }
+    if (consultationFilter === 'pending') {
+      return consultations.filter(item => !String(item.diagnosis || '').trim());
+    }
+    return consultations;
+  }, [consultations, consultationFilter]);
 
   return (
     <div className="consultations-container">
@@ -2071,8 +2081,8 @@ export function Consultations() {
         }
 
         .consultations-container {
-          padding: 1rem;
-          background-color: #090d16;
+          padding: clamp(1rem, 3vw, 2rem);
+          background-color: #07090e;
           color: #f8fafc;
           min-height: 100vh;
           font-family: system-ui, -apple-system, sans-serif;
@@ -2080,17 +2090,16 @@ export function Consultations() {
         }
 
         .main-card {
-          background-color: rgba(15, 23, 42, 0.6);
-          border: 1px solid #1e293b;
-          border-radius: 16px;
-          padding: 1.25rem;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-          backdrop-filter: blur(12px);
+          background-color: #0b0f17;
+          border: 1px solid #1c2433;
+          border-radius: 24px;
+          padding: clamp(1rem, 2.5vw, 2rem);
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
           display: flex;
           flex-direction: column;
-          gap: 1.25rem;
+          gap: 1.5rem;
           width: 100%;
-          max-width: 1200px;
+          max-width: 1440px;
           margin: 0 auto;
         }
 
@@ -2107,11 +2116,16 @@ export function Consultations() {
 
         .grid-cards {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 1rem;
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));
+          gap: 1.25rem;
           width: 100%;
-          margin-top: 20px;
-          margin-bottom: 20px;
+          margin-top: 0.5rem;
+        }
+
+        @media (min-width: 768px) {
+          .consultation-summary-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
         }
 
         .grid-form-2col {
@@ -2123,7 +2137,7 @@ export function Consultations() {
 
         .input-mobile {
           width: 100% !important;
-          background-color: #090d16 !important;
+          background-color: #07090e !important;
           border: 1px solid #334155 !important;
           color: #f8fafc !important;
           border-radius: 8px !important;
@@ -2142,21 +2156,22 @@ export function Consultations() {
         {/* ENCABEZADO */}
         <div className="header-wrapper">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-400">
+            <div className="rounded-2xl border border-blue-400/15 bg-blue-500/10 p-3 text-blue-300">
               <Stethoscope size={22} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">
+              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
                 {showForm ? 'Nueva Consulta Médica' : 'Consultas Médicas'}
               </h1>
-              <p className="text-xs text-slate-400">
+              <p className="mt-1 text-sm text-slate-400">
                 {showForm ? 'Gestión de triaje, diagnóstico y prescripción.' : 'Historial de atenciones clínicas.'}
               </p>
             </div>
           </div>
 
           <button
-            className="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer"
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-950/30 transition hover:from-blue-500 hover:to-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 focus-visible:ring-offset-[#07090e]"
             onClick={() => {
               if (!showForm) setForm(INITIAL_CONSULTATION);
               setShowForm(!showForm);
@@ -2171,50 +2186,118 @@ export function Consultations() {
         {/* LISTADO DE CONSULTAS */}
         {!showForm ? (
           <div className="space-y-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row gap-3 justify-between items-center">
-              <span className="text-xs text-slate-400 font-medium">
-                {consultations.length} {consultations.length === 1 ? 'consulta registrada' : 'consultas registradas'}
-              </span>
-              <div className="w-full sm:w-80">
-                <SearchField value={query} onChange={setQuery} placeholder="Buscar por paciente, diagnóstico o médico..." loading={loading} />
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-800/90 bg-[#111622] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+              <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="w-full lg:max-w-md">
+                  <SearchField
+                    value={query}
+                    onChange={setQuery}
+                    placeholder="Buscar paciente, diagnóstico o médico..."
+                    loading={loading}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrar consultas">
+                  {[
+                    { id: 'all', label: 'Todas' },
+                    { id: 'diagnosed', label: 'Con diagnóstico' },
+                    { id: 'pending', label: 'Pendientes' }
+                  ].map(filter => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      aria-pressed={consultationFilter === filter.id}
+                      onClick={() => setConsultationFilter(filter.id)}
+                      className={`rounded-lg border px-3 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                        consultationFilter === filter.id
+                          ? 'border-blue-400/30 bg-blue-500/15 text-blue-200'
+                          : 'border-transparent text-slate-400 hover:border-slate-700 hover:bg-slate-800/70 hover:text-slate-200'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <span className="shrink-0 text-xs font-medium text-slate-400" aria-live="polite">
+                {filteredConsultations.length} {filteredConsultations.length === 1 ? 'consulta' : 'consultas'}
+              </span>
             </div>
 
             {loading ? (
               <LoadingState label="Cargando atenciones clínicas..." />
-            ) : consultations.length === 0 ? (
+            ) : filteredConsultations.length === 0 ? (
               <EmptyState icon={Stethoscope} title="No se encontraron consultas" description="Intenta ajustar la búsqueda o registra una nueva atención clínica." />
             ) : (
               <div className="grid-cards">
-                {consultations.map(item => (
-                  <article key={item.id} className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col justify-between gap-3 transition-all shadow-md">
-                    <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <span className="text-[11px] text-slate-500 flex items-center gap-1 mb-1">
-                          <Calendar size={12} /> {formatDate(item.created_at || item.date)}
-                        </span>
-                        <h3 className="text-sm font-semibold text-white line-clamp-1">
-                          {item.patient_name || `Paciente #${item.patient_id}`}
-                        </h3>
+                {filteredConsultations.map(item => {
+                  const bmiValue = Number.parseFloat(item.bmi);
+                  const isStableBMI = Number.isFinite(bmiValue) && bmiValue >= 18.5 && bmiValue < 25;
+                  const diagnosis = String(item.diagnosis || '').trim();
+
+                  return (
+                    <article key={item.id} className="group relative flex min-w-0 overflow-hidden rounded-2xl border border-slate-800/90 bg-[#111622] shadow-lg shadow-black/10 transition hover:border-blue-500/40 hover:bg-[#131a28]">
+                      <div className="w-1 shrink-0 bg-blue-500" aria-hidden="true" />
+                      <div className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5">
+                        <div className="flex min-w-0 items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className="mb-1.5 flex items-center gap-1.5 text-xs text-slate-500">
+                              <Calendar size={13} aria-hidden="true" />
+                              {formatDate(item.created_at || item.date)}
+                            </span>
+                            <h3 className="truncate text-base font-semibold text-white sm:text-lg">
+                              {item.patient_name || `Paciente #${item.patient_id}`}
+                            </h3>
+                          </div>
+                          <span className="shrink-0 rounded-lg border border-slate-700/80 bg-slate-900/80 px-2.5 py-1 text-xs font-mono font-semibold text-slate-300">
+                            #{item.id}
+                          </span>
+                        </div>
+
+                        <div className="consultation-summary-grid grid grid-cols-1 gap-3 rounded-xl border border-slate-800/80 bg-[#0b0f17] p-3 sm:grid-cols-2">
+                          <div className="min-w-0">
+                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Motivo de consulta</p>
+                            <p className="line-clamp-2 break-words text-sm text-slate-200">{item.reason || 'Sin especificar'}</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Diagnóstico</p>
+                            <span className={`inline-flex max-w-full items-center rounded-lg border px-2 py-1 text-xs font-medium ${
+                              diagnosis
+                                ? 'border-blue-400/15 bg-blue-500/10 text-blue-200'
+                                : 'border-slate-700 bg-slate-800/70 text-slate-400'
+                            }`}>
+                              <span className="line-clamp-2 break-words">{diagnosis || 'Pendiente'}</span>
+                            </span>
+                          </div>
+                          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Médico tratante</p>
+                            <p className="truncate text-sm text-slate-200">{item.doctor_name || 'No asignado'}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-800 pt-3 text-xs">
+                          <span className="inline-flex items-center gap-1.5 text-slate-300">
+                            <Scale size={14} className="text-blue-300" aria-hidden="true" />
+                            <span className="text-slate-500">Peso</span>
+                            <strong className="font-semibold text-slate-200">{item.weight_kg ?? '—'} kg</strong>
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 text-slate-300">
+                            <Ruler size={14} className="text-blue-300" aria-hidden="true" />
+                            <span className="text-slate-500">Talla</span>
+                            <strong className="font-semibold text-slate-200">{item.height_cm ?? '—'} cm</strong>
+                          </span>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
+                            isStableBMI
+                              ? 'bg-emerald-500/10 text-emerald-300'
+                              : 'bg-slate-800/80 text-slate-300'
+                          }`}>
+                            <Activity size={14} className={isStableBMI ? 'text-emerald-400' : 'text-slate-400'} aria-hidden="true" />
+                            <strong className="font-semibold">IMC {item.bmi ?? '—'}</strong>
+                          </span>
+                        </div>
                       </div>
-                      <span className="bg-sky-950/60 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded text-[10px] font-mono font-semibold">
-                        #{item.id}
-                      </span>
-                    </div>
-
-                    <div className="bg-[#090d16] p-3 rounded-lg border border-slate-800/80 text-xs space-y-1.5">
-                      <p><strong className="text-slate-400">Motivo: </strong><span className="text-slate-300">{item.reason || 'Sin especificar'}</span></p>
-                      <p><strong className="text-slate-400">Diagnóstico: </strong><span className="text-sky-400 font-medium">{item.diagnosis || 'Pendiente'}</span></p>
-                      <p><strong className="text-slate-400">Médico: </strong><span className="text-slate-300">{item.doctor_name || 'No asignado'}</span></p>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-2 border-t border-slate-800">
-                      <span className="flex items-center gap-1"><Scale size={13} className="text-sky-400" /> {item.weight_kg ?? '—'} kg</span>
-                      <span className="flex items-center gap-1"><Ruler size={13} className="text-sky-400" /> {item.height_cm ?? '—'} cm</span>
-                      <span className="flex items-center gap-1 font-semibold text-slate-200"><Activity size={13} className="text-sky-400" /> IMC {item.bmi ?? '—'}</span>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>
