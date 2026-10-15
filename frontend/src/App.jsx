@@ -8,6 +8,7 @@ import {
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
 import { Login } from './Login'
+import PageLoader from './PageLoader'
 import {
   User, MessageSquare, MessageCircle, Bell, ChevronDown, Mail, ShieldCheck, 
   UserPlus, Shield, MapPin, Key, ArrowLeft, Plus, Edit3, Trash2, AlertTriangle, 
@@ -471,6 +472,7 @@ function AppHeader({ onOpenChat, unreadChatCount }) {
 function AppContent() {
   const { user } = useAuth();
   const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
+  const [routeLoading, setRouteLoading] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [registeredDevice, setRegisteredDevice] = useState(null);
@@ -519,11 +521,18 @@ function AppContent() {
 
   // Escuchar cambios de hash para la navegación entre módulos
   useEffect(() => {
+    let timeoutId;
     const handleHashChange = () => {
+      window.clearTimeout(timeoutId);
+      setRouteLoading(true);
       setRoute(normalizeRoute(window.location.hash));
+      timeoutId = window.setTimeout(() => setRouteLoading(false), 280);
     };
     window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
 
   // Escuchar mensajes no leídos globalmente cuando el chat está cerrado
@@ -587,9 +596,15 @@ function AppContent() {
         />
         
         {/* Módulos de Contenido Principal envueltos en ErrorBoundary */}
-        <ErrorBoundary>
-          {renderRoute()}
-        </ErrorBoundary>
+        <PageLoader
+          loading={routeLoading}
+          message="Cargando módulo..."
+          className="min-h-[calc(100vh-4rem)]"
+        >
+          <ErrorBoundary>
+            {renderRoute()}
+          </ErrorBoundary>
+        </PageLoader>
 
         {/* Widget Flotante del Chat TI */}
         <ChatTIWidget 
@@ -615,9 +630,7 @@ function MainApp() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff', background: '#090d16' }}>
-        Cargando interfaz...
-      </div>
+      <PageLoader loading message="Cargando interfaz..." className="min-h-screen bg-[#07090e]" />
     )
   }
 
