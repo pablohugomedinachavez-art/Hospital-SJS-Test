@@ -986,6 +986,15 @@ export function DeviceManagementDashboard() {
                         )
                       },
                       {
+                        key: 'details',
+                        label: 'Trabajo realizado',
+                        render: (a) => (
+                          <div className="py-2.5 text-slate-400 text-sm">
+                            {a.details || `${a.entity_type || ''}${a.entity_id ? ` #${a.entity_id}` : ''}` || '—'}
+                          </div>
+                        )
+                      },
+                      {
                         key: 'created_at',
                         label: 'Fecha / Hora',
                         render: (a) => (
@@ -2463,7 +2472,12 @@ export function Locations() {
 // Devices / audit
 // ============================================================
 
-export function Devices({ registeredDevice }) {
+export function Devices({
+  registeredDevice,
+  registrationError,
+  registeringDevice,
+  onRefreshRegisteredDevice
+}) {
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -2513,6 +2527,10 @@ export function Devices({ registeredDevice }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (registeredDevice?.device_id) loadData();
+  }, [registeredDevice?.device_id, loadData]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -2578,13 +2596,30 @@ export function Devices({ registeredDevice }) {
               {registeredDevice?.device_type && <> · Tipo: {getDeviceTypeLabel(registeredDevice.device_type)}</>}
             </p>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
-          >
-            {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={onRefreshRegisteredDevice}
+              disabled={registeringDevice}
+              style={{ backgroundColor: '#334155', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: registeringDevice ? 'wait' : 'pointer' }}
+            >
+              {registeringDevice ? 'Detectando IP…' : 'Detectar IP de este dispositivo'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(!showForm)}
+              style={{ backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '12px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
+            >
+              {showForm ? 'Cancelar' : '+ Registrar Dispositivo'}
+            </button>
+          </div>
         </div>
+
+        {registrationError && (
+          <p role="alert" style={{ color: '#fca5a5', marginTop: '1rem' }}>
+            No se pudo detectar/registrar la IP: {registrationError}
+          </p>
+        )}
 
         {showForm && (
           <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginTop: '1.5rem', backgroundColor: '#0f172a', padding: '1.5rem', borderRadius: '16px', border: '1px solid #334155' }}>

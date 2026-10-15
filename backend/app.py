@@ -396,7 +396,7 @@ def record_audit(action, entity_type, entity_id, details, tenant_id, user_id=Non
 
     # Also attempt to record the action tied to the originating session / IP
     try:
-        ip_addr = request.headers.get('X-Forwarded-For', request.remote_addr)
+        ip_addr = get_real_ip()
         user_agent = request.headers.get('User-Agent', '')
         # Insert into device_actions for tracking by IP/session
         db_query(
@@ -2040,86 +2040,66 @@ def devices():
 @app.route('/api/devices/auto-register', methods=['POST'])
 @token_required
 def auto_register_device():
-    claims = get_current_user()
-    tenant_id = claims.get('tenant_id')
-    user_id = claims.get('id')
-    username = claims.get('username', 'Usuario')
+    try:
+        claims = get_current_user()
+        tenant_id = claims.get('tenant_id')
+        user_id = claims.get('id')
+        username = claims.get('username', 'Usuario')
 
-    data = request.get_json() or {}
-    client_platform = data.get('platform', '')
-    
-    ip_address = get_real_ip()
-    user_agent = request.headers.get('User-Agent', '')
-    device_type, os_version = parse_advanced_device_info(user_agent, client_platform)
-    
-    device_name = f"{username} - {device_type.upper()} ({os_version})"
+        data = request.get_json(silent=True) or {}
+        client_platform = data.get('platform', '')
+        ip_address = get_real_ip()
+        user_agent = request.headers.get('User-Agent', '')
+        device_type, os_version = parse_advanced_device_info(user_agent, client_platform)
+        device_name = f"{username} - {device_type.upper()} ({os_version})"
 
-    # Obtener la ubicación del usuario si la tiene asignada
-    user_loc = db_query(
-        "SELECT location_id FROM users WHERE id = %s AND tenant_id = %s", 
-        (user_id, tenant_id), fetchone=True
-    )
-    location_id = user_loc.get('location_id') if user_loc else None
-
-    # Verificar si ya existe un registro activo para esta IP y usuario
-    existing = db_query(
-        """SELECT id FROM public.devices
-           WHERE tenant_id = %s AND ip_address = %s AND user_agent = %s
-             AND split_part(name, ' - ', 1) = %s""",
-        (tenant_id, ip_address, user_agent, username), fetchone=True
-    )
-
-    if existing:
-        device_id = existing['id']
-        db_query(
-            """
-            UPDATE public.devices 
-            SET name = %s, type = %s, last_heartbeat = NOW(), status = 'active', os_version = %s
-            WHERE id = %s
-            """,
-            (device_name, device_type, os_version, device_id), commit=True
+        existing = db_query(
+            """SELECT id FROM public.devices
+               WHERE tenant_id = %s AND ip_address = %s AND user_agent = %s
+                 AND split_part(name, ' - ', 1) = %s""",
+            (tenant_id, ip_address, user_agent, username), fetchone=True
         )
-    else:
-        new_dev = db_query(
-            """
-            INSERT INTO public.devices 
-            (tenant_id, location_id, name, type, status, created_at, ip_address, user_agent, os_version, last_heartbeat)
-            VALUES (%s, %s, %s, %s, 'active', NOW(), %s, %s, %s, NOW())
-            RETURNING id
-            """,
-            (tenant_id, location_id, device_name, device_type, ip_address, user_agent, os_version),
-            commit=True, fetchone=True
+
+        if existing:
+            device_id = existing['id']
+            db_query(
+                """
+                UPDATE public.devices
+                SET name = %s, type = %s, last_heartbeat = NOW(), status = 'active', os_version = %s
+                WHERE id = %s
+                """,
+                (device_name, device_type, os_version, device_id), commit=True
+            )
+        else:
+            new_dev = db_query(
+                """
+                INSERT INTO public.devices
+                (tenant_id, location_id, name, type, status, created_at, ip_address, user_agent, os_version, last_heartbeat)
+                VALUES (%s, %s, %s, %s, 'active', NOW(), %s, %s, %s, NOW())
+                RETURNING id
+                """,
+                (tenant_id, None, device_name, device_type, ip_address, user_agent, os_version),
+                commit=True, fetchone=True
+            )
+            device_id = new_dev['id'] if new_dev else None
+
+        record_audit(
+            'connect', 'device', device_id,
+            f'{device_type} ({os_version}) connected from {ip_address}',
+            tenant_id, user_id
         )
-        device_id = new_dev['id'] if new_dev else None
 
-    db_query(
-        """
-        INSERT INTO public.device_actions
-        (tenant_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """,
-        (
-            tenant_id,
-            user_id,
-            ip_address,
-            user_agent,
-            'device_connected',
-            'device',
-            device_id,
-            f'{device_type} ({os_version})',
-            now_utc()
-        ),
-        commit=True
-    )
-
-    return jsonify({
-        'success': True,
-        'device_id': device_id,
-        'username': username,
-        'ip_address': ip_address,
-        'device_type': device_type,
-        'os_version': os_version
-    }), 200
+        return jsonify({
+            'success': True,
+            'device_id': device_id,
+            'username': username,
+            'ip_address': ip_address,
+            'device_type': device_type,
+            'os_version': os_version
+        }), 200
+    except Exception:
+        app.logger.exception('Failed to auto-register a connected device')
+        return jsonify({'message': 'The device connection could not be registered.'}), 500
 
 
 

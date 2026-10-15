@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { ChatTIWidget } from './ChatTIWidget'
 import './styles.css'
 import { 
@@ -472,31 +472,48 @@ function AppContent() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
   const [registeredDevice, setRegisteredDevice] = useState(null);
+  const [registrationError, setRegistrationError] = useState('');
+  const [registeringDevice, setRegisteringDevice] = useState(false);
 
-  // Registro automático del dispositivo al cargar la sesión
-  useEffect(() => {
-    const registerDeviceAutomatically = async () => {
+  const registerDeviceAutomatically = useCallback(async () => {
+    if (!user?.id) return;
+
+    setRegisteringDevice(true);
+    setRegistrationError('');
+    setRegisteredDevice(null);
+    try {
+      const response = await apiFetch('/devices/auto-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: navigator.platform || '' })
+      });
+      const responseText = await response.text();
+      let data = {};
       try {
-        const platform = navigator.platform || '';
-        const response = await apiFetch('/devices/auto-register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ platform })
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || 'No se pudo registrar el dispositivo.');
-        }
-        setRegisteredDevice(data);
-      } catch (err) {
-        console.error("Error al registrar el dispositivo automáticamente:", err);
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        throw new Error(
+          `Device registration failed (${response.status}): server returned a non-JSON response.`
+        );
       }
-    };
-
-    if (user?.id) {
-      registerDeviceAutomatically();
+      if (!response.ok) {
+        throw new Error(data.message || `Device registration failed (${response.status}).`);
+      }
+      setRegisteredDevice(data);
+      return data;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not register this device.';
+      setRegistrationError(message);
+      console.error('Error al registrar el dispositivo automáticamente:', err);
+      return null;
+    } finally {
+      setRegisteringDevice(false);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    registerDeviceAutomatically();
+  }, [registerDeviceAutomatically]);
 
   // Escuchar cambios de hash para la navegación entre módulos
   useEffect(() => {
@@ -532,7 +549,12 @@ function AppContent() {
   const renderRoute = () => {
     const Component = ROUTES_MAP[route] || ROUTES_MAP['/dashboard'];
     return Component === Devices
-      ? <Component registeredDevice={registeredDevice} />
+      ? <Component
+          registeredDevice={registeredDevice}
+          registrationError={registrationError}
+          registeringDevice={registeringDevice}
+          onRefreshRegisteredDevice={registerDeviceAutomatically}
+        />
       : <Component />;
   };
 
