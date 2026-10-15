@@ -2599,8 +2599,6 @@ export function Locations() {
               {items.map(area => {
                 const isSelected = selectedArea === area.id;
                 const status = getAreaStatus(area.active_alerts);
-                // Simulación dinámica de ocupación en base a los dispositivos o datos si existen
-                const occupancy = Math.min(100, Math.max(45, (area.device_count || 1) * 12));
 
                 return (
                   <button
@@ -2638,21 +2636,13 @@ export function Locations() {
                       {area.description || 'Sin descripción registrada'}
                     </p>
 
-                    {/* Barra de capacidad operativa */}
-                    <div style={{ backgroundColor: '#090d16', padding: '0.75rem', borderRadius: '8px', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8' }}>
-                        <span>Carga operativa</span>
-                        <span style={{ color: '#f8fafc', fontWeight: 600 }}>{occupancy}%</span>
-                      </div>
-                      <div style={{ width: '100%', height: '6px', backgroundColor: '#1e293b', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${occupancy}%`, height: '100%', backgroundColor: occupancy > 90 ? '#ef4444' : occupancy > 75 ? '#f59e0b' : '#38bdf8' }}></div>
-                      </div>
-                    </div>
-
-                    {/* Métricas de dispositivos y alertas */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '0.75rem', width: '100%' }}>
+                    {/* Conteos reales por área */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.75rem', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '0.75rem', width: '100%' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        🖥️ <strong style={{ color: '#e2e8f0' }}>{area.device_count ?? 0}</strong> dispositivos
+                        👥 <strong style={{ color: '#e2e8f0' }}>{area.user_count ?? 0}</strong> cuentas
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        🖥️ <strong style={{ color: '#e2e8f0' }}>{area.device_count ?? 0}</strong> equipos con acceso
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: (area.active_alerts ?? 0) > 0 ? '#fca5a5' : '#94a3b8' }}>
                         🔔 <strong style={{ color: (area.active_alerts ?? 0) > 0 ? '#fca5a5' : '#e2e8f0' }}>{area.active_alerts ?? 0}</strong> alertas
@@ -2686,8 +2676,8 @@ export function Locations() {
               <div style={{ padding: '2rem 0', textAlign: 'center' }}><LoadingState label="Cargando métricas de área…" /></div>
             ) : detail ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: '1rem', width: '100%' }}>
-                <StatCard icon="👥" label="Personal asignado" value={detail.user_count ?? '—'} tone="primary" />
-                <StatCard icon="📟" label="Dispositivos activos" value={detail.device_count ?? 0} tone="success" />
+                <StatCard icon="👥" label="Personal (cuentas del área)" value={detail.user_count ?? 0} tone="primary" />
+                <StatCard icon="📟" label="Equipos que iniciaron sesión" value={detail.device_count ?? 0} tone="success" />
                 <StatCard icon="⚠" label="Alertas críticas" value={detail.active_alerts ?? 0} tone={detail.active_alerts ? 'danger' : 'success'} />
               </div>
             ) : (

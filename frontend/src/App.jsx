@@ -3,7 +3,7 @@ import { ChatTIWidget } from './ChatTIWidget'
 import './styles.css'
 import { 
   Patients, Consultations, Appointments, Documents, Reports, Locations, 
-  Devices, Dashboard, Users, Profile, DeviceManagementDashboard, 
+  Devices, Dashboard, Users, Profile, DeviceManagementDashboard, isAdminUser,
 } from './hospitalModules'
 import { apiFetch } from './api'
 import { useAuth, AuthProvider } from './AuthContext'
@@ -109,6 +109,7 @@ const Icons = {
 
 function Sidebar({ currentRoute }) {
   const { user, logout } = useAuth()
+  const isAdmin = isAdminUser(user)
   const [openSections, setOpenSections] = useState({
     dashboard: true, clinical: true, operations: true, users: true, reports: true, account: true
   })
@@ -141,7 +142,7 @@ function Sidebar({ currentRoute }) {
         { label: 'Camas e IPD', path: '/ipd' }
       ]
     },
-    { key: 'users', title: 'Usuarios', icon: <Icons.Users />, items: [{ label: 'Usuarios', path: '/users', permission: 'manage_users' }] },
+    { key: 'users', title: 'Usuarios', icon: <Icons.Users />, items: [{ label: 'Usuarios', path: '/users' }] },
     { key: 'reports', title: 'Informes', icon: <Icons.Reports />, items: [{ label: 'Reportes', path: '/reports' }] },
     { key: 'account', title: 'Cuenta', icon: <Icons.Account />, items: [{ label: 'Perfil', path: '/profile' }] }
   ]
@@ -164,6 +165,7 @@ function Sidebar({ currentRoute }) {
 
       <nav className="sidebar-nav">
         {navGroups.map(group => {
+          if (!isAdmin && ['operations', 'users', 'reports'].includes(group.key)) return null
           const items = group.items.filter(item => !item.permission || hasPermission(item.permission))
           if (!items.length) return null
           return (
@@ -547,6 +549,23 @@ function AppContent() {
   }, [user, isChatOpen]);
 
   const renderRoute = () => {
+    const adminOnlyRoutes = [
+      '/locations',
+      '/devices',
+      '/alerts',
+      '/device-management',
+      '/DeviceManagementDashboard',
+      '/users',
+      '/reports'
+    ]
+    if (!isAdminUser(user) && adminOnlyRoutes.includes(route)) {
+      return (
+        <div className="card" role="alert">
+          <h2>Acceso restringido</h2>
+          <p>Solo los administradores pueden acceder a Gestión operativa, Informes y Usuarios.</p>
+        </div>
+      )
+    }
     const Component = ROUTES_MAP[route] || ROUTES_MAP['/dashboard'];
     return Component === Devices
       ? <Component

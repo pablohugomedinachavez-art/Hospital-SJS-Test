@@ -20,6 +20,11 @@ class AppTests(unittest.TestCase):
         with patch.object(app_module, 'get_role_permissions', return_value=[]):
             return app_module.create_token(claims)
 
+    def make_role_token(self, role):
+        claims = {'id': 2, 'username': 'staff', 'tenant_id': 1, 'role': role}
+        with patch.object(app_module, 'get_role_permissions', return_value=[]):
+            return app_module.create_token(claims)
+
     def test_login_and_patients_endpoint(self):
         login_response = self.client.post('/api/login', json={
             'username': 'admin',
@@ -108,6 +113,74 @@ class AppTests(unittest.TestCase):
 
         self.assertEqual(blocked_delete_response.status_code, 409)
         self.assertIn('related records', blocked_delete_response.get_json()['message'])
+
+    def test_non_admin_cannot_access_admin_sections(self):
+        token = self.make_role_token('doctor')
+        headers = {'Authorization': f'Bearer {token}'}
+        restricted_paths = [
+            '/api/alerts',
+            '/api/dashboard/areas',
+            '/api/locations',
+            '/api/devices',
+            '/api/sessions',
+            '/api/audit_logs',
+            '/api/device_actions',
+            '/api/reports',
+            '/api/reports/series',
+            '/api/metrics',
+            '/api/metrics/details?type=users',
+            '/api/users'
+        ]
+
+        with patch.object(app_module, 'db_query') as query:
+            for path in restricted_paths:
+                with self.subTest(path=path):
+                    response = self.client.get(path, headers=headers)
+                    self.assertEqual(response.status_code, 403)
+
+        query.assert_not_called()
+
+    def test_non_admin_can_still_auto_register_its_device(self):
+        token = self.make_role_token('doctor')
+        with patch.object(app_module, 'db_query', side_effect=[None, {'id': 42}]), \
+                patch.object(app_module, 'record_audit'):
+            response = self.client.post(
+                '/api/devices/auto-register',
+                json={'platform': 'Win32'},
+                headers={
+                    'Authorization': f'Bearer {token}',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+                }
+            )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_location_detail_returns_area_accounts_and_logged_in_devices(self):
+        token = self.make_admin_token()
+        expected_counts = {
+            'id': 7,
+            'name': 'Urgencias',
+            'description': '',
+            'created_at': '2026-10-15T00:00:00Z',
+            'user_count': 4,
+            'device_count': 3,
+            'active_alerts': 0,
+            'total_alerts': 2
+        }
+
+        with patch.object(app_module, 'db_query', return_value=expected_counts) as query:
+            response = self.client.get(
+                '/api/locations/7',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()['user_count'], 4)
+        self.assertEqual(response.get_json()['device_count'], 3)
+        sql = query.call_args.args[0]
+        self.assertIn('COUNT(DISTINCT da.entity_id)', sql)
+        self.assertIn("da.action_type = 'connect'", sql)
+        self.assertIn('u.location_id = l.id', sql)
 
     def test_auto_register_uses_request_ip_and_logs_without_database_actions(self):
         claims = {

@@ -373,6 +373,9 @@ def get_all_roles():
 def has_permission(role_name, permission):
     return permission in get_role_permissions(role_name)
 
+def is_admin_role(role_name):
+    return str(role_name or '').strip().lower() in {'admin', 'tenant_admin'}
+
 def get_current_user():
     claims = getattr(request, 'claims', {})
     return {
@@ -1390,6 +1393,8 @@ def dashboard_alerts():
 
     if not tenant_id:
         return jsonify({'message': 'tenant_id no encontrado en la sesión o token'}), 401
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     # --- MÉTODO GET ---
     if request.method == 'GET':
@@ -1544,11 +1549,28 @@ def locations():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
 
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
+
     if request.method == 'GET':
         rows = db_query(
             '''
             SELECT l.id, l.name, l.description, l.created_at,
-                COUNT(DISTINCT d.id) AS device_count,
+                (
+                    SELECT COUNT(*)
+                    FROM users u
+                    WHERE u.tenant_id = l.tenant_id AND u.location_id = l.id
+                ) AS user_count,
+                (
+                    SELECT COUNT(DISTINCT da.entity_id)
+                    FROM device_actions da
+                    JOIN users u ON u.id = da.user_id AND u.tenant_id = da.tenant_id
+                    WHERE da.tenant_id = l.tenant_id
+                      AND u.location_id = l.id
+                      AND da.entity_type = 'device'
+                      AND da.action_type = 'connect'
+                      AND da.entity_id IS NOT NULL
+                ) AS device_count,
                 COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
                 COUNT(a.id) AS total_alerts
             FROM locations l
@@ -1585,11 +1607,28 @@ def location_detail(location_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
 
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
+
     if request.method == 'GET':
         row = db_query(
             '''
             SELECT l.id, l.name, l.description, l.created_at,
-                COUNT(DISTINCT d.id) AS device_count,
+                (
+                    SELECT COUNT(*)
+                    FROM users u
+                    WHERE u.tenant_id = l.tenant_id AND u.location_id = l.id
+                ) AS user_count,
+                (
+                    SELECT COUNT(DISTINCT da.entity_id)
+                    FROM device_actions da
+                    JOIN users u ON u.id = da.user_id AND u.tenant_id = da.tenant_id
+                    WHERE da.tenant_id = l.tenant_id
+                      AND u.location_id = l.id
+                      AND da.entity_type = 'device'
+                      AND da.action_type = 'connect'
+                      AND da.entity_id IS NOT NULL
+                ) AS device_count,
                 COUNT(a.id) FILTER (WHERE a.is_resolved = 0) AS active_alerts,
                 COUNT(a.id) AS total_alerts
             FROM locations l
@@ -1603,7 +1642,6 @@ def location_detail(location_id):
         if not row:
             return jsonify({'message': 'Location not found'}), 404
 
-        row['user_count'] = 0
         row['hospital_position'] = ''
         return jsonify(row)
 
@@ -1645,6 +1683,8 @@ def dashboard():
 def dashboard_areas():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
     try:
         rows = db_query(
             '''
@@ -1672,6 +1712,8 @@ def dashboard_areas():
 def reports():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access reports.'}), 403
 
     try:
         summary = {
@@ -1694,6 +1736,8 @@ def reports():
 def reports_series():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access reports.'}), 403
 
     days = int(request.args.get('days', 30))
     try:
@@ -1740,6 +1784,8 @@ def get_dashboard_metrics():
     try:
         claims = get_current_user()
         tenant_id = claims.get('tenant_id')
+        if not is_admin_role(claims.get('role')):
+            return jsonify({'message': 'Only administrators can access reports.'}), 403
 
         # 1. Dispositivos Registrados
         devices_res = db_query(
@@ -1794,6 +1840,8 @@ def get_metric_details():
     try:
         claims = get_current_user()
         tenant_id = claims.get('tenant_id')
+        if not is_admin_role(claims.get('role')):
+            return jsonify({'message': 'Only administrators can access reports.'}), 403
         metric_type = request.args.get('type')
         search = request.args.get('q', '').strip()
 
@@ -1886,8 +1934,8 @@ def get_metric_details():
 def list_users():
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_users'):
-        return jsonify({'message': 'Permission denied'}), 403
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access user management.'}), 403
 
     user_columns = get_user_columns()
 
@@ -1983,8 +2031,8 @@ def list_users():
 def update_user(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_users'):
-        return jsonify({'message': 'Permission denied'}), 403
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access user management.'}), 403
 
     data = request.get_json(silent=True) or {}
     user_columns = get_user_columns()
@@ -2062,8 +2110,8 @@ def update_user(user_id):
 def reset_user_password(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_users'):
-        return jsonify({'message': 'Permission denied'}), 403
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access user management.'}), 403
 
     data = request.get_json() or {}
     new_password = data.get('new_password')
@@ -2080,8 +2128,8 @@ def reset_user_password(user_id):
 def delete_user(user_id):
     claims = get_current_user()
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_users'):
-        return jsonify({'message': 'Permission denied'}), 403
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access user management.'}), 403
 
     # Opcional: evitar que el usuario se elimine a sí mismo
     if claims.get('id') == user_id:
@@ -2112,8 +2160,8 @@ def delete_user(user_id):
 def get_sessions():
     claims = request.claims
     tenant_id = claims['tenant_id']
-    if not has_permission(claims.get('role'), 'manage_devices') and not has_permission(claims.get('role'), 'manage_users'):
-        return jsonify({'message': 'Permission denied'}), 403
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     rows = db_query(
         '''SELECT s.id, s.user_id, u.username, s.ip_address, s.user_agent, s.created_at, s.last_seen 
@@ -2133,6 +2181,9 @@ def get_sessions():
 def devices():
     claims = request.claims
     tenant_id = claims.get('tenant_id')  # Derived cleanly from JWT token related to user_id[cite: 3]
+
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     if request.method == 'GET':
         rows = db_query('SELECT * FROM devices WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
@@ -2257,8 +2308,8 @@ def get_audit_logs(): # Removed 'claims' parameter
     user_role = claims.get('role')
 
     # Permission check
-    if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
-        return jsonify({'message': 'Permission denied'}), 403
+    if not is_admin_role(user_role):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     # Safe pagination parameter parsing
     try:
@@ -2391,8 +2442,8 @@ def device_actions():
 
     # --- GET PERMISSION CHECK ---
     user_role = claims.get('role')
-    if not has_permission(user_role, 'manage_devices') and not has_permission(user_role, 'manage_users'):
-        return jsonify({'message': 'Permission denied'}), 403
+    if not is_admin_role(user_role):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     # --- PAGINATION ---
     try:
