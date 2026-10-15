@@ -2439,8 +2439,10 @@ export function Locations() {
     setLoading(true);
     try {
       const res = await apiFetch('/locations');
-      if (!res.ok) throw new Error('No se pudieron cargar las áreas');
-      const data = await res.json();
+      const responseData = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(responseData.message || 'No se pudieron cargar las áreas');
+
+      const data = responseData;
 
       if (Array.isArray(data)) {
         setItems(data);
@@ -2463,8 +2465,8 @@ export function Locations() {
     setLoadingDetail(true);
     try {
       const res = await apiFetch(`/locations/${id}`);
-      if (!res.ok) throw new Error('No se pudo cargar el detalle');
       const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'No se pudo cargar el detalle');
       setDetail(data);
     } catch (error) {
       notify(error.message, 'error');
