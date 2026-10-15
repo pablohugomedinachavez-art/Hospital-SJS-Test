@@ -1290,6 +1290,18 @@ def documents():
 
     if not file:
         return jsonify({'message': 'El archivo es obligatorio'}), 400
+    try:
+        patient_id = int(patient_id)
+    except (TypeError, ValueError):
+        return jsonify({'message': 'patient_id no es válido'}), 400
+
+    patient = db_query(
+        'SELECT id FROM patients WHERE id = %s AND tenant_id = %s',
+        (patient_id, tenant_id),
+        fetchone=True
+    )
+    if not patient:
+        return jsonify({'message': 'Paciente no encontrado'}), 404
 
     if not file_name:
         file_name = file.filename
@@ -1346,7 +1358,7 @@ def documents():
             RETURNING id
             ''',
             (
-                int(tenant_id), int(patient_id), document_type, file_name, 
+                int(tenant_id), patient_id, document_type, file_name,
                 public_url, description, 'active', now_utc()
             ),
             commit=True,

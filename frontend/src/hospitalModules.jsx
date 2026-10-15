@@ -1212,6 +1212,7 @@ export function Patients() {
 
   const handlePatientDocumentUpload = async (event) => {
     event.preventDefault()
+    const uploadForm = event.currentTarget
     if (!selectedPatient?.id || !documentFile) {
       notify('Selecciona un archivo antes de subirlo.', 'error')
       return
@@ -1246,7 +1247,7 @@ export function Patients() {
       setPatientDocuments(await docsResponse.json())
       setDocumentFile(null)
       setDocumentDescription('')
-      event.currentTarget.reset()
+      uploadForm.reset()
       notify('Documento asociado al paciente correctamente.', 'success')
     } catch (error) {
       notify(error instanceof Error ? error.message : 'No se pudo subir el documento.', 'error')
@@ -1868,9 +1869,100 @@ export function Patients() {
               </div>
             </div>
 
+            <section className="card-hover" style={{ backgroundColor: theme.bgCard, borderRadius: '12px', border: `1px solid ${theme.border}`, padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: theme.textPrimary, margin: 0 }}>
+                  Documentos del paciente ({patientDocuments.length})
+                </h4>
+                <span style={{ fontSize: '0.75rem', color: theme.textMuted }}>Paciente #{selectedPatient.id}</span>
+              </div>
+
+              <form onSubmit={handlePatientDocumentUpload} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '0.75rem', padding: '1rem', marginBottom: '1rem', backgroundColor: theme.bgApp, border: `1px solid ${theme.border}`, borderRadius: '8px' }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', color: theme.textMuted, fontSize: '0.75rem' }}>
+                  Archivo *
+                  <input
+                    key={documentFile?.name || 'empty-document'}
+                    type="file"
+                    required
+                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                    onChange={event => setDocumentFile(event.target.files?.[0] || null)}
+                    style={{ color: theme.textPrimary, fontSize: '0.8rem' }}
+                  />
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', color: theme.textMuted, fontSize: '0.75rem' }}>
+                  Tipo de documento
+                  <select
+                    value={documentType}
+                    onChange={event => setDocumentType(event.target.value)}
+                    style={{ backgroundColor: theme.bgCard, color: theme.textPrimary, border: `1px solid ${theme.border}`, borderRadius: '6px', padding: '0.5rem' }}
+                  >
+                    <option value="clinical">Documento clínico</option>
+                    <option value="lab_result">Resultado de laboratorio</option>
+                    <option value="imaging">Imagen / estudio</option>
+                    <option value="prescription">Receta</option>
+                    <option value="other">Otro</option>
+                  </select>
+                </label>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', color: theme.textMuted, fontSize: '0.75rem' }}>
+                  Descripción
+                  <input
+                    type="text"
+                    value={documentDescription}
+                    onChange={event => setDocumentDescription(event.target.value)}
+                    placeholder="Descripción opcional"
+                    style={{ backgroundColor: theme.bgCard, color: theme.textPrimary, border: `1px solid ${theme.border}`, borderRadius: '6px', padding: '0.5rem' }}
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={uploadingDocument || !documentFile}
+                  style={{ alignSelf: 'end', backgroundColor: theme.accent, color: '#fff', border: 0, borderRadius: '6px', padding: '0.55rem 0.9rem', cursor: uploadingDocument ? 'wait' : 'pointer', opacity: uploadingDocument || !documentFile ? 0.6 : 1 }}
+                >
+                  {uploadingDocument ? 'Subiendo…' : 'Subir documento'}
+                </button>
+              </form>
+
+              {loadingDocs ? (
+                <p role="status" style={{ color: theme.textMuted, textAlign: 'center' }}>Cargando documentos…</p>
+              ) : patientDocuments.length === 0 ? (
+                <p style={{ color: theme.textMuted, textAlign: 'center' }}>Este paciente todavía no tiene documentos.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {patientDocuments.map(document => (
+                    <button
+                      key={document.id}
+                      type="button"
+                      onClick={() => setPreviewDoc({
+                        ...document,
+                        patient_name: selectedPatient.full_name,
+                        patient_id: selectedPatient.id
+                      })}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', width: '100%', padding: '0.8rem', textAlign: 'left', color: theme.textPrimary, backgroundColor: theme.bgApp, border: `1px solid ${theme.border}`, borderRadius: '8px', cursor: 'pointer' }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                        <FileText size={18} color={theme.accent} />
+                        <span style={{ minWidth: 0 }}>
+                          <strong style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{document.title || document.file_name || 'Documento'}</strong>
+                          <span style={{ display: 'block', marginTop: '0.2rem', fontSize: '0.75rem', color: theme.textMuted }}>
+                            {document.category || document.document_type || 'Documento'} · {document.created_at ? formatDate(document.created_at) : 'Fecha no disponible'}
+                          </span>
+                        </span>
+                      </span>
+                      <Eye size={16} color={theme.textMuted} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+
           </div>
         </div>
       ) : null}
+      <DocumentPreviewModal
+        previewDoc={previewDoc}
+        setPreviewDoc={setPreviewDoc}
+        theme={theme}
+      />
     </div>
   )
 }
