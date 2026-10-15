@@ -67,24 +67,9 @@ export class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
-useEffect(() => {
-  const registerDeviceAutomatically = async () => {
-    try {
-      const platform = navigator.platform || '';
-      await apiFetch('/devices/auto-register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform })
-      });
-    } catch (err) {
-      console.error("Error al registrar el dispositivo automáticamente:", err);
-    }
-  };
 
-  if (user?.id) {
-    registerDeviceAutomatically();
-  }
-}, [user]);
+
+
 // Mapa de rutas de navegación
 const ROUTES_MAP = {
   '/ipd': InpatientManagement,
@@ -104,11 +89,34 @@ const ROUTES_MAP = {
   
 }
 
+
+
 const normalizeRoute = (hash) => {
   const route = String(hash || '').replace(/^#/, '')
   if (!route || route === '/' || route === '/home') return '/login'
   return route
 }
+
+
+useEffect(() => {
+  const registerDeviceAutomatically = async () => {
+    try {
+      const platform = navigator.platform || '';
+      await apiFetch('/devices/auto-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform })
+      });
+    } catch (err) {
+      console.error("Error al registrar el dispositivo automáticamente:", err);
+    }
+  };
+
+  if (user?.id) {
+    registerDeviceAutomatically();
+  }
+}, [user]);
+
 
 const Icons = {
   Dashboard: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
@@ -483,6 +491,26 @@ function AppContent() {
   const [route, setRoute] = useState(() => normalizeRoute(window.location.hash));
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  // Registro automático del dispositivo al cargar la sesión
+  useEffect(() => {
+    const registerDeviceAutomatically = async () => {
+      try {
+        const platform = navigator.platform || '';
+        await apiFetch('/devices/auto-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ platform })
+        });
+      } catch (err) {
+        console.error("Error al registrar el dispositivo automáticamente:", err);
+      }
+    };
+
+    if (user?.id) {
+      registerDeviceAutomatically();
+    }
+  }, [user]);
 
   // Escuchar cambios de hash para la navegación entre módulos
   useEffect(() => {

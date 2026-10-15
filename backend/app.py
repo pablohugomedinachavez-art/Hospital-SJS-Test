@@ -1,8 +1,8 @@
 import sys
 import os
-import datetime
+import datetime as dt
 import time
-from datetime import timezone
+from datetime import datetime, timezone
 from supabase import create_client, Client
 from functools import wraps
 from pathlib import Path
@@ -20,7 +20,7 @@ from io import StringIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import os
-import datetime
+import datetime as dt
 import time
 from datetime import timezone
 from functools import wraps
@@ -45,6 +45,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from datetime import datetime, timezone
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Integer, String, DateTime, ForeignKey
 # 1. Cargar variables de entorno (Búsqueda en backend y en la raíz)
 
 
@@ -96,37 +99,43 @@ CORS(app,
 db = SQLAlchemy(app)
 
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+url: str = os.environ["SUPABASE_URL"]
+key: str = os.environ["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 # ==========================================
 # 4. Modelos de Base de Datos (SQLAlchemy)
 # ==========================================
 class Tenant(db.Model):
     __tablename__ = 'tenants'
-    id = db.Column(db.Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name = db.Column(db.String, nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
-
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False, 
+        default=lambda: datetime.now(timezone.utc)
+    )
 class User(db.Model):
     __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String, unique=True, nullable=False)
-    password = db.Column(db.String, nullable=False)
-    role = db.Column(db.String, default='viewer', nullable=False)
-    tenant_id = db.Column(db.Integer, db.ForeignKey('tenants.id'), nullable=False)
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.datetime.now(timezone.utc))
-
-
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    password: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, default='viewer', nullable=False)
+    tenant_id: Mapped[int] = mapped_column(Integer, ForeignKey('tenants.id'), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), 
+        nullable=False, 
+        default=lambda: datetime.now(timezone.utc)
+    )
 # Inicializa el cliente de Supabase
 SUPABASE_URL = "https://ncvqppiqvmfaorzitvpt.supabase.co"
 # Usa el token JWT clásico (eyJ...) en lugar de la llave sb_secret_...
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jdnFwcGlxdm1mYW9yeml0dnB0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyODI1MTksImV4cCI6MjA5OTg1ODUxOX0.oDAydesqnzPNrK9-YNQlg5nJxGt4K3aLJHnr4KK6cy4" 
 
 
-# Inicialización correcta y limpia para el servidor Flask
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# 5. Función de inicialización de Base de Datos (SEED)
 def init_db():
     with app.app_context():
         db.create_all()
@@ -134,9 +143,13 @@ def init_db():
         # Verificar o crear el Tenant por defecto
         tenant = Tenant.query.first()
         if not tenant:
-            tenant = Tenant(name="Hospital Central", created_at=datetime.datetime.now(timezone.utc))
+            tenant = Tenant(
+                name="Hospital Central",
+                created_at=dt.datetime.now(timezone.utc)
+            )
             db.session.add(tenant)
             db.session.commit()
+            print("[SEED]: Tenant por defecto creado exitosamente.")
 
         # Crear o actualizar el usuario admin
         admin_user = User.query.filter_by(username='admin').first()
@@ -146,12 +159,11 @@ def init_db():
                 password=generate_password_hash('Admin123!'),
                 role='admin',
                 tenant_id=tenant.id,
-                created_at=datetime.datetime.now(timezone.utc)
+                created_at=dt.datetime.now(timezone.utc)
             )
             db.session.add(admin_user)
             print("[SEED]: Usuario 'admin' creado exitosamente.")
         else:
-            # Asegura que el hash actual de Admin123! sea válido
             admin_user.password = generate_password_hash('Admin123!')
             print("[SEED]: Contraseña del usuario 'admin' actualizada.")
 
@@ -169,8 +181,7 @@ def get_db_connection():
 # 5. Funciones auxiliares
 def now_utc():
     """Retorna timestamp UTC compatible sin fallos de atributo."""
-    # Updated to datetime.datetime.now
-    return datetime.datetime.now(timezone.utc)
+    return datetime.now(timezone.utc)
 
 def get_db():
     """Conecta directamente a PostgreSQL vía psycopg2 utilizando la URL parseada."""
@@ -203,8 +214,7 @@ def register_client_device(db_connection, tenant_id, user_id, location_id=None):
     device_type = parse_device_type(user_agent)
     device_name = f"{device_type.upper()} - {ip_address}"
     
-    # Updated to datetime.datetime.now
-    created_at = datetime.datetime.now(timezone.utc)
+    created_at = dt.datetime.now(timezone.utc)
     
     cursor = db_connection.cursor()
     
@@ -278,7 +288,7 @@ def create_token(user):
         'tenant_id': user['tenant_id'],
         'role': user['role'],
         'permissions': get_role_permissions(user['role']),
-        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
+        'exp': dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)
     }
     return jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
 
@@ -462,7 +472,7 @@ def register():
         if not tenant_id:
             default_tenant = Tenant.query.first()
             if not default_tenant:
-                default_tenant = Tenant(name="Hospital Central", created_at=datetime.datetime.now(timezone.utc))
+                default_tenant = Tenant(name="Hospital Central", created_at=dt.datetime.now(timezone.utc))
                 db.session.add(default_tenant)
                 db.session.flush()
             tenant_id = default_tenant.id
@@ -475,7 +485,7 @@ def register():
             password=hashed_password,
             role=data.get('role', 'viewer'),
             tenant_id=tenant_id,
-            created_at=datetime.datetime.now(timezone.utc)
+            created_at=dt.datetime.now(timezone.utc)
         )
 
         db.session.add(new_user)
@@ -2006,7 +2016,7 @@ def devices():
     serial_number = data.get('serial_number')
     mac_address = data.get('mac_address')
     os_version = data.get('os_version')
-    created_at = datetime.datetime.now(datetime.timezone.utc)
+    created_at = dt.datetime.now(dt.timezone.utc)
 
     try:
         new_row = db_query(
@@ -2957,4 +2967,3 @@ if __name__ == '__main__':
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
-
