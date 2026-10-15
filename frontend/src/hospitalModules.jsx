@@ -1118,6 +1118,10 @@ export function Patients() {
   const [patientAppointments, setPatientAppointments] = useState([])
   const [patientConsultations, setPatientConsultations] = useState([])
   const [loadingDocs, setLoadingDocs] = useState(false)
+  const [uploadingDocument, setUploadingDocument] = useState(false)
+  const [documentFile, setDocumentFile] = useState(null)
+  const [documentType, setDocumentType] = useState('clinical')
+  const [documentDescription, setDocumentDescription] = useState('')
   const [loadingConsultations, setLoadingConsultations] = useState(false)
 
   // Estado para previsualización de documentos
@@ -1176,6 +1180,9 @@ export function Patients() {
     setIsEditingPatient(false)
     setLoadingDocs(true)
     setLoadingConsultations(true)
+    setPatientDocuments([])
+    setDocumentFile(null)
+    setDocumentDescription('')
 
     try {
       const [docsRes, apptsRes, consultsRes] = await Promise.all([
@@ -1200,6 +1207,51 @@ export function Patients() {
     } finally {
       setLoadingDocs(false)
       setLoadingConsultations(false)
+    }
+  }
+
+  const handlePatientDocumentUpload = async (event) => {
+    event.preventDefault()
+    if (!selectedPatient?.id || !documentFile) {
+      notify('Selecciona un archivo antes de subirlo.', 'error')
+      return
+    }
+
+    setUploadingDocument(true)
+    try {
+      const uploadData = new FormData()
+      uploadData.append('patient_id', String(selectedPatient.id))
+      uploadData.append('document_type', documentType)
+      uploadData.append('description', documentDescription.trim())
+      uploadData.append('file', documentFile)
+      uploadData.append('file_name', documentFile.name)
+
+      const response = await apiFetch('/documents', {
+        method: 'POST',
+        body: uploadData
+      })
+      const responseText = await response.text()
+      let responseData = {}
+      try {
+        responseData = responseText ? JSON.parse(responseText) : {}
+      } catch {
+        throw new Error(`El servidor respondió con un formato inesperado (${response.status}).`)
+      }
+      if (!response.ok) {
+        throw new Error(responseData.message || 'No se pudo subir el documento.')
+      }
+
+      const docsResponse = await apiFetch(`/patients/${selectedPatient.id}/documents`)
+      if (!docsResponse.ok) throw new Error('El archivo se subió, pero no se pudo actualizar la lista.')
+      setPatientDocuments(await docsResponse.json())
+      setDocumentFile(null)
+      setDocumentDescription('')
+      event.currentTarget.reset()
+      notify('Documento asociado al paciente correctamente.', 'success')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'No se pudo subir el documento.', 'error')
+    } finally {
+      setUploadingDocument(false)
     }
   }
 
