@@ -657,6 +657,19 @@ const ConsultationCard = React.memo(({ item, onClick }) => {
 // --- COMPONENTE PRINCIPAL: Dashboard de Dispositivos ---
 // ============================================================
 
+function getDeviceAccountName(device) {
+  if (device.username) return device.username;
+  const name = String(device.name || '');
+  return name.includes(' - ') ? name.split(' - ', 1)[0] : '—';
+}
+
+function getDeviceTypeLabel(type) {
+  const normalizedType = String(type || '').toLowerCase();
+  if (normalizedType === 'pc') return 'Computer';
+  if (normalizedType === 'cellphone') return 'Mobile';
+  return normalizedType ? normalizedType[0].toUpperCase() + normalizedType.slice(1) : '—';
+}
+
 export function DeviceManagementDashboard() {
   const [activeTab, setActiveTab] = useState('devices');
 
@@ -876,6 +889,11 @@ export function DeviceManagementDashboard() {
                         render: (d) => <div className="py-2"><span className="font-semibold text-white text-base">{d.name}</span></div>
                       },
                       {
+                        key: 'username',
+                        label: 'Cuenta',
+                        render: (d) => <div className="py-2 text-slate-300">{getDeviceAccountName(d)}</div>
+                      },
+                      {
                         key: 'ip_address',
                         label: 'Dirección IP',
                         render: (d) => <div className="py-2"><code className="text-sky-400 font-mono text-sm bg-sky-950/60 border border-sky-800/50 px-3 py-1.5 rounded-lg">{d.ip_address || '—'}</code></div>
@@ -883,7 +901,17 @@ export function DeviceManagementDashboard() {
                       {
                         key: 'type',
                         label: 'Tipo',
-                        render: (d) => <div className="py-2"><span className="capitalize text-slate-300 text-sm bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">{d.type}</span></div>
+                        render: (d) => <div className="py-2"><span className="text-slate-300 text-sm bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">{getDeviceTypeLabel(d.type)}</span></div>
+                      },
+                      {
+                        key: 'os_version',
+                        label: 'Sistema operativo',
+                        render: (d) => <div className="py-2 text-slate-400 text-sm">{d.os_version || '—'}</div>
+                      },
+                      {
+                        key: 'last_heartbeat',
+                        label: 'Última conexión',
+                        render: (d) => <div className="py-2 text-slate-400 text-sm">{d.last_heartbeat ? formatDate(d.last_heartbeat) : '—'}</div>
                       },
                       {
                         key: 'status',
@@ -2435,16 +2463,10 @@ export function Locations() {
 // Devices / audit
 // ============================================================
 
-export function Devices() {
+export function Devices({ registeredDevice }) {
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
-  
-  // Real IP captured from configuration/environment or local interface tracking
-  const [clientInfo, setClientInfo] = useState({
-    ip: 'asas',
-    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : ''
-  });
   
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -2455,6 +2477,7 @@ export function Devices() {
     type: 'pc',
     location_id: '',
     status: 'available',
+    ip_address: '',
     serial_number: '',
     mac_address: '',
     os_version: 'Windows Pro'
@@ -2501,8 +2524,8 @@ export function Devices() {
         type: formData.type,
         status: formData.status,
         location_id: formData.location_id ? parseInt(formData.location_id, 10) : null,
-        ip_address: clientInfo.ip, // Real IP: 192.168.3.91
-        user_agent: clientInfo.userAgent,
+        ip_address: formData.ip_address.trim() || null,
+        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
         serial_number: formData.serial_number ? formData.serial_number.trim() : null,
         mac_address: formData.mac_address ? formData.mac_address.trim() : null,
         os_version: formData.os_version ? formData.os_version.trim() : null
@@ -2549,8 +2572,11 @@ export function Devices() {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '1.25rem' }}>
           <div>
-            <h1>Dispositivos y Auditoría (User ID: {user?.id || 'N/A'})</h1>
-            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>IP Configurada: <code>{clientInfo.ip}</code></p>
+            <h1>Dispositivos de {user?.username || user?.email || 'la cuenta'}</h1>
+            <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+              IP detectada por el servidor: <code>{registeredDevice?.ip_address || 'Registrando dispositivo…'}</code>
+              {registeredDevice?.device_type && <> · Tipo: {getDeviceTypeLabel(registeredDevice.device_type)}</>}
+            </p>
           </div>
           <button
             onClick={() => setShowForm(!showForm)}
@@ -2568,6 +2594,24 @@ export function Devices() {
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               required
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
+            />
+            <select
+              value={formData.type}
+              onChange={e => setFormData({ ...formData, type: e.target.value })}
+              style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
+            >
+              <option value="laptop">Laptop</option>
+              <option value="pc">Computer</option>
+              <option value="mobile">Mobile</option>
+              <option value="tablet">Tablet</option>
+              <option value="server">Server</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Dirección IP (opcional)"
+              value={formData.ip_address}
+              onChange={e => setFormData({ ...formData, ip_address: e.target.value })}
               style={{ padding: '0.6rem 1rem', borderRadius: '10px', border: '1px solid #334155', backgroundColor: '#1e293b', color: '#fff' }}
             />
             <input
@@ -2595,7 +2639,7 @@ export function Devices() {
               type="submit"
               style={{ backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', padding: '0.6rem 1rem', gridColumn: '1 / -1' }}
             >
-              Guardar Dispositivo con IP Real ({clientInfo.ip})
+              Guardar Dispositivo
             </button>
           </form>
         )}
@@ -2604,15 +2648,36 @@ export function Devices() {
           <h3>Inventario Actual</h3>
           {loading ? (
             <p>Cargando dispositivos...</p>
-          ) : (
-            <ul>
-              {filteredDevices.map(device => (
-                <li key={device.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid #1e293b' }}>
-                  <strong>{device.name}</strong> - IP: <code style={{ color: '#38bdf8' }}>{device.ip_address}</code> | Tenant ID: {device.tenant_id}
-                </li>
-              ))}
-            </ul>
-          )}
+          ) : filteredDevices.length === 0 ? (
+              <p style={{ color: '#94a3b8' }}>No hay dispositivos registrados.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ color: '#94a3b8', borderBottom: '1px solid #1e293b' }}>
+                      <th style={{ padding: '0.75rem' }}>Cuenta</th>
+                      <th style={{ padding: '0.75rem' }}>Dispositivo</th>
+                      <th style={{ padding: '0.75rem' }}>Tipo</th>
+                      <th style={{ padding: '0.75rem' }}>Sistema operativo</th>
+                      <th style={{ padding: '0.75rem' }}>Dirección IP</th>
+                      <th style={{ padding: '0.75rem' }}>Última conexión</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredDevices.map(device => (
+                      <tr key={device.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                        <td style={{ padding: '0.75rem' }}>{getDeviceAccountName(device)}</td>
+                        <td style={{ padding: '0.75rem' }}>{device.name || '—'}</td>
+                        <td style={{ padding: '0.75rem' }}>{getDeviceTypeLabel(device.type)}</td>
+                        <td style={{ padding: '0.75rem' }}>{device.os_version || '—'}</td>
+                        <td style={{ padding: '0.75rem' }}><code style={{ color: '#38bdf8' }}>{device.ip_address || '—'}</code></td>
+                        <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{device.last_heartbeat ? formatDate(device.last_heartbeat) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
         </div>
 
       </div>
@@ -5965,5 +6030,3 @@ export function Profile({ user = {}, usersList = [] }) {
     </div>
   );
 }
-
-

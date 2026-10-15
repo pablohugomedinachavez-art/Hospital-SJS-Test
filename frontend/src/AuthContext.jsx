@@ -67,7 +67,9 @@ export const AuthProvider = ({ children }) => {
     }
 
     const userData = {
+      id: data.id,
       username: data.username || cleanUsername,
+      role: data.role || data.role_id,
       role_id: data.role_id || data.role,
       tenant_id: data.tenant_id || 1,
     };
@@ -96,6 +98,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     const userData = {
+      id: data.id,
       username: data.username || cleanUsername,
       role_id: data.role_id || data.role,
       tenant_id: data.tenant_id || 1,

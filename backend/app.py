@@ -423,10 +423,10 @@ def parse_advanced_device_info(user_agent_str, client_platform=''):
     platform = client_platform.lower()
     
     # 1. Determinar tipo de dispositivo
-    if 'ipad' in ua or 'tablet' in ua:
+    if 'ipad' in ua or 'tablet' in ua or ('android' in ua and 'mobile' not in ua):
         dev_type = 'tablet'
-    elif 'mobi' in ua or 'android' in ua and 'mobile' in ua or 'iphone' in ua:
-        dev_type = 'cellphone'
+    elif 'mobi' in ua or 'android' in ua or 'iphone' in ua:
+        dev_type = 'mobile'
     elif 'macintosh' in ua or 'windows' in ua or 'linux' in ua:
         if 'laptop' in ua or 'book' in ua or 'surface' in ua or 'macbook' in platform:
             dev_type = 'laptop'
@@ -500,6 +500,7 @@ def register():
 
         return jsonify({
             'token': create_token(user_dict),
+            'id': new_user.id,
             'username': new_user.username,
             'role': new_user.role,
             'tenant_id': new_user.tenant_id
@@ -559,6 +560,7 @@ def login():
 
         return jsonify({
             'token': token,
+            'id': user.id,
             'username': user.username,
             'role': user.role,
             'tenant_id': user.tenant_id
@@ -2010,8 +2012,7 @@ def devices():
     type_ = data.get('type', 'pc')
     status_ = data.get('status', 'available')
     
-    # Force real IP configuration if sent, otherwise fallback safely
-    ip_address = data.get('ip_address') or '192.168.3.91'
+    ip_address = data.get('ip_address') or None
     user_agent = data.get('user_agent') or request.headers.get('User-Agent', '')
     serial_number = data.get('serial_number')
     mac_address = data.get('mac_address')
@@ -2062,8 +2063,10 @@ def auto_register_device():
 
     # Verificar si ya existe un registro activo para esta IP y usuario
     existing = db_query(
-        "SELECT id FROM public.devices WHERE tenant_id = %s AND ip_address = %s AND user_agent = %s",
-        (tenant_id, ip_address, user_agent), fetchone=True
+        """SELECT id FROM public.devices
+           WHERE tenant_id = %s AND ip_address = %s AND user_agent = %s
+             AND split_part(name, ' - ', 1) = %s""",
+        (tenant_id, ip_address, user_agent, username), fetchone=True
     )
 
     if existing:
@@ -2071,10 +2074,10 @@ def auto_register_device():
         db_query(
             """
             UPDATE public.devices 
-            SET last_heartbeat = NOW(), status = 'active', os_version = %s 
+            SET name = %s, type = %s, last_heartbeat = NOW(), status = 'active', os_version = %s
             WHERE id = %s
             """,
-            (os_version, device_id), commit=True
+            (device_name, device_type, os_version, device_id), commit=True
         )
     else:
         new_dev = db_query(
@@ -2089,9 +2092,30 @@ def auto_register_device():
         )
         device_id = new_dev['id'] if new_dev else None
 
+    db_query(
+        """
+        INSERT INTO public.device_actions
+        (tenant_id, user_id, ip_address, user_agent, action_type, entity_type, entity_id, details, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            tenant_id,
+            user_id,
+            ip_address,
+            user_agent,
+            'device_connected',
+            'device',
+            device_id,
+            f'{device_type} ({os_version})',
+            now_utc()
+        ),
+        commit=True
+    )
+
     return jsonify({
         'success': True,
         'device_id': device_id,
+        'username': username,
         'ip_address': ip_address,
         'device_type': device_type,
         'os_version': os_version

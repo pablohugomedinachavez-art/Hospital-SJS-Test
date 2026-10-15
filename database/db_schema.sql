@@ -211,6 +211,7 @@ CREATE TABLE public.sessions (
   user_agent text,
   created_at timestamp with time zone NOT NULL,
   last_seen timestamp with time zone,
+  status character varying DEFAULT 'online'::character varying,
   CONSTRAINT sessions_pkey PRIMARY KEY (id),
   CONSTRAINT sessions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
   CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -374,43 +375,73 @@ CREATE TABLE public.messages (
   status text DEFAULT 'sent'::text,
   CONSTRAINT messages_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.chat_rooms (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  tenant_id integer NOT NULL,
-  name text,
-  is_group boolean DEFAULT false,
-  created_by integer,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT chat_rooms_pkey PRIMARY KEY (id),
-  CONSTRAINT chat_rooms_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
-);
-CREATE TABLE public.chat_participants (
-  id integer NOT NULL DEFAULT nextval('chat_participants_id_seq'::regclass),
-  room_id uuid,
-  user_id integer,
-  joined_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT chat_participants_pkey PRIMARY KEY (id),
-  CONSTRAINT chat_participants_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.chat_rooms(id),
-  CONSTRAINT chat_participants_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
-);
-CREATE TABLE public.chat_messages (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  room_id uuid,
-  sender_id integer,
-  sender_name text NOT NULL,
-  content text,
-  attachment_url text,
-  attachment_type text,
-  status text DEFAULT 'sent'::text,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
-  CONSTRAINT chat_messages_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.chat_rooms(id),
-  CONSTRAINT chat_messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES public.users(id)
-);
 CREATE TABLE public.user_presence (
   user_id integer NOT NULL,
   status text DEFAULT 'offline'::text,
   last_seen timestamp with time zone DEFAULT now(),
   CONSTRAINT user_presence_pkey PRIMARY KEY (user_id),
   CONSTRAINT user_presence_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.chat_rooms (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tenant_id integer NOT NULL,
+  name character varying,
+  description text,
+  is_group boolean DEFAULT false,
+  created_by integer,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_rooms_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_rooms_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.chat_room_members (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  room_id uuid,
+  user_id integer NOT NULL,
+  joined_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_room_members_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_room_members_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.chat_rooms(id)
+);
+CREATE TABLE public.chat_messages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  room_id uuid,
+  sender_id integer NOT NULL,
+  sender_name character varying,
+  content text,
+  media_url text,
+  media_type character varying,
+  status character varying DEFAULT 'sent'::character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chat_messages_pkey PRIMARY KEY (id),
+  CONSTRAINT chat_messages_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.chat_rooms(id)
+);
+CREATE TABLE public.beds (
+  id integer GENERATED ALWAYS AS IDENTITY NOT NULL,
+  tenant_id integer NOT NULL,
+  wing text NOT NULL,
+  room text NOT NULL,
+  status text NOT NULL DEFAULT 'available'::text,
+  patient_id integer,
+  admission_date timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT beds_pkey PRIMARY KEY (id),
+  CONSTRAINT beds_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT beds_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id)
+);
+CREATE TABLE public.ipd_movements (
+  id integer GENERATED ALWAYS AS IDENTITY NOT NULL,
+  tenant_id integer NOT NULL,
+  patient_id integer NOT NULL,
+  bed_id integer NOT NULL,
+  movement_type text NOT NULL,
+  origin_bed_id integer,
+  performed_by integer,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT ipd_movements_pkey PRIMARY KEY (id),
+  CONSTRAINT ipd_movements_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
+  CONSTRAINT ipd_movements_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.patients(id),
+  CONSTRAINT ipd_movements_bed_id_fkey FOREIGN KEY (bed_id) REFERENCES public.beds(id),
+  CONSTRAINT ipd_movements_origin_bed_id_fkey FOREIGN KEY (origin_bed_id) REFERENCES public.beds(id),
+  CONSTRAINT ipd_movements_performed_by_fkey FOREIGN KEY (performed_by) REFERENCES public.users(id)
 );
