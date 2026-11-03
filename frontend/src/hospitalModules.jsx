@@ -1,4 +1,4 @@
-import { apiFetch } from './api.js'; // Asegúrate de que la ruta coincida con la ubicación de tu archivo api.js
+import { apiFetch } from './api.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -5757,11 +5757,9 @@ export function Dashboard() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
                 </span>
-                NCI · SISTEMA ACTIVO
+                 · SISTEMA ACTIVO
               </span>
-              <span className="rounded-full border border-slate-700/80 bg-slate-900/80 px-3 py-1.5 text-slate-400 tracking-[0.12em]">
-                ISO 27001 / HIPAA
-              </span>
+              
             </div>
             <h1 className="bg-gradient-to-r from-white via-cyan-100 to-fuchsia-300 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl lg:text-3xl">
               Dashboard de Control y Auditoría TI
