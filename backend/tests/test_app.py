@@ -120,6 +120,7 @@ class AppTests(unittest.TestCase):
         restricted_paths = [
             '/api/alerts',
             '/api/dashboard/areas',
+            '/api/dashboard/area-users',
             '/api/locations',
             '/api/devices',
             '/api/sessions',
@@ -139,6 +140,27 @@ class AppTests(unittest.TestCase):
                     self.assertEqual(response.status_code, 403)
 
         query.assert_not_called()
+
+    def test_dashboard_area_users_returns_tenant_users_with_presence(self):
+        token = self.make_admin_token()
+        headers = {'Authorization': f'Bearer {token}'}
+        area_users = [{
+            'user_id': 27,
+            'username': 'nurse-one',
+            'role': 'nurse',
+            'location_id': 4,
+            'status': 'online',
+            'last_seen': '2026-11-17T00:00:00+00:00'
+        }]
+
+        with patch.object(app_module, 'get_user_columns', return_value={'location_id'}), \
+                patch.object(app_module, 'db_query', return_value=area_users) as query:
+            response = self.client.get('/api/dashboard/area-users', headers=headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), area_users)
+        self.assertIn('LEFT JOIN user_presence p ON p.user_id = u.id', query.call_args.args[0])
+        self.assertEqual(query.call_args.args[1], (1,))
 
     def test_consultation_update_is_tenant_scoped_and_validates_priority(self):
         token = self.make_role_token('doctor')

@@ -5585,9 +5585,12 @@ export function Dashboard() {
   const [areas, setAreas] = useState([]);
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [areaUsers, setAreaUsers] = useState([]);
+  const [areaUsersAvailable, setAreaUsersAvailable] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [auditEntries, setAuditEntries] = useState([]);
   const [devicesAvailable, setDevicesAvailable] = useState(false);
-  const [telemetry, setTelemetry] = useState({ latencyMs: null, payloadKb: null, throughputKbps: null, available: 0, total: 6 });
+  const [telemetry, setTelemetry] = useState({ latencyMs: null, payloadKb: null, throughputKbps: null, available: 0, total: 7 });
 
   // Estados para el Modal de Métricas Detalladas
   const [activeMetricModal, setActiveMetricModal] = useState(null); // 'devices', 'consultations', 'alerts'
@@ -5607,16 +5610,17 @@ export function Dashboard() {
     const startedAt = performance.now();
     setLoading(true);
     try {
-      const [reportsRes, seriesRes, areasRes, devicesRes, locationsRes, auditRes] = await Promise.all([
+      const [reportsRes, seriesRes, areasRes, devicesRes, locationsRes, auditRes, areaUsersRes] = await Promise.all([
         apiFetch('/reports'),
         apiFetch(`/reports/series?days=${days}`),
         apiFetch('/dashboard/areas'),
         apiFetch('/devices'),
         apiFetch('/locations'),
-        apiFetch('/audit_logs?page=1&per_page=8')
+        apiFetch('/audit_logs?page=1&per_page=8'),
+        apiFetch('/dashboard/area-users')
       ]);
 
-      const responses = [reportsRes, seriesRes, areasRes, devicesRes, locationsRes, auditRes];
+      const responses = [reportsRes, seriesRes, areasRes, devicesRes, locationsRes, auditRes, areaUsersRes];
       const elapsedMs = Math.max(performance.now() - startedAt, 1);
       const available = responses.filter(response => response.ok).length;
       const payloads = await Promise.all(responses.map(response =>
@@ -5650,6 +5654,12 @@ export function Dashboard() {
         setLocations(Array.isArray(locData) ? locData : locData.items || []);
       }
       if (auditRes.ok) setAuditEntries(payloads[5]?.items || []);
+      if (areaUsersRes.ok) {
+        setAreaUsers(Array.isArray(payloads[6]) ? payloads[6] : []);
+        setAreaUsersAvailable(true);
+      } else {
+        setAreaUsersAvailable(false);
+      }
     } catch (error) {
       setTelemetry(current => ({
         ...current,
@@ -5665,6 +5675,24 @@ export function Dashboard() {
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
+
+  useEffect(() => {
+    const refreshAreaUsers = async () => {
+      try {
+        const response = await apiFetch('/dashboard/area-users');
+        if (!response.ok) throw new Error('No se pudo actualizar la presencia de usuarios');
+        const users = await response.json();
+        setAreaUsers(Array.isArray(users) ? users : []);
+        setAreaUsersAvailable(true);
+      } catch (error) {
+        console.error('Error al actualizar la presencia de usuarios:', error);
+        setAreaUsersAvailable(false);
+      }
+    };
+
+    const interval = setInterval(refreshAreaUsers, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Función para cargar los detalles reales de la métrica seleccionada (con parámetro de búsqueda 'q')
   const handleOpenMetricDetail = async (type, searchQuery = '') => {
@@ -5723,17 +5751,23 @@ export function Dashboard() {
 
   const nodeSummaries = useMemo(() => locations.map(location => {
     const locationDevices = devices.filter(device => String(device.location_id) === String(location.id));
-    const onlineCount = locationDevices.filter(device =>
+    const onlineDeviceCount = locationDevices.filter(device =>
       ['active', 'online', 'connected'].includes(String(device.status || '').toLowerCase())
     ).length;
     const area = areas.find(item => String(item.id) === String(location.id));
+    const users = areaUsers.filter(user => String(user.location_id) === String(location.id));
+    const onlineUsers = users.filter(user => String(user.status || '').toLowerCase() === 'online');
     return {
       id: location.id,
       name: location.name,
       deviceCount: devicesAvailable ? locationDevices.length : Number(area?.device_count || 0),
-      onlineCount
+      onlineDeviceCount,
+      users,
+      onlineUsers
     };
-  }), [locations, devices, areas, devicesAvailable]);
+  }), [locations, devices, areas, areaUsers, devicesAvailable]);
+
+  const selectedNode = nodeSummaries.find(node => String(node.id) === String(selectedNodeId));
 
   const closeModal = () => {
     setActiveMetricModal(null);
@@ -5960,21 +5994,101 @@ export function Dashboard() {
                 ) : (
                   <div className="grid max-h-[255px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
                     {nodeSummaries.map(node => (
-                      <div key={node.id} className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 transition hover:border-emerald-500/30">
+                      <button
+                        key={node.id}
+                        type="button"
+                        onClick={() => setSelectedNodeId(current => String(current) === String(node.id) ? null : node.id)}
+                        aria-expanded={String(selectedNodeId) === String(node.id)}
+                        aria-controls={`area-users-${node.id}`}
+                        className={`rounded-xl border bg-slate-950/60 p-3 text-left transition hover:border-emerald-500/30 ${
+                          String(selectedNodeId) === String(node.id)
+                            ? 'border-emerald-500/50'
+                            : 'border-slate-800/80'
+                        }`}
+                      >
                         <div className="flex items-center justify-between gap-2">
-                          <span className={`relative flex h-2 w-2 shrink-0 ${node.onlineCount ? '' : 'opacity-40'}`}>
-                            {node.onlineCount > 0 && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />}
-                            <span className={`relative inline-flex h-2 w-2 rounded-full ${node.onlineCount ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                          <span className={`relative flex h-2 w-2 shrink-0 ${node.onlineDeviceCount ? '' : 'opacity-40'}`}>
+                            {node.onlineDeviceCount > 0 && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />}
+                            <span className={`relative inline-flex h-2 w-2 rounded-full ${node.onlineDeviceCount ? 'bg-emerald-400' : 'bg-slate-600'}`} />
                           </span>
                           <span className="font-mono text-[9px] text-slate-600">#{node.id}</span>
                         </div>
                         <div className="mt-3 truncate text-[11px] font-semibold text-slate-200" title={node.name}>{node.name}</div>
                         <div className="mt-1.5 flex items-center justify-between gap-1 text-[9px] text-slate-500">
-                          <span>{devicesAvailable ? `${node.onlineCount}/${node.deviceCount} en línea` : 'Estado no disponible'}</span>
+                          <span>{devicesAvailable ? `${node.onlineDeviceCount}/${node.deviceCount} equipos` : 'Estado no disponible'}</span>
                           <span>{node.deviceCount} nodo{node.deviceCount === 1 ? '' : 's'}</span>
                         </div>
-                      </div>
+                        <div className="mt-2 flex items-center justify-between border-t border-slate-800/70 pt-2 text-[9px]">
+                          <span className="text-slate-400">
+                            {areaUsersAvailable ? `${node.onlineUsers.length} usuario${node.onlineUsers.length === 1 ? '' : 's'} en línea` : 'Presencia no disponible'}
+                          </span>
+                          <ChevronDown
+                            size={12}
+                            className={`shrink-0 text-emerald-300 transition-transform ${
+                              String(selectedNodeId) === String(node.id) ? 'rotate-180' : ''
+                            }`}
+                          />
+                        </div>
+                      </button>
                     ))}
+                  </div>
+                )}
+                {selectedNode && (
+                  <div
+                    id={`area-users-${selectedNode.id}`}
+                    className="mt-3 rounded-xl border border-emerald-500/20 bg-slate-950/50 p-3"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <h4 className="truncate text-[11px] font-semibold text-slate-200">
+                          Usuarios de {selectedNode.name}
+                        </h4>
+                        <p className="mt-0.5 text-[9px] text-slate-500">
+                          {areaUsersAvailable
+                            ? `${selectedNode.onlineUsers.length} en línea · ${selectedNode.users.length} asignados`
+                            : 'No se pudo cargar la presencia de usuarios'}
+                        </p>
+                      </div>
+                      <UsersIcon size={15} className="shrink-0 text-emerald-300" />
+                    </div>
+                    {!areaUsersAvailable ? (
+                      <p className="py-3 text-center text-[10px] text-amber-300">
+                        Actualiza el dashboard para volver a intentar.
+                      </p>
+                    ) : selectedNode.users.length === 0 ? (
+                      <p className="py-3 text-center text-[10px] text-slate-500">
+                        No hay usuarios asignados a esta área.
+                      </p>
+                    ) : (
+                      <div className="grid max-h-48 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
+                        {selectedNode.users.map(user => {
+                          const status = String(user.status || '').toLowerCase();
+                          const isOnline = status === 'online';
+                          const presenceLabel = isOnline ? 'En línea' : status === 'afk' ? 'Ausente' : 'Desconectado';
+                          return (
+                            <div
+                              key={user.user_id}
+                              className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-slate-800/70 bg-[#080c15] px-2.5 py-2"
+                            >
+                              <div className="flex min-w-0 items-center gap-2">
+                                <span className={`h-2 w-2 shrink-0 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                                <div className="min-w-0">
+                                  <div className="truncate text-[10px] font-medium text-slate-200">
+                                    {user.username || `Usuario #${user.user_id}`}
+                                  </div>
+                                  <div className="truncate text-[9px] capitalize text-slate-500">
+                                    {user.role || 'Usuario'} · ID #{user.user_id}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className={`shrink-0 text-[9px] ${isOnline ? 'text-emerald-300' : 'text-slate-500'}`}>
+                                {presenceLabel}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className="mt-4 flex items-center gap-4 border-t border-slate-800/70 pt-3 text-[10px] text-slate-500">

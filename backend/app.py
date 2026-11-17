@@ -1776,6 +1776,35 @@ def dashboard_areas():
         return jsonify({'message': 'Error generating dashboard areas'}), 500
 
 
+@app.route('/api/dashboard/area-users')
+@token_required
+def dashboard_area_users():
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can access operational management.'}), 403
+
+    try:
+        if 'location_id' not in get_user_columns():
+            return jsonify([])
+
+        users = db_query(
+            '''
+            SELECT u.id AS user_id, u.username, u.role, u.location_id,
+                   p.status, p.last_seen
+            FROM users u
+            LEFT JOIN user_presence p ON p.user_id = u.id
+            WHERE u.tenant_id = %s AND u.location_id IS NOT NULL
+            ORDER BY u.location_id, LOWER(u.username)
+            ''',
+            (tenant_id,), fetchall=True
+        )
+        return jsonify(users or [])
+    except Exception as e:
+        app.logger.exception('Error loading dashboard area users: %s', e)
+        return jsonify({'message': 'Error loading dashboard area users'}), 500
+
+
 @app.route('/api/reports')
 @token_required
 def reports():
