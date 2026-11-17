@@ -55,7 +55,21 @@ export function ChatTIWidget({ currentUser, supabase, isOpen, onClose }) {
       });
     };
 
+    const loadPresences = async () => {
+      const { data, error } = await supabase
+        .from('user_presence')
+        .select('user_id, status, last_seen');
+
+      if (error) {
+        console.error('Error al cargar estados de presencia:', error);
+        return;
+      }
+
+      setPresences(Object.fromEntries(data.map((presence) => [presence.user_id, presence])));
+    };
+
     sendHeartbeat();
+    loadPresences();
     const interval = setInterval(sendHeartbeat, 30000);
 
     const presenceChannel = supabase
