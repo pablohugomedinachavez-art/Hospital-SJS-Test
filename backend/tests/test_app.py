@@ -310,6 +310,32 @@ class AppTests(unittest.TestCase):
         self.assertEqual(query.call_count, 2)
         audit.assert_called_once()
 
+    def test_admin_can_link_device_to_user_and_audit_log(self):
+        token = self.make_admin_token()
+        headers = {'Authorization': f'Bearer {token}'}
+
+        with patch.object(app_module, 'db_query', side_effect=[
+            {'id': 42, 'name': 'PC-SIS-01'},
+            {'id': 27, 'username': 'nurse-one'},
+            {'id': 42}
+        ]) as query, patch.object(app_module, 'record_audit') as audit:
+            response = self.client.put(
+                '/api/devices/42/link',
+                json={'user_id': 27},
+                headers=headers
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload['device_id'], 42)
+        self.assertEqual(payload['user_id'], 27)
+        self.assertEqual(payload['username'], 'nurse-one')
+        audit.assert_called_once_with(
+            'link', 'device', 42,
+            'Device PC-SIS-01 linked to account nurse-one (user_id=27)',
+            1, 1
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

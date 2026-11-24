@@ -718,6 +718,10 @@ export function DeviceManagementDashboard() {
   // Datos
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [linkingDevice, setLinkingDevice] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [linking, setLinking] = useState(false);
   const [deviceSearch, setDeviceSearch] = useState('');
   const [deviceStatus, setDeviceStatus] = useState('all');
   const [showDeviceForm, setShowDeviceForm] = useState(false);
@@ -738,16 +742,19 @@ export function DeviceManagementDashboard() {
   const loadDevices = useCallback(async () => {
     setLoading(true);
     try {
-      const [devRes, locRes] = await Promise.all([
+      const [devRes, locRes, usersRes] = await Promise.all([
         apiFetch('/devices'),
-        apiFetch('/locations')
+        apiFetch('/locations'),
+        apiFetch('/users')
       ]);
       if (!devRes.ok || !locRes.ok) throw new Error('Error al cargar dispositivos o ubicaciones');
 
       const devData = await devRes.json();
       const locData = await locRes.json();
+      const usersData = usersRes.ok ? await usersRes.json().catch(() => []) : [];
       setDevices(Array.isArray(devData) ? devData : (devData.items || devData.data || []));
       setLocations(Array.isArray(locData) ? locData : (locData.items || locData.data || []));
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       notify(error.message, 'error');
     } finally {
@@ -794,6 +801,36 @@ export function DeviceManagementDashboard() {
     if (activeTab === 'actions') loadActions();
     if (activeTab === 'audit') loadAuditLogs();
   }, [activeTab, loadDevices, loadActions, loadAuditLogs]);
+
+  const openLinkDialog = (device) => {
+    setLinkingDevice(device);
+    setSelectedUserId(device.user_id ? String(device.user_id) : '');
+  };
+
+  const handleLinkDevice = async (e) => {
+    e.preventDefault();
+    if (!linkingDevice) return;
+
+    setLinking(true);
+    try {
+      const res = await apiFetch(`/devices/${linkingDevice.id}/link`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: selectedUserId || null })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'No se pudo vincular el dispositivo');
+
+      notify(selectedUserId ? 'Dispositivo vinculado a la cuenta.' : 'Vínculo del dispositivo eliminado.', 'success');
+      setLinkingDevice(null);
+      setSelectedUserId('');
+      await loadDevices();
+    } catch (error) {
+      notify(error.message, 'error');
+    } finally {
+      setLinking(false);
+    }
+  };
 
   const filteredDevices = useMemo(() => {
     const q = deviceSearch.trim().toLowerCase();
@@ -963,6 +1000,19 @@ export function DeviceManagementDashboard() {
                               {d.status}
                             </span>
                           </div>
+                        )
+                      },
+                      {
+                        key: 'link',
+                        label: 'Acción',
+                        render: (d) => (
+                          <button
+                            type="button"
+                            onClick={() => openLinkDialog(d)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-blue-500/30 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20"
+                          >
+                            {d.user_id ? 'Cambiar cuenta' : 'Vincular cuenta'}
+                          </button>
                         )
                       }
                     ]}
@@ -1136,6 +1186,29 @@ export function DeviceManagementDashboard() {
 
         </div>
       </div>
+
+      {linkingDevice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
+          <form onSubmit={handleLinkDevice} className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl">
+            <h3 className="text-lg font-bold text-white">Vincular dispositivo</h3>
+            <p className="mt-1 mb-4 text-sm text-slate-400">{linkingDevice.name}</p>
+            <select
+              value={selectedUserId}
+              onChange={e => setSelectedUserId(e.target.value)}
+              className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-3 text-sm text-white"
+            >
+              <option value="">Sin vinculación</option>
+              {users.map(account => (
+                <option key={account.id} value={String(account.id)}>{account.username} · {account.role || 'Usuario'}</option>
+              ))}
+            </select>
+            <div className="mt-5 flex justify-end gap-3">
+              <button type="button" onClick={() => setLinkingDevice(null)} className="rounded-lg bg-slate-700 px-4 py-2 text-sm text-white">Cancelar</button>
+              <button type="submit" disabled={linking} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white">{linking ? 'Guardando…' : 'Guardar vínculo'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
@@ -3378,6 +3451,10 @@ export function Devices({
 }) {
   const [devices, setDevices] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [linkingDevice, setLinkingDevice] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [linking, setLinking] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const [search, setSearch] = useState('');
@@ -3401,9 +3478,10 @@ export function Devices({
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [devRes, locRes] = await Promise.all([
+      const [devRes, locRes, usersRes] = await Promise.all([
         apiFetch('/devices'),
-        apiFetch('/locations')
+        apiFetch('/locations'),
+        apiFetch('/users')
       ]);
 
       if (!devRes.ok || !locRes.ok) {
@@ -3412,9 +3490,11 @@ export function Devices({
 
       const devData = await devRes.json();
       const locData = await locRes.json();
+      const usersData = usersRes.ok ? await usersRes.json().catch(() => []) : [];
 
       setDevices(Array.isArray(devData) ? devData : []);
       setLocations(Array.isArray(locData) ? locData : []);
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       console.error(error.message);
     } finally {
@@ -3464,6 +3544,36 @@ export function Devices({
       loadData();
     } catch (error) {
       alert(error.message);
+    }
+  };
+
+  const openLinkDialog = (device) => {
+    setLinkingDevice(device);
+    setSelectedUserId(device.user_id ? String(device.user_id) : '');
+  };
+
+  const handleLinkDevice = async (e) => {
+    e.preventDefault();
+    if (!linkingDevice) return;
+
+    setLinking(true);
+    try {
+      const res = await apiFetch(`/devices/${linkingDevice.id}/link`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: selectedUserId || null })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'No se pudo vincular el dispositivo');
+
+      notify?.(selectedUserId ? 'Dispositivo vinculado a la cuenta.' : 'Vínculo del dispositivo eliminado.', 'success');
+      setLinkingDevice(null);
+      setSelectedUserId('');
+      await loadData();
+    } catch (error) {
+      notify?.(error.message, 'error');
+    } finally {
+      setLinking(false);
     }
   };
 
@@ -3594,6 +3704,7 @@ export function Devices({
                       <th style={{ padding: '0.75rem' }}>Sistema operativo</th>
                       <th style={{ padding: '0.75rem' }}>Dirección IP</th>
                       <th style={{ padding: '0.75rem' }}>Última conexión</th>
+                      <th style={{ padding: '0.75rem' }}>Acción</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3605,6 +3716,15 @@ export function Devices({
                         <td style={{ padding: '0.75rem' }}>{device.os_version || '—'}</td>
                         <td style={{ padding: '0.75rem' }}><code style={{ color: '#38bdf8' }}>{device.ip_address || '—'}</code></td>
                         <td style={{ padding: '0.75rem', color: '#94a3b8' }}>{device.last_heartbeat ? formatDate(device.last_heartbeat) : '—'}</td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => openLinkDialog(device)}
+                            style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', padding: '0.45rem 0.7rem', fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            {device.user_id ? 'Cambiar cuenta' : 'Vincular cuenta'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -3612,6 +3732,30 @@ export function Devices({
               </div>
             )}
         </div>
+
+        {linkingDevice && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(2, 6, 23, 0.82)', padding: '1rem' }}>
+            <form onSubmit={handleLinkDevice} style={{ width: 'min(440px, 100%)', backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '16px', padding: '1.25rem', boxShadow: '0 20px 50px rgba(0,0,0,.45)' }}>
+              <h3 style={{ marginTop: 0 }}>Vincular dispositivo</h3>
+              <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>{linkingDevice.name}</p>
+              <select
+                value={selectedUserId}
+                onChange={e => setSelectedUserId(e.target.value)}
+                required={false}
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid #475569', backgroundColor: '#1e293b', color: '#fff' }}
+              >
+                <option value="">Sin vinculación</option>
+                {users.map(account => (
+                  <option key={account.id} value={String(account.id)}>{account.username} · {account.role || 'Usuario'}</option>
+                ))}
+              </select>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setLinkingDevice(null)} style={{ backgroundColor: '#334155', color: '#fff', border: 'none', borderRadius: '9px', padding: '0.65rem 0.9rem', cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" disabled={linking} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '9px', padding: '0.65rem 0.9rem', fontWeight: 700, cursor: linking ? 'wait' : 'pointer' }}>{linking ? 'Guardando…' : 'Guardar vínculo'}</button>
+              </div>
+            </form>
+          </div>
+        )}
 
       </div>
     </div>

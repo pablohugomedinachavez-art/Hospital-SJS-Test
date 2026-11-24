@@ -2284,7 +2284,14 @@ def devices():
         return jsonify({'message': 'Only administrators can access operational management.'}), 403
 
     if request.method == 'GET':
-        rows = db_query('SELECT * FROM devices WHERE tenant_id = %s ORDER BY id DESC', (tenant_id,), fetchall=True)
+        rows = db_query(
+            '''SELECT d.*, u.id AS user_id, u.username
+               FROM devices d
+               LEFT JOIN users u ON u.id = d.user_id AND u.tenant_id = d.tenant_id
+               WHERE d.tenant_id = %s
+               ORDER BY d.id DESC''',
+            (tenant_id,), fetchall=True
+        )
         return jsonify(rows or [])
 
     data = request.get_json() or {}
@@ -2329,6 +2336,59 @@ def devices():
         return jsonify({'message': 'Error interno al registrar dispositivo', 'error': str(e)}), 500
 
 
+@app.route('/api/devices/<int:device_id>/link', methods=['PUT'])
+@token_required
+def link_device(device_id):
+    claims = get_current_user()
+    tenant_id = claims['tenant_id']
+    if not is_admin_role(claims.get('role')):
+        return jsonify({'message': 'Only administrators can link devices.'}), 403
+
+    data = request.get_json(silent=True) or {}
+    raw_user_id = data.get('user_id')
+    user_id = None
+    if raw_user_id not in ('', None):
+        try:
+            user_id = int(raw_user_id)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'user_id must be a valid number'}), 400
+
+    device = db_query(
+        'SELECT id, name FROM devices WHERE id = %s AND tenant_id = %s',
+        (device_id, tenant_id), fetchone=True
+    )
+    if not device:
+        return jsonify({'message': 'Device not found'}), 404
+
+    target_username = None
+    if user_id is not None:
+        target_user = db_query(
+            'SELECT id, username FROM users WHERE id = %s AND tenant_id = %s',
+            (user_id, tenant_id), fetchone=True
+        )
+        if not target_user:
+            return jsonify({'message': 'User not found'}), 404
+        target_username = target_user.get('username') if isinstance(target_user, dict) else target_user['username']
+
+    updated = db_query(
+        'UPDATE devices SET user_id = %s WHERE id = %s AND tenant_id = %s RETURNING id',
+        (user_id, device_id, tenant_id), commit=True, fetchone=True
+    )
+    if not updated:
+        return jsonify({'message': 'Device not found'}), 404
+
+    device_name = device.get('name') if isinstance(device, dict) else device['name']
+    if user_id is None:
+        action = 'unlink'
+        details = f'Device {device_name} unlinked from account'
+    else:
+        action = 'link'
+        details = f'Device {device_name} linked to account {target_username} (user_id={user_id})'
+
+    record_audit(action, 'device', device_id, details, tenant_id, claims.get('id'))
+    return jsonify({'success': True, 'device_id': device_id, 'user_id': user_id, 'username': target_username})
+
+
 @app.route('/api/devices/auto-register', methods=['POST'])
 @token_required
 def auto_register_device():
@@ -2357,20 +2417,20 @@ def auto_register_device():
             db_query(
                 """
                 UPDATE public.devices
-                SET name = %s, type = %s, last_heartbeat = NOW(), status = 'active', os_version = %s
+                SET name = %s, type = %s, last_heartbeat = NOW(), status = 'active', os_version = %s, user_id = %s
                 WHERE id = %s
                 """,
-                (device_name, device_type, os_version, device_id), commit=True
+                (device_name, device_type, os_version, user_id, device_id), commit=True
             )
         else:
             new_dev = db_query(
                 """
                 INSERT INTO public.devices
-                (tenant_id, location_id, name, type, status, created_at, ip_address, user_agent, os_version, last_heartbeat)
-                VALUES (%s, %s, %s, %s, 'active', NOW(), %s, %s, %s, NOW())
+                (tenant_id, location_id, name, type, status, created_at, ip_address, user_agent, os_version, last_heartbeat, user_id)
+                VALUES (%s, %s, %s, %s, 'active', NOW(), %s, %s, %s, NOW(), %s)
                 RETURNING id
                 """,
-                (tenant_id, None, device_name, device_type, ip_address, user_agent, os_version),
+                (tenant_id, None, device_name, device_type, ip_address, user_agent, os_version, user_id),
                 commit=True, fetchone=True
             )
             device_id = new_dev['id'] if new_dev else None

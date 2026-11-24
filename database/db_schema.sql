@@ -50,6 +50,7 @@ CREATE TABLE public.devices (
   id integer NOT NULL DEFAULT nextval('devices_id_seq'::regclass),
   tenant_id integer NOT NULL,
   location_id integer,
+  user_id integer,
   name text NOT NULL,
   type text,
   status text NOT NULL DEFAULT 'available'::text,
@@ -62,7 +63,8 @@ CREATE TABLE public.devices (
   last_heartbeat timestamp with time zone,
   CONSTRAINT devices_pkey PRIMARY KEY (id),
   CONSTRAINT devices_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id),
-  CONSTRAINT devices_location_id_fkey FOREIGN KEY (location_id) REFERENCES public.locations(id)
+  CONSTRAINT devices_location_id_fkey FOREIGN KEY (location_id) REFERENCES public.locations(id),
+  CONSTRAINT devices_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.alerts (
   id integer NOT NULL DEFAULT nextval('alerts_id_seq'::regclass),
